@@ -5,7 +5,14 @@ html {
 }
 
 body {
-    background-image: url('./assets/background.png');
+    /* Animated carnival gradient */
+    background-image: url(./assets/background.png);
+    /* background: radial-gradient(1200px 600px at 20% -10%, #fce7f3 0%, transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, #ffedd5 0%, transparent 55%),
+                radial-gradient(800px 400px at -10% 80%, #dbeafe 0%, transparent 55%),
+                linear-gradient(180deg, #fff7ed 0%, #fff 30%, #fff7ed 100%);
+    animation: carnivalShift 12s ease-in-out infinite alternate; */
+    background-attachment: fixed;
 }
 
 /* Themed scrollbars */
@@ -43,14 +50,40 @@ section {
 }
 
 .Typewriter__wrapper::after {
-  content: '⛽';
+  content: '🎪';
   position: absolute;
   right: -1.5rem;
-  animation: drip 1.5s infinite;
+  animation: twinkle 1.9s infinite;
 }
 
-@keyframes drip {
-  0% { transform: translateY(0); opacity: 1; }
-  70% { transform: translateY(10px); opacity: 0; }
-  100% { transform: translateY(0); opacity: 0; }
+@keyframes drip { 0% { transform: translateY(0); opacity: 1; } 70% { transform: translateY(10px); opacity: 0; } 100% { transform: translateY(0); opacity: 0; } }
+
+.sparkles::before, .sparkles::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(2px 2px at 10% 20%, rgba(245, 158, 11, 0.6) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 30% 60%, rgba(236, 72, 153, 0.55) 50%, transparent 51%),
+    radial-gradient(2px 2px at 70% 40%, rgba(59, 130, 246, 0.5) 50%, transparent 51%),
+    radial-gradient(1.8px 1.8px at 85% 75%, rgba(16, 185, 129, 0.5) 50%, transparent 51%);
+  background-repeat: no-repeat;
+  z-index: 10;
+}
+.sparkles::before { animation: twinkle 2.4s ease-in-out infinite; }
+.sparkles::after { animation: twinkle 3.1s ease-in-out infinite reverse; }
+
+@keyframes carnivalShift {
+  0% {
+    background-position: 0 0, 0 0, 0 0, 0 0;
+  }
+  100% {
+    background-position: 20px -20px, -15px 15px, 10px -10px, 0 0;
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.5; filter: drop-shadow(0 0 0px rgba(252, 211, 77, 0.0)); }
+  50% { opacity: 1; filter: drop-shadow(0 0 4px rgba(252, 211, 77, 0.6)); }
 }

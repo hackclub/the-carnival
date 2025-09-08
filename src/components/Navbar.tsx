@@ -34,15 +34,24 @@ export default function Navbar() {
         >
           <defs>
             <linearGradient id="sandGrad" x1="0" x2="1">
-              <stop offset="0%" stopColor="#fff8f0" />
-              <stop offset="50%" stopColor="#ffe7c2" />
-              <stop offset="100%" stopColor="#ffd8a8" />
+              <stop offset="0%" stopColor="#fee2e2" />
+              <stop offset="40%" stopColor="#fbcfe8" />
+              <stop offset="75%" stopColor="#fde68a" />
+              <stop offset="100%" stopColor="#f59e0b" />
             </linearGradient>
+            <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="8" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
           <path
             d="M0,64L48,80C96,96,192,128,288,154.7C384,181,480,203,576,192C672,181,768,139,864,138.7C960,139,1056,181,1152,186.7C1248,192,1344,160,1392,144L1440,128L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"
             fill="url(#sandGrad)"
             opacity="0.95"
+            filter="url(#softGlow)"
           />
         </svg>
       </div>
@@ -84,17 +93,20 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-3">
-            <a
-              href="/submit"
-              className="hidden md:inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium bg-amber-50 ring-1 ring-amber-100"
-            >
-              <Send size={16} />
-              <span className="text-amber-900">Submit</span>
-            </a>
+            <motion.div whileHover={{ scale: 1.05, rotate: [0, -2, 2, 0], transition: { duration: 0.3 } }}>
+              <a
+                href="/submit"
+                className="hidden md:inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium bg-amber-50 ring-1 ring-amber-100"
+              >
+                <Send size={16} />
+                <span className="text-amber-900">Submit</span>
+              </a>
+            </motion.div>
             <div className="hidden md:flex md:items-center">
               <motion.button
                 onClick={() => setaskOpen((s) => !s)}
                 whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.05, y: -1, transition: { duration: 0.2 } }}
                 className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium shadow-sm ring-1 ring-amber-100 bg-white/60 backdrop-blur"
                 aria-expanded={askOpen}
               >
@@ -155,15 +167,18 @@ export default function Navbar() {
                     {link.label}
                   </HashLink>
                 ))}
-                <a href="/profile" className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium ring-1 ring-amber-100 bg-white/60">
-                <Send size={16} />
-                <span>Submit</span>
-                </a>
+                <motion.div whileHover={{ scale: 1.02, x: 2, transition: { duration: 0.2 } }}>
+                  <a href="/profile" className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium ring-1 ring-amber-100 bg-white/60">
+                  <Send size={16} />
+                  <span>Submit</span>
+                  </a>
+                </motion.div>
                 <div className="mt-2 flex items-center justify-between gap-3">
                   <motion.button
                     className="flex-1 rounded-full px-4 py-2 text-sm font-medium ring-1 ring-amber-100 bg-amber-50 flex items-center"
                     onClick={() => setaskOpen((s) => !s)}
                     whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
                   >
                     <img src={Genei} alt="Genei" width={30} />
                     <span className="ml-2">Ask</span>

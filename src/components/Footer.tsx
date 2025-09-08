@@ -1,4 +1,3 @@
-import React from "react";
 import { Heart, Slack } from "lucide-react";
 
 import Logo from "../assets/logo2-slim.png";
@@ -23,9 +22,7 @@ const Footer = () => {
               </div>
               <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-3 text-amber-800 text-sm text-left sm:text-right">
-                  <span>Channel: <span className="font-semibold">#carnival</span></span>
-                  <span className="hidden sm:inline text-amber-400">•</span>
-                  <span>Organizer: <a href="https://josiasw.dev/" target="_blank"><span className="font-semibold">Josias</span></a></span>
+                  <span>Channel: <span className="font-semibold">#the-carnival</span></span>
                 </div>
                 <a
                   href={slackJoinUrl}
@@ -45,7 +42,7 @@ const Footer = () => {
           <div className="pt-6 border-t border-amber-200/50">
             <div className="flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
               <p className="text-sm text-amber-700 flex items-center justify-center text-center flex-wrap gap-1">
-                <span>© {currentYear} YSWS Carnival.</span>
+                <span>© {currentYear} YSWS Carnival by Hack Club.</span>
                 <span className="inline-flex items-center gap-1">
                   <span>Made with</span>
                   <Heart className="text-red-500" size={14} fill="currentColor" aria-hidden="true" />

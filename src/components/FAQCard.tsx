@@ -9,6 +9,12 @@ export default function FaqTent({ q, a, accent }: FaqTentProps) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.35 }}
+      whileHover={{ 
+        scale: 1.02, 
+        rotate: [0, 0.5, -0.5, 0], 
+        y: -2,
+        transition: { duration: 0.3 }
+      }}
       className="group rounded-2xl bg-white/70 backdrop-blur p-5 ring-1 ring-amber-200 shadow-sm"
     >
       <summary className="list-none cursor-pointer flex items-start gap-4">
