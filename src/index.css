@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+    background-image: url('./assets/background.png');
+}
+
+/* Themed scrollbars */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #f59e0b #fff7ed; /* thumb track */
+}
+
+/* WebKit */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: #fff7ed; /* amber-50-ish */
+}
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #fbbf24, #f59e0b);
+  border-radius: 9999px;
+  border: 2px solid #fff7ed;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #f59e0b, #d97706);
+}
+
+section {
+    @apply mt-10;
+}
+
+.Typewriter__wrapper {
+  position: relative;
+  color: #f59e0b;
+  font-weight: 700;
+}
+
+.Typewriter__wrapper::after {
+  content: '⛽';
+  position: absolute;
+  right: -1.5rem;
+  animation: drip 1.5s infinite;
+}
+
+@keyframes drip {
+  0% { transform: translateY(0); opacity: 1; }
+  70% { transform: translateY(10px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 0; }
+}
