@@ -8,6 +8,7 @@ import FloatingBalloons from "./components/FloatingBalloons";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import Genei from "./assets/genei.gif";
+import GenieChat from "./components/GenieChat";
 
 const Layout = () => {
   const [askOpen, setAskOpen] = useState(false);
@@ -50,25 +51,8 @@ const Layout = () => {
           </motion.div>
         )}
       </AnimatePresence>
-      <AnimatePresence>
-        {askOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 12 }}
-            transition={{ duration: 0.18 }}
-            className="fixed bottom-20 right-6 z-50 w-[min(90vw,28rem)]"
-          >
-            <div className="rounded-2xl bg-white/90 backdrop-blur p-2 shadow-xl ring-1 ring-amber-100">
-              <input
-                autoFocus
-                className="w-full rounded-lg border-0 bg-transparent px-4 py-2 text-sm placeholder:italic placeholder:text-amber-700/60 focus:outline-none"
-                placeholder="Ask the Genie anything about the YSWS ..."
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+      <GenieChat isOpen={askOpen} onClose={() => setAskOpen(false)} headerIconSrc={Genei} />
 
       <Footer />
       <Toaster position="bottom-center" />

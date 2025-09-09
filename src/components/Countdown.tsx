@@ -19,7 +19,7 @@ function getTimeLeft(targetDate: Date): TimeLeft {
 }
 
 export default function Countdown() {
-  const deadline = useMemo(() => new Date("2025-09-20T23:59:59Z"), []);
+  const deadline = useMemo(() => new Date("2025-09-30T23:59:59Z"), []);
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(getTimeLeft(deadline));
 
   useEffect(() => {
