@@ -1,69 +1,67 @@
-# React + TypeScript + Vite
+# The Carnival — YSWS
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Build an extension, plugin, or widget for an editor you actually use. This repository contains the website for The Carnival program.
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Participants develop practical, open‑source plugins or extensions that improve their workflow or add something fun and unique to the program. 
 
-## Expanding the ESLint configuration
+### Eligibility and requirements
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- The extension must be a QOL improvement and/or solve a real problem faced by the author
+- The extension must have at least 5 users
+- The extension must be open‑source
+- The extension must work properly in the editor of choice
+- Provide clear instructions on how to build and run the extension
+- The extension should be unique — not a remake of an existing extension
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Example ideas
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+- Browser: detect spicy text in comment boxes and suggest chill rephrases with short “why” notes
+- Figma: generate a 12–15s animated teaser with captions and a swipe sound
+- VS Code: turn TODOs/tests into quests with XP, streaks, and rarity drops
+- Bring Your Own: anything that shortens time‑to‑wow
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Supported editors
+
+VS Code, Chrome/Firefox, Neovim, Figma, KiCad, and many more.
+
+### Grants
+
+For every approved hour spent working on your extension, you can receive a $5 grant.
+
+---
+
+## Tech stack
+
+- React + TypeScript
+- Vite
+- Tailwind CSS
+
+## Local development
+
+Requirements:
+- Node 18+
+- pnpm (recommended) or npm
+
+Install dependencies and run the dev server:
+
+```bash
+pnpm install
+pnpm dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Build
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Create a production build and preview it locally:
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm build
+pnpm preview
 ```
+
+The static site output is written to `dist/`.
+
+## Deploy
+
+This is a static Vite site. Any static host works.
