@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 
-import Logo from "../assets/logo2-slim.png";
+// Replace logo with Hack Club flag-orpheus-top in navbar
 
 // Genie assets moved to Layout
 
@@ -39,28 +39,17 @@ export default function Navbar() {
             d="M0,64L48,80C96,96,192,128,288,154.7C384,181,480,203,576,192C672,181,768,139,864,138.7C960,139,1056,181,1152,186.7C1248,192,1344,160,1392,144L1440,128L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"
             fill="url(#sandGrad)"
             opacity="0.95"
-            filter="url(#softGlow)"
           />
         </svg>
       </div>
 
       <nav
-        className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
+        className="mx-auto max-w-7xl px-2 sm:px-4 lg:px-6"
         aria-label="Top navigation"
       >
         <div className="flex w-full items-center justify-between py-4">
           <div className="flex items-center gap-3">
-            <img src={Logo} width={60} />
-
-            <div>
-              <a
-                href="/"
-                className="block text-lg font-semibold leading-5 text-amber-900"
-              >
-                The Carnival
-              </a>
-              
-            </div>
+            <img src="/flag-orpheus-top.png" width={160} alt="Hack Club Flag" />
           </div>
 
           <div className="hidden md:flex md:items-center md:space-x-6" />
@@ -96,8 +85,6 @@ export default function Navbar() {
           )}
         </AnimatePresence>
       </nav>
-
-      <div className="h-6 w-full bg-gradient-to-b from-transparent to-amber-50/80" />
     </header>
   );
 }

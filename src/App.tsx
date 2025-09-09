@@ -1,15 +1,30 @@
 import Typewriter from "typewriter-effect";
 import { motion } from "framer-motion";
-import { Wrench, Users, Globe, Laptop, Camera, Package, Timer, Ban, ListChecks } from "lucide-react";
+import { Wrench, Users, Timer, Ban, ListChecks } from "lucide-react";
 import TentCard from "./components/TentCard";
 import FaqTent from "./components/FAQCard";
+import Logo from "./assets/logo2-slim.png";
 
 function App() {
-  const slackJoinUrl = "https://hackclub.com/slack/";
+  const slackJoinUrl = "https://hackclub.slack.com/archives/C09D5JDSN2F";
+  const EditorLogo = ({ src, alt, letter }: { src?: string; alt: string; letter: string }) => (
+    <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm overflow-hidden ring-1 ring-amber-200 bg-white">
+      {src ? (
+        <img src={src} alt={alt} className="h-full w-full object-contain" />
+      ) : (
+        <span className="text-[10px] font-semibold text-amber-800">{letter}</span>
+      )}
+    </span>
+  );
   return (
     <>
       <section id="home" className="pt-20 flex flex-col">
         <div className="text-3xl md:text-5xl font-extrabold text-center">
+          <div className="mb-2 flex items-center justify-center gap-3">
+            <img src={Logo} alt="The Carnival" className="h-8 md:h-12 w-auto" />
+            <span className="text-amber-900">The Carnival</span>
+          </div>
+          <div className="text-2xl md:text-4xl">
           <Typewriter
             options={{
               strings: [
@@ -23,6 +38,7 @@ function App() {
               loop: true,
             }}
           />
+          </div>
         </div>
         <div className="text-center pt-10 max-w-4xl mx-auto">
           <p className="text-lg font-semibold text-amber-900">
@@ -53,10 +69,7 @@ function App() {
 
       <section id="explore" className="mt-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-extrabold text-amber-900">Explore</h2>
-            <p className="mt-2 text-amber-800">Step right up — join the YSWS Carnival, build something real, and unlock rewards.</p>
-          </div>
+          
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* What you need to do */}
@@ -95,12 +108,12 @@ function App() {
                   <h3 className="text-lg font-semibold text-amber-900">Editors you can build for</h3>
                 </div>
                 <ul className="grid grid-cols-2 gap-2 text-sm text-amber-800">
-                  <li className="flex items-center gap-2"><Laptop size={16} className="text-amber-600" /> VS Code</li>
-                  <li className="flex items-center gap-2"><Globe size={16} className="text-amber-600" /> Chrome / Firefox</li>
-                  <li className="flex items-center gap-2"><Package size={16} className="text-amber-600" /> Slack integrations</li>
-                  <li className="flex items-center gap-2"><Camera size={16} className="text-amber-600" /> Figma</li>
-                  <li className="flex items-center gap-2"><Camera size={16} className="text-amber-600" /> KiCad</li>
-                  <li className="flex items-center gap-2"><Globe size={16} className="text-amber-600" /> ...and many more</li>
+                  <li className="flex items-center gap-2"><EditorLogo src="/vscode.png" alt="VS Code" letter="V" /> VS Code</li>
+                  <li className="flex items-center gap-2"><EditorLogo src="/chrome.png" alt="Chrome / Firefox" letter="C" /> Chrome / Firefox</li>
+                  <li className="flex items-center gap-2"><EditorLogo src="/neovim.svg" alt="Neovim" letter="N" /> Neovim</li>
+                  <li className="flex items-center gap-2"><EditorLogo src="/figma.png" alt="Figma" letter="F" /> Figma</li>
+                  <li className="flex items-center gap-2"><EditorLogo alt="KiCad" letter="K" /> KiCad</li>
+                  <li className="flex items-center gap-2">...and many more</li>
                 </ul>
               </motion.div>
 

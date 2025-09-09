@@ -1,11 +1,11 @@
-import { Heart, Slack } from "lucide-react";
+import { Slack } from "lucide-react";
 
 import Logo from "../assets/logo2-slim.png";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
 
-  const slackJoinUrl = "https://hackclub.com/slack/";
+  const slackJoinUrl = "https://hackclub.slack.com/archives/C09D5JDSN2F";
 
   return (
     <footer className="relative bg-amber-50/80 border-t border-amber-200/60">
@@ -16,8 +16,7 @@ const Footer = () => {
               <div className="flex items-center gap-3 justify-center sm:justify-start text-center sm:text-left w-full sm:w-auto">
                 <img src={Logo} width={48} alt="YSWS Carnival" />
                 <div>
-                  <h3 className="text-xl font-bold text-amber-900">Carnival</h3>
-                  <p className="text-xs text-amber-700">YS Editor Plugin</p>
+                  <h3 className="text-xl font-bold text-amber-900">The Carnival</h3>
                 </div>
               </div>
               <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
@@ -35,8 +34,11 @@ const Footer = () => {
                 </a>
               </div>
             </div>
+            <div className="mt-4 flex items-center justify-center sm:justify-start">
+              <img src="/hackclub-flag.svg" alt="Hack Club Flag" className="h-6" />
+            </div>
             <p className="text-amber-800 mt-4 leading-relaxed">
-              Ship vibes, snag funds. Build loud, glow proud.
+              Make something you love.
             </p>
           </div>
           <div className="pt-6 border-t border-amber-200/50">

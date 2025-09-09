@@ -3,7 +3,6 @@ import Footer from "./components/Footer";
 import Navbar from "./components/Navbar";
 import { Toaster } from "react-hot-toast";
 import CursorTrail from "./components/CursorTrail";
-import CarnivalLights from "./components/CarnivalLights";
 import Fireworks from "./components/Fireworks";
 import FloatingBalloons from "./components/FloatingBalloons";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,7 +17,6 @@ const Layout = () => {
       <CursorTrail />
       <FloatingBalloons />
       <Fireworks />
-      <CarnivalLights />
       <Navbar />
       <div className="sparkles">
         <Outlet />
