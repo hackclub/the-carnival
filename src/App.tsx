@@ -161,7 +161,7 @@ function App() {
             <TentCard
               title="Creative Tools"
               description="Software and licenses that spark your next breakthrough."
-              items={["Procreate license 🎨", "Adobe Creative Suite", "Design tools", "Development IDEs"]}
+              items={["Procreate license 🎨", "JetBrains IDE license", "Design tools", "Cursor Pro"]}
               accentHex="#f59e0b"
             />
             <TentCard
