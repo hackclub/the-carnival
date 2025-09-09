@@ -1,63 +1,75 @@
 import Typewriter from "typewriter-effect";
-import { HashLink } from 'react-router-hash-link';
 import { motion } from "framer-motion";
-import { Wrench, Users, Globe, Laptop, Camera, Package, Timer, Ban, ListChecks } from "lucide-react";
+import { Wrench, Users, Timer, Ban, ListChecks } from "lucide-react";
 import TentCard from "./components/TentCard";
 import FaqTent from "./components/FAQCard";
-import { LandingBannerTabs } from "./components/BannerTabs";
+import Logo from "./assets/logo2-slim.png";
 
 function App() {
+  const slackJoinUrl = "https://hackclub.slack.com/archives/C09D5JDSN2F";
+  const EditorLogo = ({ src, alt, letter }: { src?: string; alt: string; letter: string }) => (
+    <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm overflow-hidden ring-1 ring-amber-200 bg-white">
+      {src ? (
+        <img src={src} alt={alt} className="h-full w-full object-contain" />
+      ) : (
+        <span className="text-[10px] font-semibold text-amber-800">{letter}</span>
+      )}
+    </span>
+  );
   return (
     <>
       <section id="home" className="pt-20 flex flex-col">
         <div className="text-3xl md:text-5xl font-extrabold text-center">
+          <div className="mb-2 flex items-center justify-center gap-3">
+            <img src={Logo} alt="The Carnival" className="h-8 md:h-12 w-auto" />
+            <span className="text-amber-900">The Carnival</span>
+          </div>
+          <div className="text-2xl md:text-4xl">
           <Typewriter
             options={{
-              strings: ["Step Right Up ", "Your Dev Carnival Awaits "],
+              strings: [
+                "The Carnival rolled in overnight 🎪",
+                "Editors are fairgrounds: VS Code, Figma, Chrome, Godot, Unity, KiCad",
+                "Build your extension, plugin, or widget—add your ride to the midway!",
+                "The next attraction is built by you ✨",
+                "Bring your attraction. We’ll make room on the wire.",
+              ],
               autoStart: true,
               loop: true,
             }}
           />
+          </div>
         </div>
         <div className="text-center pt-10 max-w-4xl mx-auto">
-          <p className="text-md text-amber-800 mb-4">
-            <strong>CRASH 💥.</strong> Orpheus walks nose-first into a VS Code extension that wasn't there a second ago. 
-            Across the lane, a Figma tent pulses—variables flickering like marquee bulbs. A chrome-bright booth mirrors a dozen browsers.
-          </p>
-          <p className="text-sm text-amber-700 mb-4">
-            The midway isn't chaos; it's a federation. Editors are fairgrounds: VS Code, Figma, Chrome, Godot, Unity, KiCad. 
-            They're powerful on their own, but they become a city when the attachments arrive.
-          </p>
           <p className="text-lg font-semibold text-amber-900">
             🎪 Build an extension, plugin, or widget—add your ride to the midway, light up the wire! 🎟️✨
           </p>
         </div>
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
           <motion.div whileHover={{ scale: 1.05, rotate: [-1, 1, -1, 0], transition: { duration: 0.3 } }}>
-            <HashLink
-              to="/#start"
+            <a
+              href="/submit"
               className="inline-flex items-center justify-center rounded-full px-6 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 shadow-sm ring-1 ring-amber-500/50 transition-colors"
             >
-              Start
-            </HashLink>
+              Submit project
+            </a>
           </motion.div>
           <motion.div whileHover={{ scale: 1.05, rotate: [1, -1, 1, 0], transition: { duration: 0.3 } }}>
-            <HashLink
-              to="/#rewards"
+            <a
+              href={slackJoinUrl}
+              target="_blank"
+              rel="noreferrer"
               className="inline-flex items-center justify-center rounded-full px-6 py-2 text-sm font-semibold text-amber-900 bg-amber-100 hover:bg-amber-200 ring-1 ring-amber-200 transition-colors"
             >
-              See rewards
-            </HashLink>
+              Join #the-carnival
+            </a>
           </motion.div>
         </div>
       </section>
 
       <section id="explore" className="mt-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-extrabold text-amber-900">Explore</h2>
-            <p className="mt-2 text-amber-800">Step right up — join the YSWS Carnival, build something real, and unlock rewards.</p>
-          </div>
+          
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* What you need to do */}
@@ -73,15 +85,12 @@ function App() {
                 <h3 className="text-lg font-semibold text-amber-900">What you need to do</h3>
               </div>
               <ol className="space-y-2 text-sm text-amber-800 list-decimal pl-5">
-                <li className="leading-relaxed">Build a plugin/extension for VS Code, Chrome, Slack, KiCad, or other platforms</li>
-                <li className="leading-relaxed">Get at least 10 users to try it and share feedback</li>
-                <li className="leading-relaxed">Open-source your project so others can learn</li>
-                <li className="leading-relaxed">Include screenshots, a short demo, or a readme GIF</li>
-                <li className="leading-relaxed">Provide clear installation and usage instructions</li>
-                <li className="leading-relaxed">Track at least 15 hours with Hackatime</li>
-                <li className="leading-relaxed">Avoid minor remixes and simple wrappers</li>
-                <li className="leading-relaxed">Ship with heart — polish matters</li>
-                <li className="leading-relaxed">Want to target a different platform? Suggest it and we'll consider it!</li>
+                <li className="leading-relaxed">Build a QOL improvement or solve a real problem you face</li>
+                <li className="leading-relaxed">Have at least 5 users using your extension</li>
+                <li className="leading-relaxed">Make the project open-source</li>
+                <li className="leading-relaxed">Ensure it works properly in your editor of choice</li>
+                <li className="leading-relaxed">Provide clear build and run instructions</li>
+                <li className="leading-relaxed">Make it unique — not a remake of an existing extension</li>
               </ol>
             </motion.div>
 
@@ -96,13 +105,15 @@ function App() {
               >
                 <div className="flex items-center gap-2 mb-3">
                   <Wrench className="text-amber-600" size={18} />
-                  <h3 className="text-lg font-semibold text-amber-900">Tools you can use</h3>
+                  <h3 className="text-lg font-semibold text-amber-900">Editors you can build for</h3>
                 </div>
                 <ul className="grid grid-cols-2 gap-2 text-sm text-amber-800">
-                  <li className="flex items-center gap-2"><Laptop size={16} className="text-amber-600" /> VS Code extensions</li>
-                  <li className="flex items-center gap-2"><Globe size={16} className="text-amber-600" /> Chrome/Firefox plugins</li>
-                  <li className="flex items-center gap-2"><Package size={16} className="text-amber-600" /> Slack integrations</li>
-                  <li className="flex items-center gap-2"><Camera size={16} className="text-amber-600" /> KiCad, Figma, etc.</li>
+                  <li className="flex items-center gap-2"><EditorLogo src="/vscode.png" alt="VS Code" letter="V" /> VS Code</li>
+                  <li className="flex items-center gap-2"><EditorLogo src="/chrome.png" alt="Chrome / Firefox" letter="C" /> Chrome / Firefox</li>
+                  <li className="flex items-center gap-2"><EditorLogo src="/neovim.svg" alt="Neovim" letter="N" /> Neovim</li>
+                  <li className="flex items-center gap-2"><EditorLogo src="/figma.png" alt="Figma" letter="F" /> Figma</li>
+                  <li className="flex items-center gap-2"><EditorLogo alt="KiCad" letter="K" /> KiCad</li>
+                  <li className="flex items-center gap-2">...and many more</li>
                 </ul>
               </motion.div>
 
@@ -119,18 +130,11 @@ function App() {
                 </div>
                 <ol className="space-y-2 text-sm text-amber-800 list-decimal pl-5">
                   <li>Join the <span className="font-semibold">#the-carnival</span> channel on Slack to ask, share, and vibe</li>
+                  <li>Set up Hackatime and start tracking your time</li>
                   <li>Build your extension, plugin, or widget and ship it</li>
-                  <li>Track time with Hackatime and prepare your README</li>
                   <li>Submit your project for review and claim rewards</li>
                 </ol>
-                <div className="mt-4 flex flex-col sm:flex-row gap-3">
-                  <motion.div whileHover={{ scale: 1.05, y: -2, transition: { duration: 0.2 } }}>
-                    <HashLink to="/#start" className="inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 ring-1 ring-amber-500/50 transition-colors">Start now</HashLink>
-                  </motion.div>
-                  <motion.div whileHover={{ scale: 1.05, y: -2, transition: { duration: 0.2 } }}>
-                    <HashLink to="/#rewards" className="inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-semibold text-amber-900 bg-amber-100 hover:bg-amber-200 ring-1 ring-amber-200 transition-colors">See rewards</HashLink>
-                  </motion.div>
-                </div>
+                
                 <div className="mt-3 text-xs text-amber-700 flex items-center gap-2">
                   <Timer size={14} className="text-amber-600" />
                   <span>Every hour of coding unlocks +$5 towards your dev environment.</span>
@@ -235,15 +239,7 @@ function App() {
         </div>
       </section>
 
-      <section id="banner-tabs" className="mt-20">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-extrabold text-amber-900">Carnival Guide</h2>
-            <p className="mt-2 text-amber-800">Everything you need to know, organized like carnival banners.</p>
-          </div>
-          <LandingBannerTabs />
-        </div>
-      </section>
+      {/* Carnival Guide removed per request */}
 
       <section id="faq" className="mt-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -257,6 +253,8 @@ function App() {
             <FaqTent q="What can I build?" a="🔌 Extensions for VS Code, Chrome, Figma, KiCad, Unity, Godot—any platform that accepts plugins. If it shortens time-to-wow, it belongs on the midway." accent="#fbbf24" />
             <FaqTent q="What rewards can I get?" a="🎁 Procreate licenses, domain credits, peripherals, computer upgrades, and more. Anything that helps you keep building!" accent="#d97706" />
             <FaqTent q="Where do I join?" a="🎟️ Hop into the Hack Club Slack and find us in #the-carnival. The tents are up, the generator's steady, and the PCB is glowing!" accent="#f59e0b" />
+            <FaqTent q="What's the minimum time requirement?" a="⏱️ For every hour you spend working on your project, you'll get a +$5 grant towards your dev journey. Track your time and keep shipping!" accent="#fbbf24" />
+            <FaqTent q="Can I build for an editor/app not mentioned?" a="💬 Yes — reach out in #the-carnival on Slack and ask for approval first. If it helps creators and isn't a remake, we're hyped to see it!" accent="#d97706" />
           </div>
         </div>
       </section>
