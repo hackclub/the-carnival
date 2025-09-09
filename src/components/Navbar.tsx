@@ -1,6 +1,3 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
 
 // Replace logo with Hack Club flag-orpheus-top in navbar
 
@@ -9,7 +6,6 @@ import { Menu, X } from "lucide-react";
 // Nav links removed per request
 
 export default function Navbar() {
-  const [open, setOpen] = useState(false);
 
   return (
     <header className="relative z-40">
@@ -43,47 +39,16 @@ export default function Navbar() {
         </svg>
       </div>
 
-      <nav
-        className="mx-auto max-w-7xl px-2 sm:px-4 lg:px-6"
-        aria-label="Top navigation"
-      >
+      <nav className="mx-auto max-w-7xl px-2 sm:px-4 lg:px-6" aria-label="Top navigation">
         <div className="flex w-full items-center justify-between py-4">
           <div className="flex items-center gap-3">
             <img src="/flag-orpheus-top.png" width={160} alt="Hack Club Flag" />
           </div>
 
           <div className="hidden md:flex md:items-center md:space-x-6" />
-
-          <div className="flex items-center gap-3">
-            <div className="md:hidden">
-              <button
-                onClick={() => setOpen((o) => !o)}
-                aria-label={open ? "Close menu" : "Open menu"}
-                className="rounded-lg bg-white/60 p-2 ring-1 ring-amber-100 backdrop-blur"
-              >
-                {open ? <X size={20} /> : <Menu size={20} />}
-              </button>
-            </div>
-          </div>
+          <div className="flex items-center gap-3" />
         </div>
-
         {/* Ask input moved to floating button in Layout */}
-
-        <AnimatePresence>
-          {open && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.18 }}
-              className="md:hidden"
-            >
-              <div className="mt-3 space-y-3 rounded-2xl bg-white/75 p-4 shadow-lg ring-1 ring-amber-100 backdrop-blur">
-                {/* No mobile nav items */}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </nav>
     </header>
   );
