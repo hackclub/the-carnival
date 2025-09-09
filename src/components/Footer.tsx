@@ -36,23 +36,15 @@ const Footer = () => {
               </div>
             </div>
             <p className="text-amber-800 mt-4 leading-relaxed">
-              Drill hours, strike credits.
+              Ship vibes, snag funds. Build loud, glow proud.
             </p>
           </div>
           <div className="pt-6 border-t border-amber-200/50">
             <div className="flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
               <p className="text-sm text-amber-700 flex items-center justify-center text-center flex-wrap gap-1">
                 <span>© {currentYear} YSWS Carnival by Hack Club.</span>
-                <span className="inline-flex items-center gap-1">
-                  <span>Made with</span>
-                  <Heart className="text-red-500" size={14} fill="currentColor" aria-hidden="true" />
-                  <span>for developers</span>
-                </span>
+                
               </p>
-              <div className="flex items-center gap-3 md:gap-4 text-xs text-amber-600 justify-center md:justify-end flex-wrap">
-                <span>Powered by creativity</span>
-                <span>Built with React</span>
-              </div>
             </div>
           </div>
         </div>

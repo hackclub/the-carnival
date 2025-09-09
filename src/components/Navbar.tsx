@@ -1,27 +1,15 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Search, Send } from "lucide-react";
-import { HashLink } from 'react-router-hash-link';
+import { Menu, X } from "lucide-react";
 
 import Logo from "../assets/logo2-slim.png";
 
-import Genei from "../assets/genei.gif";
+// Genie assets moved to Layout
 
-type NavLink = {
-  label: string;
-  href: string;
-};
-
-const NAV_LINKS: NavLink[] = [
-  { label: "Home", href: "/#home" },
-  { label: "Explore", href: "/#explore" },
-  { label: "Rewards", href: "/#rewards" },
-  { label: "FAQ", href: "/#faq" },
-];
+// Nav links removed per request
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
-  const [askOpen, setaskOpen] = useState(false);
 
   return (
     <header className="relative z-40">
@@ -69,52 +57,15 @@ export default function Navbar() {
                 href="/"
                 className="block text-lg font-semibold leading-5 text-amber-900"
               >
-                Carnival
+                The Carnival
               </a>
-              <p className="text-xs text-amber-700/80">
-                YS editor plugin
-                <br />
-                WS upgrades for your Dev ENV
-              </p>
+              
             </div>
           </div>
 
-          <div className="hidden md:flex md:items-center md:space-x-6">
-            {NAV_LINKS.map((link) => (
-              <HashLink
-                key={link.href}
-                to={link.href}
-                className="group relative rounded-full px-3 py-2 text-sm font-medium text-amber-900/95 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-              >
-                <span className="relative z-10">{link.label}</span>
-                <span className="absolute left-0 right-0 bottom-0 z-0 h-0.5 scale-x-0 transform bg-amber-400 transition-transform group-hover:scale-x-100" />
-              </HashLink>
-            ))}
-          </div>
+          <div className="hidden md:flex md:items-center md:space-x-6" />
 
           <div className="flex items-center gap-3">
-            <motion.div whileHover={{ scale: 1.05, rotate: [0, -2, 2, 0], transition: { duration: 0.3 } }}>
-              <a
-                href="/submit"
-                className="hidden md:inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium bg-amber-50 ring-1 ring-amber-100"
-              >
-                <Send size={16} />
-                <span className="text-amber-900">Submit</span>
-              </a>
-            </motion.div>
-            <div className="hidden md:flex md:items-center">
-              <motion.button
-                onClick={() => setaskOpen((s) => !s)}
-                whileTap={{ scale: 0.95 }}
-                whileHover={{ scale: 1.05, y: -1, transition: { duration: 0.2 } }}
-                className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium shadow-sm ring-1 ring-amber-100 bg-white/60 backdrop-blur"
-                aria-expanded={askOpen}
-              >
-                <img src={Genei} alt="Genei" width={30} />
-                <span className="text-amber-900">Ask</span>
-              </motion.button>
-            </div>
-
             <div className="md:hidden">
               <button
                 onClick={() => setOpen((o) => !o)}
@@ -127,25 +78,7 @@ export default function Navbar() {
           </div>
         </div>
 
-        <AnimatePresence>
-          {askOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18 }}
-              className="mt-2 flex w-full items-center justify-center"
-            >
-              <div className="w-full max-w-2xl rounded-2xl bg-white/70 p-2 shadow-lg backdrop-blur ring-1 ring-amber-100">
-                <input
-                  autoFocus
-                  className="w-full rounded-lg border-0 bg-transparent px-4 py-2 text-sm placeholder:italic placeholder:text-amber-700/60 focus:outline-none"
-                  placeholder="Ask the Genie anything about the YSWS ..."
-                />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Ask input moved to floating button in Layout */}
 
         <AnimatePresence>
           {open && (
@@ -157,33 +90,7 @@ export default function Navbar() {
               className="md:hidden"
             >
               <div className="mt-3 space-y-3 rounded-2xl bg-white/75 p-4 shadow-lg ring-1 ring-amber-100 backdrop-blur">
-                {NAV_LINKS.map((link) => (
-                  <HashLink
-                    key={link.href}
-                    to={link.href}
-                    className="block rounded-lg px-3 py-2 text-base font-medium text-amber-900/95"
-                    onClick={() => setOpen(false)}
-                  >
-                    {link.label}
-                  </HashLink>
-                ))}
-                <motion.div whileHover={{ scale: 1.02, x: 2, transition: { duration: 0.2 } }}>
-                  <a href="/profile" className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium ring-1 ring-amber-100 bg-white/60">
-                  <Send size={16} />
-                  <span>Submit</span>
-                  </a>
-                </motion.div>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <motion.button
-                    className="flex-1 rounded-full px-4 py-2 text-sm font-medium ring-1 ring-amber-100 bg-amber-50 flex items-center"
-                    onClick={() => setaskOpen((s) => !s)}
-                    whileTap={{ scale: 0.95 }}
-                    whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-                  >
-                    <img src={Genei} alt="Genei" width={30} />
-                    <span className="ml-2">Ask</span>
-                  </motion.button>
-                </div>
+                {/* No mobile nav items */}
               </div>
             </motion.div>
           )}
