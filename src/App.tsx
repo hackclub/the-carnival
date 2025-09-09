@@ -28,11 +28,11 @@ function App() {
           <Typewriter
             options={{
               strings: [
-                "The Carnival rolled in overnight 🎪",
-                "Editors are fairgrounds: VS Code, Figma, Chrome, Godot, Unity, KiCad",
-                "Build your extension, plugin, or widget—add your ride to the midway!",
-                "The next attraction is built by you ✨",
-                "Bring your attraction. We’ll make room on the wire.",
+                "Figma: Palette Crossfade — live theme morphs",
+                "VS Code: Questline — turn TODOs/tests into quests",
+                "Chrome: Tone Tuner — soften comment drafts",
+                "Godot/Unity: ReelBuilder — instantly export vertical gameplay highlights for TikTok",
+                "KiCad: Badge Forge — auto‑generate PCB name tags",
               ],
               autoStart: true,
               loop: true,
