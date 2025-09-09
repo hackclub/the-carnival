@@ -50,30 +50,6 @@ export default function Navbar() {
         </div>
         {/* Ask input moved to floating button in Layout */}
       </nav>
-      CRASH :boom:. Orpheus walks nose‑first into a VS Code :vscode:  extension that wasn’t there a second ago :orpheus:. Across the lane, a Figma :figma: tent pulses—variables flickering like marquee bulbs. A chrome‑bright booth mirrors a dozen browsers. Heidi slips from behind a canvas flap, sawdust on her whiskers, grinning :heidi-paws:. “The Carnival rolled in overnight,” she says, nodding at power lines snaking from booth to booth :tbh_stands: Over by the generators: a KiCad :kicad: tent shaped like a giant PCB, copper traces glowing beneath plexi. :ferris_wheel::electric_plug::jigsaw:
-
-The midway isn’t chaos; it’s a federation. Rides, lights, posters—each wired by a different maker, all sharing the same current. Editors are fairgrounds: VS Code, Figma, Chrome :chrome:, Godot :godot:, Unity :unity:, KiCad. They’re powerful on their own, but they become a city when the attachments arrive. The lore says: a carnival grows by contributions. The secret says: the next attraction is built by you.
-
-What Carnival is?
-Build an extension, plugin, or widget for any editor or program you actually use—add your ride to the midway, light up the wire, and raise the wattage for everyone. :admission_tickets::sparkles:
-
-What’s in it for you?
-Prizes that actually help you keep building:
-- Procreate license :art:
-- Domain name credits :closed_lock_with_key:
-- Devices to improve your computer setup (think peripherals and upgrades) :desktop_computer::keyboard::three_button_mouse:
-- …and more
-
-Need inspiratoin?
-- Browser: Detect spicy text and offer chill rephrases, with small cognitive‑bias notes so you keep your point without losing your tone. :hot_pepper::arrow_right::ice_cube::brain:
-- Figma: Turn a flow into a 12–15s teaser (captions + swipe sound) ready for Shorts/TikTok. :clapper::iphone:
-- VSCode: Make TODOs/tests into quests with XP, streaks, and rarity drops. :dagger_knife::scroll::gem:
-- ...Bring Your Own… If it shortens time‑to‑wow, it belongs on the midway. :zap:️:control_knobs:
-
-Join the midway
-- Website: carnival.hackclub.com
-- Slack: #the-carnival
-
-The tents are up, the generator’s steady, and the PCB is glowing. Bring your attraction. We’ll make room on the wire.    </header>
+  </header>
   );
 }
