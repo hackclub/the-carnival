@@ -42,7 +42,7 @@ export default function Navbar() {
       <nav className="mx-auto max-w-7xl px-2 sm:px-4 lg:px-6" aria-label="Top navigation">
         <div className="flex w-full items-center justify-between py-4">
           <div className="flex items-center gap-3">
-            <img src="/flag-orpheus-top.png" width={160} alt="Hack Club Flag" />
+            <img src="/flag-orpheus-top.png" width={160} alt="Hack Club Flag" className="absolute top-0" />
           </div>
 
           <div className="hidden md:flex md:items-center md:space-x-6" />
