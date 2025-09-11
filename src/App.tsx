@@ -23,7 +23,7 @@ function App() {
         <div className="text-3xl md:text-5xl font-extrabold text-center">
           <div className="mb-2 flex items-center justify-center gap-3">
             <img src={Logo} alt="The Carnival logo" className="h-8 md:h-12 w-auto" width={96} height={48} loading="eager" />
-            <span className="text-amber-900">The Carnival</span>
+            <span className="text-amber-900">Carnival</span>
           </div>
           <div className="text-2xl md:text-4xl">
           <Typewriter
@@ -58,13 +58,13 @@ function App() {
           </div>
           <div className="transform transition-transform hover:scale-105 hover:rotate-1">
             <a
-              aria-label="Join #the-carnival on Slack"
+              aria-label="Join #carnival on Slack"
               href={slackJoinUrl}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center justify-center rounded-full px-6 py-2 text-sm font-semibold text-amber-900 bg-amber-100 hover:bg-amber-200 ring-1 ring-amber-200 transition-colors"
             >
-              Join #the-carnival
+              Join #carnival
             </a>
           </div>
         </div>
@@ -138,7 +138,7 @@ function App() {
                   <h3 className="text-lg font-semibold text-amber-900">How to get involved</h3>
                 </div>
                 <ol className="space-y-2 text-sm text-amber-800 list-decimal pl-5">
-                  <li>Join the <span className="font-semibold">#the-carnival</span> channel on Slack to ask, share, and vibe</li>
+                  <li>Join the <span className="font-semibold">#carnival</span> channel on Slack to ask, share, and vibe</li>
                   <li>Set up Hackatime and start tracking your time</li>
                   <li>Build your extension, plugin, or widget and ship it</li>
                   <li>Submit your project for review and claim rewards</li>
@@ -346,12 +346,12 @@ function App() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FaqTent q="What is the Carnival?" a="🎪 The midway where you build extensions, plugins, and widgets for editors you actually use. Add your ride to the wire and light up the federation!" accent="#f59e0b" />
+            <FaqTent q="What is Carnival?" a="🎪 The midway where you build extensions, plugins, and widgets for editors you actually use. Add your ride to the wire and light up the federation!" accent="#f59e0b" />
             <FaqTent q="What can I build?" a="🔌 Extensions for VS Code, Chrome, Figma, KiCad, Unity, Godot—any platform that accepts plugins. If it shortens time-to-wow, it belongs on the midway." accent="#fbbf24" />
             <FaqTent q="What rewards can I get?" a="🎁 Procreate licenses, domain credits, peripherals, computer upgrades, and more. Anything that helps you keep building!" accent="#d97706" />
-            <FaqTent q="Where do I join?" a="🎟️ Hop into the Hack Club Slack and find us in #the-carnival. The tents are up, the generator's steady, and the PCB is glowing!" accent="#f59e0b" />
+            <FaqTent q="Where do I join?" a="🎟️ Hop into the Hack Club Slack and find us in #carnival. The tents are up, the generator's steady, and the PCB is glowing!" accent="#f59e0b" />
             <FaqTent q="What's the minimum time requirement?" a="⏱️ For every hour you spend working on your project, you'll get a +$5 grant towards your dev journey. Track your time and keep shipping!" accent="#fbbf24" />
-            <FaqTent q="Can I build for an editor/app not mentioned?" a="💬 Yes — reach out in #the-carnival on Slack and ask for approval first. If it helps creators and isn't a remake, we're hyped to see it!" accent="#d97706" />
+            <FaqTent q="Can I build for an editor/app not mentioned?" a="💬 Yes — reach out in #carnival on Slack and ask for approval first. If it helps creators and isn't a remake, we're hyped to see it!" accent="#d97706" />
           </div>
         </div>
       </section>
