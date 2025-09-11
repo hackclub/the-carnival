@@ -70,20 +70,6 @@ const Layout = () => {
           className={`relative w-full md:w-[28rem] lg:w-[32rem] mx-auto md:rounded-3xl bg-white/90 backdrop-blur-md ring-1 ring-amber-200 shadow-xl md:mb-0 mb-4 transform ${askOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'} chat-panel`}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between px-4 py-3 md:px-5 md:py-4 border-b border-amber-200/70 bg-gradient-to-b from-amber-50/80 to-transparent md:rounded-t-3xl">
-            <div className="flex items-center gap-2">
-              <img src={Genei} alt="Genie" className="w-8 h-8 rounded-full ring-2 ring-amber-300" />
-              <div className="text-amber-900 font-semibold">Genie</div>
-            </div>
-            <button
-              className="p-2 rounded-full hover:bg-amber-100 text-amber-800"
-              onClick={() => setAskOpen(false)}
-              aria-label="Close"
-            >
-              ✕
-            </button>
-          </div>
-
           <GenieChat isOpen={askOpen} onClose={() => setAskOpen(false)} headerIconSrc={Genei} />
         </div>
       </div>
