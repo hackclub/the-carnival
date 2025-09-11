@@ -6,7 +6,7 @@ import Logo from "./assets/logo2-slim.webp";
 import Countdown from "./components/Countdown";
 
 function App() {
-  const slackJoinUrl = "https://hackclub.slack.com/archives/C09D5JDSN2F";
+  const slackJoinUrl = "https://hackclub.slack.com/archives/C091ZRTMF16";
   const EditorLogo = ({ src, letter }: { src?: string; letter: string }) => (
     <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm overflow-hidden ring-1 ring-amber-200 bg-white">
       {src ? (

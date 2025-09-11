@@ -5,7 +5,7 @@ import Logo from "../assets/logo2-slim.webp";
 const Footer = () => {
   const currentYear = new Date().getFullYear();
 
-  const slackJoinUrl = "https://hackclub.slack.com/archives/C09D5JDSN2F";
+  const slackJoinUrl = "https://hackclub.slack.com/archives/C091ZRTMF16";
 
   return (
     <footer className="relative bg-amber-50/80 border-t border-amber-200/60">
