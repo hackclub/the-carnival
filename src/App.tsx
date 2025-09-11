@@ -1,5 +1,6 @@
 import Typewriter from "typewriter-effect";
-import { Wrench, Users, Timer, Ban, ListChecks } from "lucide-react";
+import { motion } from "framer-motion";
+import { Wrench, Users, Timer, Ban, ListChecks, Chrome, Figma, Code2, Thermometer, Snowflake, Video, Smartphone, Sword, Gem, Sparkles } from "lucide-react";
 import TentCard from "./components/TentCard";
 import FaqTent from "./components/FAQCard";
 import Logo from "./assets/logo2-slim.webp";
@@ -196,39 +197,142 @@ function App() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div
-              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transform transition-transform hover:-translate-y-0.5 hover:scale-[1.02]"
+            {/* Browser Extension Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4 }}
+              whileHover={{ scale: 1.02, y: -2, transition: { duration: 0.2 } }}
+              className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-50 via-orange-50 to-blue-50 backdrop-blur p-6 ring-1 ring-red-200/50 shadow-lg hover:shadow-xl transition-all duration-300"
             >
-              <h3 className="text-lg font-semibold text-amber-900 mb-3">🌶️➡️🧊 Browser Extension</h3>
-              <p className="text-sm text-amber-800">
-                Detect spicy text and offer chill rephrases, with small cognitive-bias notes so you keep your point without losing your tone.
+              {/* Background decoration */}
+              <div className="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br from-red-400/20 to-orange-400/20 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500" />
+              <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-gradient-to-br from-blue-400/20 to-cyan-400/20 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500" />
+              
+              {/* Header with icons */}
+              <div className="relative flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-1">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 text-white shadow-lg">
+                    <Thermometer size={20} />
+                  </div>
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-lg">
+                    <Snowflake size={20} />
+                  </div>
+                </div>
+                <Chrome size={24} className="text-amber-700 ml-auto" />
+              </div>
+              
+              <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-amber-900 transition-colors">
+                Tone Tuner
+              </h3>
+              <p className="text-sm text-gray-700 leading-relaxed mb-4">
+                Transform spicy text into chill rephrases with cognitive-bias insights. Keep your point, lose the heat.
               </p>
-            </div>
+              
+              {/* Tech stack badges */}
+              <div className="flex flex-wrap gap-2">
+                <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">Browser Extension</span>
+                <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">NLP</span>
+              </div>
+            </motion.div>
 
-            <div
-              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transform transition-transform hover:-translate-y-0.5 hover:scale-[1.02]"
+            {/* Figma Plugin Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+              whileHover={{ scale: 1.02, y: -2, transition: { duration: 0.2 } }}
+              className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 backdrop-blur p-6 ring-1 ring-purple-200/50 shadow-lg hover:shadow-xl transition-all duration-300"
             >
-              <h3 className="text-lg font-semibold text-amber-900 mb-3">🎬📱 Figma Plugin</h3>
-              <p className="text-sm text-amber-800">
-                Turn a flow into a 12–15s teaser (captions + swipe sound) ready for Shorts/TikTok.
+              {/* Background decoration */}
+              <div className="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500" />
+              <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-gradient-to-br from-orange-400/20 to-yellow-400/20 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500" />
+              
+              {/* Header with icons */}
+              <div className="relative flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-1">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg">
+                    <Video size={20} />
+                  </div>
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-yellow-500 text-white shadow-lg">
+                    <Smartphone size={20} />
+                  </div>
+                </div>
+                <Figma size={24} className="text-amber-700 ml-auto" />
+              </div>
+              
+              <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-amber-900 transition-colors">
+                ReelBuilder
+              </h3>
+              <p className="text-sm text-gray-700 leading-relaxed mb-4">
+                Convert design flows into viral 12-15s teasers with captions and swipe sounds for TikTok & Shorts.
               </p>
-            </div>
+              
+              {/* Tech stack badges */}
+              <div className="flex flex-wrap gap-2">
+                <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">Figma Plugin</span>
+                <span className="px-2 py-1 text-xs font-medium bg-pink-100 text-pink-700 rounded-full">Video Gen</span>
+              </div>
+            </motion.div>
 
-            <div
-              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transform transition-transform hover:-translate-y-0.5 hover:scale-[1.02]"
+            {/* VS Code Extension Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+              whileHover={{ scale: 1.02, y: -2, transition: { duration: 0.2 } }}
+              className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50 to-purple-50 backdrop-blur p-6 ring-1 ring-emerald-200/50 shadow-lg hover:shadow-xl transition-all duration-300"
             >
-              <h3 className="text-lg font-semibold text-amber-900 mb-3">⚔️📜💎 VS Code Extension</h3>
-              <p className="text-sm text-amber-800">
-                Make TODOs/tests into quests with XP, streaks, and rarity drops.
+              {/* Background decoration */}
+              <div className="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br from-emerald-400/20 to-teal-400/20 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500" />
+              <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-gradient-to-br from-purple-400/20 to-violet-400/20 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500" />
+              
+              {/* Header with icons */}
+              <div className="relative flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-1">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg">
+                    <Sword size={20} />
+                  </div>
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-violet-500 text-white shadow-lg">
+                    <Gem size={20} />
+                  </div>
+                </div>
+                <Code2 size={24} className="text-amber-700 ml-auto" />
+              </div>
+              
+              <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-amber-900 transition-colors">
+                Questline
+              </h3>
+              <p className="text-sm text-gray-700 leading-relaxed mb-4">
+                Gamify your workflow! Transform TODOs and tests into epic quests with XP, streaks, and legendary drops.
               </p>
-            </div>
+              
+              {/* Tech stack badges */}
+              <div className="flex flex-wrap gap-2">
+                <span className="px-2 py-1 text-xs font-medium bg-emerald-100 text-emerald-700 rounded-full">VS Code</span>
+                <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">Gamification</span>
+              </div>
+            </motion.div>
           </div>
 
-          <div className="text-center mt-8">
-            <p className="text-amber-800 font-medium">
-              ⚡🎛️ <strong>Bring Your Own:</strong> If it shortens time-to-wow, it belongs on the midway.
-            </p>
-          </div>
+          <motion.div 
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+            className="text-center mt-8"
+          >
+            <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-100 via-yellow-50 to-orange-100 ring-1 ring-amber-200 shadow-sm">
+              <Sparkles className="text-amber-600" size={20} />
+              <p className="text-amber-900 font-semibold">
+                <strong>Bring Your Own:</strong> If it shortens time-to-wow, it belongs on the midway.
+              </p>
+              <Sparkles className="text-amber-600" size={20} />
+            </div>
+          </motion.div>
         </div>
       </section>
 
