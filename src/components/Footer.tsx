@@ -14,7 +14,7 @@ const Footer = () => {
           <div className="mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3 justify-center sm:justify-start text-center sm:text-left w-full sm:w-auto">
-                <img src={Logo} width={48} alt="YSWS Carnival" />
+                <img src={Logo} width={48} height={48} alt="YSWS Carnival" loading="lazy" decoding="async" />
                 <div>
                   <h3 className="text-xl font-bold text-amber-900">The Carnival</h3>
                 </div>
@@ -35,7 +35,7 @@ const Footer = () => {
               </div>
             </div>
             <div className="mt-4 flex items-center justify-center sm:justify-start">
-              <img src="/hackclub-flag.svg" alt="Hack Club Flag" className="h-6" />
+              <img src="/hackclub-flag.svg" alt="Hack Club Flag" className="h-6" loading="lazy" decoding="async" />
             </div>
             <p className="text-amber-800 mt-4 leading-relaxed">
               Make something you love.

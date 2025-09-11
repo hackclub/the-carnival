@@ -10,7 +10,7 @@ function App() {
   const EditorLogo = ({ src, alt, letter }: { src?: string; alt: string; letter: string }) => (
     <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm overflow-hidden ring-1 ring-amber-200 bg-white">
       {src ? (
-        <img src={src} alt={alt} className="h-full w-full object-contain" />
+        <img src={src} alt="" role="presentation" loading="lazy" decoding="async" className="h-full w-full object-contain" />
       ) : (
         <span className="text-[10px] font-semibold text-amber-800">{letter}</span>
       )}
@@ -21,7 +21,7 @@ function App() {
       <section id="home" className="pt-20 flex flex-col">
         <div className="text-3xl md:text-5xl font-extrabold text-center">
           <div className="mb-2 flex items-center justify-center gap-3">
-            <img src={Logo} alt="The Carnival" className="h-8 md:h-12 w-auto" />
+            <img src={Logo} alt="The Carnival logo" className="h-8 md:h-12 w-auto" width={96} height={48} loading="eager" />
             <span className="text-amber-900">The Carnival</span>
           </div>
           <div className="text-2xl md:text-4xl">
@@ -48,6 +48,7 @@ function App() {
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
           <div className="transform transition-transform hover:scale-105 hover:-rotate-1">
             <a
+              aria-label="Submit project"
               href="/submit"
               className="inline-flex items-center justify-center rounded-full px-6 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 shadow-sm ring-1 ring-amber-500/50 transition-colors"
             >
@@ -56,6 +57,7 @@ function App() {
           </div>
           <div className="transform transition-transform hover:scale-105 hover:rotate-1">
             <a
+              aria-label="Join #the-carnival on Slack"
               href={slackJoinUrl}
               target="_blank"
               rel="noreferrer"
