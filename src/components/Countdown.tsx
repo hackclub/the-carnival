@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
 
 type TimeLeft = {
   days: number;
@@ -41,13 +40,7 @@ export default function Countdown() {
           "radial-gradient(120px 40px at 8% 0%, #f59e0b30, transparent), radial-gradient(120px 40px at 92% 0%, #ef444430, transparent)"
       }} />
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.5 }}
-        className="relative rounded-3xl bg-white/80 backdrop-blur-md ring-1 ring-amber-200 shadow-lg p-5 md:p-7"
-      >
+      <div className="relative rounded-3xl bg-white/80 backdrop-blur-md ring-1 ring-amber-200 shadow-lg p-5 md:p-7">
         <div className="flex items-center justify-center gap-2 mb-3">
           <span className="text-xl md:text-2xl font-extrabold text-amber-900">🎪 Countdown to the Carnival Finale</span>
         </div>
@@ -55,16 +48,15 @@ export default function Countdown() {
         {!isOver ? (
           <div className="grid grid-cols-4 gap-2 md:gap-4 text-center">
             {[{ label: "Days", value: timeLeft.days }, { label: "Hours", value: timeLeft.hours }, { label: "Minutes", value: timeLeft.minutes }, { label: "Seconds", value: timeLeft.seconds }].map(({ label, value }) => (
-              <motion.div
+              <div
                 key={label}
-                whileHover={{ y: -2 }}
-                className="rounded-2xl bg-gradient-to-b from-amber-50 to-white ring-1 ring-amber-200 p-3 md:p-4 shadow-sm"
+                className="rounded-2xl bg-gradient-to-b from-amber-50 to-white ring-1 ring-amber-200 p-3 md:p-4 shadow-sm transform transition-transform hover:-translate-y-0.5"
               >
                 <div className="text-2xl md:text-4xl font-black text-amber-900 tabular-nums">
                   {String(value).padStart(2, "0")}
                 </div>
                 <div className="text-[10px] md:text-xs uppercase tracking-wide text-amber-700">{label}</div>
-              </motion.div>
+              </div>
             ))}
           </div>
         ) : (
@@ -86,7 +78,7 @@ export default function Countdown() {
             />
           ))}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

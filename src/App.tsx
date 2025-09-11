@@ -1,5 +1,4 @@
 import Typewriter from "typewriter-effect";
-import { motion } from "framer-motion";
 import { Wrench, Users, Timer, Ban, ListChecks } from "lucide-react";
 import TentCard from "./components/TentCard";
 import FaqTent from "./components/FAQCard";
@@ -47,15 +46,15 @@ function App() {
           </p>
         </div>
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <motion.div whileHover={{ scale: 1.05, rotate: [-1, 1, -1, 0], transition: { duration: 0.3 } }}>
+          <div className="transform transition-transform hover:scale-105 hover:-rotate-1">
             <a
               href="/submit"
               className="inline-flex items-center justify-center rounded-full px-6 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 shadow-sm ring-1 ring-amber-500/50 transition-colors"
             >
               Submit project
             </a>
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.05, rotate: [1, -1, 1, 0], transition: { duration: 0.3 } }}>
+          </div>
+          <div className="transform transition-transform hover:scale-105 hover:rotate-1">
             <a
               href={slackJoinUrl}
               target="_blank"
@@ -64,7 +63,7 @@ function App() {
             >
               Join #the-carnival
             </a>
-          </motion.div>
+          </div>
         </div>
       </section>
 
@@ -72,16 +71,10 @@ function App() {
 
       <section id="explore" className="mt-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* What you need to do */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4 }}
-              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm"
+            <div
+              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transform transition-all hover:-translate-y-0.5"
             >
               <div className="flex items-center gap-2 mb-3">
                 <ListChecks className="text-amber-600" size={18} />
@@ -95,16 +88,12 @@ function App() {
                 <li className="leading-relaxed">Provide clear build and run instructions</li>
                 <li className="leading-relaxed">Make it unique — not a remake of an existing extension</li>
               </ol>
-            </motion.div>
+            </div>
 
             {/* Tools and How to join */}
             <div className="space-y-6">
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: 0.05 }}
-                className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm"
+              <div
+                className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transform transition-all hover:-translate-y-0.5"
               >
                 <div className="flex items-center gap-2 mb-3">
                   <Wrench className="text-amber-600" size={18} />
@@ -118,14 +107,10 @@ function App() {
                   <li className="flex items-center gap-2"><EditorLogo alt="KiCad" src="https://dev-docs.kicad.org/favicon-96x96.png" letter="K" /> <a href="https://dev-docs.kicad.org/en/addons/" target="_blank">KiCad</a></li>
                   <li className="flex items-center gap-2">...and many more</li>
                 </ul>
-              </motion.div>
+              </div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: 0.1 }}
-                className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm"
+              <div
+                className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transform transition-all hover:-translate-y-0.5"
               >
                 <div className="flex items-center gap-2 mb-3">
                   <Users className="text-amber-600" size={18} />
@@ -146,7 +131,7 @@ function App() {
                   <Ban size={14} className="text-amber-600" />
                   <span>No trivial remixes or thin wrappers.</span>
                 </div>
-              </motion.div>
+              </div>
             </div>
           </div>
         </div>
@@ -191,47 +176,32 @@ function App() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4 }}
-              whileHover={{ scale: 1.02, y: -2, transition: { duration: 0.2 } }}
-              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm"
+            <div
+              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transform transition-transform hover:-translate-y-0.5 hover:scale-[1.02]"
             >
               <h3 className="text-lg font-semibold text-amber-900 mb-3">🌶️➡️🧊 Browser Extension</h3>
               <p className="text-sm text-amber-800">
                 Detect spicy text and offer chill rephrases, with small cognitive-bias notes so you keep your point without losing your tone.
               </p>
-            </motion.div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: 0.1 }}
-              whileHover={{ scale: 1.02, y: -2, transition: { duration: 0.2 } }}
-              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm"
+            <div
+              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transform transition-transform hover:-translate-y-0.5 hover:scale-[1.02]"
             >
               <h3 className="text-lg font-semibold text-amber-900 mb-3">🎬📱 Figma Plugin</h3>
               <p className="text-sm text-amber-800">
                 Turn a flow into a 12–15s teaser (captions + swipe sound) ready for Shorts/TikTok.
               </p>
-            </motion.div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              whileHover={{ scale: 1.02, y: -2, transition: { duration: 0.2 } }}
-              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm"
+            <div
+              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transform transition-transform hover:-translate-y-0.5 hover:scale-[1.02]"
             >
               <h3 className="text-lg font-semibold text-amber-900 mb-3">⚔️📜💎 VS Code Extension</h3>
               <p className="text-sm text-amber-800">
                 Make TODOs/tests into quests with XP, streaks, and rarity drops.
               </p>
-            </motion.div>
+            </div>
           </div>
 
           <div className="text-center mt-8">
