@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Wrench, Users, Timer, Ban, ListChecks } from "lucide-react";
 import TentCard from "./components/TentCard";
 import FaqTent from "./components/FAQCard";
-import Logo from "./assets/logo2-slim.png";
+import Logo from "./assets/logo2-slim.webp";
 import Countdown from "./components/Countdown";
 
 function App() {

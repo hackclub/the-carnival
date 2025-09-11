@@ -1,6 +1,6 @@
 import { Slack } from "lucide-react";
 
-import Logo from "../assets/logo2-slim.png";
+import Logo from "../assets/logo2-slim.webp";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();

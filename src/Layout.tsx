@@ -7,7 +7,7 @@ import Fireworks from "./components/Fireworks";
 import FloatingBalloons from "./components/FloatingBalloons";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import Genei from "./assets/genei.gif";
+import Genei from "./assets/genei.webp";
 import GenieChat from "./components/GenieChat";
 
 const Layout = () => {
