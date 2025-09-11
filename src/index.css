@@ -5,14 +5,29 @@ html {
 }
 
 body {
-    /* Animated carnival gradient */
+    /* Prefer lightweight mobile/webp background by default */
+    background-image: url(./assets/mobile_background.webp);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}
+
+/* Use higher-resolution background on larger screens */
+@media (min-width: 640px) {
+  body {
     background-image: url(./assets/background.jpg);
-    /* background: radial-gradient(1200px 600px at 20% -10%, #fce7f3 0%, transparent 60%),
+  }
+}
+
+/* Respect users who prefer reduced motion or data: fall back to static gradient */
+@media (prefers-reduced-motion: reduce), (prefers-reduced-data: reduce) {
+  body {
+    background-image: none;
+    background: radial-gradient(1200px 600px at 20% -10%, #fce7f3 0%, transparent 60%),
                 radial-gradient(900px 500px at 110% 10%, #ffedd5 0%, transparent 55%),
                 radial-gradient(800px 400px at -10% 80%, #dbeafe 0%, transparent 55%),
                 linear-gradient(180deg, #fff7ed 0%, #fff 30%, #fff7ed 100%);
-    animation: carnivalShift 12s ease-in-out infinite alternate; */
-    background-attachment: fixed;
+  }
 }
 
 /* Themed scrollbars */
@@ -73,6 +88,13 @@ section {
 }
 .sparkles::before { animation: twinkle 2.4s ease-in-out infinite; }
 .sparkles::after { animation: twinkle 3.1s ease-in-out infinite reverse; }
+
+@media (prefers-reduced-motion: reduce), (prefers-reduced-data: reduce) {
+  .sparkles::before, .sparkles::after {
+    animation: none;
+    background-image: none;
+  }
+}
 
 @keyframes carnivalShift {
   0% {
