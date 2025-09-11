@@ -100,10 +100,10 @@ function App() {
                   <h3 className="text-lg font-semibold text-amber-900">Editors you can build for</h3>
                 </div>
                 <ul className="grid grid-cols-2 gap-2 text-sm text-amber-800">
-                  <li className="flex items-center gap-2"><a href="https://code.visualstudio.com/api/get-started/your-first-extension" target="_blank"><EditorLogo src="/vscode.png" alt="VS Code" letter="V" /> VS Code</a></li>
-                  <li className="flex items-center gap-2"><EditorLogo src="/chrome.png" alt="Chrome / Firefox" letter="C" /> <a href="https://developer.chrome.com/docs/extensions/get-started?hl=ar" target="_blank">Chrome</a> / <a href="https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Your_first_WebExtension" target="_blank">Firefox</a></li>
+                  <li className="flex items-center gap-2"><a href="https://code.visualstudio.com/api/get-started/your-first-extension" target="_blank"><EditorLogo src="/vscode.webp" alt="VS Code" letter="V" /> VS Code</a></li>
+                  <li className="flex items-center gap-2"><EditorLogo src="/chrome.webp" alt="Chrome / Firefox" letter="C" /> <a href="https://developer.chrome.com/docs/extensions/get-started?hl=ar" target="_blank">Chrome</a> / <a href="https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Your_first_WebExtension" target="_blank">Firefox</a></li>
                   <li className="flex items-center gap-2"><EditorLogo src="/neovim.svg" alt="Neovim" letter="N" /> <a href="https://adam-drake-frontend-developer.medium.com/how-to-build-a-simple-neovim-plugin-0763e7593b07" target="_blank">Neovim</a></li>
-                  <li className="flex items-center gap-2"><EditorLogo src="/figma.png" alt="Figma" letter="F" /> <a href="https://www.figma.com/plugin-docs/plugin-quickstart-guide/" target="_blank">Figma</a></li>
+                  <li className="flex items-center gap-2"><EditorLogo src="/figma.webp" alt="Figma" letter="F" /> <a href="https://www.figma.com/plugin-docs/plugin-quickstart-guide/" target="_blank">Figma</a></li>
                   <li className="flex items-center gap-2"><EditorLogo alt="KiCad" src="https://dev-docs.kicad.org/favicon-96x96.png" letter="K" /> <a href="https://dev-docs.kicad.org/en/addons/" target="_blank">KiCad</a></li>
                   <li className="flex items-center gap-2">...and many more</li>
                 </ul>
