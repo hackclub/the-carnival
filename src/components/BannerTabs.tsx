@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { useState } from "react";
 
 interface Tab {
@@ -24,12 +23,10 @@ export default function BannerTabs({ tabs, defaultTab }: BannerTabsProps) {
         <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-amber-600 to-transparent" />
         
         {tabs.map((tab, index) => (
-          <motion.button
+          <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className="relative group"
-            whileHover={{ y: -2, transition: { duration: 0.2 } }}
-            whileTap={{ scale: 0.98 }}
+            className="relative group transform transition-transform hover:-translate-y-0.5 active:scale-95"
           >
             <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
               <div className="w-0.5 h-4 bg-amber-800 rounded-full" />
@@ -84,19 +81,16 @@ export default function BannerTabs({ tabs, defaultTab }: BannerTabsProps) {
             <div className="absolute -bottom-1 right-2">
               <div className="w-1 h-1 bg-amber-800 rounded-full" />
             </div>
-          </motion.button>
+          </button>
         ))}
       </div>
 
-      <motion.div
+      <div
         key={activeTab}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="bg-white/70 backdrop-blur rounded-2xl p-6 ring-1 ring-amber-200 shadow-sm"
+        className="bg-white/70 backdrop-blur rounded-2xl p-6 ring-1 ring-amber-200 shadow-sm transition-all"
       >
         {activeTabData?.content}
-      </motion.div>
+      </div>
     </div>
   );
 }

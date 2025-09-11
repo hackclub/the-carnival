@@ -1,17 +1,16 @@
 import Typewriter from "typewriter-effect";
-import { motion } from "framer-motion";
 import { Wrench, Users, Timer, Ban, ListChecks } from "lucide-react";
 import TentCard from "./components/TentCard";
 import FaqTent from "./components/FAQCard";
-import Logo from "./assets/logo2-slim.png";
+import Logo from "./assets/logo2-slim.webp";
 import Countdown from "./components/Countdown";
 
 function App() {
   const slackJoinUrl = "https://hackclub.slack.com/archives/C09D5JDSN2F";
-  const EditorLogo = ({ src, alt, letter }: { src?: string; alt: string; letter: string }) => (
+  const EditorLogo = ({ src, letter }: { src?: string; letter: string }) => (
     <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm overflow-hidden ring-1 ring-amber-200 bg-white">
       {src ? (
-        <img src={src} alt={alt} className="h-full w-full object-contain" />
+        <img src={src} alt="" role="presentation" loading="lazy" decoding="async" className="h-full w-full object-contain" />
       ) : (
         <span className="text-[10px] font-semibold text-amber-800">{letter}</span>
       )}
@@ -22,7 +21,7 @@ function App() {
       <section id="home" className="pt-20 flex flex-col">
         <div className="text-3xl md:text-5xl font-extrabold text-center">
           <div className="mb-2 flex items-center justify-center gap-3">
-            <img src={Logo} alt="The Carnival" className="h-8 md:h-12 w-auto" />
+            <img src={Logo} alt="The Carnival logo" className="h-8 md:h-12 w-auto" width={96} height={48} loading="eager" />
             <span className="text-amber-900">The Carnival</span>
           </div>
           <div className="text-2xl md:text-4xl">
@@ -47,16 +46,18 @@ function App() {
           </p>
         </div>
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <motion.div whileHover={{ scale: 1.05, rotate: [-1, 1, -1, 0], transition: { duration: 0.3 } }}>
+          <div className="transform transition-transform hover:scale-105 hover:-rotate-1">
             <a
+              aria-label="Submit project"
               href="/submit"
               className="inline-flex items-center justify-center rounded-full px-6 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 shadow-sm ring-1 ring-amber-500/50 transition-colors"
             >
               Submit project
             </a>
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.05, rotate: [1, -1, 1, 0], transition: { duration: 0.3 } }}>
+          </div>
+          <div className="transform transition-transform hover:scale-105 hover:rotate-1">
             <a
+              aria-label="Join #the-carnival on Slack"
               href={slackJoinUrl}
               target="_blank"
               rel="noreferrer"
@@ -64,7 +65,7 @@ function App() {
             >
               Join #the-carnival
             </a>
-          </motion.div>
+          </div>
         </div>
       </section>
 
@@ -72,16 +73,10 @@ function App() {
 
       <section id="explore" className="mt-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* What you need to do */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4 }}
-              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm"
+            <div
+              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transform transition-all hover:-translate-y-0.5"
             >
               <div className="flex items-center gap-2 mb-3">
                 <ListChecks className="text-amber-600" size={18} />
@@ -95,37 +90,47 @@ function App() {
                 <li className="leading-relaxed">Provide clear build and run instructions</li>
                 <li className="leading-relaxed">Make it unique — not a remake of an existing extension</li>
               </ol>
-            </motion.div>
+            </div>
 
             {/* Tools and How to join */}
             <div className="space-y-6">
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: 0.05 }}
-                className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm"
+              <div
+                className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transform transition-all hover:-translate-y-0.5"
               >
                 <div className="flex items-center gap-2 mb-3">
                   <Wrench className="text-amber-600" size={18} />
                   <h3 className="text-lg font-semibold text-amber-900">Editors you can build for</h3>
                 </div>
                 <ul className="grid grid-cols-2 gap-2 text-sm text-amber-800">
-                  <li className="flex items-center gap-2"><a href="https://code.visualstudio.com/api/get-started/your-first-extension" target="_blank"><EditorLogo src="/vscode.png" alt="VS Code" letter="V" /> VS Code</a></li>
-                  <li className="flex items-center gap-2"><EditorLogo src="/chrome.png" alt="Chrome / Firefox" letter="C" /> <a href="https://developer.chrome.com/docs/extensions/get-started?hl=ar" target="_blank">Chrome</a> / <a href="https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Your_first_WebExtension" target="_blank">Firefox</a></li>
-                  <li className="flex items-center gap-2"><EditorLogo src="/neovim.svg" alt="Neovim" letter="N" /> <a href="https://adam-drake-frontend-developer.medium.com/how-to-build-a-simple-neovim-plugin-0763e7593b07" target="_blank">Neovim</a></li>
-                  <li className="flex items-center gap-2"><EditorLogo src="/figma.png" alt="Figma" letter="F" /> <a href="https://www.figma.com/plugin-docs/plugin-quickstart-guide/" target="_blank">Figma</a></li>
-                  <li className="flex items-center gap-2"><EditorLogo alt="KiCad" src="https://dev-docs.kicad.org/favicon-96x96.png" letter="K" /> <a href="https://dev-docs.kicad.org/en/addons/" target="_blank">KiCad</a></li>
+                  <li className="flex items-center gap-2">
+                    <a href="https://code.visualstudio.com/api/get-started/your-first-extension" target="_blank" rel="noreferrer">
+                      <EditorLogo src="/vscode.webp" letter="V" /> VS Code
+                    </a>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <EditorLogo src="/chrome.webp" letter="C" />
+                    <a href="https://developer.chrome.com/docs/extensions/get-started?hl=ar" target="_blank" rel="noreferrer">Chrome</a>
+                    /
+                    <a href="https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Your_first_WebExtension" target="_blank" rel="noreferrer">Firefox</a>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <EditorLogo src="/neovim.svg" letter="N" />
+                    <a href="https://adam-drake-frontend-developer.medium.com/how-to-build-a-simple-neovim-plugin-0763e7593b07" target="_blank" rel="noreferrer">Neovim</a>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <EditorLogo src="/figma.webp" letter="F" />
+                    <a href="https://www.figma.com/plugin-docs/plugin-quickstart-guide/" target="_blank" rel="noreferrer">Figma</a>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <EditorLogo src="https://dev-docs.kicad.org/favicon-96x96.png" letter="K" />
+                    <a href="https://dev-docs.kicad.org/en/addons/" target="_blank" rel="noreferrer">KiCad</a>
+                  </li>
                   <li className="flex items-center gap-2">...and many more</li>
                 </ul>
-              </motion.div>
+              </div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: 0.1 }}
-                className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm"
+              <div
+                className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transform transition-all hover:-translate-y-0.5"
               >
                 <div className="flex items-center gap-2 mb-3">
                   <Users className="text-amber-600" size={18} />
@@ -146,7 +151,7 @@ function App() {
                   <Ban size={14} className="text-amber-600" />
                   <span>No trivial remixes or thin wrappers.</span>
                 </div>
-              </motion.div>
+              </div>
             </div>
           </div>
         </div>
@@ -191,47 +196,32 @@ function App() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4 }}
-              whileHover={{ scale: 1.02, y: -2, transition: { duration: 0.2 } }}
-              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm"
+            <div
+              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transform transition-transform hover:-translate-y-0.5 hover:scale-[1.02]"
             >
               <h3 className="text-lg font-semibold text-amber-900 mb-3">🌶️➡️🧊 Browser Extension</h3>
               <p className="text-sm text-amber-800">
                 Detect spicy text and offer chill rephrases, with small cognitive-bias notes so you keep your point without losing your tone.
               </p>
-            </motion.div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: 0.1 }}
-              whileHover={{ scale: 1.02, y: -2, transition: { duration: 0.2 } }}
-              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm"
+            <div
+              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transform transition-transform hover:-translate-y-0.5 hover:scale-[1.02]"
             >
               <h3 className="text-lg font-semibold text-amber-900 mb-3">🎬📱 Figma Plugin</h3>
               <p className="text-sm text-amber-800">
                 Turn a flow into a 12–15s teaser (captions + swipe sound) ready for Shorts/TikTok.
               </p>
-            </motion.div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              whileHover={{ scale: 1.02, y: -2, transition: { duration: 0.2 } }}
-              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm"
+            <div
+              className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transform transition-transform hover:-translate-y-0.5 hover:scale-[1.02]"
             >
               <h3 className="text-lg font-semibold text-amber-900 mb-3">⚔️📜💎 VS Code Extension</h3>
               <p className="text-sm text-amber-800">
                 Make TODOs/tests into quests with XP, streaks, and rarity drops.
               </p>
-            </motion.div>
+            </div>
           </div>
 
           <div className="text-center mt-8">

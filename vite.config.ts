@@ -8,4 +8,16 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  build: {
+    target: 'es2022',
+    modulePreload: { polyfill: false },
+    cssMinify: 'esbuild',
+    sourcemap: false,
+    rollupOptions: {
+      treeshake: 'smallest',
+    },
+  },
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
 })

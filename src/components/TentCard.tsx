@@ -1,5 +1,3 @@
-import { motion } from "framer-motion";
-
 type TentCardProps = {
   title: string;
   description: string;
@@ -9,21 +7,11 @@ type TentCardProps = {
 
 export default function TentCard({ title, description, items, accentHex }: TentCardProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.4 }}
-      whileHover={{ 
-        scale: 1.03, 
-        rotate: [-0.5, 0.5, -0.5, 0], 
-        y: -4,
-        transition: { duration: 0.3 }
-      }}
-      className="rounded-2xl bg-white/70 backdrop-blur p-5 ring-1 ring-amber-200 shadow-sm"
+    <div
+      className="rounded-2xl bg-white/70 backdrop-blur p-5 ring-1 ring-amber-200 shadow-sm transition-transform hover:-translate-y-1 hover:scale-[1.02]"
     >
       <div className="flex items-start gap-4">
-        <motion.svg
+        <svg
           width="84"
           height="64"
           viewBox="0 0 84 64"
@@ -37,20 +25,20 @@ export default function TentCard({ title, description, items, accentHex }: TentC
             </linearGradient>
           </defs>
           <rect x="2" y="54" width="80" height="4" fill="#f5deb3" opacity="0.6" />
-          <motion.g animate={{ y: [0, -1.5, 0] }} transition={{ duration: 3, repeat: Infinity }}>
+          <g>
             <polygon points="12,54 42,18 72,54" fill="url(#tentShade)" stroke={accentHex} strokeWidth="1.5" />
             <polygon points="42,18 42,54 12,54" fill="#fff7ed" opacity="0.6" />
             <path d="M42 18 L42 54 L52 54 Z" fill="#fde68a" opacity="0.8" />
-          </motion.g>
-          <motion.g initial={{ y: 0 }} animate={{ y: [0, -2, 0] }} transition={{ duration: 2, repeat: Infinity }}>
+          </g>
+          <g>
             <line x1="42" y1="10" x2="42" y2="18" stroke={accentHex} strokeWidth="1.5" />
             <path d="M42 10 L56 14 L42 18 Z" fill={accentHex} />
-          </motion.g>
-          <motion.g animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 1.2, repeat: Infinity }}>
+          </g>
+          <g>
             <circle cx="22" cy="56" r="2" fill="#92400e" />
             <path d="M22 48 C20 52, 24 52, 22 56" fill="#f97316" />
-          </motion.g>
-        </motion.svg>
+          </g>
+        </svg>
         <div>
           <div className="mb-2 text-lg font-semibold text-amber-900">{title}</div>
           <p className="text-sm text-amber-800">{description}</p>
@@ -61,6 +49,6 @@ export default function TentCard({ title, description, items, accentHex }: TentC
           </ul>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
