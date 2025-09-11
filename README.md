@@ -1,4 +1,4 @@
-# The Carnival — YSWS
+# Carnival — YSWS
 
 Build an extension, plugin, or widget for an editor you actually use. This repository contains the website for The Carnival program.
 
