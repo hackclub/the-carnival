@@ -21,7 +21,7 @@ const Footer = () => {
               </div>
               <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-3 text-amber-800 text-sm text-left sm:text-right">
-                  <span>Channel: <span className="font-semibold">#the-carnival</span></span>
+                  <span>Channel: <span className="font-semibold">#carnival</span></span>
                 </div>
                 <a
                   href={slackJoinUrl}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Firework {
   id: string;
@@ -16,6 +16,8 @@ const fireworkColors = ["#f43f5e", "#fb923c", "#f59e0b", "#22c55e", "#3b82f6", "
 
 export default function Fireworks() {
   const [fireworks, setFireworks] = useState<Firework[]>([]);
+  const runningRef = useRef(true);
+  const mReduce = useRef<MediaQueryList | null>(null);
 
   const createFirework = () => {
     const newFirework: Firework = {
@@ -38,14 +40,28 @@ export default function Fireworks() {
   };
 
   useEffect(() => {
+    const onVisibility = () => {
+      runningRef.current = !document.hidden && !(mReduce.current?.matches ?? false);
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    mReduce.current = window.matchMedia('(prefers-reduced-motion: reduce)');
+    mReduce.current.addEventListener?.('change', onVisibility);
+    onVisibility();
+
     const interval = window.setInterval(() => {
-      if (Math.random() < 0.3) {
+      if (!runningRef.current) return;
+      if (fireworks.length >= 4) return; // cap simultaneously active fireworks
+      if (Math.random() < 0.25) {
         createFirework();
       }
-    }, 3000);
+    }, 3200);
 
-    return () => window.clearInterval(interval);
-  }, []);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      mReduce.current?.removeEventListener?.('change', onVisibility);
+      window.clearInterval(interval);
+    };
+  }, [fireworks.length]);
 
   return (
     <div className="pointer-events-none fixed inset-0 z-20 overflow-hidden">
