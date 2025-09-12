@@ -110,12 +110,10 @@ export default function GenieChat({ isOpen: _isOpen, onClose, headerIconSrc }: {
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const quickPrompts = [
-    "🎪 Brainstorm carnival ride features",
+    "👨🏽‍💻 What are some software for which I could develop plugins?",
     "📜 Help me write a README template",
-    "🎟️ How to get 5 users quickly?",
-    "🛠️ Draft build/run instructions",
-    "🎨 What makes a great extension?",
-    "🚀 Ideas for my midway attraction"
+    "🎨 What makes a great extension/plugin/addon?",
+    "🤔 What are some example plugins you have developed before?"
   ];
 
   return (
