@@ -178,3 +178,53 @@ section {
   50% { opacity: 1; transform: translateY(-2px) scale(1.08); }
   100% { opacity: 0.7; transform: translateY(0) scale(1); }
 }
+
+/* === Dragon + Flame (Framer-less) === */
+@keyframes dragon-fly-x {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(100vw + 300px)); }
+}
+@keyframes wriggle {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(5deg); }
+  50% { transform: rotate(-5deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes flame-sway {
+  0% { transform: translateX(0) translateY(0) scale(0.96); opacity: 0.95; }
+  50% { transform: translateX(18px) translateY(-0.6px) scale(1.04); opacity: 1; }
+  100% { transform: translateX(0) translateY(0) scale(0.96); opacity: 0.95; }
+}
+@keyframes flame-rotate {
+  0% { transform: rotate(-1.2deg); }
+  50% { transform: rotate(1.2deg); }
+  100% { transform: rotate(-1.2deg); }
+}
+@keyframes flame-core-pulse {
+  0% { transform: scale(0.98); transform-origin: 20% 50%; }
+  50% { transform: scale(1.04); transform-origin: 20% 50%; }
+  100% { transform: scale(0.98); transform-origin: 20% 50%; }
+}
+@keyframes spark-pop {
+  0% { opacity: 0; transform: translateY(0) scale(0); }
+  50% { opacity: 1; transform: translateY(-2px) scale(1); }
+  100% { opacity: 0; transform: translateY(-4px) scale(0); }
+}
+@keyframes sparkle-fly-x {
+  0% { transform: translateX(0) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translateX(calc(100vw + 200px)) rotate(360deg); opacity: 0; }
+}
+
+.dragon-fly { animation: dragon-fly-x 8s ease-in-out forwards; }
+.wriggle-anim { animation: wriggle 2s ease-in-out infinite; }
+.flame-sway { animation: flame-sway 1.6s ease-in-out infinite; }
+.flame-rotate { animation: flame-rotate 1.8s ease-in-out infinite; will-change: transform; }
+.flame-core-pulse { animation: flame-core-pulse 1.2s ease-in-out infinite; transform-origin: 20% 50%; }
+.flame-spark { animation-name: spark-pop; animation-iteration-count: infinite; animation-timing-function: ease-in-out; }
+.sparkle-fly { animation: sparkle-fly-x 8s ease-in-out forwards; }
+.sparkle-pop-rot { animation: sparkle-pop 1.8s ease-out forwards; }
+
+@media (prefers-reduced-motion: reduce), (prefers-reduced-data: reduce) {
+  .dragon-fly, .wriggle-anim, .flame-sway, .flame-rotate, .flame-core-pulse, .flame-spark, .sparkle-fly, .sparkle-pop-rot { animation: none !important; }
+}

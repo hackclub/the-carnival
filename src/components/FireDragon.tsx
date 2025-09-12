@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 
 interface DragonSegment {
   id: number;
@@ -11,19 +10,11 @@ interface DragonSegment {
 
 function PainterlyFlame() {
   return (
-    <motion.svg
-      initial={{ scale: 0.96, opacity: 0.95, x: 0, y: 0 }}
-      animate={{
-        x: [0, 18],
-        scale: [0.96, 1.04],
-        opacity: [0.95, 1],
-        y: [0, -0.6]
-      }}
-      transition={{ duration: 1.6, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }}
+    <svg
       width="140"
       height="70"
       viewBox="0 0 140 70"
-      className="absolute left-24 top-3"
+      className="absolute left-24 top-3 flame-sway"
       style={{ filter: "drop-shadow(0 0 12px rgba(251,191,36,0.45))", willChange: "transform, opacity, filter" }}
     >
       <defs>
@@ -53,12 +44,7 @@ function PainterlyFlame() {
       </defs>
 
       {/* Outer painterly silhouette */}
-      <motion.g
-        filter="url(#softPaint)"
-        animate={{ rotate: [-1.2, 1.2] }}
-        transition={{ duration: 1.8, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }}
-        style={{ willChange: "transform" }}
-      >
+      <g filter="url(#softPaint)" className="flame-rotate">
         <path
           d="M8,36 C28,14 52,10 78,24 C92,30 100,38 114,36 C108,40 96,46 84,48 C68,52 54,48 40,46 C30,44 20,40 8,36 Z"
           fill="url(#flameOuter)"
@@ -71,30 +57,26 @@ function PainterlyFlame() {
           opacity="0.96"
         />
         {/* Core hot flame */}
-        <motion.path
+        <path
           d="M16,36 C30,26 48,24 66,32 C74,34 82,36 92,36 C86,38 80,40 72,42 C60,44 50,42 40,40 C30,38 22,36 16,36 Z"
           fill="url(#flameCore)"
-          animate={{ scale: [0.98, 1.04] }}
-          transform-origin="20% 50%"
-          transition={{ duration: 1.2, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }}
+          className="flame-core-pulse"
         />
-      </motion.g>
+      </g>
 
       {/* Painterly sparks */}
       {Array.from({ length: 8 }).map((_, i) => (
-        <motion.circle
+        <circle
           key={i}
           cx={60 + i * 8}
           cy={28 + ((i % 2 === 0) ? -2 : 2)}
           r={1.6}
           fill={i % 3 === 0 ? "#ffffff" : i % 3 === 1 ? "#fbbf24" : "#f59e0b"}
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: [0, 1, 0], scale: [0, 1, 0], y: [0, -2, -4] }}
-          transition={{ duration: 1.4 + i * 0.05, repeat: Infinity, delay: i * 0.08 }}
-          style={{ filter: "blur(0.3px)" }}
+          className="flame-spark"
+          style={{ filter: "blur(0.3px)", animationDuration: `${1.4 + i * 0.05}s`, animationDelay: `${i * 0.08}s` }}
         />
       ))}
-    </motion.svg>
+    </svg>
   );
 }
 
@@ -140,158 +122,139 @@ export default function FireDragon() {
 
   return (
     <div className="pointer-events-none fixed inset-0 z-30 overflow-hidden">
-      <AnimatePresence>
-        {isDragonVisible && (
-          <>
-            {/* Dragon segments */}
-            {dragonSegments.map((segment, index) => (
-              <motion.div
+      {isDragonVisible && (
+        <>
+          {/* Dragon segments */}
+          {dragonSegments.map((segment, index) => {
+            const topPx = window.innerHeight - 120 + Math.sin(index * 0.5) * 20;
+            const startLeftPx = segment.x;
+            const scale = segment.scale;
+            return (
+              <div
                 key={segment.id}
-                initial={{ 
-                  x: segment.x, 
-                  y: window.innerHeight - 120 + Math.sin(index * 0.5) * 20,
-                  rotate: 0,
-                  scale: segment.scale
+                className="absolute dragon-fly"
+                style={{
+                  top: `${topPx}px`,
+                  left: `${startLeftPx}px`,
+                  zIndex: 30 - index,
+                  animationDuration: "8s",
+                  animationDelay: `${index * 0.1}s`,
                 }}
-                animate={{ 
-                  x: window.innerWidth + 150,
-                  y: window.innerHeight - 120 + Math.sin(index * 0.5) * 20,
-                  rotate: [0, 5, -5, 0],
-                  scale: segment.scale
-                }}
-                exit={{ opacity: 0 }}
-                transition={{ 
-                  duration: 8,
-                  delay: index * 0.1,
-                  ease: "easeInOut",
-                  rotate: {
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }
-                }}
-                className="absolute"
-                style={{ zIndex: 30 - index }}
               >
-                {/* Dragon Head (first segment) */}
-                {index === 0 && (
-                  <div className="relative">
-                    {/* Dragon head */}
+                <div className="wriggle-anim" style={{ animationDuration: "2s" }}>
+                  {/* Dragon Head (first segment) */}
+                  {index === 0 && (
+                    <div className="relative">
+                      {/* Dragon head */}
+                      <div 
+                        className="w-24 h-16 rounded-full relative"
+                        style={{
+                          background: "linear-gradient(135deg, #dc2626, #ea580c, #f59e0b)",
+                          boxShadow: "0 0 30px rgba(220, 38, 38, 0.6)",
+                          transform: `scale(${scale})`
+                        }}
+                      >
+                        {/* Eyes */}
+                        <div className="absolute top-3 left-4 w-3 h-3 bg-yellow-300 rounded-full">
+                          <div className="w-2 h-2 bg-black rounded-full ml-0.5 mt-0.5" />
+                        </div>
+                        <div className="absolute top-3 right-4 w-3 h-3 bg-yellow-300 rounded-full">
+                          <div className="w-2 h-2 bg-black rounded-full ml-0.5 mt-0.5" />
+                        </div>
+                        
+                        {/* Nostrils */}
+                        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2">
+                          <div className="flex gap-1">
+                            <div className="w-1 h-2 bg-black rounded-full" />
+                            <div className="w-1 h-2 bg-black rounded-full" />
+                          </div>
+                        </div>
+                        
+                        {/* Horns */}
+                        <div className="absolute -top-2 left-1/4 w-2 h-4 bg-yellow-500 rounded-t-full transform rotate-12" />
+                        <div className="absolute -top-2 right-1/4 w-2 h-4 bg-yellow-500 rounded-t-full transform -rotate-12" />
+                      </div>
+                      
+                      {/* Painterly Fire breath */}
+                      <PainterlyFlame />
+                    </div>
+                  )}
+                  
+                  {/* Dragon body segments */}
+                  {index > 0 && index < 6 && (
                     <div 
-                      className="w-24 h-16 rounded-full relative"
+                      className="w-20 h-12 rounded-full relative"
                       style={{
-                        background: "linear-gradient(135deg, #dc2626, #ea580c, #f59e0b)",
-                        boxShadow: "0 0 30px rgba(220, 38, 38, 0.6)"
+                        background: `linear-gradient(135deg, #dc2626, #ea580c, #f59e0b)`,
+                        boxShadow: "0 0 25px rgba(220, 38, 38, 0.4)",
+                        transform: `scale(${Math.max(0.6, 1 - (index * 0.08))})`
                       }}
                     >
-                      {/* Eyes */}
-                      <div className="absolute top-3 left-4 w-3 h-3 bg-yellow-300 rounded-full">
-                        <div className="w-2 h-2 bg-black rounded-full ml-0.5 mt-0.5" />
-                      </div>
-                      <div className="absolute top-3 right-4 w-3 h-3 bg-yellow-300 rounded-full">
-                        <div className="w-2 h-2 bg-black rounded-full ml-0.5 mt-0.5" />
-                      </div>
-                      
-                      {/* Nostrils */}
-                      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2">
-                        <div className="flex gap-1">
-                          <div className="w-1 h-2 bg-black rounded-full" />
-                          <div className="w-1 h-2 bg-black rounded-full" />
-                        </div>
-                      </div>
-                      
-                      {/* Horns */}
-                      <div className="absolute -top-2 left-1/4 w-2 h-4 bg-yellow-500 rounded-t-full transform rotate-12" />
-                      <div className="absolute -top-2 right-1/4 w-2 h-4 bg-yellow-500 rounded-t-full transform -rotate-12" />
+                      {/* Body scales */}
+                      <div className="absolute inset-0 rounded-full opacity-30"
+                           style={{
+                             background: "repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px)"
+                           }} />
                     </div>
-                    
-                    {/* Painterly Fire breath */}
-                    <PainterlyFlame />
-                  </div>
-                )}
-                
-                {/* Dragon body segments */}
-                {index > 0 && index < 6 && (
-                  <div 
-                    className="w-20 h-12 rounded-full relative"
-                    style={{
-                      background: `linear-gradient(135deg, #dc2626, #ea580c, #f59e0b)`,
-                      boxShadow: "0 0 25px rgba(220, 38, 38, 0.4)",
-                      transform: `scale(${Math.max(0.6, 1 - (index * 0.08))})`
-                    }}
-                  >
-                    {/* Body scales */}
-                    <div className="absolute inset-0 rounded-full opacity-30"
-                         style={{
-                           background: "repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px)"
-                         }} />
-                  </div>
-                )}
-                
-                {/* Dragon tail segments */}
-                {index >= 6 && (
-                  <div 
-                    className="w-16 h-8 rounded-full relative"
-                    style={{
-                      background: `linear-gradient(135deg, #dc2626, #ea580c)`,
-                      boxShadow: "0 0 20px rgba(220, 38, 38, 0.3)",
-                      transform: `scale(${Math.max(0.4, 1 - (index * 0.1))})`
-                    }}
-                  >
-                    {/* Tail fin */}
-                    {index === 7 && (
-                      <div 
-                        className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-8 h-12"
-                        style={{
-                          background: "linear-gradient(135deg, #f97316, #fbbf24)",
-                          clipPath: "polygon(0 50%, 100% 0%, 100% 100%)",
-                          boxShadow: "0 0 15px rgba(251, 191, 36, 0.5)"
-                        }}
-                      />
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            ))}
-            
-            {/* Sparkle trail effects */}
-            {Array.from({ length: 12 }).map((_, i) => (
-              <motion.div
+                  )}
+                  
+                  {/* Dragon tail segments */}
+                  {index >= 6 && (
+                    <div 
+                      className="w-16 h-8 rounded-full relative"
+                      style={{
+                        background: `linear-gradient(135deg, #dc2626, #ea580c)`,
+                        boxShadow: "0 0 20px rgba(220, 38, 38, 0.3)",
+                        transform: `scale(${Math.max(0.4, 1 - (index * 0.1))})`
+                      }}
+                    >
+                      {/* Tail fin */}
+                      {index === 7 && (
+                        <div 
+                          className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-8 h-12"
+                          style={{
+                            background: "linear-gradient(135deg, #f97316, #fbbf24)",
+                            clipPath: "polygon(0 50%, 100% 0%, 100% 100%)",
+                            boxShadow: "0 0 15px rgba(251, 191, 36, 0.5)"
+                          }}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          
+          {/* Sparkle trail effects */}
+          {Array.from({ length: 12 }).map((_, i) => {
+            const topPx = window.innerHeight - 100 + Math.random() * 40;
+            const startLeft = -100 + (i * -30);
+            const color = ["#fbbf24", "#f97316", "#dc2626", "#a855f7"][i % 4];
+            return (
+              <div
                 key={`sparkle-${i}`}
-                initial={{ 
-                  x: -100 + (i * -30),
-                  y: window.innerHeight - 100 + Math.random() * 40,
-                  scale: 0,
-                  opacity: 0
+                className="absolute sparkle-fly w-3 h-3"
+                style={{
+                  top: `${topPx}px`,
+                  left: `${startLeft}px`,
+                  animationDuration: "8s",
+                  animationDelay: `${i * 0.2}s`
                 }}
-                animate={{ 
-                  x: window.innerWidth + 100,
-                  y: window.innerHeight - 100 + Math.random() * 40,
-                  scale: [0, 1, 0],
-                  opacity: [0, 1, 0],
-                  rotate: 360
-                }}
-                exit={{ opacity: 0 }}
-                transition={{
-                  duration: 8,
-                  delay: i * 0.2,
-                  ease: "easeInOut"
-                }}
-                className="absolute w-3 h-3"
               >
                 <div 
-                  className="w-full h-full"
+                  className="sparkle-pop-rot w-full h-full"
                   style={{
-                    background: ["#fbbf24", "#f97316", "#dc2626", "#a855f7"][i % 4],
+                    background: color,
                     clipPath: "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)",
-                    boxShadow: `0 0 10px ${["#fbbf24", "#f97316", "#dc2626", "#a855f7"][i % 4]}80`
+                    boxShadow: `0 0 10px ${color}80`
                   }}
                 />
-              </motion.div>
-            ))}
-          </>
-        )}
-      </AnimatePresence>
+              </div>
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }

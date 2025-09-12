@@ -1,5 +1,5 @@
 import Typewriter from "typewriter-effect";
-import { motion } from "framer-motion";
+import Reveal from "./components/Reveal";
 import { Wrench, Users, Timer, Ban, ListChecks, Chrome, Figma, Code2, Thermometer, Snowflake, Video, Smartphone, Sword, Gem, Sparkles } from "lucide-react";
 import TentCard from "./components/TentCard";
 import FaqTent from "./components/FAQCard";
@@ -198,13 +198,10 @@ function App() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Browser Extension Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4 }}
-              whileHover={{ scale: 1.02, y: -2, transition: { duration: 0.2 } }}
+            <Reveal
               className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-50 via-orange-50 to-blue-50 backdrop-blur p-6 ring-1 ring-red-200/50 shadow-lg hover:shadow-xl transition-all duration-300"
+              hoverLift
+              delaySec={0}
             >
               {/* Background decoration */}
               <div className="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br from-red-400/20 to-orange-400/20 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500" />
@@ -235,16 +232,13 @@ function App() {
                 <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">Browser Extension</span>
                 <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">NLP</span>
               </div>
-            </motion.div>
+            </Reveal>
 
             {/* Figma Plugin Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: 0.1 }}
-              whileHover={{ scale: 1.02, y: -2, transition: { duration: 0.2 } }}
+            <Reveal
               className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 backdrop-blur p-6 ring-1 ring-purple-200/50 shadow-lg hover:shadow-xl transition-all duration-300"
+              hoverLift
+              delaySec={0.1}
             >
               {/* Background decoration */}
               <div className="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500" />
@@ -275,16 +269,13 @@ function App() {
                 <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">Figma Plugin</span>
                 <span className="px-2 py-1 text-xs font-medium bg-pink-100 text-pink-700 rounded-full">Video Gen</span>
               </div>
-            </motion.div>
+            </Reveal>
 
             {/* VS Code Extension Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              whileHover={{ scale: 1.02, y: -2, transition: { duration: 0.2 } }}
+            <Reveal
               className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50 to-purple-50 backdrop-blur p-6 ring-1 ring-emerald-200/50 shadow-lg hover:shadow-xl transition-all duration-300"
+              hoverLift
+              delaySec={0.2}
             >
               {/* Background decoration */}
               <div className="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br from-emerald-400/20 to-teal-400/20 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500" />
@@ -315,16 +306,10 @@ function App() {
                 <span className="px-2 py-1 text-xs font-medium bg-emerald-100 text-emerald-700 rounded-full">VS Code</span>
                 <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">Gamification</span>
               </div>
-            </motion.div>
+            </Reveal>
           </div>
 
-          <motion.div 
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-            className="text-center mt-8"
-          >
+          <Reveal className="text-center mt-8" delaySec={0.3}>
             <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-100 via-yellow-50 to-orange-100 ring-1 ring-amber-200 shadow-sm">
               <Sparkles className="text-amber-600" size={20} />
               <p className="text-amber-900 font-semibold">
@@ -332,7 +317,7 @@ function App() {
               </p>
               <Sparkles className="text-amber-600" size={20} />
             </div>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
 
