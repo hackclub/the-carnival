@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Balloon {
   id: string;
@@ -12,6 +12,8 @@ const balloonColors = ["#f43f5e", "#fb923c", "#f59e0b", "#22c55e", "#3b82f6", "#
 
 export default function FloatingBalloons() {
   const [balloons, setBalloons] = useState<Balloon[]>([]);
+  const runningRef = useRef(true);
+  const mReduce = useRef<MediaQueryList | null>(null);
 
   const createBalloon = () => {
     const newBalloon: Balloon = {
@@ -30,14 +32,28 @@ export default function FloatingBalloons() {
   };
 
   useEffect(() => {
+    const onVisibility = () => {
+      runningRef.current = !document.hidden && !(mReduce.current?.matches ?? false);
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    mReduce.current = window.matchMedia('(prefers-reduced-motion: reduce)');
+    mReduce.current.addEventListener?.('change', onVisibility);
+    onVisibility();
+
     const interval = window.setInterval(() => {
-      if (Math.random() < 0.4) {
+      if (!runningRef.current) return;
+      if (balloons.length >= 10) return; // cap active balloons
+      if (Math.random() < 0.35) {
         createBalloon();
       }
-    }, 4000);
+    }, 4500);
 
-    return () => window.clearInterval(interval);
-  }, []);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      mReduce.current?.removeEventListener?.('change', onVisibility);
+      window.clearInterval(interval);
+    };
+  }, [balloons.length]);
 
   return (
     <div className="pointer-events-none fixed inset-0 z-10 overflow-hidden">
