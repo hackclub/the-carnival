@@ -333,11 +333,11 @@ function App() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FaqTent q="What is Carnival?" a="🎪 The midway where you build extensions, plugins, and widgets for editors you actually use. Add your ride to the wire and light up the federation!" accent="#f59e0b" />
+            <FaqTent q="What is Carnival?" a="Carnival is a YSWS where you build an extension/plugin for a program or editor you use. For every hour spent working on your plugin, you get +$5." accent="#f59e0b" />
             <FaqTent q="What can I build?" a="🔌 Extensions for VS Code, Chrome, Figma, KiCad, Unity, Godot—any platform that accepts plugins. If it shortens time-to-wow, it belongs on the midway." accent="#fbbf24" />
             <FaqTent q="What rewards can I get?" a="🎁 Procreate licenses, domain credits, peripherals, computer upgrades, and more. Anything that helps you keep building!" accent="#d97706" />
-            <FaqTent q="Where do I join?" a="🎟️ Hop into the Hack Club Slack and find us in #carnival. The tents are up, the generator's steady, and the PCB is glowing!" accent="#f59e0b" />
-            <FaqTent q="What's the minimum time requirement?" a="⏱️ For every hour you spend working on your project, you'll get a +$5 grant towards your dev journey. Track your time and keep shipping!" accent="#fbbf24" />
+            <FaqTent q="Where do I join?" a="🎟️ Hop into the Hack Club Slack and find us in #carnival. The tents are up and the generator's steady." accent="#f59e0b" />
+            <FaqTent q="What's the minimum time requirement?" a="Minimum of 6 hours. ⏱️ For every hour you spend working on your project, you'll get a +$5 grant towards your dev journey. Track your time and keep shipping!" accent="#fbbf24" />
             <FaqTent q="Can I build for an editor/app not mentioned?" a="💬 Yes — reach out in #carnival on Slack and ask for approval first. If it helps creators and isn't a remake, we're hyped to see it!" accent="#d97706" />
           </div>
         </div>
