@@ -8,6 +8,7 @@ import Countdown from "./components/Countdown";
 
 function App() {
   const slackJoinUrl = "https://hackclub.slack.com/archives/C091ZRTMF16";
+  const submissionUrl = "https://airtable.com/app8YP69xF49t7ymq/pagYy7rj2VU5KAIty/form";
   const EditorLogo = ({ src, letter }: { src?: string; letter: string }) => (
     <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm overflow-hidden ring-1 ring-amber-200 bg-white">
       {src ? (
@@ -50,7 +51,8 @@ function App() {
           <div className="transform transition-transform hover:scale-105 hover:-rotate-1">
             <a
               aria-label="Submit project"
-              href="/submit"
+              target="_blank" 
+              href={submissionUrl}
               className="inline-flex items-center justify-center rounded-full px-6 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 shadow-sm ring-1 ring-amber-500/50 transition-colors"
             >
               Submit project
