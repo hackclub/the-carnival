@@ -92,6 +92,10 @@ function App() {
                 <li className="leading-relaxed">Ensure it works properly in your editor of choice</li>
                 <li className="leading-relaxed">Provide clear build and run instructions</li>
                 <li className="leading-relaxed">Make it unique — not a remake of an existing extension</li>
+                <li className="leading-relaxed">Do not remake an existing tool with only minor changes</li>
+                <li className="leading-relaxed">Do not just build a wrapper around an existing tool or API</li>
+                <li className="leading-relaxed">Include more than one screenshot of your tool when submitting</li>
+                <li className="leading-relaxed">Simple plugins are generally not acceptable. If you’re unsure, ask in <a href={slackJoinUrl} target="_blank" rel="noreferrer">#carnival</a> on Slack</li>
               </ol>
             </div>
 
