@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useMemo } from "react";
 
 interface Balloon {
   id: string;
@@ -11,49 +11,17 @@ interface Balloon {
 const balloonColors = ["#f43f5e", "#fb923c", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#ec4899", "#ef4444"];
 
 export default function FloatingBalloons() {
-  const [balloons, setBalloons] = useState<Balloon[]>([]);
-  const runningRef = useRef(true);
-  const mReduce = useRef<MediaQueryList | null>(null);
-
-  const createBalloon = () => {
-    const newBalloon: Balloon = {
-      id: Math.random().toString(36).substr(2, 9),
+  // Render a fixed, memoized set of balloons and let CSS loop them infinitely.
+  const balloons = useMemo<Balloon[]>(() => {
+    return Array.from({ length: 3 }).map((_, i) => ({
+      id: String(i),
       x: Math.random() * 90 + 5,
       color: balloonColors[Math.floor(Math.random() * balloonColors.length)],
       size: Math.random() * 20 + 30,
-      delay: Math.random() * 2,
-    };
-
-    setBalloons(prev => [...prev, newBalloon]);
-
-    window.setTimeout(() => {
-      setBalloons(prev => prev.filter(b => b.id !== newBalloon.id));
-    }, 15000);
-  };
-
-  useEffect(() => {
-    const onVisibility = () => {
-      runningRef.current = !document.hidden && !(mReduce.current?.matches ?? false);
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    mReduce.current = window.matchMedia('(prefers-reduced-motion: reduce)');
-    mReduce.current.addEventListener?.('change', onVisibility);
-    onVisibility();
-
-    const interval = window.setInterval(() => {
-      if (!runningRef.current) return;
-      if (balloons.length >= 10) return; // cap active balloons
-      if (Math.random() < 0.35) {
-        createBalloon();
-      }
-    }, 4500);
-
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibility);
-      mReduce.current?.removeEventListener?.('change', onVisibility);
-      window.clearInterval(interval);
-    };
-  }, [balloons.length]);
+      // Use negative delays to phase balloons mid-flight without JS timers
+      delay: -(Math.random() * 12),
+    }));
+  }, []);
 
   return (
     <div className="pointer-events-none fixed inset-0 z-10 overflow-hidden">
@@ -63,12 +31,14 @@ export default function FloatingBalloons() {
           className="absolute balloon-float"
           style={{
             left: `${balloon.x}%`,
+            // Slower, lighter loop via CSS only
+            animation: `balloon-float ${18 + Math.random() * 6}s linear infinite`,
             animationDelay: `${balloon.delay}s`,
           }}
         >
           <div className="relative">
             <div
-              className="relative rounded-full shadow-lg balloon-bob balloon-sway"
+              className="relative rounded-full shadow-lg balloon-sway"
               style={{
                 width: `${balloon.size}px`,
                 height: `${balloon.size * 1.2}px`,

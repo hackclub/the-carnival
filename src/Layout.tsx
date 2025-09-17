@@ -2,41 +2,22 @@ import { Outlet } from "react-router-dom";
 import Footer from "./components/Footer";
 import Navbar from "./components/Navbar";
 import { Toaster } from "react-hot-toast";
-import CursorTrail from "./components/CursorTrail";
 import Fireworks from "./components/Fireworks";
 import FloatingBalloons from "./components/FloatingBalloons";
 import FireDragon from "./components/FireDragon";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Genei from "./assets/genei.webp";
 import GenieChat from "./components/GenieChat";
 
 const Layout = () => {
   const [askOpen, setAskOpen] = useState(false);
-  const [showCursorTrail, setShowCursorTrail] = useState(false);
+  // CursorTrail removed to reduce JS-driven animations
 
-  useEffect(() => {
-    const mReduce = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const mPointer = window.matchMedia('(pointer: fine)');
-    const mDesktop = window.matchMedia('(min-width: 768px)');
-
-    const update = () => {
-      setShowCursorTrail(!mReduce.matches && mPointer.matches && mDesktop.matches);
-    };
-
-    update();
-    mReduce.addEventListener?.('change', update);
-    mPointer.addEventListener?.('change', update);
-    mDesktop.addEventListener?.('change', update);
-    return () => {
-      mReduce.removeEventListener?.('change', update);
-      mPointer.removeEventListener?.('change', update);
-      mDesktop.removeEventListener?.('change', update);
-    };
-  }, []);
+  // Removed effect that conditionally showed CursorTrail
 
   return (
     <>
-      {showCursorTrail && <CursorTrail />}
+      {/* CursorTrail removed */}
       <FloatingBalloons />
       <Fireworks />
       <FireDragon />
