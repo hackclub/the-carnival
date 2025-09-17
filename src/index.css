@@ -86,8 +86,8 @@ section {
   background-repeat: no-repeat;
   z-index: 10;
 }
-.sparkles::before { animation: twinkle 2.4s ease-in-out infinite; }
-.sparkles::after { animation: twinkle 3.1s ease-in-out infinite reverse; }
+.sparkles::before { animation: none; background-image: none; display: none; }
+.sparkles::after { animation: none; background-image: none; display: none; }
 
 @media (prefers-reduced-motion: reduce), (prefers-reduced-data: reduce) {
   .sparkles::before, .sparkles::after {
@@ -182,7 +182,7 @@ section {
 /* === Dragon + Flame (Framer-less) === */
 @keyframes dragon-fly-x {
   0% { transform: translateX(0); }
-  100% { transform: translateX(calc(100vw + 300px)); }
+  100% { transform: translateX(calc(100vw + 800px)); }
 }
 @keyframes wriggle {
   0% { transform: rotate(0deg); }
