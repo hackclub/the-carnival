@@ -1,6 +1,6 @@
 import Typewriter from "typewriter-effect";
 import Reveal from "./components/Reveal";
-import { Wrench, Users, Timer, Ban, ListChecks, Sparkles } from "lucide-react";
+import { Wrench, Users, Timer, Ban, ListChecks, Sparkles, Gift, Megaphone } from "lucide-react";
 import TentCard from "./components/TentCard";
 import FaqTent from "./components/FAQCard";
 import Logo from "./assets/logo2-slim.webp";
@@ -275,6 +275,75 @@ function App() {
         </div>
       </section>
 
+      <section id="bonuses" className="mt-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl md:text-3xl font-extrabold text-amber-900">Sweet Deals for Submissions</h2>
+            <p className="mt-2 text-amber-800">Bonus boosts for standout builds — be original and have fun.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* First to a New Program */}
+            <Reveal className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur p-5 ring-1 ring-amber-200 shadow-sm hover:shadow-md transition-all" hoverLift>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Gift className="text-amber-600" size={18} />
+                  <h3 className="text-base font-semibold text-amber-900">First on a new editor/app</h3>
+                </div>
+                <span className="rounded-full bg-gradient-to-r from-amber-100 via-yellow-50 to-orange-100 ring-1 ring-amber-200 px-2.5 py-1 text-xs font-bold text-amber-900">+$10</span>
+              </div>
+              <p className="text-sm text-amber-800">
+                Ship the first original extension for an editor/app no one’s hit yet.
+              </p>
+            </Reveal>
+
+            {/* Goes Viral */}
+            <Reveal className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur p-5 ring-1 ring-amber-200 shadow-sm hover:shadow-md transition-all" hoverLift>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Megaphone className="text-amber-600" size={18} />
+                  <h3 className="text-base font-semibold text-amber-900">Solves a real problem + goes viral</h3>
+                </div>
+                <span className="rounded-full bg-gradient-to-r from-amber-100 via-yellow-50 to-orange-100 ring-1 ring-amber-200 px-2.5 py-1 text-xs font-bold text-amber-900">+$25</span>
+              </div>
+              <p className="text-sm text-amber-800">
+                Make something original people love — think 100+ real GitHub ⭐ or 250+ likes on Twitter/Instagram.
+              </p>
+            </Reveal>
+
+            
+
+            {/* Wildcard Bonus */}
+            <Reveal className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur p-5 ring-1 ring-amber-200 shadow-sm hover:shadow-md transition-all" hoverLift>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="text-amber-600" size={18} />
+                  <h3 className="text-base font-semibold text-amber-900">Wildcard Bonus</h3>
+                </div>
+                <span className="rounded-full bg-gradient-to-r from-amber-100 via-yellow-50 to-orange-100 ring-1 ring-amber-200 px-2.5 py-1 text-xs font-bold text-amber-900">+$5–$20</span>
+              </div>
+              <p className="text-sm text-amber-800">
+                Extra love for stuff that’s wildly creative, funny, or technically impressive.
+              </p>
+              <ul className="mt-2 text-xs text-amber-800 list-disc pl-4 space-y-1">
+                <li>Pull off something gnarly (e.g., real‑time WASM, clever caching)</li>
+                <li>A creative/funny twist that still actually solves a problem</li>
+                <li>A surprisingly good cross‑tool integration</li>
+              </ul>
+            </Reveal>
+          </div>
+
+          <Reveal className="text-center mt-6" delaySec={0.1}>
+            <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-100 via-yellow-50 to-orange-100 ring-1 ring-amber-200 shadow-sm">
+              <Sparkles className="text-amber-600" size={20} />
+              <p className="text-amber-900 font-semibold">These stack on top of your hourly grant — ship something delightful!</p>
+              <Sparkles className="text-amber-600" size={20} />
+            </div>
+            
+          </Reveal>
+        </div>
+      </section>
+
       <section id="rewards" className="mt-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-6">
@@ -373,15 +442,7 @@ function App() {
             ))}
           </div>
 
-          <Reveal className="text-center mt-8" delaySec={0.3}>
-            <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-100 via-yellow-50 to-orange-100 ring-1 ring-amber-200 shadow-sm">
-              <Sparkles className="text-amber-600" size={20} />
-              <p className="text-amber-900 font-semibold">
-                <strong>Bring Your Own:</strong> If it shortens time-to-wow, it belongs on the midway.
-              </p>
-              <Sparkles className="text-amber-600" size={20} />
-            </div>
-          </Reveal>
+          
         </div>
       </section>
 
