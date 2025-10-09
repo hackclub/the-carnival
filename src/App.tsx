@@ -167,6 +167,15 @@ function App() {
               Join #carnival
             </a>
           </div>
+          <div className="transform transition-transform hover:scale-105 hover:-rotate-1">
+            <a
+              aria-label="Browse editors you can build for"
+              href="/editors"
+              className="inline-flex items-center justify-center rounded-full px-6 py-2 text-sm font-semibold text-amber-900 bg-amber-50 hover:bg-amber-100 ring-1 ring-amber-200 transition-colors"
+            >
+              Editors you can build for
+            </a>
+          </div>
         </div>
       </section>
 
