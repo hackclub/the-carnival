@@ -5,6 +5,7 @@ import App from "./App.jsx";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Layout from "./Layout.jsx";
 import NotFound from "./components/NotFound.jsx";
+import Upgrades from "./components/Upgrades";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -12,6 +13,7 @@ createRoot(document.getElementById("root")!).render(
       <Routes>
         <Route path="" element={<Layout />}>
           <Route index element={<App />} />
+          <Route path="upgrades" element={<Upgrades />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

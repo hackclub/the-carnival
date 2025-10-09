@@ -192,6 +192,15 @@ function App() {
               accentHex="#d97706"
             />
           </div>
+
+          <div className="text-center mt-6">
+            <a
+              href="/upgrades"
+              className="inline-flex items-center justify-center rounded-full px-6 py-2 text-sm font-semibold text-amber-900 bg-amber-100 hover:bg-amber-200 ring-1 ring-amber-200 transition-colors"
+            >
+              View full gallery →
+            </a>
+          </div>
         </div>
       </section>
 
@@ -343,6 +352,7 @@ function App() {
             <FaqTent q="Where do I join?" a="🎟️ Hop into the Hack Club Slack and find us in #carnival. The tents are up and the generator's steady." accent="#f59e0b" />
             <FaqTent q="What's the minimum time requirement?" a="Minimum of 6 hours. ⏱️ For every hour you spend working on your project, you'll get a +$5 grant towards your dev journey. Track your time and keep shipping!" accent="#fbbf24" />
             <FaqTent q="Can I build for an editor/app not mentioned?" a="💬 Yes — reach out in #carnival on Slack and ask for approval first. If it helps creators and isn't a remake, we're hyped to see it!" accent="#d97706" />
+            <FaqTent q="Can I doube-dip?" a="💬 Yes — If you double-dip with another YSWS, you will get half the payout. That is $2.5/hr!" accent="#d97706" />
           </div>
         </div>
       </section>
