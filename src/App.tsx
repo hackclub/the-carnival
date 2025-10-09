@@ -239,7 +239,11 @@ function App() {
                     <EditorLogo src="https://dev-docs.kicad.org/favicon-96x96.png" letter="K" />
                     <a href="https://dev-docs.kicad.org/en/addons/" target="_blank" rel="noreferrer">KiCad</a>
                   </li>
-                  <li className="flex items-center gap-2">...and many more</li>
+                  <li className="flex items-center gap-2">
+                    <a href="/editors" className="underline decoration-amber-300 hover:decoration-amber-500 underline-offset-2">
+                      ...and many more →
+                    </a>
+                  </li>
                 </ul>
               </div>
 
