@@ -1,6 +1,6 @@
 import Typewriter from "typewriter-effect";
 import Reveal from "./components/Reveal";
-import { Wrench, Users, Timer, Ban, ListChecks, Sparkles, Gift, Megaphone } from "lucide-react";
+import { Wrench, Users, Timer, Ban, ListChecks, Sparkles, Gift, Megaphone, AlertTriangle } from "lucide-react";
 import TentCard from "./components/TentCard";
 import FaqTent from "./components/FAQCard";
 import Logo from "./assets/logo2-slim.webp";
@@ -119,6 +119,19 @@ function App() {
   return (
     <>
       <section id="home" className="pt-20 flex flex-col">
+        <div className="mx-auto w-full max-w-4xl px-4">
+          <div
+            role="alert"
+            className="mt-8 mb-6 rounded-2xl bg-red-50 p-4 ring-1 ring-red-300 shadow-md text-red-900 text-sm md:text-base"
+          >
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 text-red-600" size={18} />
+              <p>
+                <span className="font-semibold">Warning:</span> Don’t cheat the time tracking system. No bots, no fake key presses, no UI manipulation. If you do, you’ll be banned from Hackatime and other participating YSWS / events / programs.
+              </p>
+            </div>
+          </div>
+        </div>
         <div className="text-3xl md:text-5xl font-extrabold text-center">
           <div className="mb-2 flex items-center justify-center gap-3">
             <img src={Logo} alt="The Carnival logo" className="h-8 md:h-12 w-auto" width={96} height={48} loading="eager" />
