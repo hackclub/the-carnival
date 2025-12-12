@@ -5,6 +5,7 @@ import { Toaster } from "react-hot-toast";
 import Fireworks from "./components/Fireworks";
 import FloatingBalloons from "./components/FloatingBalloons";
 import FireDragon from "./components/FireDragon";
+import Snow from "./components/Snow";
 import { useState } from "react";
 import Genei from "./assets/genei.webp";
 import GenieChat from "./components/GenieChat";
@@ -18,6 +19,7 @@ const Layout = () => {
   return (
     <>
       {/* CursorTrail removed */}
+      <Snow />
       <FloatingBalloons />
       <Fireworks />
       <FireDragon />

@@ -169,6 +169,62 @@ section {
 }
 .trail-particle { animation: trail-fade 0.9s ease-out forwards; }
 
+/* === Snowfall overlay (lightweight, CSS-only) === */
+@keyframes snow-fall {
+  0% { transform: translate3d(0, -100vh, 0); }
+  100% { transform: translate3d(0, 100vh, 0); }
+}
+
+.snow-layer {
+  position: absolute;
+  inset: -100vh 0 0 0;
+  background-repeat: repeat;
+  background-size: 320px 320px;
+  animation-name: snow-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+.snow-layer--far {
+  background-image:
+    radial-gradient(5px 5px at 10% 0%, rgba(255,255,255,0.6) 60%, transparent 61%),
+    radial-gradient(5px 5px at 70% 20%, rgba(255,255,255,0.5) 60%, transparent 61%),
+    radial-gradient(4px 4px at 40% 60%, rgba(255,255,255,0.4) 60%, transparent 61%);
+  opacity: 0.25;
+  filter: blur(1.2px);
+  animation-duration: 48s;
+  animation-delay: -16s;
+}
+
+.snow-layer--mid {
+  background-image:
+    radial-gradient(7px 7px at 20% 10%, rgba(255,255,255,0.85) 60%, transparent 61%),
+    radial-gradient(7px 7px at 80% 50%, rgba(255,255,255,0.8) 60%, transparent 61%),
+    radial-gradient(5px 5px at 50% 80%, rgba(255,255,255,0.7) 60%, transparent 61%);
+  opacity: 0.45;
+  filter: blur(0.6px);
+  animation-duration: 32s;
+  animation-delay: -8s;
+}
+
+.snow-layer--near {
+  background-image:
+    radial-gradient(8px 8px at 15% 5%, rgba(255,255,255,0.95) 60%, transparent 61%),
+    radial-gradient(10px 10px at 60% 30%, rgba(255,255,255,0.95) 60%, transparent 61%),
+    radial-gradient(8px 8px at 85% 70%, rgba(255,255,255,0.9) 60%, transparent 61%);
+  opacity: 0.7;
+  animation-duration: 22s;
+  animation-delay: -4s;
+}
+
+@media (prefers-reduced-motion: reduce), (prefers-reduced-data: reduce) {
+  .snow-layer {
+    animation: none !important;
+    background-image: none;
+  }
+}
+
 /* Chat overlay/panel transitions (JS toggles presence) */
 .chat-overlay { transition: opacity 180ms ease; }
 .chat-panel { transition: opacity 220ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
