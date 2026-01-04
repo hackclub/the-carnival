@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Header from "@/components/Header";
 
 export default function Home() {
   return (
@@ -9,30 +10,8 @@ export default function Home() {
         <div className="absolute top-10 left-10 text-6xl float-animation">🎪</div>
         <div className="absolute top-20 right-20 text-4xl float-animation" style={{ animationDelay: "0.5s" }}>🎟️</div>
         <div className="absolute bottom-20 left-1/4 text-3xl float-animation" style={{ animationDelay: "1s" }}>✨</div>
-        
-        <nav className="relative z-10 flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🎪</span>
-            <span className="text-xl font-bold text-white">Carnival</span>
-          </div>
-          <div className="flex items-center gap-6">
-            <Link href="#about" className="text-gray-300 hover:text-white transition-colors">About</Link>
-            <Link href="#rewards" className="text-gray-300 hover:text-white transition-colors">Rewards</Link>
-            <Link href="#faq" className="text-gray-300 hover:text-white transition-colors">FAQ</Link>
-            <Link
-              href="/login"
-              className="text-gray-300 hover:text-white transition-colors"
-            >
-              Sign in
-            </Link>
-            <Link 
-              href="https://hackclub.slack.com/archives/C091ZRTMF16" 
-              className="bg-carnival-red hover:bg-carnival-red/80 text-white px-4 py-2 rounded-full font-medium transition-colors"
-            >
-              Join #carnival
-            </Link>
-          </div>
-        </nav>
+
+        <Header />
 
         <div className="relative z-10 max-w-4xl mx-auto text-center px-8 pt-20 pb-32">
           <h1 className="text-6xl md:text-7xl font-bold mb-6">
