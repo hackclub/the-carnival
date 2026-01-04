@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+:root {
+  --background: #1a1a2e;
+  --foreground: #eaeaea;
+  --carnival-red: #ec3750;
+  --carnival-orange: #ff8c37;
+  --carnival-yellow: #f1c40f;
+  --carnival-purple: #8b5cf6;
+  --carnival-pink: #ff6b9d;
+  --carnival-dark: #0f0f1a;
+  --carnival-card: #252542;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-carnival-red: var(--carnival-red);
+  --color-carnival-orange: var(--carnival-orange);
+  --color-carnival-yellow: var(--carnival-yellow);
+  --color-carnival-purple: var(--carnival-purple);
+  --color-carnival-pink: var(--carnival-pink);
+  --color-carnival-dark: var(--carnival-dark);
+  --color-carnival-card: var(--carnival-card);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--carnival-red), var(--carnival-orange), var(--carnival-yellow));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.carnival-glow {
+  box-shadow: 0 0 30px rgba(236, 55, 80, 0.3), 0 0 60px rgba(255, 140, 55, 0.2);
+}
+
+.card-glow:hover {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
