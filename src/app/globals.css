@@ -1,23 +1,59 @@
 @import "tailwindcss";
 
+html {
+  scroll-behavior: smooth;
+}
+
 :root {
-  --background: #1a1a2e;
-  --foreground: #eaeaea;
-  --carnival-red: #ec3750;
-  --carnival-orange: #ff8c37;
-  --carnival-yellow: #f1c40f;
+  /* Source of truth: hackclub/the-carnival `src/index.css` */
+  --background: #ffffff;
+  --foreground: #111827;
+
+  /* Semantic surfaces (aligned with the site's warm/light look) */
+  --card: rgba(255, 255, 255, 0.9);
+  --card-foreground: var(--foreground);
+  --muted: #fff7ed; /* amber-50-ish */
+  --muted-foreground: #78350f; /* amber-900 */
+  --border: #fde68a; /* amber-200 */
+  --input: #fde68a; /* amber-200 */
+  --ring: #fde68a; /* amber-200 */
+
+  /* Carnival accents from the-carnival CSS */
+  --carnival-amber: #f59e0b;
+  --carnival-amber-light: #fbbf24;
+  --carnival-amber-deep: #d97706;
+  --carnival-pink: #ec4899;
+  --carnival-blue: #3b82f6;
+  --carnival-green: #10b981;
+
+  /* Back-compat tokens used throughout this app */
+  --carnival-red: var(--carnival-amber);
+  --carnival-orange: var(--carnival-amber-light);
+  --carnival-yellow: var(--carnival-amber);
   --carnival-purple: #8b5cf6;
-  --carnival-pink: #ff6b9d;
-  --carnival-dark: #0f0f1a;
-  --carnival-card: #252542;
+  --carnival-dark: #111827;
+  --carnival-card: rgba(255, 255, 255, 0.9);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-carnival-amber: var(--carnival-amber);
+  --color-carnival-amber-light: var(--carnival-amber-light);
+  --color-carnival-amber-deep: var(--carnival-amber-deep);
+  --color-carnival-green: var(--carnival-green);
   --color-carnival-red: var(--carnival-red);
   --color-carnival-orange: var(--carnival-orange);
   --color-carnival-yellow: var(--carnival-yellow);
+  --color-carnival-blue: var(--carnival-blue);
   --color-carnival-purple: var(--carnival-purple);
   --color-carnival-pink: var(--carnival-pink);
   --color-carnival-dark: var(--carnival-dark);
@@ -27,9 +63,42 @@
 }
 
 body {
-  background: var(--background);
+  /* Match the-carnival reduced-motion gradient (we don't ship their image assets here). */
+  background-image: none;
+  background:
+    radial-gradient(1200px 600px at 20% -10%, #fce7f3 0%, transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, #ffedd5 0%, transparent 55%),
+    radial-gradient(800px 400px at -10% 80%, #dbeafe 0%, transparent 55%),
+    linear-gradient(180deg, #fff7ed 0%, #fff 30%, #fff7ed 100%);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+/* Themed scrollbars (from the-carnival) */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #f59e0b #fff7ed; /* thumb track */
+}
+
+/* WebKit */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: #fff7ed;
+}
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #fbbf24, #f59e0b);
+  border-radius: 9999px;
+  border: 2px solid #fff7ed;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #f59e0b, #d97706);
 }
 
 .gradient-text {
@@ -40,7 +109,9 @@ body {
 }
 
 .carnival-glow {
-  box-shadow: 0 0 30px rgba(236, 55, 80, 0.3), 0 0 60px rgba(255, 140, 55, 0.2);
+  box-shadow:
+    0 0 26px rgba(245, 158, 11, 0.22),
+    0 0 54px rgba(236, 72, 153, 0.12);
 }
 
 .card-glow:hover {
@@ -65,8 +136,34 @@ body {
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
+/* Sparkles overlay (from the-carnival) */
+.sparkles::before,
+.sparkles::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(2px 2px at 10% 20%, rgba(245, 158, 11, 0.6) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 30% 60%, rgba(236, 72, 153, 0.55) 50%, transparent 51%),
+    radial-gradient(2px 2px at 70% 40%, rgba(59, 130, 246, 0.5) 50%, transparent 51%),
+    radial-gradient(1.8px 1.8px at 85% 75%, rgba(16, 185, 129, 0.5) 50%, transparent 51%);
+  background-repeat: no-repeat;
+  z-index: 10;
+}
+.sparkles::before {
+  animation: none;
+  background-image: none;
+  display: none;
+}
+.sparkles::after {
+  animation: none;
+  background-image: none;
+  display: none;
+}
+
 .carnival-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(6px);
 }
 

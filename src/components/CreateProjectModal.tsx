@@ -187,23 +187,23 @@ export default function CreateProjectModal() {
   return (
     <dialog
       ref={dialogRef}
-      className="carnival-dialog m-auto w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] rounded-3xl bg-carnival-card/95 backdrop-blur border border-white/10 text-white p-0 overflow-hidden"
+      className="carnival-dialog m-auto w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] rounded-3xl bg-card/95 backdrop-blur border border-border text-foreground p-0 overflow-hidden"
       onClick={onBackdropClick}
       aria-label="Create a new project"
     >
       <div className="flex flex-col max-h-[calc(100vh-2rem)]">
-        <div className="px-6 md:px-8 py-6 border-b border-white/10">
+        <div className="px-6 md:px-8 py-6 border-b border-border">
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="text-xl md:text-2xl font-bold">Create a project</div>
-              <div className="text-gray-400 mt-1">
+              <div className="text-muted-foreground mt-1">
                 Fill in your project details. You can edit later.
               </div>
             </div>
             <button
               type="button"
               onClick={() => dialogRef.current?.close()}
-              className="h-10 w-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200 flex items-center justify-center"
+              className="h-10 w-10 rounded-full bg-muted hover:bg-muted/70 border border-border text-foreground flex items-center justify-center"
               aria-label="Close"
             >
               ✕
@@ -223,48 +223,48 @@ export default function CreateProjectModal() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="block">
-            <div className="text-sm text-gray-300 font-medium mb-2">
+            <div className="text-sm text-muted-foreground font-medium mb-2">
               Project name
             </div>
             <input
               name="name"
               required
               autoFocus
-              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-carnival-purple/60"
+              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="My awesome game"
             />
           </label>
 
           <label className="block">
-            <div className="text-sm text-gray-300 font-medium mb-2">
+            <div className="text-sm text-muted-foreground font-medium mb-2">
               Hackatime project name
             </div>
             <div className="space-y-3">
               <input
                 name="hackatimeProjectName"
                 required
-                className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-carnival-purple/60"
+                className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
                 placeholder="Pick from your Hackatime projects"
               />
 
               <details
                 ref={hackatimeDetailsRef}
-                className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden"
+                className="rounded-2xl border border-border bg-muted overflow-hidden"
                 onToggle={onHackatimeToggle}
               >
-                <summary className="cursor-pointer select-none px-4 py-3 text-sm text-gray-200 flex items-center justify-between">
+                <summary className="cursor-pointer select-none px-4 py-3 text-sm text-foreground flex items-center justify-between">
                   <span>Browse Hackatime projects</span>
-                  <span className="text-carnival-purple">▼</span>
+                  <span className="text-carnival-blue">▼</span>
                 </summary>
-                <div className="border-t border-white/10 px-4 py-3">
+                <div className="border-t border-border px-4 py-3">
                   {hackatimeLoading ? (
-                    <div className="text-sm text-gray-400">Loading…</div>
+                    <div className="text-sm text-muted-foreground">Loading…</div>
                   ) : hackatimeError ? (
                     <div className="text-sm text-red-200">
                       Couldn’t load projects: {hackatimeError}
                     </div>
                   ) : (hackatimeProjects?.length ?? 0) === 0 ? (
-                    <div className="text-sm text-gray-400">
+                    <div className="text-sm text-muted-foreground">
                       No projects found. (If you just started tracking, Hackatime may
                       need a bit of data.)
                     </div>
@@ -275,7 +275,7 @@ export default function CreateProjectModal() {
                           key={p}
                           type="button"
                           onClick={() => pickHackatimeProject(p)}
-                          className="w-full text-left px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-gray-200"
+                          className="w-full text-left px-3 py-2 rounded-xl bg-background hover:bg-muted border border-border text-sm text-foreground"
                         >
                           {p}
                         </button>
@@ -289,51 +289,51 @@ export default function CreateProjectModal() {
         </div>
 
         <label className="block">
-          <div className="text-sm text-gray-300 font-medium mb-2">
+          <div className="text-sm text-muted-foreground font-medium mb-2">
             Description
           </div>
           <textarea
             name="description"
             required
             rows={4}
-            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-carnival-purple/60"
+            className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
             placeholder="What are you building? What’s fun about it?"
           />
         </label>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="block">
-            <div className="text-sm text-gray-300 font-medium mb-2">
+            <div className="text-sm text-muted-foreground font-medium mb-2">
               Playable URL
             </div>
             <input
               name="playableUrl"
               required
-              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-carnival-purple/60"
+              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="https://mygame.vercel.app"
             />
           </label>
 
           <label className="block">
-            <div className="text-sm text-gray-300 font-medium mb-2">Code URL</div>
+            <div className="text-sm text-muted-foreground font-medium mb-2">Code URL</div>
             <input
               name="codeUrl"
               required
-              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-carnival-purple/60"
+              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="https://github.com/me/mygame"
             />
           </label>
         </div>
 
         <label className="block">
-          <div className="text-sm text-gray-300 font-medium mb-2">
+          <div className="text-sm text-muted-foreground font-medium mb-2">
             Screenshots
-            <span className="text-gray-500 font-normal"> (one URL per line)</span>
+            <span className="text-muted-foreground font-normal"> (one URL per line)</span>
           </div>
           <textarea
             name="screenshots"
             rows={3}
-            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-carnival-purple/60"
+            className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
             placeholder={`https://...\nhttps://...`}
           />
         </label>
@@ -342,7 +342,7 @@ export default function CreateProjectModal() {
             <button
               type="button"
               onClick={() => dialogRef.current?.close()}
-              className="inline-flex items-center justify-center bg-white/10 hover:bg-white/15 text-white px-5 py-3 rounded-full font-semibold transition-colors border border-white/10"
+              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-3 rounded-full font-semibold transition-colors border border-border"
               disabled={isSubmitting}
             >
               Cancel

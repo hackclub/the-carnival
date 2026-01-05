@@ -59,7 +59,7 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
     <nav className="relative z-50 flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">
       <div className="flex items-center gap-2">
         <span className="text-2xl">🎪</span>
-        <Link href="/" className="text-xl font-bold text-white">
+        <Link href="/" className="text-xl font-bold text-foreground">
           Carnival
         </Link>
       </div>
@@ -69,19 +69,19 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
           <>
             <Link
               href="#about"
-              className="text-gray-300 hover:text-white transition-colors"
+              className="text-muted-foreground hover:text-foreground transition-colors"
             >
               About
             </Link>
             <Link
               href="#rewards"
-              className="text-gray-300 hover:text-white transition-colors"
+              className="text-muted-foreground hover:text-foreground transition-colors"
             >
               Rewards
             </Link>
             <Link
               href="#faq"
-              className="text-gray-300 hover:text-white transition-colors"
+              className="text-muted-foreground hover:text-foreground transition-colors"
             >
               FAQ
             </Link>
@@ -89,7 +89,7 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
         ) : null}
 
         {isPending ? (
-          <span className="text-gray-400 text-sm">Checking session…</span>
+          <span className="text-muted-foreground text-sm">Checking session…</span>
         ) : isAuthed ? (
           <details ref={detailsRef} className="relative z-50">
             <summary className="list-none cursor-pointer select-none">
@@ -99,56 +99,56 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
                   <img
                     src={sessionUser.image}
                     alt=""
-                    className="h-9 w-9 rounded-full object-cover border border-white/10"
+                    className="h-9 w-9 rounded-full object-cover border border-border"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <span className="h-9 w-9 rounded-full bg-carnival-purple/30 border border-white/10 flex items-center justify-center text-white font-bold">
+                  <span className="h-9 w-9 rounded-full bg-carnival-blue/15 border border-border flex items-center justify-center text-foreground font-bold">
                     {avatarText}
                   </span>
                 )}
-                <span className="text-gray-200 font-medium max-w-[220px] truncate">
+                <span className="text-foreground font-medium max-w-[220px] truncate">
                   {displayName}
                 </span>
-                <span className="text-carnival-purple">▼</span>
+                <span className="text-carnival-blue">▼</span>
               </span>
             </summary>
 
-            <div className="absolute right-0 mt-3 z-50 w-[320px] rounded-2xl bg-carnival-card/95 backdrop-blur border border-white/10 shadow-xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-white/10">
-                <div className="text-white font-semibold truncate">
+            <div className="absolute right-0 mt-3 z-50 w-[320px] rounded-2xl bg-card/95 backdrop-blur border border-border shadow-xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-border">
+                <div className="text-foreground font-semibold truncate">
                   {sessionUser?.name || "Signed in"}
                 </div>
                 {sessionUser?.email ? (
-                  <div className="text-gray-400 text-sm truncate">
+                  <div className="text-muted-foreground text-sm truncate">
                     {sessionUser.email}
                   </div>
                 ) : null}
               </div>
 
               <div className="px-5 py-4 space-y-2">
-                <div className="text-xs text-gray-500 uppercase tracking-wide">
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">
                   Profile
                 </div>
                 {sessionUser?.slackId ? (
-                  <div className="text-sm text-gray-300">
-                    <span className="text-gray-500">Slack:</span>{" "}
+                  <div className="text-sm text-muted-foreground">
+                    <span className="text-muted-foreground">Slack:</span>{" "}
                     <span className="font-mono">{sessionUser.slackId}</span>
                   </div>
                 ) : null}
                 {sessionUser?.verificationStatus ? (
-                  <div className="text-sm text-gray-300">
-                    <span className="text-gray-500">Verification:</span>{" "}
+                  <div className="text-sm text-muted-foreground">
+                    <span className="text-muted-foreground">Verification:</span>{" "}
                     {sessionUser.verificationStatus}
                   </div>
                 ) : null}
               </div>
 
-              <div className="px-5 py-4 border-t border-white/10 flex items-center justify-end gap-3">
+              <div className="px-5 py-4 border-t border-border flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => closeMenu()}
-                  className="text-gray-300 hover:text-white text-sm transition-colors"
+                  className="text-muted-foreground hover:text-foreground text-sm transition-colors"
                 >
                   Close
                 </button>
@@ -165,7 +165,7 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
         ) : (
           <Link
             href="/login"
-            className="text-gray-300 hover:text-white transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors"
           >
             Sign in
           </Link>

@@ -10,9 +10,9 @@ export default async function BountiesPage() {
 
   return (
     <AppShell title="Bounties">
-      <div className="bg-carnival-card/70 border border-white/10 rounded-2xl p-8">
-        <div className="text-white font-semibold text-lg">Coming soon</div>
-        <div className="text-gray-400 mt-1">
+      <div className="bg-card border border-border rounded-2xl p-8">
+        <div className="text-foreground font-semibold text-lg">Coming soon</div>
+        <div className="text-muted-foreground mt-1">
           This is where bounties will live. For now, head to “My projects” to
           see your work.
         </div>

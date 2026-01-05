@@ -45,9 +45,9 @@ export default async function ProjectsPage() {
   return (
     <AppShell title="My projects">
       {myProjects.length === 0 ? (
-        <div className="bg-carnival-card/70 border border-white/10 rounded-2xl p-8">
-          <div className="text-white font-semibold text-lg">No projects yet</div>
-          <div className="text-gray-400 mt-1">
+        <div className="bg-card border border-border rounded-2xl p-8">
+          <div className="text-foreground font-semibold text-lg">No projects yet</div>
+          <div className="text-muted-foreground mt-1">
             Create your first project to start tracking hours and status.
           </div>
           <div className="mt-6">
@@ -70,14 +70,14 @@ export default async function ProjectsPage() {
             return (
               <div
                 key={p.id}
-                className="bg-carnival-card/80 backdrop-blur border border-white/10 rounded-2xl p-6 card-glow transition-all hover:bg-carnival-card"
+                className="bg-card border border-border rounded-2xl p-6 card-glow transition-all hover:bg-muted"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <div className="text-white font-bold text-xl truncate">
+                    <div className="text-foreground font-bold text-xl truncate">
                       {p.name}
                     </div>
-                    <div className="text-gray-400 mt-2 overflow-hidden">
+                    <div className="text-muted-foreground mt-2 overflow-hidden">
                       {p.description}
                     </div>
                   </div>
@@ -85,8 +85,8 @@ export default async function ProjectsPage() {
                 </div>
 
                 <div className="mt-6 flex items-center justify-between">
-                  <div className="text-sm text-gray-400">Hours</div>
-                  <div className="text-white font-semibold">
+                  <div className="text-sm text-muted-foreground">Hours</div>
+                  <div className="text-foreground font-semibold">
                     {formatHoursMinutes(hm.hours, hm.minutes)}
                   </div>
                 </div>
@@ -99,7 +99,7 @@ export default async function ProjectsPage() {
       {/* FAB */}
       <Link
         href="/projects?new=1"
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-carnival-red hover:bg-carnival-red/80 text-white flex items-center justify-center shadow-xl border border-white/10 carnival-glow transition-all hover:scale-105"
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-carnival-red hover:bg-carnival-red/80 text-white flex items-center justify-center shadow-xl border border-border carnival-glow transition-all hover:scale-105"
         aria-label="Create new project"
         title="Create new project"
       >

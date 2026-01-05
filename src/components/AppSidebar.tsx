@@ -19,13 +19,13 @@ export default function AppSidebar() {
 
   return (
     <aside className="w-full md:w-64 md:shrink-0">
-      <div className="md:sticky md:top-0 md:h-screen md:overflow-auto border-b md:border-b-0 md:border-r border-white/10 bg-carnival-card/40 backdrop-blur">
+      <div className="md:sticky md:top-0 md:h-screen md:overflow-auto border-b md:border-b-0 md:border-r border-border bg-background/80 backdrop-blur">
         <div className="px-5 py-5">
-          <div className="text-white font-bold text-lg flex items-center gap-2">
+          <div className="text-foreground font-bold text-lg flex items-center gap-2">
             <span className="text-xl">🎪</span>
             <span>Carnival</span>
           </div>
-          <div className="text-gray-400 text-sm mt-1">Your dashboard</div>
+          <div className="text-muted-foreground text-sm mt-1">Your dashboard</div>
         </div>
 
         <nav className="px-3 pb-6">
@@ -40,8 +40,8 @@ export default function AppSidebar() {
                 className={[
                   "block rounded-xl px-4 py-3 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-carnival-purple/25 text-white border border-white/10"
-                    : "text-gray-300 hover:text-white hover:bg-white/5",
+                    ? "bg-carnival-blue/15 text-foreground border border-border"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
                 ].join(" ")}
               >
                 {item.label}
