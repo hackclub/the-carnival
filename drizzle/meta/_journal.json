@@ -15,6 +15,13 @@
       "when": 1767617525521,
       "tag": "0001_first_whizzer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767618330178,
+      "tag": "0002_petite_quicksilver",
+      "breakpoints": true
     }
   ]
 }

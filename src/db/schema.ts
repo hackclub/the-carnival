@@ -1,4 +1,13 @@
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, pgEnum } from "drizzle-orm/pg-core";
+
+export const projectStatus = pgEnum("project_status", [
+  "shipped",
+  "granted",
+  "in-review",
+  "work-in-progress",
+]);
+
+export type ProjectStatus = (typeof projectStatus.enumValues)[number];
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -22,6 +31,7 @@ export const project = pgTable("project", {
   playableUrl: text("playable_url").notNull(),
   codeUrl: text("code_url").notNull(),
   screenshots: text("screenshots").array().notNull(),
+  status: projectStatus("status").notNull().default("work-in-progress"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
