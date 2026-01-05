@@ -25,6 +25,7 @@ export const user = pgTable("user", {
 
 export const project = pgTable("project", {
   id: text("id").primaryKey(),
+  creatorId: text("creator_id").references(() => user.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   description: text("description").notNull(),
   hackatimeProjectName: text("hackatime_project_name").notNull(),
