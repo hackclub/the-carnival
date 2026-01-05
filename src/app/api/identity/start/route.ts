@@ -5,6 +5,8 @@ const clientSecret = process.env.HC_IDENTITY_CLIENT_SECRET!;
 const discoveryUrl = process.env.HC_IDENTITY_REDIRECT_URI!;
 
 export async function GET(request: Request) {
+    void clientSecret;
+    void request;
     const host = "https://hca.dinosaurbbq.org";
     const baseUrl = `${host}/oauth/authorize/`;
     const url = new URL(baseUrl);

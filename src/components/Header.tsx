@@ -22,17 +22,17 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
   const { data, isPending } = useSession();
   const detailsRef = useRef<HTMLDetailsElement | null>(null);
 
-  // `better-auth` shapes can differ by version; keep this tolerant.
-  const sessionUser = (data as any)?.user as
-    | {
-        id?: string;
-        name?: string | null;
-        email?: string | null;
-        image?: string | null;
-        slackId?: string | null;
-        verificationStatus?: string | null;
-      }
-    | undefined;
+  // `better-auth` shapes can differ by version; keep this tolerant (but typed).
+  type SessionUser = {
+    id?: string;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+    slackId?: string | null;
+    verificationStatus?: string | null;
+  };
+
+  const sessionUser = (data as { user?: SessionUser } | null | undefined)?.user;
 
   const isAuthed = !!sessionUser?.id;
 

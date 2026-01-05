@@ -141,7 +141,7 @@ export const auth = betterAuth({
 
           getUserInfo: async (tokens) => {
             // User is identified/created in `getToken`; just return it here.
-            return (tokens.raw as { userInfo?: unknown } | undefined)?.userInfo as any;
+            return (tokens.raw as { userInfo?: unknown } | undefined)?.userInfo as unknown;
           },
         },
       ],
