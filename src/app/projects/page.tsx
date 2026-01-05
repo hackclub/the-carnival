@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
+import CreateProjectModal from "@/components/CreateProjectModal";
 import { db } from "@/db";
 import { project } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
@@ -51,7 +52,7 @@ export default async function ProjectsPage() {
           </div>
           <div className="mt-6">
             <Link
-              href="/projects/new"
+              href="/projects?new=1"
               className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 text-white px-6 py-3 rounded-full font-bold transition-colors"
             >
               Create a project
@@ -97,13 +98,15 @@ export default async function ProjectsPage() {
 
       {/* FAB */}
       <Link
-        href="/projects/new"
+        href="/projects?new=1"
         className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-carnival-red hover:bg-carnival-red/80 text-white flex items-center justify-center shadow-xl border border-white/10 carnival-glow transition-all hover:scale-105"
         aria-label="Create new project"
         title="Create new project"
       >
         <span className="text-3xl leading-none">+</span>
       </Link>
+
+      <CreateProjectModal />
     </AppShell>
   );
 }

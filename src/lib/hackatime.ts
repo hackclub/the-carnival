@@ -73,3 +73,27 @@ export async function fetchHackatimeProjectHoursByName(
     return {};
   }
 }
+
+export async function fetchHackatimeProjectNames(
+  hackatimeUserId: string,
+): Promise<string[]> {
+  const uri = `https://hackatime.hackclub.com/api/v1/users/${hackatimeUserId}/stats?features=projects`;
+
+  try {
+    const response = await makeHackatimeRequest(uri);
+    if (!response.ok) return [];
+
+    const raw = (await response.json()) as HackatimeStatsResponse;
+    const projects = raw.data?.projects ?? [];
+
+    const names = new Set<string>();
+    for (const p of projects) {
+      const name = (p.name ?? "").trim();
+      if (name) names.add(name);
+    }
+
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  } catch {
+    return [];
+  }
+}

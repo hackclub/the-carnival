@@ -1,0 +1,364 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
+type CreateProjectPayload = {
+  name: string;
+  description: string;
+  hackatimeProjectName: string;
+  playableUrl: string;
+  codeUrl: string;
+  screenshots: string[];
+};
+
+function cleanString(value: FormDataEntryValue | null) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function splitLines(value: string) {
+  return value
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
+
+export default function CreateProjectModal() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const hackatimeDetailsRef = useRef<HTMLDetailsElement | null>(null);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hackatimeProjects, setHackatimeProjects] = useState<string[] | null>(null);
+  const [hackatimeLoading, setHackatimeLoading] = useState(false);
+  const [hackatimeError, setHackatimeError] = useState<string | null>(null);
+
+  const shouldBeOpen = useMemo(() => {
+    const v = searchParams.get("new");
+    return v === "1" || v === "true" || v === "yes";
+  }, [searchParams]);
+
+  const clearNewParam = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("new");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  useEffect(() => {
+    const d = dialogRef.current;
+    if (!d) return;
+
+    if (shouldBeOpen) {
+      setError(null);
+      if (!d.open) d.showModal();
+      document.body.style.overflow = "hidden";
+    } else {
+      if (d.open) d.close();
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [shouldBeOpen]);
+
+  useEffect(() => {
+    const d = dialogRef.current;
+    if (!d) return;
+
+    const onClose = () => {
+      setIsSubmitting(false);
+      setError(null);
+      clearNewParam();
+    };
+
+    d.addEventListener("close", onClose);
+    return () => d.removeEventListener("close", onClose);
+  }, [clearNewParam]);
+
+  const onBackdropClick = useCallback((e: React.MouseEvent<HTMLDialogElement>) => {
+    if (e.target === e.currentTarget) {
+      e.currentTarget.close();
+    }
+  }, []);
+
+  const onSubmit = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      setError(null);
+      setIsSubmitting(true);
+
+      const fd = new FormData(e.currentTarget);
+      const name = cleanString(fd.get("name"));
+      const description = cleanString(fd.get("description"));
+      const hackatimeProjectName = cleanString(fd.get("hackatimeProjectName"));
+      const playableUrl = cleanString(fd.get("playableUrl"));
+      const codeUrl = cleanString(fd.get("codeUrl"));
+      const screenshots = splitLines(cleanString(fd.get("screenshots")));
+
+      const payload: CreateProjectPayload = {
+        name,
+        description,
+        hackatimeProjectName,
+        playableUrl,
+        codeUrl,
+        screenshots,
+      };
+
+      try {
+        const res = await fetch("/api/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const data = (await res.json().catch(() => null)) as
+          | { id?: string; error?: string }
+          | null;
+
+        if (!res.ok) {
+          setError(data?.error || "Failed to create project.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Close modal (this also clears the URL param via the `close` event listener).
+        dialogRef.current?.close();
+        router.refresh();
+      } catch {
+        setError("Failed to create project.");
+        setIsSubmitting(false);
+      }
+    },
+    [router],
+  );
+
+  const onHackatimeToggle = useCallback(
+    async (e: React.SyntheticEvent<HTMLDetailsElement>) => {
+      const isOpen = (e.currentTarget as HTMLDetailsElement).open;
+      if (!isOpen) return;
+      if (hackatimeProjects !== null || hackatimeLoading) return;
+
+      setHackatimeLoading(true);
+      setHackatimeError(null);
+      try {
+        const res = await fetch("/api/hackatime/projects", { method: "GET" });
+        const data = (await res.json().catch(() => null)) as
+          | { projects?: unknown; error?: unknown }
+          | null;
+
+        if (!res.ok) {
+          const message = typeof data?.error === "string" ? data.error : "Failed to load.";
+          setHackatimeError(message);
+          setHackatimeProjects([]);
+          setHackatimeLoading(false);
+          return;
+        }
+
+        const raw = Array.isArray(data?.projects) ? data?.projects : [];
+        const projects = raw
+          .filter((p): p is string => typeof p === "string")
+          .map((p) => p.trim())
+          .filter(Boolean);
+
+        setHackatimeProjects(projects);
+        setHackatimeLoading(false);
+      } catch {
+        setHackatimeError("Failed to load.");
+        setHackatimeProjects([]);
+        setHackatimeLoading(false);
+      }
+    },
+    [hackatimeLoading, hackatimeProjects],
+  );
+
+  const pickHackatimeProject = useCallback((name: string) => {
+    const input = document.querySelector(
+      'input[name="hackatimeProjectName"]',
+    ) as HTMLInputElement | null;
+    if (input) input.value = name;
+    hackatimeDetailsRef.current?.removeAttribute("open");
+  }, []);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      className="carnival-dialog m-auto w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] rounded-3xl bg-carnival-card/95 backdrop-blur border border-white/10 text-white p-0 overflow-hidden"
+      onClick={onBackdropClick}
+      aria-label="Create a new project"
+    >
+      <div className="flex flex-col max-h-[calc(100vh-2rem)]">
+        <div className="px-6 md:px-8 py-6 border-b border-white/10">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-xl md:text-2xl font-bold">Create a project</div>
+              <div className="text-gray-400 mt-1">
+                Fill in your project details. You can edit later.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => dialogRef.current?.close()}
+              className="h-10 w-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200 flex items-center justify-center"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <form
+          onSubmit={onSubmit}
+          className="flex-1 px-6 md:px-8 py-6 space-y-5 overflow-y-auto"
+        >
+          {error ? (
+            <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
+              {error}
+            </div>
+          ) : null}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="block">
+            <div className="text-sm text-gray-300 font-medium mb-2">
+              Project name
+            </div>
+            <input
+              name="name"
+              required
+              autoFocus
+              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-carnival-purple/60"
+              placeholder="My awesome game"
+            />
+          </label>
+
+          <label className="block">
+            <div className="text-sm text-gray-300 font-medium mb-2">
+              Hackatime project name
+            </div>
+            <div className="space-y-3">
+              <input
+                name="hackatimeProjectName"
+                required
+                className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-carnival-purple/60"
+                placeholder="Pick from your Hackatime projects"
+              />
+
+              <details
+                ref={hackatimeDetailsRef}
+                className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden"
+                onToggle={onHackatimeToggle}
+              >
+                <summary className="cursor-pointer select-none px-4 py-3 text-sm text-gray-200 flex items-center justify-between">
+                  <span>Browse Hackatime projects</span>
+                  <span className="text-carnival-purple">▼</span>
+                </summary>
+                <div className="border-t border-white/10 px-4 py-3">
+                  {hackatimeLoading ? (
+                    <div className="text-sm text-gray-400">Loading…</div>
+                  ) : hackatimeError ? (
+                    <div className="text-sm text-red-200">
+                      Couldn’t load projects: {hackatimeError}
+                    </div>
+                  ) : (hackatimeProjects?.length ?? 0) === 0 ? (
+                    <div className="text-sm text-gray-400">
+                      No projects found. (If you just started tracking, Hackatime may
+                      need a bit of data.)
+                    </div>
+                  ) : (
+                    <div className="max-h-56 overflow-auto space-y-2">
+                      {hackatimeProjects!.map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => pickHackatimeProject(p)}
+                          className="w-full text-left px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-gray-200"
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </details>
+            </div>
+          </label>
+        </div>
+
+        <label className="block">
+          <div className="text-sm text-gray-300 font-medium mb-2">
+            Description
+          </div>
+          <textarea
+            name="description"
+            required
+            rows={4}
+            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-carnival-purple/60"
+            placeholder="What are you building? What’s fun about it?"
+          />
+        </label>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="block">
+            <div className="text-sm text-gray-300 font-medium mb-2">
+              Playable URL
+            </div>
+            <input
+              name="playableUrl"
+              required
+              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-carnival-purple/60"
+              placeholder="https://mygame.vercel.app"
+            />
+          </label>
+
+          <label className="block">
+            <div className="text-sm text-gray-300 font-medium mb-2">Code URL</div>
+            <input
+              name="codeUrl"
+              required
+              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-carnival-purple/60"
+              placeholder="https://github.com/me/mygame"
+            />
+          </label>
+        </div>
+
+        <label className="block">
+          <div className="text-sm text-gray-300 font-medium mb-2">
+            Screenshots
+            <span className="text-gray-500 font-normal"> (one URL per line)</span>
+          </div>
+          <textarea
+            name="screenshots"
+            rows={3}
+            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-carnival-purple/60"
+            placeholder={`https://...\nhttps://...`}
+          />
+        </label>
+
+          <div className="pt-2 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => dialogRef.current?.close()}
+              className="inline-flex items-center justify-center bg-white/10 hover:bg-white/15 text-white px-5 py-3 rounded-full font-semibold transition-colors border border-white/10"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-full font-bold transition-colors"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Creating…" : "Create project"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+  );
+}
+
+
