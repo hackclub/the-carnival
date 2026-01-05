@@ -56,7 +56,7 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
   }, [closeMenu]);
 
   return (
-    <nav className="relative z-10 flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">
+    <nav className="relative z-50 flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">
       <div className="flex items-center gap-2">
         <span className="text-2xl">🎪</span>
         <Link href="/" className="text-xl font-bold text-white">
@@ -91,7 +91,7 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
         {isPending ? (
           <span className="text-gray-400 text-sm">Checking session…</span>
         ) : isAuthed ? (
-          <details ref={detailsRef} className="relative">
+          <details ref={detailsRef} className="relative z-50">
             <summary className="list-none cursor-pointer select-none">
               <span className="flex items-center gap-3">
                 {sessionUser?.image ? (
@@ -114,7 +114,7 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
               </span>
             </summary>
 
-            <div className="absolute right-0 mt-3 w-[320px] rounded-2xl bg-carnival-card/95 backdrop-blur border border-white/10 shadow-xl overflow-hidden">
+            <div className="absolute right-0 mt-3 z-50 w-[320px] rounded-2xl bg-carnival-card/95 backdrop-blur border border-white/10 shadow-xl overflow-hidden">
               <div className="px-5 py-4 border-b border-white/10">
                 <div className="text-white font-semibold truncate">
                   {sessionUser?.name || "Signed in"}

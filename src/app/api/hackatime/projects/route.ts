@@ -3,7 +3,7 @@ import { getServerSession } from "@/lib/server-session";
 import { fetchHackatimeProjectNames } from "@/lib/hackatime";
 
 export async function GET() {
-  const session = await getServerSession();
+  const session = await getServerSession({ disableCookieCache: true });
   const slackId = (session?.user as { slackId?: string } | undefined)?.slackId;
 
   if (!slackId) {

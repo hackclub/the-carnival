@@ -1,14 +1,23 @@
 import { betterAuth, OAuth2UserInfo } from "better-auth";
+import { createFieldAttribute } from "better-auth/db";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { genericOAuth } from "better-auth/plugins";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 
+const identityHost = process.env.HC_IDENTITY_HOST!;
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,
   }),
+  // Ensure these custom columns are selected and included on `session.user`.
+  user: {
+    additionalFields: {
+      slackId: createFieldAttribute("string", { required: false }),
+      verificationStatus: createFieldAttribute("string", { required: false }),
+    },
+  },
   emailAndPassword: {
     enabled: false,
   },
@@ -20,7 +29,7 @@ export const auth = betterAuth({
           providerId: "hackclub-identity",
           clientId: process.env.HC_IDENTITY_CLIENT_ID!,
           clientSecret: process.env.HC_IDENTITY_CLIENT_SECRET!,
-          discoveryUrl: "https://hca.dinosaurbbq.org/.well-known/openid-configuration",
+          discoveryUrl: `${identityHost}/.well-known/openid-configuration`,
           redirectURI: process.env.HC_IDENTITY_REDIRECT_URI!,
           // These claims are supported by the provider; scopes_supported lists at least openid/profile.
           scopes: ['profile', 'email', 'name', 'slack_id', 'verification_status'],
@@ -30,7 +39,7 @@ export const auth = betterAuth({
             const clientId = process.env.HC_IDENTITY_CLIENT_ID!;
             const clientSecret = process.env.HC_IDENTITY_CLIENT_SECRET!;
 
-            const response = await fetch(`https://hca.dinosaurbbq.org/oauth/token`, {
+            const response = await fetch(`${identityHost}/oauth/token`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
@@ -51,7 +60,7 @@ export const auth = betterAuth({
 
             // Identify the user immediately via the provider (first time we can trust `access_token`)
             // and ensure the user exists in our DB.
-            const userInfoResponse = await fetch(`https://hca.dinosaurbbq.org/api/v1/me`, {
+            const userInfoResponse = await fetch(`${identityHost}/api/v1/me`, {
               headers: {
                 Authorization: `Bearer ${data.access_token}`,
               },

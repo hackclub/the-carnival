@@ -16,7 +16,7 @@ function formatHoursMinutes(hours: number, minutes: number) {
 }
 
 export default async function ProjectsPage() {
-  const session = await getServerSession();
+  const session = await getServerSession({ disableCookieCache: true });
   if (!session?.user?.id) {
     redirect("/login?callbackUrl=/projects");
   }
