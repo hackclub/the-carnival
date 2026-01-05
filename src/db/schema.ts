@@ -14,6 +14,31 @@ export const user = pgTable("user", {
   updatedAt: timestamp("updated_at").notNull(),
 });
 
+export const project = pgTable("project", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  hackatimeProjectName: text("hackatime_project_name").notNull(),
+  playableUrl: text("playable_url").notNull(),
+  codeUrl: text("code_url").notNull(),
+  screenshots: text("screenshots").array().notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+});
+
+export const peerReview = pgTable("peer_review", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id")
+    .notNull()
+    .references(() => project.id, { onDelete: "cascade" }),
+  reviewerId: text("reviewer_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  reviewComment: text("review_comment").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+});
+
 export const session = pgTable("session", {
   id: text("id").primaryKey(),
   expiresAt: timestamp("expires_at").notNull(),
