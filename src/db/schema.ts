@@ -1,4 +1,7 @@
-import { pgTable, text, timestamp, boolean, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, pgEnum, integer, uniqueIndex } from "drizzle-orm/pg-core";
+
+export const userRole = pgEnum("user_role", ["user", "reviewer", "admin"]);
+export type UserRole = (typeof userRole.enumValues)[number];
 
 export const projectStatus = pgEnum("project_status", [
   "shipped",
@@ -9,6 +12,9 @@ export const projectStatus = pgEnum("project_status", [
 
 export type ProjectStatus = (typeof projectStatus.enumValues)[number];
 
+export const reviewDecision = pgEnum("review_decision", ["approved", "rejected", "comment"]);
+export type ReviewDecision = (typeof reviewDecision.enumValues)[number];
+
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -17,6 +23,7 @@ export const user = pgTable("user", {
   image: text("image"),
   slackId: text("slack_id"),
   verificationStatus: text("verification_status"),
+  role: userRole("role").notNull().default("user"),
   identityToken: text("identity_token"),
   refreshToken: text("refresh_token"),
   createdAt: timestamp("created_at").notNull(),
@@ -45,10 +52,41 @@ export const peerReview = pgTable("peer_review", {
   reviewerId: text("reviewer_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+  decision: reviewDecision("decision").notNull().default("comment"),
   reviewComment: text("review_comment").notNull(),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
+
+export const bountyProject = pgTable("bounty_project", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  prizeUsd: integer("prize_usd").notNull(),
+  createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+});
+
+export const bountyClaim = pgTable(
+  "bounty_claim",
+  {
+    id: text("id").primaryKey(),
+    bountyProjectId: text("bounty_project_id")
+      .notNull()
+      .references(() => bountyProject.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    // Slot 1 or 2. Enforced via unique index (bountyProjectId, slot) + insert logic.
+    slot: integer("slot").notNull(),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (t) => ({
+    uniqProjectSlot: uniqueIndex("bounty_claim_project_slot_uniq").on(t.bountyProjectId, t.slot),
+    uniqProjectUser: uniqueIndex("bounty_claim_project_user_uniq").on(t.bountyProjectId, t.userId),
+  }),
+);
 
 export const session = pgTable("session", {
   id: text("id").primaryKey(),
