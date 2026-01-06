@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
 
 type CreateProjectPayload = {
   name: string;
@@ -29,6 +30,10 @@ export default function CreateProjectModal() {
   const searchParams = useSearchParams();
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const hackatimeDetailsRef = useRef<HTMLDetailsElement | null>(null);
+
+  const { data: sessionData } = useSession();
+  type SessionUser = { slackId?: string | null };
+  const slackId = (sessionData as { user?: SessionUser } | null | undefined)?.user?.slackId ?? null;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,7 +151,10 @@ export default function CreateProjectModal() {
       setHackatimeLoading(true);
       setHackatimeError(null);
       try {
-        const res = await fetch("/api/hackatime/projects", { method: "GET" });
+        const url = slackId
+          ? `/api/hackatime/projects?slackId=${encodeURIComponent(slackId)}`
+          : "/api/hackatime/projects";
+        const res = await fetch(url, { method: "GET" });
         const data = (await res.json().catch(() => null)) as
           | { projects?: unknown; error?: unknown }
           | null;

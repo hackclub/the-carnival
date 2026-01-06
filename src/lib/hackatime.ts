@@ -16,10 +16,12 @@ async function makeHackatimeRequest(uri: string) {
     throw new Error("Missing HACKATIME_API_TOKEN");
   }
 
+  const rackAttackBypass = process.env.HACKATIME_RACK_ATTACK_BYPASS_TOKEN;
+
   const response = await fetch(uri, {
     headers: {
       Authorization: `Bearer ${token}`,
-      // 'Rack-Attack-Bypass': process.env.HACKATIME_RACK_ATTACK_BYPASS_TOKEN || '',
+      ...(rackAttackBypass ? { "Rack-Attack-Bypass": rackAttackBypass } : {}),
     },
     // Keep this dynamic; stats can change quickly.
     cache: "no-store",
@@ -79,21 +81,22 @@ export async function fetchHackatimeProjectNames(
 ): Promise<string[]> {
   const uri = `https://hackatime.hackclub.com/api/v1/users/${hackatimeUserId}/stats?features=projects`;
 
-  try {
-    const response = await makeHackatimeRequest(uri);
-    if (!response.ok) return [];
-
-    const raw = (await response.json()) as HackatimeStatsResponse;
-    const projects = raw.data?.projects ?? [];
-
-    const names = new Set<string>();
-    for (const p of projects) {
-      const name = (p.name ?? "").trim();
-      if (name) names.add(name);
-    }
-
-    return Array.from(names).sort((a, b) => a.localeCompare(b));
-  } catch {
-    return [];
+  const response = await makeHackatimeRequest(uri);
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `Hackatime request failed (${response.status} ${response.statusText})${body ? `: ${body}` : ""}`,
+    );
   }
+
+  const raw = (await response.json()) as HackatimeStatsResponse;
+  const projects = raw.data?.projects ?? [];
+
+  const names = new Set<string>();
+  for (const p of projects) {
+    const name = (p.name ?? "").trim();
+    if (name) names.add(name);
+  }
+
+  return Array.from(names).sort((a, b) => a.localeCompare(b));
 }
