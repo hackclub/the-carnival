@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
 
 type NavItem = {
   href: string;
@@ -16,6 +17,12 @@ const NAV: NavItem[] = [
 
 export default function AppSidebar() {
   const pathname = usePathname();
+  const { data } = useSession();
+
+  type SessionUser = { role?: string | null };
+  const role = (data as { user?: SessionUser } | null | undefined)?.user?.role ?? null;
+  const canReview = role === "reviewer" || role === "admin";
+  const isAdmin = role === "admin";
 
   return (
     <aside className="w-full md:w-64 md:shrink-0">
@@ -48,6 +55,47 @@ export default function AppSidebar() {
               </Link>
             );
           })}
+
+          {canReview ? (
+            <Link
+              href="/review"
+              className={[
+                "block rounded-xl px-4 py-3 text-sm font-medium transition-colors mt-2",
+                pathname === "/review" || pathname?.startsWith("/review/")
+                  ? "bg-carnival-blue/15 text-foreground border border-border"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
+              ].join(" ")}
+            >
+              Review
+            </Link>
+          ) : null}
+
+          {isAdmin ? (
+            <div className="mt-2 space-y-2">
+              <Link
+                href="/admin/grants"
+                className={[
+                  "block rounded-xl px-4 py-3 text-sm font-medium transition-colors",
+                  pathname === "/admin/grants" || pathname?.startsWith("/admin/grants/")
+                    ? "bg-carnival-blue/15 text-foreground border border-border"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                ].join(" ")}
+              >
+                Grants
+              </Link>
+              <Link
+                href="/admin/users"
+                className={[
+                  "block rounded-xl px-4 py-3 text-sm font-medium transition-colors",
+                  pathname === "/admin/users" || pathname?.startsWith("/admin/users/")
+                    ? "bg-carnival-blue/15 text-foreground border border-border"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                ].join(" ")}
+              >
+                Users
+              </Link>
+            </div>
+          ) : null}
         </nav>
       </div>
     </aside>

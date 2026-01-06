@@ -68,9 +68,11 @@ export default async function ProjectsPage() {
               { hours: 0, minutes: 0 };
 
             return (
-              <div
+              <Link
                 key={p.id}
-                className="bg-card border border-border rounded-2xl p-6 card-glow transition-all hover:bg-muted"
+                href={`/projects/${p.id}`}
+                className="bg-card border border-border rounded-2xl p-6 card-glow transition-all hover:bg-muted block"
+                aria-label={`Manage ${p.name}`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
@@ -90,7 +92,7 @@ export default async function ProjectsPage() {
                     {formatHoursMinutes(hm.hours, hm.minutes)}
                   </div>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>

@@ -16,6 +16,7 @@ export const auth = betterAuth({
     additionalFields: {
       slackId: createFieldAttribute("string", { required: false }),
       verificationStatus: createFieldAttribute("string", { required: false }),
+      role: createFieldAttribute("string", { required: false }),
     },
   },
   emailAndPassword: {
