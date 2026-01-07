@@ -1,9 +1,13 @@
 import Link from "next/link";
+import { unstable_noStore as noStore } from "next/cache";
 import Header from "@/components/Header";
 import { db } from "@/db";
 import { editor } from "@/db/schema";
 
 export default async function EditorsPage() {
+  // Prevent build-time prerender from attempting a DB connection in Docker builds.
+  noStore();
+
   const editors = await db
     .select({
       id: editor.id,

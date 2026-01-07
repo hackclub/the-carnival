@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import AppSidebar from "@/components/AppSidebar";
+import { unstable_noStore as noStore } from "next/cache";
 
 export default function AppShell({
   title,
@@ -8,6 +9,10 @@ export default function AppShell({
   title: string;
   children: React.ReactNode;
 }) {
+  // Prevent Next from trying to prerender/cache DB-backed pages during `next build`
+  // (important for Docker builds where the DB isn't reachable).
+  noStore();
+
   return (
     <div className="min-h-screen bg-background">
       <div className="flex flex-col md:flex-row min-h-screen">
