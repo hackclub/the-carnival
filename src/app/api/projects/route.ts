@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { db } from "@/db";
-import { project } from "@/db/schema";
+import { project, type ProjectEditor } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
 
 type CreateProjectBody = {
   name?: unknown;
   description?: unknown;
+  editor?: unknown;
+  editorOther?: unknown;
   hackatimeProjectName?: unknown;
   playableUrl?: unknown;
   codeUrl?: unknown;
@@ -27,6 +29,28 @@ function isValidUrlString(value: string) {
   }
 }
 
+function isProjectEditor(value: unknown): value is ProjectEditor {
+  return (
+    value === "vscode" ||
+    value === "chrome" ||
+    value === "firefox" ||
+    value === "figma" ||
+    value === "neovim" ||
+    value === "gnu-emacs" ||
+    value === "jupyterlab" ||
+    value === "obsidian" ||
+    value === "blender" ||
+    value === "freecad" ||
+    value === "kicad" ||
+    value === "krita" ||
+    value === "gimp" ||
+    value === "inkscape" ||
+    value === "godot-engine" ||
+    value === "unity" ||
+    value === "other"
+  );
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession();
   const userId = (session?.user as { id?: string } | undefined)?.id;
@@ -43,6 +67,8 @@ export async function POST(req: Request) {
 
   const name = toCleanString(body.name);
   const description = toCleanString(body.description);
+  const editorRaw = typeof body.editor === "string" ? body.editor.trim() : body.editor;
+  const editorOther = toCleanString(body.editorOther);
   const hackatimeProjectName = toCleanString(body.hackatimeProjectName);
   const playableUrl = toCleanString(body.playableUrl);
   const codeUrl = toCleanString(body.codeUrl);
@@ -60,6 +86,23 @@ export async function POST(req: Request) {
   if (!description) {
     return NextResponse.json({ error: "Description is required" }, { status: 400 });
   }
+
+  if (!isProjectEditor(editorRaw)) {
+    return NextResponse.json({ error: "Editor is required" }, { status: 400 });
+  }
+  if (editorRaw === "other" && !editorOther) {
+    return NextResponse.json(
+      { error: "Please enter the editor name (Other)" },
+      { status: 400 },
+    );
+  }
+  if (editorRaw !== "other" && editorOther) {
+    return NextResponse.json(
+      { error: "Editor name should only be set when editor is Other" },
+      { status: 400 },
+    );
+  }
+
   if (!hackatimeProjectName) {
     return NextResponse.json(
       { error: "Hackatime project name is required" },
@@ -87,6 +130,8 @@ export async function POST(req: Request) {
     creatorId: userId,
     name,
     description,
+    editor: editorRaw,
+    editorOther: editorOther || null,
     hackatimeProjectName,
     playableUrl,
     codeUrl,

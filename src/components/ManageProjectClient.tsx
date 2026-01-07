@@ -1,14 +1,36 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import type { ProjectStatus, ReviewDecision } from "@/db/schema";
+import type { ProjectEditor, ProjectStatus, ReviewDecision } from "@/db/schema";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import toast from "react-hot-toast";
+
+const EDITOR_OPTIONS = [
+  { value: "vscode", label: "VS Code" },
+  { value: "chrome", label: "Chrome" },
+  { value: "firefox", label: "Firefox" },
+  { value: "figma", label: "Figma" },
+  { value: "neovim", label: "Neovim" },
+  { value: "gnu-emacs", label: "GNU Emacs" },
+  { value: "jupyterlab", label: "JupyterLab" },
+  { value: "obsidian", label: "Obsidian" },
+  { value: "blender", label: "Blender" },
+  { value: "freecad", label: "FreeCAD" },
+  { value: "kicad", label: "KiCad" },
+  { value: "krita", label: "Krita" },
+  { value: "gimp", label: "GIMP" },
+  { value: "inkscape", label: "Inkscape" },
+  { value: "godot-engine", label: "Godot Engine" },
+  { value: "unity", label: "Unity" },
+  { value: "other", label: "Other" },
+] as const;
 
 export type ManageProjectInitial = {
   id: string;
   name: string;
   description: string;
+  editor: ProjectEditor;
+  editorOther: string;
   hackatimeProjectName: string;
   playableUrl: string;
   codeUrl: string;
@@ -53,6 +75,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
 
   const [name, setName] = useState(initial.name);
   const [description, setDescription] = useState(initial.description);
+  const [editor, setEditor] = useState<ProjectEditor>(initial.editor);
+  const [editorOther, setEditorOther] = useState(initial.editorOther);
   const [hackatimeProjectName, setHackatimeProjectName] = useState(initial.hackatimeProjectName);
   const [playableUrl, setPlayableUrl] = useState(initial.playableUrl);
   const [codeUrl, setCodeUrl] = useState(initial.codeUrl);
@@ -95,6 +119,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     const payload: Record<string, unknown> = {
       name: name.trim(),
       description: description.trim(),
+      editor,
+      editorOther: editor === "other" ? editorOther.trim() : "",
       hackatimeProjectName: hackatimeProjectName.trim(),
       playableUrl: playableUrl.trim(),
       codeUrl: codeUrl.trim(),
@@ -126,6 +152,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
       if (p) {
         setName(p.name);
         setDescription(p.description);
+        setEditor(p.editor);
+        setEditorOther(p.editorOther ?? "");
         setHackatimeProjectName(p.hackatimeProjectName);
         setPlayableUrl(p.playableUrl);
         setCodeUrl(p.codeUrl);
@@ -145,6 +173,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
   }, [
     codeUrl,
     description,
+    editor,
+    editorOther,
     hackatimeProjectName,
     initial.id,
     isGranted,
@@ -242,6 +272,36 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         <div className="text-foreground font-semibold text-lg">Project details</div>
 
         <fieldset disabled={saving || isGranted} className={isGranted ? "opacity-60" : ""}>
+        <label className="block">
+          <div className="text-sm text-muted-foreground font-medium mb-2">Editor / app</div>
+          <select
+            value={editor}
+            onChange={(e) => setEditor(e.target.value as ProjectEditor)}
+            className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+          >
+            {EDITOR_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {editor === "other" ? (
+          <label className="block">
+            <div className="text-sm text-muted-foreground font-medium mb-2">
+              Other editor name
+            </div>
+            <input
+              value={editorOther}
+              onChange={(e) => setEditorOther(e.target.value)}
+              required
+              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              placeholder="e.g. JetBrains, Sublime, ..."
+            />
+          </label>
+        ) : null}
+
         <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">Project name</div>
           <input

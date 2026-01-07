@@ -4,9 +4,31 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 
+const EDITOR_OPTIONS = [
+  { value: "vscode", label: "VS Code" },
+  { value: "chrome", label: "Chrome" },
+  { value: "firefox", label: "Firefox" },
+  { value: "figma", label: "Figma" },
+  { value: "neovim", label: "Neovim" },
+  { value: "gnu-emacs", label: "GNU Emacs" },
+  { value: "jupyterlab", label: "JupyterLab" },
+  { value: "obsidian", label: "Obsidian" },
+  { value: "blender", label: "Blender" },
+  { value: "freecad", label: "FreeCAD" },
+  { value: "kicad", label: "KiCad" },
+  { value: "krita", label: "Krita" },
+  { value: "gimp", label: "GIMP" },
+  { value: "inkscape", label: "Inkscape" },
+  { value: "godot-engine", label: "Godot Engine" },
+  { value: "unity", label: "Unity" },
+  { value: "other", label: "Other" },
+] as const;
+
 type CreateProjectPayload = {
   name: string;
   description: string;
+  editor: string;
+  editorOther: string;
   hackatimeProjectName: string;
   playableUrl: string;
   codeUrl: string;
@@ -40,6 +62,7 @@ export default function CreateProjectModal() {
   const [hackatimeProjects, setHackatimeProjects] = useState<string[] | null>(null);
   const [hackatimeLoading, setHackatimeLoading] = useState(false);
   const [hackatimeError, setHackatimeError] = useState<string | null>(null);
+  const [editor, setEditor] = useState<(typeof EDITOR_OPTIONS)[number]["value"]>("vscode");
 
   const shouldBeOpen = useMemo(() => {
     const v = searchParams.get("new");
@@ -100,6 +123,8 @@ export default function CreateProjectModal() {
       const fd = new FormData(e.currentTarget);
       const name = cleanString(fd.get("name"));
       const description = cleanString(fd.get("description"));
+      const editorValue = cleanString(fd.get("editor"));
+      const editorOther = cleanString(fd.get("editorOther"));
       const hackatimeProjectName = cleanString(fd.get("hackatimeProjectName"));
       const playableUrl = cleanString(fd.get("playableUrl"));
       const codeUrl = cleanString(fd.get("codeUrl"));
@@ -108,6 +133,8 @@ export default function CreateProjectModal() {
       const payload: CreateProjectPayload = {
         name,
         description,
+        editor: editorValue,
+        editorOther,
         hackatimeProjectName,
         playableUrl,
         codeUrl,
@@ -230,6 +257,39 @@ export default function CreateProjectModal() {
           ) : null}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="block">
+            <div className="text-sm text-muted-foreground font-medium mb-2">Editor / app</div>
+            <select
+              name="editor"
+              value={editor}
+              onChange={(e) => setEditor(e.target.value as (typeof EDITOR_OPTIONS)[number]["value"])}
+              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              required
+            >
+              {EDITOR_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {editor === "other" ? (
+            <label className="block">
+              <div className="text-sm text-muted-foreground font-medium mb-2">
+                Other editor name
+              </div>
+              <input
+                name="editorOther"
+                required
+                className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                placeholder="e.g. JetBrains, Sublime, ..."
+              />
+            </label>
+          ) : (
+            <input type="hidden" name="editorOther" value="" />
+          )}
+
           <label className="block">
             <div className="text-sm text-muted-foreground font-medium mb-2">
               Project name

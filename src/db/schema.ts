@@ -12,6 +12,28 @@ export const projectStatus = pgEnum("project_status", [
 
 export type ProjectStatus = (typeof projectStatus.enumValues)[number];
 
+export const projectEditor = pgEnum("project_editor", [
+  "vscode",
+  "chrome",
+  "firefox",
+  "figma",
+  "neovim",
+  "gnu-emacs",
+  "jupyterlab",
+  "obsidian",
+  "blender",
+  "freecad",
+  "kicad",
+  "krita",
+  "gimp",
+  "inkscape",
+  "godot-engine",
+  "unity",
+  "other",
+]);
+
+export type ProjectEditor = (typeof projectEditor.enumValues)[number];
+
 export const reviewDecision = pgEnum("review_decision", ["approved", "rejected", "comment"]);
 export type ReviewDecision = (typeof reviewDecision.enumValues)[number];
 
@@ -35,6 +57,8 @@ export const project = pgTable("project", {
   creatorId: text("creator_id").references(() => user.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   description: text("description").notNull(),
+  editor: projectEditor("editor").notNull().default("vscode"),
+  editorOther: text("editor_other"),
   hackatimeProjectName: text("hackatime_project_name").notNull(),
   playableUrl: text("playable_url").notNull(),
   codeUrl: text("code_url").notNull(),

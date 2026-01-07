@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { project, type ProjectStatus } from "@/db/schema";
+import { project, type ProjectEditor, type ProjectStatus } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
 
 type UpdateProjectBody = {
   name?: unknown;
   description?: unknown;
+  editor?: unknown;
+  editorOther?: unknown;
   hackatimeProjectName?: unknown;
   playableUrl?: unknown;
   codeUrl?: unknown;
@@ -25,6 +27,28 @@ function isValidUrlString(value: string) {
   } catch {
     return false;
   }
+}
+
+function isProjectEditor(value: unknown): value is ProjectEditor {
+  return (
+    value === "vscode" ||
+    value === "chrome" ||
+    value === "firefox" ||
+    value === "figma" ||
+    value === "neovim" ||
+    value === "gnu-emacs" ||
+    value === "jupyterlab" ||
+    value === "obsidian" ||
+    value === "blender" ||
+    value === "freecad" ||
+    value === "kicad" ||
+    value === "krita" ||
+    value === "gimp" ||
+    value === "inkscape" ||
+    value === "godot-engine" ||
+    value === "unity" ||
+    value === "other"
+  );
 }
 
 function isUserEditableStatus(
@@ -50,6 +74,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       creatorId: project.creatorId,
       name: project.name,
       description: project.description,
+      editor: project.editor,
+      editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
       playableUrl: project.playableUrl,
       codeUrl: project.codeUrl,
@@ -81,7 +107,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const { id } = await ctx.params;
 
   const existing = await db
-    .select({ status: project.status })
+    .select({ status: project.status, editor: project.editor, editorOther: project.editorOther })
     .from(project)
     .where(and(eq(project.id, id), eq(project.creatorId, userId)))
     .limit(1);
@@ -109,6 +135,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const set: Partial<{
     name: string;
     description: string;
+    editor: ProjectEditor;
+    editorOther: string | null;
     hackatimeProjectName: string;
     playableUrl: string;
     codeUrl: string;
@@ -116,6 +144,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     status: ProjectStatus;
     updatedAt: Date;
   }> = {};
+
+  const editorRaw =
+    body.editor !== undefined
+      ? typeof body.editor === "string"
+        ? body.editor.trim()
+        : body.editor
+      : undefined;
+  const editorOtherRaw = body.editorOther !== undefined ? toCleanString(body.editorOther) : undefined;
 
   if (body.name !== undefined) {
     const name = toCleanString(body.name);
@@ -127,6 +163,21 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const description = toCleanString(body.description);
     if (!description) return NextResponse.json({ error: "Description is required" }, { status: 400 });
     set.description = description;
+  }
+
+  if (editorRaw !== undefined) {
+    if (!isProjectEditor(editorRaw)) {
+      return NextResponse.json({ error: "Invalid editor" }, { status: 400 });
+    }
+    set.editor = editorRaw;
+    if (editorRaw !== "other") {
+      // Clear any lingering other editor name if switching away.
+      set.editorOther = null;
+    }
+  }
+
+  if (editorOtherRaw !== undefined) {
+    set.editorOther = editorOtherRaw || null;
   }
 
   if (body.hackatimeProjectName !== undefined) {
@@ -180,6 +231,23 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     set.status = body.status;
   }
 
+  // Validate final editor/editorOther combination (using current values + pending updates).
+  const nextEditor = (set.editor ?? current.editor) as ProjectEditor;
+  const nextEditorOther =
+    set.editorOther !== undefined ? set.editorOther : (current.editorOther ?? null);
+  if (nextEditor === "other" && !nextEditorOther) {
+    return NextResponse.json(
+      { error: "Please enter the editor name (Other)" },
+      { status: 400 },
+    );
+  }
+  if (nextEditor !== "other" && nextEditorOther) {
+    return NextResponse.json(
+      { error: "Editor name should only be set when editor is Other" },
+      { status: 400 },
+    );
+  }
+
   if (Object.keys(set).length === 0) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });
   }
@@ -195,6 +263,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       creatorId: project.creatorId,
       name: project.name,
       description: project.description,
+      editor: project.editor,
+      editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
       playableUrl: project.playableUrl,
       codeUrl: project.codeUrl,
