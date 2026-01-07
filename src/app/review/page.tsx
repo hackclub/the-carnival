@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
+import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import { db } from "@/db";
 import { project, user, type UserRole } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
@@ -27,6 +28,8 @@ export default async function ReviewQueuePage() {
       id: project.id,
       name: project.name,
       description: project.description,
+      editor: project.editor,
+      editorOther: project.editorOther,
       status: project.status,
       createdAt: project.createdAt,
       creatorName: user.name,
@@ -62,7 +65,10 @@ export default async function ReviewQueuePage() {
                   </div>
                   <div className="text-muted-foreground mt-3 overflow-hidden">{p.description}</div>
                 </div>
-                <ProjectStatusBadge status={p.status} />
+                <div className="flex flex-col items-end gap-2">
+                  <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
+                  <ProjectStatusBadge status={p.status} />
+                </div>
               </div>
             </Link>
           ))}

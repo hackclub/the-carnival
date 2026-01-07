@@ -6,6 +6,7 @@ import { desc, inArray, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { project, user } from "@/db/schema";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
+import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 
 export default async function ExplorePage() {
   const session = await getServerSession();
@@ -18,6 +19,8 @@ export default async function ExplorePage() {
       id: project.id,
       name: project.name,
       description: project.description,
+      editor: project.editor,
+      editorOther: project.editorOther,
       playableUrl: project.playableUrl,
       codeUrl: project.codeUrl,
       status: project.status,
@@ -53,7 +56,10 @@ export default async function ExplorePage() {
                   </div>
                   <div className="text-muted-foreground mt-3 overflow-hidden">{p.description}</div>
                 </div>
-                <ProjectStatusBadge status={p.status} />
+                <div className="flex flex-col items-end gap-2">
+                  <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
+                  <ProjectStatusBadge status={p.status} />
+                </div>
               </div>
 
               <div className="mt-6 flex items-center gap-3">

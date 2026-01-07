@@ -4,6 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import CreateProjectModal from "@/components/CreateProjectModal";
+import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import { db } from "@/db";
 import { project } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
@@ -34,6 +35,8 @@ export default async function ProjectsPage() {
       id: project.id,
       name: project.name,
       description: project.description,
+      editor: project.editor,
+      editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
       status: project.status,
       createdAt: project.createdAt,
@@ -83,7 +86,10 @@ export default async function ProjectsPage() {
                       {p.description}
                     </div>
                   </div>
-                  <ProjectStatusBadge status={p.status} />
+                  <div className="flex flex-col items-end gap-2">
+                    <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
+                    <ProjectStatusBadge status={p.status} />
+                  </div>
                 </div>
 
                 <div className="mt-6 flex items-center justify-between">

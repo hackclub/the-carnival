@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { desc, inArray } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
+import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import { db } from "@/db";
 import { project } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
@@ -18,6 +19,8 @@ export default async function AdminGrantsPage() {
       id: project.id,
       name: project.name,
       description: project.description,
+      editor: project.editor,
+      editorOther: project.editorOther,
       status: project.status,
       createdAt: project.createdAt,
     })
@@ -47,7 +50,10 @@ export default async function AdminGrantsPage() {
                   <div className="text-foreground font-bold text-xl truncate">{p.name}</div>
                   <div className="text-muted-foreground mt-2 overflow-hidden">{p.description}</div>
                 </div>
-                <ProjectStatusBadge status={p.status} />
+                <div className="flex flex-col items-end gap-2">
+                  <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
+                  <ProjectStatusBadge status={p.status} />
+                </div>
               </div>
             </Link>
           ))}

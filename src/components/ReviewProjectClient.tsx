@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import type { ProjectStatus, ReviewDecision } from "@/db/schema";
+import type { ProjectEditor, ProjectStatus, ReviewDecision } from "@/db/schema";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
+import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import toast from "react-hot-toast";
 
 type ReviewItem = {
@@ -18,6 +19,8 @@ type ReviewableProject = {
   id: string;
   name: string;
   description: string;
+  editor: ProjectEditor;
+  editorOther: string;
   hackatimeProjectName: string;
   playableUrl: string;
   codeUrl: string;
@@ -125,7 +128,10 @@ export default function ReviewProjectClient({
               {project.creatorEmail ? ` • ${project.creatorEmail}` : ""}
             </div>
           </div>
-          <ProjectStatusBadge status={project.status} />
+          <div className="flex flex-col items-end gap-2">
+            <ProjectEditorBadge editor={project.editor} editorOther={project.editorOther} />
+            <ProjectStatusBadge status={project.status} />
+          </div>
         </div>
         <div className="text-muted-foreground mt-4">{project.description}</div>
       </div>
