@@ -1,67 +1,57 @@
-# Carnival — YSWS
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Build an extension, plugin, or widget for an editor you actually use. This repository contains the website for The Carnival program.
+## Getting Started
 
-## Overview
+### Environment
 
-Participants develop practical, open‑source plugins or extensions that improve their workflow or add something fun and unique to the program. 
-
-### Eligibility and requirements
-
-- The extension must be a QOL improvement and/or solve a real problem faced by the author
-- The extension must have at least 5 users
-- The extension must be open‑source
-- The extension must work properly in the editor of choice
-- Provide clear instructions on how to build and run the extension
-- The extension should be unique — not a remake of an existing extension
-
-### Example ideas
-
-- Browser: detect spicy text in comment boxes and suggest chill rephrases with short “why” notes
-- Figma: generate a 12–15s animated teaser with captions and a swipe sound
-- VS Code: turn TODOs/tests into quests with XP, streaks, and rarity drops
-- Bring Your Own: anything that shortens time‑to‑wow
-
-### Supported editors
-
-VS Code, Chrome/Firefox, Neovim, Figma, KiCad, and many more.
-
-### Grants
-
-For every approved hour spent working on your extension, you can receive a $5 grant.
-
----
-
-## Tech stack
-
-- React + TypeScript
-- Vite
-- Tailwind CSS
-
-## Local development
-
-Requirements:
-- Node 18+
-- pnpm (recommended) or npm
-
-Install dependencies and run the dev server:
+Create `.env.local` with at least:
 
 ```bash
-pnpm install
+DATABASE_URL=postgres://...
+HC_IDENTITY_CLIENT_ID=...
+HC_IDENTITY_CLIENT_SECRET=...
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+### Database
+
+Before starting the app, sync the database schema (this creates/help-updates tables like `verification` used by Better Auth):
+
+```bash
+bun run db:push
+```
+
+### Run the app
+
+Run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
 pnpm dev
+# or
+bun dev
 ```
 
-## Build
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-Create a production build and preview it locally:
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-```bash
-pnpm build
-pnpm preview
-```
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-The static site output is written to `dist/`.
+## Learn More
 
-## Deploy
+To learn more about Next.js, take a look at the following resources:
 
-This is a static Vite site. Any static host works.
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
