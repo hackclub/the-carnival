@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { editor, resource, ResourceType } from "@/db/schema";
-import { getServerSession } from "@/lib/server-session";
+import {
+  getAuthUser,
+  parseJsonBody,
+  toCleanString,
+  generateId,
+  timestamps,
+} from "@/lib/api-utils";
 
 type CreateResourceBody = {
   editorId?: unknown;
@@ -13,10 +18,6 @@ type CreateResourceBody = {
   type?: unknown;
 };
 
-function toCleanString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
 const VALID_TYPES: ResourceType[] = ["video", "documentation", "article"];
 
 function isValidType(value: unknown): value is ResourceType {
@@ -24,9 +25,8 @@ function isValidType(value: unknown): value is ResourceType {
 }
 
 export async function GET(req: Request) {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const editorId = searchParams.get("editorId");
@@ -49,7 +49,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ resources });
   }
 
-  // Return all resources grouped by editor
   const resources = await db
     .select({
       id: resource.id,
@@ -67,17 +66,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  // Any authenticated user can create resources
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: CreateResourceBody;
-  try {
-    body = (await req.json()) as CreateResourceBody;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const body = await parseJsonBody<CreateResourceBody>(req);
+  if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
 
   const editorId = toCleanString(body.editorId);
   const title = toCleanString(body.title);
@@ -92,18 +85,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Type must be one of: video, documentation, article" }, { status: 400 });
   }
 
-  // Verify the editor exists
   const [editorRow] = await db
     .select({ id: editor.id })
     .from(editor)
     .where(eq(editor.id, editorId));
 
-  if (!editorRow) {
-    return NextResponse.json({ error: "Editor not found" }, { status: 404 });
-  }
+  if (!editorRow) return NextResponse.json({ error: "Editor not found" }, { status: 404 });
 
-  const now = new Date();
-  const id = randomUUID();
+  const id = generateId();
 
   await db.insert(resource).values({
     id,
@@ -112,10 +101,8 @@ export async function POST(req: Request) {
     url,
     description,
     type,
-    createdAt: now,
-    updatedAt: now,
+    ...timestamps(),
   });
 
   return NextResponse.json({ id }, { status: 201 });
 }
-

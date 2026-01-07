@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "crypto";
 import { db } from "@/db";
 import { editor } from "@/db/schema";
-import { getServerSession } from "@/lib/server-session";
+import {
+  getAuthUser,
+  parseJsonBody,
+  toCleanString,
+  toSlug,
+  generateId,
+  timestamps,
+  isUniqueConstraintError,
+} from "@/lib/api-utils";
 
 type CreateEditorBody = {
   name?: unknown;
@@ -11,22 +18,9 @@ type CreateEditorBody = {
   iconUrl?: unknown;
 };
 
-function toCleanString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function toSlug(value: unknown) {
-  const str = toCleanString(value);
-  return str
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
 export async function GET() {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const editors = await db
     .select({
@@ -44,17 +38,11 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  // Any authenticated user can create editors
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: CreateEditorBody;
-  try {
-    body = (await req.json()) as CreateEditorBody;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const body = await parseJsonBody<CreateEditorBody>(req);
+  if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
 
   const name = toCleanString(body.name);
   const slug = toSlug(body.slug || body.name);
@@ -64,8 +52,7 @@ export async function POST(req: Request) {
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
   if (!slug) return NextResponse.json({ error: "Slug is required" }, { status: 400 });
 
-  const now = new Date();
-  const id = randomUUID();
+  const id = generateId();
 
   try {
     await db.insert(editor).values({
@@ -74,16 +61,10 @@ export async function POST(req: Request) {
       slug,
       description,
       iconUrl,
-      createdAt: now,
-      updatedAt: now,
+      ...timestamps(),
     });
   } catch (err: unknown) {
-    // Check for PostgreSQL unique constraint violation (code 23505)
-    const pgErr = err as { code?: string; message?: string; cause?: { code?: string } };
-    const errorCode = pgErr.code || pgErr.cause?.code;
-    const msg = pgErr.message || "";
-    
-    if (errorCode === "23505" || msg.includes("unique") || msg.includes("duplicate")) {
+    if (isUniqueConstraintError(err)) {
       return NextResponse.json({ error: "An editor with this name or slug already exists" }, { status: 409 });
     }
     throw err;
@@ -91,4 +72,3 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ id }, { status: 201 });
 }
-

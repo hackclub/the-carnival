@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "crypto";
 import { desc } from "drizzle-orm";
 import { db } from "@/db";
 import { bountyClaim, bountyProject } from "@/db/schema";
-import { getServerSession } from "@/lib/server-session";
+import {
+  getAuthUser,
+  parseJsonBody,
+  toCleanString,
+  toPositiveInt,
+  generateId,
+  timestamps,
+} from "@/lib/api-utils";
 
 type CreateBountyBody = {
   name?: unknown;
@@ -11,20 +17,9 @@ type CreateBountyBody = {
   prizeUsd?: unknown;
 };
 
-function toCleanString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function toPrizeUsd(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) return Math.floor(value);
-  if (typeof value === "string" && value.trim()) return Math.floor(Number(value));
-  return NaN;
-}
-
 export async function GET() {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const projects = await db
     .select({
@@ -58,29 +53,23 @@ export async function GET() {
       return {
         ...p,
         claimedCount: set.size,
-        claimedByMe: set.has(userId),
+        claimedByMe: set.has(user.id),
       };
     }),
   });
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  const role = (session?.user as { role?: unknown } | undefined)?.role;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  let body: CreateBountyBody;
-  try {
-    body = (await req.json()) as CreateBountyBody;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const body = await parseJsonBody<CreateBountyBody>(req);
+  if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
 
   const name = toCleanString(body.name);
   const description = toCleanString(body.description);
-  const prizeUsd = toPrizeUsd(body.prizeUsd);
+  const prizeUsd = toPositiveInt(body.prizeUsd);
 
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
   if (!description) return NextResponse.json({ error: "Description is required" }, { status: 400 });
@@ -88,20 +77,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Prize must be a positive dollar amount" }, { status: 400 });
   }
 
-  const now = new Date();
-  const id = randomUUID();
+  const id = generateId();
 
   await db.insert(bountyProject).values({
     id,
     name,
     description,
     prizeUsd,
-    createdById: userId,
-    createdAt: now,
-    updatedAt: now,
+    createdById: user.id,
+    ...timestamps(),
   });
 
   return NextResponse.json({ id }, { status: 201 });
 }
-
-

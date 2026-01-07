@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { resource, ResourceType } from "@/db/schema";
-import { getServerSession } from "@/lib/server-session";
+import {
+  getAuthUser,
+  parseJsonBody,
+  toCleanString,
+  updatedTimestamp,
+} from "@/lib/api-utils";
 
 type UpdateResourceBody = {
   title?: unknown;
@@ -10,10 +15,6 @@ type UpdateResourceBody = {
   description?: unknown;
   type?: unknown;
 };
-
-function toCleanString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
-}
 
 const VALID_TYPES: ResourceType[] = ["video", "documentation", "article"];
 
@@ -25,9 +26,8 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
 
@@ -44,9 +44,7 @@ export async function GET(
     .from(resource)
     .where(eq(resource.id, id));
 
-  if (!resourceRow) {
-    return NextResponse.json({ error: "Resource not found" }, { status: 404 });
-  }
+  if (!resourceRow) return NextResponse.json({ error: "Resource not found" }, { status: 404 });
 
   return NextResponse.json({ resource: resourceRow });
 }
@@ -55,29 +53,21 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  const role = (session?.user as { role?: unknown } | undefined)?.role;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
 
-  let body: UpdateResourceBody;
-  try {
-    body = (await req.json()) as UpdateResourceBody;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const body = await parseJsonBody<UpdateResourceBody>(req);
+  if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
 
   const [existing] = await db
     .select({ id: resource.id })
     .from(resource)
     .where(eq(resource.id, id));
 
-  if (!existing) {
-    return NextResponse.json({ error: "Resource not found" }, { status: 404 });
-  }
+  if (!existing) return NextResponse.json({ error: "Resource not found" }, { status: 404 });
 
   const updates: Partial<{
     title: string;
@@ -85,7 +75,7 @@ export async function PATCH(
     description: string | null;
     type: ResourceType;
     updatedAt: Date;
-  }> = { updatedAt: new Date() };
+  }> = updatedTimestamp();
 
   if (body.title !== undefined) {
     const title = toCleanString(body.title);
@@ -119,11 +109,9 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  const role = (session?.user as { role?: unknown } | undefined)?.role;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
 
@@ -132,12 +120,9 @@ export async function DELETE(
     .from(resource)
     .where(eq(resource.id, id));
 
-  if (!existing) {
-    return NextResponse.json({ error: "Resource not found" }, { status: 404 });
-  }
+  if (!existing) return NextResponse.json({ error: "Resource not found" }, { status: 404 });
 
   await db.delete(resource).where(eq(resource.id, id));
 
   return NextResponse.json({ success: true });
 }
-

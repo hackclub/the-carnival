@@ -2,7 +2,14 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { editor, resource } from "@/db/schema";
-import { getServerSession } from "@/lib/server-session";
+import {
+  getAuthUser,
+  parseJsonBody,
+  toCleanString,
+  toSlug,
+  updatedTimestamp,
+  isUniqueConstraintError,
+} from "@/lib/api-utils";
 
 type UpdateEditorBody = {
   name?: unknown;
@@ -11,25 +18,12 @@ type UpdateEditorBody = {
   iconUrl?: unknown;
 };
 
-function toCleanString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function toSlug(value: unknown) {
-  const str = toCleanString(value);
-  return str
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
 
@@ -45,11 +39,8 @@ export async function GET(
     .from(editor)
     .where(eq(editor.id, id));
 
-  if (!editorRow) {
-    return NextResponse.json({ error: "Editor not found" }, { status: 404 });
-  }
+  if (!editorRow) return NextResponse.json({ error: "Editor not found" }, { status: 404 });
 
-  // Also fetch resources for this editor
   const resources = await db
     .select({
       id: resource.id,
@@ -70,29 +61,21 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  const role = (session?.user as { role?: unknown } | undefined)?.role;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
 
-  let body: UpdateEditorBody;
-  try {
-    body = (await req.json()) as UpdateEditorBody;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const body = await parseJsonBody<UpdateEditorBody>(req);
+  if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
 
   const [existing] = await db
     .select({ id: editor.id })
     .from(editor)
     .where(eq(editor.id, id));
 
-  if (!existing) {
-    return NextResponse.json({ error: "Editor not found" }, { status: 404 });
-  }
+  if (!existing) return NextResponse.json({ error: "Editor not found" }, { status: 404 });
 
   const updates: Partial<{
     name: string;
@@ -100,7 +83,7 @@ export async function PATCH(
     description: string | null;
     iconUrl: string | null;
     updatedAt: Date;
-  }> = { updatedAt: new Date() };
+  }> = updatedTimestamp();
 
   if (body.name !== undefined) {
     const name = toCleanString(body.name);
@@ -125,12 +108,7 @@ export async function PATCH(
   try {
     await db.update(editor).set(updates).where(eq(editor.id, id));
   } catch (err: unknown) {
-    // Check for PostgreSQL unique constraint violation (code 23505)
-    const pgErr = err as { code?: string; message?: string; cause?: { code?: string } };
-    const errorCode = pgErr.code || pgErr.cause?.code;
-    const msg = pgErr.message || "";
-    
-    if (errorCode === "23505" || msg.includes("unique") || msg.includes("duplicate")) {
+    if (isUniqueConstraintError(err)) {
       return NextResponse.json({ error: "An editor with this name or slug already exists" }, { status: 409 });
     }
     throw err;
@@ -143,11 +121,9 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  const role = (session?.user as { role?: unknown } | undefined)?.role;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
 
@@ -156,12 +132,9 @@ export async function DELETE(
     .from(editor)
     .where(eq(editor.id, id));
 
-  if (!existing) {
-    return NextResponse.json({ error: "Editor not found" }, { status: 404 });
-  }
+  if (!existing) return NextResponse.json({ error: "Editor not found" }, { status: 404 });
 
   await db.delete(editor).where(eq(editor.id, id));
 
   return NextResponse.json({ success: true });
 }
-
