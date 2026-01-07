@@ -151,3 +151,32 @@ export const verification = pgTable("verification", {
   createdAt: timestamp("created_at"),
   updatedAt: timestamp("updated_at"),
 });
+
+// Editors table - stores the editors/programs that plugins can be built for
+export const editor = pgTable("editor", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  iconUrl: text("icon_url"),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+});
+
+// Resource type enum
+export const resourceType = pgEnum("resource_type", ["video", "documentation", "article"]);
+export type ResourceType = (typeof resourceType.enumValues)[number];
+
+// Resources table - stores resources (videos, docs, articles) for each editor
+export const resource = pgTable("resource", {
+  id: text("id").primaryKey(),
+  editorId: text("editor_id")
+    .notNull()
+    .references(() => editor.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  url: text("url").notNull(),
+  description: text("description"),
+  type: resourceType("type").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+});
