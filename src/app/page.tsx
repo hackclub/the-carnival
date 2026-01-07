@@ -1,69 +1,142 @@
-import Link from "next/link";
 import Header from "@/components/Header";
+import Link from "next/link";
+import { AlertTriangle, Ban, ListChecks, Timer, Users, Wrench } from "lucide-react";
+import Countdown from "@/components/landing/Countdown";
+import FloatingBalloons from "@/components/landing/FloatingBalloons";
+import HeroTypewriter from "@/components/landing/HeroTypewriter";
+import LandingCTAButtons from "@/components/landing/LandingCTAButtons";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Section */}
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      <FloatingBalloons />
+
       <header className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-carnival-red/10 via-transparent to-transparent" />
-        <div className="absolute top-10 left-10 text-6xl float-animation">🎪</div>
-        <div className="absolute top-20 right-20 text-4xl float-animation" style={{ animationDelay: "0.5s" }}>🎟️</div>
-        <div className="absolute bottom-20 left-1/4 text-3xl float-animation" style={{ animationDelay: "1s" }}>✨</div>
+        <div className="absolute inset-0 bg-gradient-to-b from-amber-100/50 via-transparent to-transparent" />
+        <div className="absolute top-10 left-10 text-6xl float-animation select-none">🎪</div>
+        <div
+          className="absolute top-20 right-20 text-4xl float-animation select-none"
+          style={{ animationDelay: "0.5s" }}
+        >
+          🎟️
+        </div>
+        <div
+          className="absolute bottom-20 left-1/4 text-3xl float-animation select-none"
+          style={{ animationDelay: "1s" }}
+        >
+          ✨
+        </div>
 
         <Header />
 
-        <div className="relative z-10 max-w-4xl mx-auto text-center px-8 pt-20 pb-32">
-          <h1 className="text-6xl md:text-7xl font-bold mb-6">
-            <span className="gradient-text">Carnival</span>
-          </h1>
-          <p className="text-xl md:text-2xl text-muted-foreground mb-4">
-            🎪 Build an extension, plugin, or widget—add your ride to the midway, light up the wire! 🎟️✨
-          </p>
-          <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto">
-            Create something amazing for your favorite editor or app. Every hour of coding unlocks <span className="text-carnival-yellow font-semibold">+$5</span> towards your dev environment.
-          </p>
-          
-          <div className="flex flex-wrap justify-center gap-4">
-            <Link 
-              href="https://airtable.com/app8YP69xF49t7ymq/pagYy7rj2VU5KAIty/form"
-              className="bg-carnival-red hover:bg-carnival-red/80 text-white px-8 py-4 rounded-full font-bold text-lg transition-all carnival-glow hover:scale-105"
-            >
-              Submit Project
-            </Link>
-            <Link 
-              href="https://hackclub.slack.com/archives/C091ZRTMF16"
-              className="border-2 border-carnival-blue text-carnival-blue hover:bg-carnival-blue hover:text-white px-8 py-4 rounded-full font-bold text-lg transition-all"
-            >
-              Join #carnival
-            </Link>
+        <div className="relative z-10 max-w-4xl mx-auto px-6 pt-16 pb-10">
+          <div
+            role="alert"
+            className="mt-8 mb-6 rounded-2xl bg-red-50/90 p-4 ring-1 ring-red-300 shadow-md text-red-900 text-sm md:text-base"
+          >
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 text-red-600" size={18} />
+              <p>
+                <span className="font-semibold">Warning:</span> Don’t cheat the time tracking system. No bots, no fake key
+                presses, no UI manipulation. If you do, you’ll be banned from Hackatime and other participating
+                YSWS/events.
+              </p>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <div className="text-3xl md:text-5xl font-extrabold text-amber-900 flex items-center justify-center gap-3">
+              <span className="text-amber-900">Carnival</span>
+            </div>
+            <div className="mt-3 text-2xl md:text-4xl text-amber-900 font-bold">
+              <HeroTypewriter />
+            </div>
+
+            <div className="text-center pt-8 max-w-3xl mx-auto">
+              <p className="text-lg font-semibold text-amber-900">
+                🎪 Build an extension, plugin, or widget—add your ride to the midway, light up the wire! 🎟️✨
+              </p>
+              <p className="mt-2 text-sm md:text-base text-amber-800">
+                Every hour of real coding unlocks <span className="font-semibold">+$5</span> towards your dev environment.
+              </p>
+            </div>
+
+            <LandingCTAButtons />
           </div>
         </div>
       </header>
 
+      <Countdown />
+
       {/* What You Need To Do Section */}
-      <section id="about" className="py-20 px-8 bg-muted">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-4xl font-bold text-foreground text-center mb-12">What you need to do</h2>
-          
-          <div className="grid md:grid-cols-2 gap-6">
-            {[
-              "Build a QOL improvement or solve a real problem you face",
-              "Have at least 5 users using your extension",
-              "Make the project open-source",
-              "Ensure it works properly in your editor of choice",
-              "Provide clear build and run instructions",
-              "Make it unique — not a remake of an existing extension",
-              "Do not remake an existing tool with only minor changes",
-              "Do not just build a wrapper around an existing tool or API",
-              "Include more than one screenshot of your tool when submitting",
-              "Simple plugins are generally not acceptable"
-            ].map((item, i) => (
-              <div key={i} className="flex items-start gap-4 bg-card border border-border p-4 rounded-xl card-glow transition-all">
-                <span className="text-carnival-yellow font-bold text-lg">{i + 1}.</span>
-                <p className="text-muted-foreground">{item}</p>
+      <section id="about" className="pt-16 pb-20">
+        <div className="mx-auto max-w-7xl px-6 md:px-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transition-transform will-change-transform hover:-translate-y-0.5">
+              <div className="flex items-center gap-2 mb-3">
+                <ListChecks className="text-amber-600" size={18} />
+                <h3 className="text-lg font-semibold text-amber-900">What you need to do</h3>
               </div>
-            ))}
+              <ol className="space-y-2 text-sm text-amber-800 list-decimal pl-5">
+                <li className="leading-relaxed">Build a QOL improvement or solve a real problem you face</li>
+                <li className="leading-relaxed">Have at least 5 users using your extension</li>
+                <li className="leading-relaxed">Make the project open-source</li>
+                <li className="leading-relaxed">Ensure it works properly in your editor of choice</li>
+                <li className="leading-relaxed">Provide clear build and run instructions</li>
+                <li className="leading-relaxed">Make it unique — not a remake of an existing extension</li>
+                <li className="leading-relaxed">Do not remake an existing tool with only minor changes</li>
+                <li className="leading-relaxed">Do not just build a wrapper around an existing tool or API</li>
+                <li className="leading-relaxed">Include more than one screenshot of your tool when submitting</li>
+                <li className="leading-relaxed">Simple plugins are generally not acceptable</li>
+              </ol>
+            </div>
+
+            <div className="space-y-6">
+              <div className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transition-transform will-change-transform hover:-translate-y-0.5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Wrench className="text-amber-600" size={18} />
+                  <h3 className="text-lg font-semibold text-amber-900">Editors you can build for</h3>
+                </div>
+                <ul className="grid grid-cols-2 gap-2 text-sm text-amber-800">
+                  {["VS Code", "Chrome", "Firefox", "Neovim", "Figma", "KiCad", "Godot", "Unity"].map((e) => (
+                    <li key={e} className="rounded-xl bg-amber-50/60 ring-1 ring-amber-200 px-3 py-2">
+                      {e}
+                    </li>
+                  ))}
+                  <li className="rounded-xl bg-amber-50/60 ring-1 ring-amber-200 px-3 py-2">
+                    …and more on{" "}
+                    <a
+                      className="underline underline-offset-2 decoration-amber-300 hover:decoration-amber-500"
+                      href="/editors"
+                    >
+                      /editors
+                    </a>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="rounded-2xl bg-white/70 backdrop-blur p-6 ring-1 ring-amber-200 shadow-sm transition-transform will-change-transform hover:-translate-y-0.5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="text-amber-600" size={18} />
+                  <h3 className="text-lg font-semibold text-amber-900">How to get involved</h3>
+                </div>
+                <ol className="space-y-2 text-sm text-amber-800 list-decimal pl-5">
+                  <li>Join the <span className="font-semibold">#carnival</span> channel on Slack to ask, share, and vibe</li>
+                  <li>Set up Hackatime and start tracking your time</li>
+                  <li>Build your extension, plugin, or widget and ship it</li>
+                  <li>Submit your project for review and claim rewards</li>
+                </ol>
+
+                <div className="mt-3 text-xs text-amber-700 flex items-center gap-2">
+                  <Timer size={14} className="text-amber-600" />
+                  <span>Every hour of coding unlocks +$5 towards your dev environment.</span>
+                </div>
+                <div className="mt-2 text-xs text-amber-700 flex items-center gap-2">
+                  <Ban size={14} className="text-amber-600" />
+                  <span>No trivial remixes or thin wrappers.</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -208,20 +281,20 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-8 bg-muted border-t border-border">
+      <footer className="py-12 px-8 bg-amber-50/60 border-t border-amber-200/60">
         <div className="max-w-5xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <span className="text-2xl">🎪</span>
-            <span className="text-xl font-bold text-foreground">The Carnival</span>
+            <span className="text-xl font-bold text-amber-900">The Carnival</span>
           </div>
-          <p className="text-muted-foreground mb-6">Make something you love.</p>
+          <p className="text-amber-800 mb-6">Make something you love.</p>
           <Link 
             href="https://hackclub.slack.com/archives/C091ZRTMF16"
-            className="text-carnival-blue hover:text-carnival-red transition-colors"
+            className="text-amber-800 hover:text-amber-900 transition-colors underline underline-offset-4 decoration-amber-300 hover:decoration-amber-500"
           >
             Join Hack Club Slack →
           </Link>
-          <p className="text-muted-foreground mt-8 text-sm">© 2026 YSWS Carnival by Hack Club.</p>
+          <p className="text-amber-700 mt-8 text-sm">© 2026 YSWS Carnival by Hack Club.</p>
         </div>
       </footer>
     </div>

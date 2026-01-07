@@ -127,6 +127,34 @@ body {
   animation: float 3s ease-in-out infinite;
 }
 
+@keyframes carnival-balloon-float {
+  0% { transform: translate3d(0, 120vh, 0); }
+  100% { transform: translate3d(0, -40vh, 0); }
+}
+
+@keyframes carnival-balloon-sway {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-2deg); }
+  50% { transform: translate3d(0, 0, 0) rotate(2deg); }
+}
+
+.carnival-balloon-float {
+  animation: carnival-balloon-float 22s linear infinite;
+  will-change: transform;
+}
+
+.carnival-balloon-sway {
+  animation: carnival-balloon-sway 3.6s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .float-animation,
+  .carnival-balloon-float,
+  .carnival-balloon-sway {
+    animation: none !important;
+  }
+}
+
 @keyframes pulse-glow {
   0%, 100% { opacity: 0.6; }
   50% { opacity: 1; }
