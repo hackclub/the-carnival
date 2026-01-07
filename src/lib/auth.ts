@@ -5,7 +5,6 @@ import { genericOAuth } from "better-auth/plugins";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 
-// Lazy initialization to avoid auth setup during build
 let _auth: ReturnType<typeof betterAuth> | null = null;
 
 function createAuth() {
@@ -166,7 +165,6 @@ function createAuth() {
   });
 }
 
-// Export a getter function for lazy initialization
 export function getAuth() {
   if (!_auth) {
     _auth = createAuth();
@@ -174,14 +172,4 @@ export function getAuth() {
   return _auth;
 }
 
-// Export a proxy for backwards compatibility with existing code that uses `auth` directly
-export const auth = new Proxy({} as ReturnType<typeof betterAuth>, {
-  get(_, prop) {
-    const instance = getAuth();
-    const value = instance[prop as keyof typeof instance];
-    if (typeof value === "function") {
-      return value.bind(instance);
-    }
-    return value;
-  },
-});
+export const auth = getAuth();
