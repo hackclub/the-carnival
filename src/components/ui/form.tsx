@@ -41,7 +41,7 @@ export function FormLabel({ children, className = "", size = "default" }: FormLa
 // Input
 // ============================================================================
 
-type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
+type InputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> & {
   label?: string;
   size?: "default" | "small";
 };
@@ -97,7 +97,7 @@ Textarea.displayName = "Textarea";
 // Select
 // ============================================================================
 
-type SelectProps = React.SelectHTMLAttributes<HTMLSelectElement> & {
+type SelectProps = Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "size"> & {
   label?: string;
   size?: "default" | "small";
   children: React.ReactNode;
