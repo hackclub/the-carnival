@@ -32,6 +32,7 @@ export async function GET() {
       name: bountyProject.name,
       description: bountyProject.description,
       prizeUsd: bountyProject.prizeUsd,
+      completed: bountyProject.completed,
       createdAt: bountyProject.createdAt,
     })
     .from(bountyProject)

@@ -87,6 +87,7 @@ export const bountyProject = pgTable("bounty_project", {
   name: text("name").notNull(),
   description: text("description").notNull(),
   prizeUsd: integer("prize_usd").notNull(),
+  completed: boolean("completed").notNull().default(false),
   createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),

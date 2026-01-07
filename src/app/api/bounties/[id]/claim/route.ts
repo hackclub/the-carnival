@@ -12,13 +12,14 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
 
   const { id: bountyProjectId } = await ctx.params;
 
-  // Ensure project exists.
-  const exists = await db
-    .select({ id: bountyProject.id })
+  // Ensure project exists and is not completed.
+  const [project] = await db
+    .select({ id: bountyProject.id, completed: bountyProject.completed })
     .from(bountyProject)
     .where(eq(bountyProject.id, bountyProjectId))
     .limit(1);
-  if (!exists[0]) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (project.completed) return NextResponse.json({ error: "This bounty has been completed" }, { status: 400 });
 
   const claimId = randomUUID();
   const now = new Date();

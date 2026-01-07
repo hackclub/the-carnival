@@ -21,6 +21,7 @@ export default async function BountiesPage() {
       name: bountyProject.name,
       description: bountyProject.description,
       prizeUsd: bountyProject.prizeUsd,
+      completed: bountyProject.completed,
       createdAt: bountyProject.createdAt,
     })
     .from(bountyProject)
@@ -49,6 +50,7 @@ export default async function BountiesPage() {
       prizeUsd: p.prizeUsd,
       claimedCount: set.size,
       claimedByMe: set.has(session.user.id),
+      completed: p.completed,
     };
   });
 
