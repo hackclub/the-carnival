@@ -3,17 +3,28 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
+import {
+  Trophy,
+  FolderKanban,
+  Compass,
+  BookOpen,
+  ClipboardCheck,
+  Gift,
+  Users,
+  LucideIcon,
+} from "lucide-react";
 
 type NavItem = {
   href: string;
   label: string;
+  icon: LucideIcon;
 };
 
 const NAV: NavItem[] = [
-  { href: "/bounties", label: "Bounties" },
-  { href: "/projects", label: "My projects" },
-  { href: "/explore", label: "Explore" },
-  { href: "/resources", label: "Resources" },
+  { href: "/bounties", label: "Bounties", icon: Trophy },
+  { href: "/projects", label: "My projects", icon: FolderKanban },
+  { href: "/explore", label: "Explore", icon: Compass },
+  { href: "/resources", label: "Resources", icon: BookOpen },
 ];
 
 export default function AppSidebar() {
@@ -40,18 +51,20 @@ export default function AppSidebar() {
           {NAV.map((item) => {
             const isActive =
               pathname === item.href || pathname?.startsWith(item.href + "/");
+            const Icon = item.icon;
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={[
-                  "block rounded-xl px-4 py-3 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
                   isActive
                     ? "bg-carnival-blue/15 text-foreground border border-border"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted",
                 ].join(" ")}
               >
+                <Icon size={18} />
                 {item.label}
               </Link>
             );
@@ -61,12 +74,13 @@ export default function AppSidebar() {
             <Link
               href="/review"
               className={[
-                "block rounded-xl px-4 py-3 text-sm font-medium transition-colors mt-2",
+                "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors mt-2",
                 pathname === "/review" || pathname?.startsWith("/review/")
                   ? "bg-carnival-blue/15 text-foreground border border-border"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted",
               ].join(" ")}
             >
+              <ClipboardCheck size={18} />
               Review
             </Link>
           ) : null}
@@ -76,23 +90,25 @@ export default function AppSidebar() {
               <Link
                 href="/admin/grants"
                 className={[
-                  "block rounded-xl px-4 py-3 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
                   pathname === "/admin/grants" || pathname?.startsWith("/admin/grants/")
                     ? "bg-carnival-blue/15 text-foreground border border-border"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted",
                 ].join(" ")}
               >
+                <Gift size={18} />
                 Grants
               </Link>
               <Link
                 href="/admin/users"
                 className={[
-                  "block rounded-xl px-4 py-3 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
                   pathname === "/admin/users" || pathname?.startsWith("/admin/users/")
                     ? "bg-carnival-blue/15 text-foreground border border-border"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted",
                 ].join(" ")}
               >
+                <Users size={18} />
                 Users
               </Link>
             </div>
