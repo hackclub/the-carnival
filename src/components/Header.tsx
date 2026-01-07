@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useRef } from "react";
-import { signOut, useSession } from "@/lib/auth-client";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { signIn, signOut, useSession } from "@/lib/auth-client";
 
 type HeaderProps = {
   /**
@@ -21,6 +21,7 @@ function getInitials(nameOrEmail?: string | null) {
 export default function Header({ showSectionLinks = true }: HeaderProps) {
   const { data, isPending } = useSession();
   const detailsRef = useRef<HTMLDetailsElement | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
 
   // `better-auth` shapes can differ by version; keep this tolerant (but typed).
   type SessionUser = {
@@ -54,6 +55,23 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
     // This ensures any server components re-fetch auth state.
     window.location.href = "/";
   }, [closeMenu]);
+
+  const onJoinCarnival = useCallback(async () => {
+    setAuthLoading(true);
+    const { data, error } = await signIn.oauth2({
+      providerId: "hackclub-identity",
+      callbackURL: "/projects",
+      disableRedirect: true,
+    });
+
+    if (error || !data?.url) {
+      setAuthLoading(false);
+      window.location.href = "/login?callbackUrl=/projects";
+      return;
+    }
+
+    window.location.href = data.url;
+  }, []);
 
   return (
     <nav className="relative z-50 flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">
@@ -91,6 +109,14 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
         {isPending ? (
           <span className="text-muted-foreground text-sm">Checking session…</span>
         ) : isAuthed ? (
+          <>
+            <Link
+              href="/projects"
+              className="bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-full font-medium transition-colors border border-border"
+            >
+              Dashboard
+            </Link>
+
           <details ref={detailsRef} className="relative z-50">
             <summary className="list-none cursor-pointer select-none">
               <span className="flex items-center gap-3">
@@ -162,21 +188,26 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
               </div>
             </div>
           </details>
+          </>
         ) : (
-          <Link
-            href="/login"
-            className="text-muted-foreground hover:text-foreground transition-colors"
+          <button
+            type="button"
+            onClick={onJoinCarnival}
+            disabled={authLoading}
+            className="bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-full font-medium transition-colors"
           >
-            Sign in
-          </Link>
+            {authLoading ? "Opening Identity…" : "Join Carnival"}
+          </button>
         )}
 
-        <Link
-          href="https://hackclub.slack.com/archives/C091ZRTMF16"
-          className="bg-carnival-red hover:bg-carnival-red/80 text-white px-4 py-2 rounded-full font-medium transition-colors"
-        >
-          Join #carnival
-        </Link>
+        {isAuthed ? (
+          <Link
+            href="https://hackclub.slack.com/archives/C091ZRTMF16"
+            className="bg-carnival-red hover:bg-carnival-red/80 text-white px-4 py-2 rounded-full font-medium transition-colors"
+          >
+            Open #Carnival
+          </Link>
+        ) : null}
       </div>
     </nav>
   );
