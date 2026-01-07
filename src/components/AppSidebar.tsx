@@ -13,6 +13,7 @@ const NAV: NavItem[] = [
   { href: "/bounties", label: "Bounties" },
   { href: "/projects", label: "My projects" },
   { href: "/explore", label: "Explore" },
+  { href: "/resources", label: "Resources" },
 ];
 
 export default function AppSidebar() {
