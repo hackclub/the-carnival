@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { Input, Textarea, Button, Card, Badge, EmptyState } from "@/components/ui";
 
 export type BountyListItem = {
   id: string;
@@ -25,7 +26,7 @@ export default function BountiesClient({
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/bounties", { method: "GET" });
-    const data = (await res.json().catch(() => null)) as { projects?: unknown; error?: unknown } | null;
+    const data = (await res.json().catch(() => null)) as { projects?: unknown } | null;
     const raw = Array.isArray(data?.projects) ? (data!.projects as unknown[]) : [];
     const next = raw
       .map((p) => p as Partial<BountyListItem>)
@@ -42,52 +43,49 @@ export default function BountiesClient({
     setItems(next);
   }, []);
 
-  const onCreate = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const name = String(fd.get("name") ?? "").trim();
-    const description = String(fd.get("description") ?? "").trim();
-    const prizeUsd = Number(fd.get("prizeUsd") ?? 0);
+  const onCreate = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      const fd = new FormData(e.currentTarget);
+      const name = String(fd.get("name") ?? "").trim();
+      const description = String(fd.get("description") ?? "").trim();
+      const prizeUsd = Number(fd.get("prizeUsd") ?? 0);
 
-    setCreating(true);
-    const toastId = toast.loading("Creating bounty…");
-    try {
-      const res = await fetch("/api/bounties", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, prizeUsd }),
-      });
-      const data = (await res.json().catch(() => null)) as { id?: string; error?: unknown } | null;
-      if (!res.ok) {
-        const message = typeof data?.error === "string" ? data.error : "Failed to create bounty.";
-        toast.error(message, { id: toastId });
+      setCreating(true);
+      const toastId = toast.loading("Creating bounty…");
+      try {
+        const res = await fetch("/api/bounties", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, description, prizeUsd }),
+        });
+        const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+        if (!res.ok) {
+          toast.error(typeof data?.error === "string" ? data.error : "Failed to create bounty.", { id: toastId });
+          setCreating(false);
+          return;
+        }
+        toast.success("Created.", { id: toastId });
+        e.currentTarget.reset();
+        await refresh();
         setCreating(false);
-        return;
+      } catch {
+        toast.error("Failed to create bounty.", { id: toastId });
+        setCreating(false);
       }
-      toast.success("Created.", { id: toastId });
-      e.currentTarget.reset();
-      await refresh();
-      setCreating(false);
-    } catch {
-      toast.error("Failed to create bounty.", { id: toastId });
-      setCreating(false);
-    }
-  }, [refresh]);
+    },
+    [refresh]
+  );
 
   const claim = useCallback(
     async (id: string) => {
       const toastId = toast.loading("Claiming…");
       try {
-        const res = await fetch(`/api/bounties/${encodeURIComponent(id)}/claim`, {
-          method: "POST",
-        });
-        const data = (await res.json().catch(() => null)) as
-          | { claimedCount?: unknown; claimedByMe?: unknown; error?: unknown }
-          | null;
+        const res = await fetch(`/api/bounties/${encodeURIComponent(id)}/claim`, { method: "POST" });
+        const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
 
         if (!res.ok) {
-          const message = typeof data?.error === "string" ? data.error : "Failed to claim.";
-          toast.error(message, { id: toastId });
+          toast.error(typeof data?.error === "string" ? data.error : "Failed to claim.", { id: toastId });
           await refresh();
           return;
         }
@@ -98,7 +96,7 @@ export default function BountiesClient({
         toast.error("Failed to claim.", { id: toastId });
       }
     },
-    [refresh],
+    [refresh]
   );
 
   const markCompleted = useCallback(
@@ -113,8 +111,7 @@ export default function BountiesClient({
 
         if (!res.ok) {
           const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
-          const message = typeof data?.error === "string" ? data.error : "Failed to update.";
-          toast.error(message, { id: toastId });
+          toast.error(typeof data?.error === "string" ? data.error : "Failed to update.", { id: toastId });
           return;
         }
 
@@ -124,14 +121,12 @@ export default function BountiesClient({
         toast.error("Failed to update.", { id: toastId });
       }
     },
-    [refresh],
+    [refresh]
   );
 
   const sorted = useMemo(() => {
     return [...items].sort((a, b) => {
-      // Completed bounties go to the end
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
-      // Available first, then by prize desc.
       const aAvail = a.claimedCount < 2 ? 1 : 0;
       const bAvail = b.claimedCount < 2 ? 1 : 0;
       if (aAvail !== bAvail) return bAvail - aAvail;
@@ -141,94 +136,65 @@ export default function BountiesClient({
 
   return (
     <div className="space-y-6">
-      {isAdmin ? (
-        <div className="bg-card border border-border rounded-2xl p-6">
+      {isAdmin && (
+        <Card className="p-6">
           <div className="text-foreground font-semibold text-lg">Create bounty</div>
-          <div className="text-muted-foreground mt-1 text-sm">
-            Only admins can create bounty projects.
-          </div>
+          <div className="text-muted-foreground mt-1 text-sm">Only admins can create bounty projects.</div>
 
           <form onSubmit={onCreate} className="mt-5 space-y-4">
-            <label className="block">
-              <div className="text-sm text-muted-foreground font-medium mb-2">Name</div>
-              <input
-                name="name"
-                required
-                className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                placeholder="Build a VS Code extension for XYZ"
-                disabled={creating}
-              />
-            </label>
-
-            <label className="block">
-              <div className="text-sm text-muted-foreground font-medium mb-2">Prize (USD)</div>
-              <input
-                name="prizeUsd"
-                type="number"
-                min={1}
-                step={1}
-                required
-                className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                placeholder="50"
-                disabled={creating}
-              />
-            </label>
-
-            <label className="block">
-              <div className="text-sm text-muted-foreground font-medium mb-2">Description</div>
-              <textarea
-                name="description"
-                rows={4}
-                required
-                className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                placeholder="What should the bounty project do? What are acceptance criteria?"
-                disabled={creating}
-              />
-            </label>
-
+            <Input
+              name="name"
+              label="Name"
+              required
+              placeholder="Build a VS Code extension for XYZ"
+              disabled={creating}
+            />
+            <Input
+              name="prizeUsd"
+              label="Prize (USD)"
+              type="number"
+              min={1}
+              step={1}
+              required
+              placeholder="50"
+              disabled={creating}
+            />
+            <Textarea
+              name="description"
+              label="Description"
+              rows={4}
+              required
+              placeholder="What should the bounty project do? What are acceptance criteria?"
+              disabled={creating}
+            />
             <div className="flex items-center justify-end">
-              <button
-                type="submit"
-                disabled={creating}
-                className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-full font-bold transition-colors"
-              >
-                {creating ? "Creating…" : "Create bounty"}
-              </button>
+              <Button type="submit" loading={creating} loadingText="Creating…">
+                Create bounty
+              </Button>
             </div>
           </form>
-        </div>
-      ) : null}
+        </Card>
+      )}
 
       {sorted.length === 0 ? (
-        <div className="bg-card border border-border rounded-2xl p-8">
-          <div className="text-foreground font-semibold text-lg">No bounties yet</div>
-          <div className="text-muted-foreground mt-1">
-            Check back soon.
-          </div>
-        </div>
+        <EmptyState title="No bounties yet" description="Check back soon." />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {sorted.map((b) => {
             const isFull = b.claimedCount >= 2;
             const isCompleted = b.completed;
             const canClaim = !isFull && !b.claimedByMe && !isCompleted;
+
             return (
-              <div
+              <Card
                 key={b.id}
-                className={[
-                  "bg-card border border-border rounded-2xl p-6 card-glow transition-all",
-                  isCompleted ? "opacity-50" : isFull ? "opacity-70" : "hover:bg-muted",
-                ].join(" ")}
+                className={`p-6 ${isCompleted ? "opacity-50" : isFull ? "opacity-70" : "hover:bg-muted"}`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <div className="text-foreground font-bold text-xl truncate">{b.name}</div>
-                      {isCompleted && (
-                        <span className="shrink-0 px-2 py-0.5 text-xs font-medium rounded-full bg-green-500/10 text-green-600 ring-1 ring-green-500/20">
-                          Completed
-                        </span>
-                      )}
+                      {isCompleted && <Badge variant="success">Completed</Badge>}
                     </div>
                     <div className="text-muted-foreground mt-2 overflow-hidden">{b.description}</div>
                   </div>
@@ -244,30 +210,20 @@ export default function BountiesClient({
                   </div>
                   <div className="flex items-center gap-2">
                     {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => markCompleted(b.id, !isCompleted)}
-                        className="inline-flex items-center justify-center px-3 py-2 rounded-full text-sm font-medium transition-colors border border-border hover:bg-muted"
-                      >
+                      <Button variant="outline" onClick={() => markCompleted(b.id, !isCompleted)}>
                         {isCompleted ? "Reopen" : "Mark Done"}
-                      </button>
+                      </Button>
                     )}
-                    <button
-                      type="button"
+                    <Button
+                      variant={canClaim ? "secondary" : "disabled"}
                       onClick={() => claim(b.id)}
                       disabled={!canClaim}
-                      className={[
-                        "inline-flex items-center justify-center px-5 py-2 rounded-full font-semibold transition-colors border",
-                        canClaim
-                          ? "bg-carnival-blue/20 hover:bg-carnival-blue/30 text-foreground border-border"
-                          : "bg-muted text-muted-foreground border-border cursor-not-allowed",
-                      ].join(" ")}
                     >
                       {isCompleted ? "Done" : b.claimedByMe ? "Claimed" : isFull ? "Full" : "Claim"}
-                    </button>
+                    </Button>
                   </div>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
@@ -275,5 +231,3 @@ export default function BountiesClient({
     </div>
   );
 }
-
-
