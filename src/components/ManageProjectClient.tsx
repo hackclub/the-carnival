@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { ProjectEditor, ProjectStatus, ReviewDecision } from "@/db/schema";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import toast from "react-hot-toast";
@@ -59,6 +59,14 @@ function joinLines(values: string[]) {
   return values.filter(Boolean).join("\n");
 }
 
+function cleanStringList(value: unknown) {
+  const raw = Array.isArray(value) ? value : [];
+  return raw
+    .filter((p): p is string => typeof p === "string")
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
 const STATUS_OPTIONS: Array<{
   value: "work-in-progress" | "shipped";
   label: string;
@@ -73,6 +81,11 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
+  const hackatimeDetailsRef = useRef<HTMLDetailsElement | null>(null);
+  const [hackatimeProjects, setHackatimeProjects] = useState<string[] | null>(null);
+  const [hackatimeLoading, setHackatimeLoading] = useState(false);
+  const [hackatimeError, setHackatimeError] = useState<string | null>(null);
+
   const [name, setName] = useState(initial.name);
   const [description, setDescription] = useState(initial.description);
   const [editor, setEditor] = useState<ProjectEditor>(initial.editor);
@@ -82,7 +95,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
   const [codeUrl, setCodeUrl] = useState(initial.codeUrl);
   const [screenshotsText, setScreenshotsText] = useState(joinLines(initial.screenshots));
   const [status, setStatus] = useState<ProjectStatus>(initial.status);
-  const [reviews, setReviews] = useState(initial.reviews);
+  const reviews = initial.reviews;
 
   const [statusChoice, setStatusChoice] = useState<"work-in-progress" | "shipped">(() => {
     return initial.status === "work-in-progress" ? "work-in-progress" : "shipped";
@@ -98,7 +111,69 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     return "in-review";
   }, [status, statusChoice]);
 
-  const canEditStatus = true;
+  const onHackatimeToggle = useCallback(
+    async (e: React.SyntheticEvent<HTMLDetailsElement>) => {
+      const isOpen = (e.currentTarget as HTMLDetailsElement).open;
+      if (!isOpen) return;
+      if (hackatimeProjects !== null || hackatimeLoading) return;
+
+      setHackatimeLoading(true);
+      setHackatimeError(null);
+      try {
+        const res = await fetch("/api/hackatime/projects", { method: "GET" });
+        const data = (await res.json().catch(() => null)) as
+          | { projects?: unknown; error?: unknown }
+          | null;
+
+        if (!res.ok) {
+          const message = typeof data?.error === "string" ? data.error : "Failed to load.";
+          setHackatimeError(message);
+          setHackatimeProjects([]);
+          setHackatimeLoading(false);
+          return;
+        }
+
+        setHackatimeProjects(cleanStringList(data?.projects));
+        setHackatimeLoading(false);
+      } catch {
+        setHackatimeError("Failed to load.");
+        setHackatimeProjects([]);
+        setHackatimeLoading(false);
+      }
+    },
+    [hackatimeLoading, hackatimeProjects],
+  );
+
+  const pickHackatimeProject = useCallback((name: string) => {
+    setHackatimeProjectName(name);
+    hackatimeDetailsRef.current?.removeAttribute("open");
+  }, []);
+
+  const refreshHackatimeProjects = useCallback(async () => {
+    setHackatimeLoading(true);
+    setHackatimeError(null);
+    try {
+      const res = await fetch("/api/hackatime/projects", { method: "GET" });
+      const data = (await res.json().catch(() => null)) as
+        | { projects?: unknown; error?: unknown }
+        | null;
+
+      if (!res.ok) {
+        const message = typeof data?.error === "string" ? data.error : "Failed to load.";
+        setHackatimeError(message);
+        setHackatimeProjects([]);
+        setHackatimeLoading(false);
+        return;
+      }
+
+      setHackatimeProjects(cleanStringList(data?.projects));
+      setHackatimeLoading(false);
+    } catch {
+      setHackatimeError("Failed to load.");
+      setHackatimeProjects([]);
+      setHackatimeLoading(false);
+    }
+  }, []);
 
   const onSave = useCallback(async () => {
     if (isGranted) {
@@ -314,12 +389,66 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
 
         <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">Hackatime project name</div>
-          <input
-            value={hackatimeProjectName}
-            onChange={(e) => setHackatimeProjectName(e.target.value)}
-            className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-            placeholder="Your Hackatime project name"
-          />
+          <div className="space-y-3">
+            <input
+              value={hackatimeProjectName}
+              onChange={(e) => setHackatimeProjectName(e.target.value)}
+              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              placeholder="Pick from your Hackatime projects"
+            />
+
+            <details
+              ref={hackatimeDetailsRef}
+              className="rounded-2xl border border-border bg-muted overflow-hidden"
+              onToggle={onHackatimeToggle}
+            >
+              <summary className="cursor-pointer select-none px-4 py-3 text-sm text-foreground flex items-center justify-between">
+                <span>Browse Hackatime projects</span>
+                <span className="text-carnival-blue">▼</span>
+              </summary>
+              <div className="border-t border-border px-4 py-3 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs text-muted-foreground">
+                    This list is fetched from your Hackatime account.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={refreshHackatimeProjects}
+                    disabled={hackatimeLoading}
+                    className="text-xs font-semibold text-carnival-blue hover:underline disabled:opacity-60 disabled:hover:no-underline"
+                  >
+                    Refresh
+                  </button>
+                </div>
+
+                {hackatimeLoading ? (
+                  <div className="text-sm text-muted-foreground">Loading…</div>
+                ) : hackatimeError ? (
+                  <div className="text-sm text-red-200">
+                    Couldn’t load projects: {hackatimeError}
+                  </div>
+                ) : (hackatimeProjects?.length ?? 0) === 0 ? (
+                  <div className="text-sm text-muted-foreground">
+                    No projects found. (If you just started tracking, Hackatime may need a bit
+                    of data.)
+                  </div>
+                ) : (
+                  <div className="max-h-56 overflow-auto space-y-2">
+                    {hackatimeProjects!.map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => pickHackatimeProject(p)}
+                        className="w-full text-left px-3 py-2 rounded-xl bg-background hover:bg-muted border border-border text-sm text-foreground"
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </details>
+          </div>
         </label>
 
         <label className="block">

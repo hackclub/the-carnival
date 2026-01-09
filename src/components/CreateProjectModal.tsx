@@ -81,7 +81,6 @@ export default function CreateProjectModal() {
     if (!d) return;
 
     if (shouldBeOpen) {
-      setError(null);
       if (!d.open) d.showModal();
       document.body.style.overflow = "hidden";
     } else {
@@ -208,7 +207,7 @@ export default function CreateProjectModal() {
         setHackatimeLoading(false);
       }
     },
-    [hackatimeLoading, hackatimeProjects],
+    [hackatimeLoading, hackatimeProjects, slackId],
   );
 
   const pickHackatimeProject = useCallback((name: string) => {
