@@ -128,7 +128,7 @@ export default function ReviewProjectClient({
               {project.creatorEmail ? ` • ${project.creatorEmail}` : ""}
             </div>
           </div>
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col items-end gap-2 shrink-0">
             <ProjectEditorBadge editor={project.editor} editorOther={project.editorOther} />
             <ProjectStatusBadge status={project.status} />
           </div>
