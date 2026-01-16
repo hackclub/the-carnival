@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { peerReview, project, type ProjectStatus, type ReviewDecision, type UserRole } from "@/db/schema";
+import { peerReview, project, user, type ProjectStatus, type ReviewDecision, type UserRole } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
+import { sendReviewEmail } from "@/lib/loops";
 
 type ReviewBody = {
   decision?: unknown;
@@ -89,7 +90,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const rows = await db
-    .select({ id: project.id, status: project.status })
+    .select({ id: project.id, status: project.status, creatorId: project.creatorId })
     .from(project)
     .where(eq(project.id, projectId))
     .limit(1);
@@ -126,6 +127,46 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       approvedHours: peerReview.approvedHours,
       createdAt: peerReview.createdAt,
     });
+
+  // Best-effort: notify the project creator about the new reviewer comment.
+  // Only reviewer/admin users can reach this route (enforced above by canReview()).
+  try {
+    if (p.creatorId) {
+      const creatorRows = await db
+        .select({ email: user.email })
+        .from(user)
+        .where(eq(user.id, p.creatorId))
+        .limit(1);
+
+      const creatorEmail = creatorRows[0]?.email;
+      if (creatorEmail) {
+        const reviewerName = (session?.user as { name?: string | null } | undefined)?.name ?? "Reviewer";
+
+        const decisionPrefix =
+          decision === "comment"
+            ? ""
+            : decision === "approved"
+              ? `Approved${Number.isFinite(approvedHours) ? ` (${approvedHours} hours)` : ""}: `
+              : "Rejected: ";
+
+        const updates = `${decisionPrefix}${comment}`;
+
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "";
+        let project_link = `/projects/${projectId}`;
+        if (appUrl) {
+          try {
+            project_link = new URL(`/projects/${projectId}`, appUrl).toString();
+          } catch {
+            // If appUrl isn't a valid absolute URL, fall back to relative.
+          }
+        }
+
+        await sendReviewEmail(creatorEmail, updates, reviewerName, project_link);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to send review email", err);
+  }
 
   const statusUpdate = nextStatusForDecision(decision);
   if (statusUpdate) {
