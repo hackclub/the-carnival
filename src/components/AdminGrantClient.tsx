@@ -69,6 +69,7 @@ export default function AdminGrantClient({
 
   const canGrant = useMemo(() => project.status === "shipped", [project.status]);
   const canUngrant = useMemo(() => project.status === "granted", [project.status]);
+  const canSendBackToReview = useMemo(() => project.status === "shipped", [project.status]);
 
   const billyLink = useMemo(() => {
     const hackatimeId = project.hackatimeUserId?.trim();
@@ -83,9 +84,11 @@ export default function AdminGrantClient({
   const activeScreenshot = screenshots[screenshotIndex] ?? null;
 
   const setStatus = useCallback(
-    async (status: Extract<ProjectStatus, "shipped" | "granted">) => {
+    async (status: Extract<ProjectStatus, "shipped" | "granted" | "in-review">) => {
       setBusy(true);
-      const toastId = toast.loading(status === "granted" ? "Granting…" : "Reverting…");
+      const toastId = toast.loading(
+        status === "granted" ? "Granting…" : status === "in-review" ? "Sending back to review…" : "Reverting…",
+      );
       try {
         const res = await fetch(`/api/admin/projects/${encodeURIComponent(project.id)}`, {
           method: "PATCH",
@@ -314,6 +317,14 @@ export default function AdminGrantClient({
             className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-5 py-3 rounded-full font-semibold transition-colors border border-border"
           >
             Undo grant
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatus("in-review")}
+            disabled={busy || !canSendBackToReview}
+            className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-5 py-3 rounded-full font-semibold transition-colors border border-border"
+          >
+            Back to review queue
           </button>
           <button
             type="button"
