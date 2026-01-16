@@ -18,7 +18,7 @@ export default function ProjectStatusBadge({ status }: { status: ProjectStatus }
   return (
     <span
       className={[
-        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold",
+        "inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-semibold whitespace-nowrap",
         STYLES[status],
       ].join(" ")}
     >

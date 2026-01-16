@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { ProjectEditor, ProjectStatus, ReviewDecision } from "@/db/schema";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
+import { Modal } from "@/components/ui";
 import toast from "react-hot-toast";
 
 const EDITOR_OPTIONS = [
@@ -36,6 +37,7 @@ export type ManageProjectInitial = {
   codeUrl: string;
   screenshots: string[];
   status: ProjectStatus;
+  approvedHours: number | null;
   reviews: Array<{
     id: string;
     decision: ReviewDecision;
@@ -48,15 +50,8 @@ export type ManageProjectInitial = {
 
 type ApiProject = ManageProjectInitial;
 
-function splitLines(value: string) {
-  return value
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
-}
-
-function joinLines(values: string[]) {
-  return values.filter(Boolean).join("\n");
+function cleanList(values: string[]) {
+  return values.map((v) => v.trim()).filter(Boolean);
 }
 
 function cleanStringList(value: unknown) {
@@ -67,19 +62,21 @@ function cleanStringList(value: unknown) {
     .filter(Boolean);
 }
 
-const STATUS_OPTIONS: Array<{
-  value: "work-in-progress" | "shipped";
-  label: string;
-  helper: string;
-}> = [
-  { value: "work-in-progress", label: "Work in progress", helper: "Still building and iterating." },
-  { value: "shipped", label: "Shipped", helper: "Submit for review. A reviewer will approve or request changes." },
-];
-
 export default function ManageProjectClient({ initial }: { initial: ManageProjectInitial }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [submitOpen, setSubmitOpen] = useState(false);
+  const [submitStep, setSubmitStep] = useState<0 | 1>(0);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [checkReadme, setCheckReadme] = useState(false);
+  const [checkTested, setCheckTested] = useState(false);
+  const [checkAiTransparency, setCheckAiTransparency] = useState(false);
+  const [checkGithubPublic, setCheckGithubPublic] = useState(false);
+  const [checkDescriptionClear, setCheckDescriptionClear] = useState(false);
+  const [checkScreenshotsWorking, setCheckScreenshotsWorking] = useState(false);
+  const [checkAddressedRejection, setCheckAddressedRejection] = useState(false);
 
   const hackatimeDetailsRef = useRef<HTMLDetailsElement | null>(null);
   const [hackatimeProjects, setHackatimeProjects] = useState<string[] | null>(null);
@@ -93,23 +90,70 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
   const [hackatimeProjectName, setHackatimeProjectName] = useState(initial.hackatimeProjectName);
   const [playableUrl, setPlayableUrl] = useState(initial.playableUrl);
   const [codeUrl, setCodeUrl] = useState(initial.codeUrl);
-  const [screenshotsText, setScreenshotsText] = useState(joinLines(initial.screenshots));
+  const [screenshotUrls, setScreenshotUrls] = useState<string[]>(
+    (initial.screenshots?.length ?? 0) > 0 ? initial.screenshots : [""],
+  );
   const [status, setStatus] = useState<ProjectStatus>(initial.status);
+  const approvedHours = initial.approvedHours;
   const reviews = initial.reviews;
-
-  const [statusChoice, setStatusChoice] = useState<"work-in-progress" | "shipped">(() => {
-    return initial.status === "work-in-progress" ? "work-in-progress" : "shipped";
-  });
 
   const isGranted = status === "granted";
 
-  const displayStatus = useMemo<ProjectStatus>(() => {
-    if (status === "granted") return "granted";
-    if (statusChoice === "work-in-progress") return "work-in-progress";
-    if (status === "shipped") return "shipped";
-    // “Shipped” from the creator UI means “submit for review”.
-    return "in-review";
-  }, [status, statusChoice]);
+  const isInReview = status === "in-review";
+  const isShipped = status === "shipped";
+
+  const latestRejectedReview = useMemo(() => {
+    // Reviews are ordered newest-first in the initial payload.
+    return reviews.find((r) => r.decision === "rejected") ?? null;
+  }, [reviews]);
+
+  const isReReview =
+    !isGranted && !isInReview && !isShipped && status === "work-in-progress" && !!latestRejectedReview;
+
+  const screenshots = useMemo(() => cleanList(screenshotUrls), [screenshotUrls]);
+
+  function isValidUrlString(value: string) {
+    try {
+      const u = new URL(value);
+      return u.protocol === "http:" || u.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }
+
+  const submitRequirements = useMemo(() => {
+    const nameOk = name.trim().length > 0;
+    const descriptionOk = description.trim().length > 0;
+    const githubOk = codeUrl.trim().length > 0 && isValidUrlString(codeUrl.trim());
+    const demoOk = playableUrl.trim().length > 0 && isValidUrlString(playableUrl.trim());
+    const hackatimeOk = hackatimeProjectName.trim().length > 0;
+    const screenshotsOk = screenshots.length > 0;
+
+    return {
+      nameOk,
+      descriptionOk,
+      githubOk,
+      demoOk,
+      hackatimeOk,
+      screenshotsOk,
+      allOk:
+        nameOk && descriptionOk && githubOk && demoOk && hackatimeOk && screenshotsOk && editor !== "other"
+          ? true
+          : nameOk && descriptionOk && githubOk && demoOk && hackatimeOk && screenshotsOk && editor === "other"
+            ? editorOther.trim().length > 0
+            : false,
+    };
+  }, [codeUrl, description, editor, editorOther, hackatimeProjectName, name, playableUrl, screenshots]);
+
+  const checklistOk =
+    checkReadme &&
+    checkTested &&
+    checkAiTransparency &&
+    checkGithubPublic &&
+    checkDescriptionClear &&
+    checkScreenshotsWorking;
+
+  const submitConfirmOk = isReReview ? checkAddressedRejection : checklistOk;
 
   const onHackatimeToggle = useCallback(
     async (e: React.SyntheticEvent<HTMLDetailsElement>) => {
@@ -175,6 +219,22 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     }
   }, []);
 
+  const addScreenshotField = useCallback(() => {
+    setScreenshotUrls((prev) => [...prev, ""]);
+  }, []);
+
+  const updateScreenshotField = useCallback((idx: number, value: string) => {
+    setScreenshotUrls((prev) => prev.map((v, i) => (i === idx ? value : v)));
+  }, []);
+
+  const removeScreenshotField = useCallback((idx: number) => {
+    setScreenshotUrls((prev) => {
+      if (prev.length <= 1) return [""];
+      const next = prev.filter((_, i) => i !== idx);
+      return next.length === 0 ? [""] : next;
+    });
+  }, []);
+
   const onSave = useCallback(async () => {
     if (isGranted) {
       toast.error("This project has been granted and can no longer be edited.");
@@ -184,13 +244,6 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     setError(null);
     setSavedAt(null);
 
-    const desiredStatus: ProjectStatus | null =
-      statusChoice === "work-in-progress"
-        ? "work-in-progress"
-        : status === "shipped"
-          ? null // already shipped (approved) — don't let creators set shipped directly
-          : "in-review";
-
     const payload: Record<string, unknown> = {
       name: name.trim(),
       description: description.trim(),
@@ -199,9 +252,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
       hackatimeProjectName: hackatimeProjectName.trim(),
       playableUrl: playableUrl.trim(),
       codeUrl: codeUrl.trim(),
-      screenshots: splitLines(screenshotsText),
+      screenshots: cleanList(screenshotUrls),
     };
-    if (desiredStatus) payload.status = desiredStatus;
 
     const toastId = toast.loading("Saving…");
     try {
@@ -232,9 +284,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         setHackatimeProjectName(p.hackatimeProjectName);
         setPlayableUrl(p.playableUrl);
         setCodeUrl(p.codeUrl);
-        setScreenshotsText(joinLines(p.screenshots ?? []));
+        setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
         setStatus(p.status);
-      setStatusChoice(p.status === "work-in-progress" ? "work-in-progress" : "shipped");
       }
 
       setSavedAt(Date.now());
@@ -255,9 +306,128 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     isGranted,
     name,
     playableUrl,
-    screenshotsText,
+    screenshotUrls,
     status,
-    statusChoice,
+  ]);
+
+  const openSubmit = useCallback(() => {
+    if (isGranted) return;
+    if (isInReview) {
+      toast("This project is already in review.");
+      return;
+    }
+    if (isShipped) {
+      toast("This project has already been shipped.");
+      return;
+    }
+    // Reset confirmations each time.
+    setCheckReadme(false);
+    setCheckTested(false);
+    setCheckAiTransparency(false);
+    setCheckGithubPublic(false);
+    setCheckDescriptionClear(false);
+    setCheckScreenshotsWorking(false);
+    setCheckAddressedRejection(false);
+    setSubmitStep(0);
+    setSubmitOpen(true);
+  }, [isGranted, isInReview, isShipped]);
+
+  const closeSubmit = useCallback(() => {
+    setSubmitOpen(false);
+    setSubmitStep(0);
+    setSubmitting(false);
+    setCheckAddressedRejection(false);
+  }, []);
+
+  const onSubmitForReview = useCallback(async () => {
+    if (isGranted) return;
+    if (!submitRequirements.allOk) {
+      toast.error("Please complete all required fields before submitting.");
+      setSubmitStep(0);
+      return;
+    }
+    if (isReReview) {
+      if (!checkAddressedRejection) {
+        toast.error("Please confirm you've addressed the requested changes before re-submitting.");
+        setSubmitStep(1);
+        return;
+      }
+    } else {
+      if (!checklistOk) {
+        toast.error("Please check all items before submitting.");
+        setSubmitStep(1);
+        return;
+      }
+    }
+    setSubmitting(true);
+
+    const payload: Record<string, unknown> = {
+      name: name.trim(),
+      description: description.trim(),
+      editor,
+      editorOther: editor === "other" ? editorOther.trim() : "",
+      hackatimeProjectName: hackatimeProjectName.trim(),
+      playableUrl: playableUrl.trim(),
+      codeUrl: codeUrl.trim(),
+      screenshots: cleanList(screenshotUrls),
+      status: "in-review",
+    };
+
+    const toastId = toast.loading("Submitting for review…");
+    try {
+      const res = await fetch(`/api/projects/${encodeURIComponent(initial.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json().catch(() => null)) as
+        | { project?: ApiProject; error?: unknown }
+        | null;
+
+      if (!res.ok) {
+        const message =
+          typeof data?.error === "string" ? data.error : "Failed to submit for review.";
+        toast.error(message, { id: toastId });
+        setSubmitting(false);
+        return;
+      }
+
+      const p = data?.project;
+      if (p) {
+        setName(p.name);
+        setDescription(p.description);
+        setEditor(p.editor);
+        setEditorOther(p.editorOther ?? "");
+        setHackatimeProjectName(p.hackatimeProjectName);
+        setPlayableUrl(p.playableUrl);
+        setCodeUrl(p.codeUrl);
+        setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
+        setStatus(p.status);
+      }
+
+      toast.success("Submitted for review.", { id: toastId });
+      setSubmitting(false);
+      closeSubmit();
+    } catch {
+      toast.error("Failed to submit for review.", { id: toastId });
+      setSubmitting(false);
+    }
+  }, [
+    checkAddressedRejection,
+    checklistOk,
+    isReReview,
+    closeSubmit,
+    codeUrl,
+    description,
+    editor,
+    editorOther,
+    hackatimeProjectName,
+    initial.id,
+    isGranted,
+    name,
+    playableUrl,
+    screenshotUrls,
+    submitRequirements.allOk,
   ]);
 
   return (
@@ -267,51 +437,43 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
           <div className="min-w-0">
             <div className="text-foreground font-bold text-2xl truncate">{name || "Project"}</div>
             <div className="text-muted-foreground mt-1">Manage your project details and status.</div>
+            {approvedHours !== null && approvedHours !== undefined ? (
+              <div className="text-sm text-muted-foreground mt-2">
+                Approved hours: <span className="text-foreground font-semibold">{approvedHours}h</span>
+              </div>
+            ) : null}
           </div>
-          <ProjectStatusBadge status={displayStatus} />
+          <ProjectStatusBadge status={status} />
         </div>
       </div>
 
       <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Status</div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {STATUS_OPTIONS.map((opt) => (
-            <label
-              key={opt.value}
-              className={[
-                "rounded-2xl border p-4 cursor-pointer transition-colors",
-                statusChoice === opt.value
-                  ? "border-carnival-blue/50 bg-carnival-blue/10"
-                  : "border-border bg-muted",
-              ].join(" ")}
-            >
-              <div className="flex items-start gap-3">
-                <input
-                  type="radio"
-                  name="status"
-                  value={opt.value}
-                  checked={statusChoice === opt.value}
-                  onChange={() => setStatusChoice(opt.value)}
-                  className="mt-1"
-                />
-                <div className="min-w-0">
-                  <div className="text-foreground font-semibold">{opt.label}</div>
-                  <div className="text-sm text-muted-foreground">{opt.helper}</div>
-                </div>
-              </div>
-            </label>
-          ))}
-        </div>
-
         {isGranted ? (
-          <div className="text-sm text-muted-foreground">
-            This project has been granted. Editing is locked.
-          </div>
-        ) : displayStatus === "in-review" ? (
+          <div className="text-sm text-muted-foreground">This project has been granted. Editing is locked.</div>
+        ) : isInReview ? (
           <div className="text-sm text-muted-foreground">
             Submitted for review. You’ll see reviewer comments below.
           </div>
-        ) : null}
+        ) : isShipped ? (
+          <div className="text-sm text-muted-foreground">
+            Shipped! If you need to make changes, ask a reviewer/admin first.
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-4">
+            <div className="text-sm text-muted-foreground">
+              When you’re ready, submit for review. You’ll need to fill all required fields and complete the checklist.
+            </div>
+            <button
+              type="button"
+              onClick={openSubmit}
+              className="inline-flex items-center justify-center bg-carnival-blue hover:bg-carnival-blue/80 disabled:bg-carnival-blue/50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-full font-bold transition-colors"
+              disabled={saving}
+            >
+              {isReReview ? "Submit for re-review" : "Submit for review"}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
@@ -392,10 +554,23 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
           <div className="space-y-3">
             <input
               value={hackatimeProjectName}
-              onChange={(e) => setHackatimeProjectName(e.target.value)}
+              readOnly
               className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-              placeholder="Pick from your Hackatime projects"
+              placeholder="Pick from the list below"
             />
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs text-muted-foreground">
+                You can’t type here — choose a project from the dropdown below.
+              </div>
+              <button
+                type="button"
+                onClick={() => setHackatimeProjectName("")}
+                className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline"
+                disabled={!hackatimeProjectName}
+              >
+                Clear
+              </button>
+            </div>
 
             <details
               ref={hackatimeDetailsRef}
@@ -464,12 +639,12 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="block">
-            <div className="text-sm text-muted-foreground font-medium mb-2">Playable URL</div>
+            <div className="text-sm text-muted-foreground font-medium mb-2">Demo video URL</div>
             <input
               value={playableUrl}
               onChange={(e) => setPlayableUrl(e.target.value)}
               className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-              placeholder="https://mygame.vercel.app"
+              placeholder="https://youtu.be/... or https://..."
             />
           </label>
 
@@ -486,15 +661,41 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
 
         <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">
-            Screenshots <span className="font-normal">(one URL per line)</span>
+            Screenshots
           </div>
-          <textarea
-            value={screenshotsText}
-            onChange={(e) => setScreenshotsText(e.target.value)}
-            rows={4}
-            className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-            placeholder={`https://...\nhttps://...`}
-          />
+          <div className="space-y-3">
+            {screenshotUrls.map((value, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <input
+                  value={value}
+                  onChange={(e) => updateScreenshotField(idx, e.target.value)}
+                  className="flex-1 bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  placeholder="https://..."
+                />
+                <button
+                  type="button"
+                  onClick={() => removeScreenshotField(idx)}
+                  className="h-12 px-4 rounded-2xl bg-muted hover:bg-muted/70 border border-border text-foreground font-semibold disabled:opacity-60"
+                  disabled={screenshotUrls.length <= 1}
+                  aria-label="Remove screenshot"
+                  title="Remove"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addScreenshotField}
+              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border"
+            >
+              Add screenshot
+            </button>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            Upload screenshots in <span className="text-foreground">#cdn</span> on Slack, then paste the image URLs here. Include screenshots of your{" "}
+            <span className="text-foreground">project working</span>, not your code.
+          </div>
         </label>
         </fieldset>
 
@@ -518,6 +719,237 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
           </button>
         </div>
       </div>
+
+      <Modal
+        open={submitOpen}
+        onClose={closeSubmit}
+        title={
+          submitStep === 0 ? (isReReview ? "Submit for re-review" : "Submit for review") : isReReview ? "Confirm changes addressed" : "Final checklist"
+        }
+        description={
+          submitStep === 0
+            ? "First, make sure the required fields are filled."
+            : isReReview
+              ? "Confirm you've addressed the most recent reviewer feedback before re-submitting."
+              : "Confirm each item before submitting your project for review."
+        }
+        maxWidth="lg"
+      >
+        {submitStep === 0 ? (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
+              You can’t submit until these are set: GitHub URL, demo video URL, Hackatime project name, and at least one screenshot.
+            </div>
+
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
+                <div className="text-foreground">GitHub URL</div>
+                <div
+                  className={[
+                    "px-2 py-0.5 rounded-md font-bold",
+                    submitRequirements.githubOk
+                      ? "text-emerald-300 bg-emerald-500/15"
+                      : "text-rose-300 bg-rose-500/15",
+                  ].join(" ")}
+                >
+                  {submitRequirements.githubOk ? "Set" : "Missing/invalid"}
+                </div>
+              </div>
+              <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
+                <div className="text-foreground">Demo video URL</div>
+                <div
+                  className={[
+                    "px-2 py-0.5 rounded-md font-bold",
+                    submitRequirements.demoOk
+                      ? "text-emerald-300 bg-emerald-500/15"
+                      : "text-rose-300 bg-rose-500/15",
+                  ].join(" ")}
+                >
+                  {submitRequirements.demoOk ? "Set" : "Missing/invalid"}
+                </div>
+              </div>
+              <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
+                <div className="text-foreground">Hackatime project name</div>
+                <div
+                  className={[
+                    "px-2 py-0.5 rounded-md font-bold",
+                    submitRequirements.hackatimeOk
+                      ? "text-emerald-300 bg-emerald-500/15"
+                      : "text-rose-300 bg-rose-500/15",
+                  ].join(" ")}
+                >
+                  {submitRequirements.hackatimeOk ? "Set" : "Missing"}
+                </div>
+              </div>
+              <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
+                <div className="text-foreground">Screenshots</div>
+                <div
+                  className={[
+                    "px-2 py-0.5 rounded-md font-bold",
+                    submitRequirements.screenshotsOk
+                      ? "text-emerald-300 bg-emerald-500/15"
+                      : "text-rose-300 bg-rose-500/15",
+                  ].join(" ")}
+                >
+                  {submitRequirements.screenshotsOk ? "Set" : "Missing"}
+                </div>
+              </div>
+              {editor === "other" ? (
+                <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
+                  <div className="text-foreground">Other editor name</div>
+                  <div
+                    className={[
+                      "px-2 py-0.5 rounded-md font-bold",
+                      editorOther.trim().length > 0
+                        ? "text-emerald-300 bg-emerald-500/15"
+                        : "text-rose-300 bg-rose-500/15",
+                    ].join(" ")}
+                  >
+                    {editorOther.trim().length > 0 ? "Set" : "Missing"}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={closeSubmit}
+                className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-full font-semibold transition-colors border border-border"
+                disabled={submitting}
+              >
+                Not yet
+              </button>
+              <button
+                type="button"
+                onClick={() => setSubmitStep(1)}
+                className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-full font-bold transition-colors"
+                disabled={!submitRequirements.allOk || submitting}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        ) : (
+          isReReview ? (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-border bg-muted px-4 py-4">
+                <div className="text-sm text-foreground font-semibold">Most recent rejection feedback</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {latestRejectedReview
+                    ? `${latestRejectedReview.reviewerName} • ${new Date(latestRejectedReview.createdAt).toLocaleString()}`
+                    : "No rejection feedback found."}
+                </div>
+                <div className="text-sm text-foreground mt-3 whitespace-pre-wrap">
+                  {latestRejectedReview?.reviewComment ?? "—"}
+                </div>
+              </div>
+
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={checkAddressedRejection}
+                  onChange={(e) => setCheckAddressedRejection(e.target.checked)}
+                  className="mt-1"
+                />
+                <div>
+                  <div className="text-foreground font-semibold">
+                    I have addressed the changes requested in the rejection feedback above
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    If you haven’t, close this and iterate until it’s ready.
+                  </div>
+                </div>
+              </label>
+
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSubmitStep(0)}
+                  className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-full font-semibold transition-colors border border-border"
+                  disabled={submitting}
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={onSubmitForReview}
+                  className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-full font-bold transition-colors"
+                  disabled={!submitRequirements.allOk || !checkAddressedRejection || submitting}
+                >
+                  {submitting ? "Submitting…" : "Submit for re-review"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <label className="flex items-start gap-3">
+                  <input type="checkbox" checked={checkReadme} onChange={(e) => setCheckReadme(e.target.checked)} className="mt-1" />
+                  <div>
+                    <div className="text-foreground font-semibold">My README contains instructions to build and/or run my extension</div>
+                    <div className="text-sm text-muted-foreground">Reviewers should be able to follow it and reproduce.</div>
+                  </div>
+                </label>
+                <label className="flex items-start gap-3">
+                  <input type="checkbox" checked={checkTested} onChange={(e) => setCheckTested(e.target.checked)} className="mt-1" />
+                  <div>
+                    <div className="text-foreground font-semibold">I have tested my extension/plugin and it works without breaking</div>
+                    <div className="text-sm text-muted-foreground">You’re confident it’s stable enough for review.</div>
+                  </div>
+                </label>
+                <label className="flex items-start gap-3">
+                  <input type="checkbox" checked={checkAiTransparency} onChange={(e) => setCheckAiTransparency(e.target.checked)} className="mt-1" />
+                  <div>
+                    <div className="text-foreground font-semibold">AI helped me build this (if used)</div>
+                    <div className="text-sm text-muted-foreground">AI is fine to use if you’re transparent about it.</div>
+                  </div>
+                </label>
+                <label className="flex items-start gap-3">
+                  <input type="checkbox" checked={checkGithubPublic} onChange={(e) => setCheckGithubPublic(e.target.checked)} className="mt-1" />
+                  <div>
+                    <div className="text-foreground font-semibold">The GitHub URL is publicly accessible for reviewers</div>
+                    <div className="text-sm text-muted-foreground">Private repos can’t be reviewed.</div>
+                  </div>
+                </label>
+                <label className="flex items-start gap-3">
+                  <input type="checkbox" checked={checkDescriptionClear} onChange={(e) => setCheckDescriptionClear(e.target.checked)} className="mt-1" />
+                  <div>
+                    <div className="text-foreground font-semibold">The description clearly explains what the project is and what it does</div>
+                    <div className="text-sm text-muted-foreground">Make it easy to understand quickly.</div>
+                  </div>
+                </label>
+                <label className="flex items-start gap-3">
+                  <input type="checkbox" checked={checkScreenshotsWorking} onChange={(e) => setCheckScreenshotsWorking(e.target.checked)} className="mt-1" />
+                  <div>
+                    <div className="text-foreground font-semibold">I included screenshots of my project working (not my code)</div>
+                    <div className="text-sm text-muted-foreground">Screenshots should show the extension/plugin in action.</div>
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSubmitStep(0)}
+                  className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-full font-semibold transition-colors border border-border"
+                  disabled={submitting}
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={onSubmitForReview}
+                  className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-full font-bold transition-colors"
+                  disabled={!submitRequirements.allOk || !checklistOk || submitting}
+                >
+                  {submitting ? "Submitting…" : "Submit for review"}
+                </button>
+              </div>
+            </div>
+          )
+        )}
+      </Modal>
     </div>
   );
 }

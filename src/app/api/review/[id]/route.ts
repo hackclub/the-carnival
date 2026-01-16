@@ -8,6 +8,7 @@ import { getServerSession } from "@/lib/server-session";
 type ReviewBody = {
   decision?: unknown;
   comment?: unknown;
+  approvedHours?: unknown;
 };
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
@@ -62,6 +63,31 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: "Comment is required" }, { status: 400 });
   }
 
+  const approvedHoursRaw = body.approvedHours;
+  const approvedHours =
+    approvedHoursRaw === null || approvedHoursRaw === undefined
+      ? null
+      : typeof approvedHoursRaw === "number"
+        ? approvedHoursRaw
+        : typeof approvedHoursRaw === "string"
+          ? Number(approvedHoursRaw)
+          : NaN;
+
+  if (decision === "approved") {
+    if (!Number.isFinite(approvedHours)) {
+      return NextResponse.json(
+        { error: "Approved hours is required when approving" },
+        { status: 400 },
+      );
+    }
+    if (approvedHours! < 0 || !Number.isInteger(approvedHours)) {
+      return NextResponse.json(
+        { error: "Approved hours must be a non-negative integer" },
+        { status: 400 },
+      );
+    }
+  }
+
   const rows = await db
     .select({ id: project.id, status: project.status })
     .from(project)
@@ -89,16 +115,26 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       reviewerId: userId,
       decision,
       reviewComment: comment,
+      approvedHours: decision === "approved" ? (approvedHours as number) : null,
       createdAt: now,
       updatedAt: now,
     })
-    .returning({ id: peerReview.id, decision: peerReview.decision, reviewComment: peerReview.reviewComment, createdAt: peerReview.createdAt });
+    .returning({
+      id: peerReview.id,
+      decision: peerReview.decision,
+      reviewComment: peerReview.reviewComment,
+      approvedHours: peerReview.approvedHours,
+      createdAt: peerReview.createdAt,
+    });
 
   const statusUpdate = nextStatusForDecision(decision);
   if (statusUpdate) {
+    const approvedHoursUpdate =
+      decision === "approved" ? ({ approvedHours: approvedHours as number } as const) : {};
+
     await db
       .update(project)
-      .set({ status: statusUpdate, updatedAt: now })
+      .set({ status: statusUpdate, updatedAt: now, ...approvedHoursUpdate })
       .where(and(eq(project.id, projectId), eq(project.status, "in-review")));
   }
 
@@ -108,6 +144,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       id: inserted[0]?.id ?? reviewId,
       decision: inserted[0]?.decision ?? decision,
       reviewComment: inserted[0]?.reviewComment ?? comment,
+      approvedHours: inserted[0]?.approvedHours ?? (decision === "approved" ? (approvedHours as number) : null),
       createdAt: (inserted[0]?.createdAt ?? now).toISOString(),
       reviewerName: (session?.user as { name?: string | null } | undefined)?.name ?? "Reviewer",
       reviewerEmail: (session?.user as { email?: string | null } | undefined)?.email ?? "",

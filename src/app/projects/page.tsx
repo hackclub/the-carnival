@@ -86,7 +86,7 @@ export default async function ProjectsPage() {
                       {p.description}
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
+                  <div className="flex flex-col items-end gap-2 shrink-0">
                     <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
                     <ProjectStatusBadge status={p.status} />
                   </div>

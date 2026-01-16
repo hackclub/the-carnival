@@ -50,7 +50,7 @@ export default async function AdminGrantsPage() {
                   <div className="text-foreground font-bold text-xl truncate">{p.name}</div>
                   <div className="text-muted-foreground mt-2 overflow-hidden">{p.description}</div>
                 </div>
-                <div className="flex flex-col items-end gap-2">
+                <div className="flex flex-col items-end gap-2 shrink-0">
                   <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
                   <ProjectStatusBadge status={p.status} />
                 </div>

@@ -31,7 +31,7 @@ export default function ProjectEditorBadge({
   const label = editor === "other" && other ? `Other: ${other}` : LABELS[editor];
 
   return (
-    <span className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold bg-muted text-foreground border-border">
+    <span className="inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-semibold whitespace-nowrap bg-muted text-foreground border-border">
       {label}
     </span>
   );

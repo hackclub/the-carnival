@@ -63,6 +63,7 @@ export default function CreateProjectModal() {
   const [hackatimeLoading, setHackatimeLoading] = useState(false);
   const [hackatimeError, setHackatimeError] = useState<string | null>(null);
   const [editor, setEditor] = useState<(typeof EDITOR_OPTIONS)[number]["value"]>("vscode");
+  const [screenshotUrls, setScreenshotUrls] = useState<string[]>([""]);
 
   const shouldBeOpen = useMemo(() => {
     const v = searchParams.get("new");
@@ -100,6 +101,7 @@ export default function CreateProjectModal() {
     const onClose = () => {
       setIsSubmitting(false);
       setError(null);
+      setScreenshotUrls([""]);
       clearNewParam();
     };
 
@@ -127,7 +129,7 @@ export default function CreateProjectModal() {
       const hackatimeProjectName = cleanString(fd.get("hackatimeProjectName"));
       const playableUrl = cleanString(fd.get("playableUrl"));
       const codeUrl = cleanString(fd.get("codeUrl"));
-      const screenshots = splitLines(cleanString(fd.get("screenshots")));
+      const screenshots = screenshotUrls.map((s) => s.trim()).filter(Boolean);
 
       const payload: CreateProjectPayload = {
         name,
@@ -165,8 +167,24 @@ export default function CreateProjectModal() {
         setIsSubmitting(false);
       }
     },
-    [router],
+    [router, screenshotUrls],
   );
+
+  const addScreenshotField = useCallback(() => {
+    setScreenshotUrls((prev) => [...prev, ""]);
+  }, []);
+
+  const updateScreenshotField = useCallback((idx: number, value: string) => {
+    setScreenshotUrls((prev) => prev.map((v, i) => (i === idx ? value : v)));
+  }, []);
+
+  const removeScreenshotField = useCallback((idx: number) => {
+    setScreenshotUrls((prev) => {
+      if (prev.length <= 1) return [""];
+      const next = prev.filter((_, i) => i !== idx);
+      return next.length === 0 ? [""] : next;
+    });
+  }, []);
 
   const onHackatimeToggle = useCallback(
     async (e: React.SyntheticEvent<HTMLDetailsElement>) => {
@@ -255,15 +273,38 @@ export default function CreateProjectModal() {
             </div>
           ) : null}
 
+          <div className="rounded-2xl border border-border bg-muted px-4 py-4 text-sm text-foreground">
+            <div className="font-semibold">Before you create a project</div>
+            <ul className="mt-2 list-disc pl-5 space-y-1 text-muted-foreground">
+              <li>
+                Your project should be <span className="text-foreground">unique</span> — not a
+                remake of an existing extension. If it’s your first extension/plugin, bring your
+                own changes/ideas.
+              </li>
+              <li>
+                It should not just be a <span className="text-foreground">wrapper around an API</span>.
+                Build something interesting.
+              </li>
+              <li>
+                <span className="text-foreground">Simple plugins</span> are generally not acceptable.
+              </li>
+              <li>
+                <span className="text-foreground">Fraud or Hackatime manipulation</span> will result
+                in a ban from participating in a YSWS.
+              </li>
+            </ul>
+          </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="block">
-            <div className="text-sm text-muted-foreground font-medium mb-2">Editor / app</div>
+            <div className="text-sm text-muted-foreground font-medium mb-2">
+              Editor / app <span className="font-normal">(optional)</span>
+            </div>
             <select
               name="editor"
               value={editor}
               onChange={(e) => setEditor(e.target.value as (typeof EDITOR_OPTIONS)[number]["value"])}
               className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-              required
             >
               {EDITOR_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -305,14 +346,18 @@ export default function CreateProjectModal() {
           <label className="block">
             <div className="text-sm text-muted-foreground font-medium mb-2">
               Hackatime project name
+              <span className="text-muted-foreground font-normal"> (optional)</span>
             </div>
             <div className="space-y-3">
               <input
                 name="hackatimeProjectName"
-                required
+                readOnly
                 className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                placeholder="Pick from your Hackatime projects"
+                placeholder="Pick from the list below (or add later)"
               />
+              <div className="text-xs text-muted-foreground">
+                You can’t type here — choose a project from the dropdown below.
+              </div>
 
               <details
                 ref={hackatimeDetailsRef}
@@ -371,18 +416,17 @@ export default function CreateProjectModal() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="block">
             <div className="text-sm text-muted-foreground font-medium mb-2">
-              Playable URL
+              Demo video URL <span className="font-normal">(optional)</span>
             </div>
             <input
               name="playableUrl"
-              required
               className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-              placeholder="https://mygame.vercel.app"
+              placeholder="https://youtu.be/... or https://..."
             />
           </label>
 
           <label className="block">
-            <div className="text-sm text-muted-foreground font-medium mb-2">Code URL</div>
+            <div className="text-sm text-muted-foreground font-medium mb-2">GitHub URL</div>
             <input
               name="codeUrl"
               required
@@ -395,14 +439,42 @@ export default function CreateProjectModal() {
         <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">
             Screenshots
-            <span className="text-muted-foreground font-normal"> (one URL per line)</span>
+            <span className="text-muted-foreground font-normal"> (optional)</span>
           </div>
-          <textarea
-            name="screenshots"
-            rows={3}
-            className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-            placeholder={`https://...\nhttps://...`}
-          />
+          <div className="space-y-3">
+            {screenshotUrls.map((value, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <input
+                  value={value}
+                  onChange={(e) => updateScreenshotField(idx, e.target.value)}
+                  className="flex-1 bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  placeholder="https://..."
+                />
+                <button
+                  type="button"
+                  onClick={() => removeScreenshotField(idx)}
+                  className="h-12 px-4 rounded-2xl bg-muted hover:bg-muted/70 border border-border text-foreground font-semibold disabled:opacity-60"
+                  disabled={screenshotUrls.length <= 1}
+                  aria-label="Remove screenshot"
+                  title="Remove"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addScreenshotField}
+              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border"
+            >
+              Add screenshot
+            </button>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            You can upload screenshots in the <span className="text-foreground">#cdn</span> channel on
+            Slack, then paste the image URLs here. Please include screenshots of your{" "}
+            <span className="text-foreground">project working</span>, not your code.
+          </div>
         </label>
 
           <div className="pt-2 flex items-center justify-end gap-3">
