@@ -1,5 +1,6 @@
 type HackatimeStatsResponse = {
   data?: {
+    user_id?: string | number;
     projects?: {
       id?: string;
       name?: string;
@@ -73,6 +74,62 @@ export async function fetchHackatimeProjectHoursByName(
   } catch {
     // Hackatime is an enhancement; don't break pages if it's down/misconfigured.
     return {};
+  }
+}
+
+export async function fetchHackatimeUserIdAndProjectHoursByName(
+  hackatimeUserId: string,
+): Promise<{
+  userId: string | null;
+  hoursByName: Record<string, { hours: number; minutes: number }>;
+}> {
+  const uri = `https://hackatime.hackclub.com/api/v1/users/${hackatimeUserId}/stats?features=projects`;
+
+  try {
+    const response = await makeHackatimeRequest(uri);
+    if (!response.ok) return { userId: null, hoursByName: {} };
+
+    const raw = (await response.json()) as HackatimeStatsResponse;
+    const projects = raw.data?.projects ?? [];
+
+    const userId =
+      typeof raw.data?.user_id === "number"
+        ? String(raw.data.user_id)
+        : typeof raw.data?.user_id === "string"
+          ? raw.data.user_id.trim() || null
+          : null;
+
+    const hoursByName: Record<string, { hours: number; minutes: number }> = {};
+    for (const p of projects) {
+      const name = (p.name ?? "").trim();
+      if (!name) continue;
+
+      const hours = typeof p.hours === "number" && Number.isFinite(p.hours) ? p.hours : undefined;
+      const minutes =
+        typeof p.minutes === "number" && Number.isFinite(p.minutes) ? p.minutes : undefined;
+
+      if (hours !== undefined && minutes !== undefined) {
+        hoursByName[name] = {
+          hours: Math.max(0, Math.floor(hours)),
+          minutes: Math.max(0, Math.floor(minutes)),
+        };
+        continue;
+      }
+
+      const seconds = typeof p.total_seconds === "number" ? p.total_seconds : 0;
+      const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+      const totalMinutes = Math.floor(safeSeconds / 60);
+
+      hoursByName[name] = {
+        hours: Math.floor(totalMinutes / 60),
+        minutes: totalMinutes % 60,
+      };
+    }
+
+    return { userId, hoursByName };
+  } catch {
+    // Hackatime is an enhancement; don't break pages if it's down/misconfigured.
+    return { userId: null, hoursByName: {} };
   }
 }
 
