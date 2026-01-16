@@ -109,6 +109,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const existing = await db
     .select({
       status: project.status,
+      approvedHours: project.approvedHours,
       name: project.name,
       description: project.description,
       editor: project.editor,
@@ -153,6 +154,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     codeUrl: string;
     screenshots: string[];
     status: ProjectStatus;
+    approvedHours: number | null;
     submittedAt: Date;
     updatedAt: Date;
   }> = {};
@@ -293,8 +295,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       );
     }
 
-    // Log first submission time (only when entering review queue).
-    if (!current.submittedAt) {
+    // If we are (re-)entering the review queue, refresh the queue timestamp.
+    if (current.status !== "in-review") {
       set.submittedAt = new Date();
     }
   }

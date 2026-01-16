@@ -171,7 +171,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const statusUpdate = nextStatusForDecision(decision);
   if (statusUpdate) {
     const approvedHoursUpdate =
-      decision === "approved" ? ({ approvedHours: approvedHours as number } as const) : {};
+      decision === "approved"
+        ? ({ approvedHours: approvedHours as number } as const)
+          : {};
 
     await db
       .update(project)

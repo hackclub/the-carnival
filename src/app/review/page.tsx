@@ -32,12 +32,13 @@ export default async function ReviewQueuePage() {
       editorOther: project.editorOther,
       status: project.status,
       createdAt: project.createdAt,
+      submittedAt: project.submittedAt,
       creatorName: user.name,
     })
     .from(project)
     .leftJoin(user, eq(project.creatorId, user.id))
     .where(eq(project.status, "in-review"))
-    .orderBy(desc(project.createdAt));
+    .orderBy(desc(project.submittedAt), desc(project.createdAt));
 
   return (
     <AppShell title="Review queue">

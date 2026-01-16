@@ -12,8 +12,13 @@ function isAdmin(role: unknown): role is "admin" {
   return role === "admin";
 }
 
-function isAdminEditableStatus(value: unknown): value is Extract<ProjectStatus, "shipped" | "granted"> {
-  return value === "shipped" || value === "granted";
+function isAdminEditableStatus(value: unknown): value is ProjectStatus {
+  return (
+    value === "work-in-progress" ||
+    value === "in-review" ||
+    value === "shipped" ||
+    value === "granted"
+  );
 }
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -33,15 +38,20 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   if (!isAdminEditableStatus(body.status)) {
     return NextResponse.json(
-      { error: "Invalid status. Allowed: shipped, granted" },
+      { error: "Invalid status. Allowed: work-in-progress, in-review, shipped, granted" },
       { status: 400 },
     );
   }
 
   const now = new Date();
+  const nextStatus = body.status;
+
+  // Re-queueing should refresh the queue timestamp so it shows up appropriately.
+  const submittedAtUpdate = nextStatus === "in-review" ? ({ submittedAt: now } as const) : {};
+
   const updated = await db
     .update(project)
-    .set({ status: body.status, updatedAt: now })
+    .set({ status: nextStatus, updatedAt: now, ...submittedAtUpdate })
     .where(eq(project.id, id))
     .returning({
       id: project.id,
