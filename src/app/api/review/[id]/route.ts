@@ -173,8 +173,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const approvedHoursUpdate =
       decision === "approved"
         ? ({ approvedHours: approvedHours as number } as const)
-        : decision === "rejected"
-          ? ({ approvedHours: null } as const)
           : {};
 
     await db

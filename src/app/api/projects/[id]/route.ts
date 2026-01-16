@@ -301,12 +301,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     }
   }
 
-  // If a shipped project is moved back to WIP / review, it should become "unapproved" again.
-  // Approval is represented by the canonical approvedHours field.
-  if ((nextStatus === "in-review" || nextStatus === "work-in-progress") && current.approvedHours !== null) {
-    set.approvedHours = null;
-  }
-
   if (Object.keys(set).length === 0) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });
   }

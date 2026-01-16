@@ -46,19 +46,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const now = new Date();
   const nextStatus = body.status;
 
-  // If an admin moves a project back into the queue / WIP, it must become "unapproved".
-  // We represent approval via the canonical approvedHours value.
-  const unapproveUpdate =
-    nextStatus === "in-review" || nextStatus === "work-in-progress"
-      ? ({ approvedHours: null } as const)
-      : {};
-
   // Re-queueing should refresh the queue timestamp so it shows up appropriately.
   const submittedAtUpdate = nextStatus === "in-review" ? ({ submittedAt: now } as const) : {};
 
   const updated = await db
     .update(project)
-    .set({ status: nextStatus, updatedAt: now, ...unapproveUpdate, ...submittedAtUpdate })
+    .set({ status: nextStatus, updatedAt: now, ...submittedAtUpdate })
     .where(eq(project.id, id))
     .returning({
       id: project.id,
