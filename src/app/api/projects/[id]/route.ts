@@ -107,7 +107,18 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const { id } = await ctx.params;
 
   const existing = await db
-    .select({ status: project.status, editor: project.editor, editorOther: project.editorOther })
+    .select({
+      status: project.status,
+      name: project.name,
+      description: project.description,
+      editor: project.editor,
+      editorOther: project.editorOther,
+      hackatimeProjectName: project.hackatimeProjectName,
+      playableUrl: project.playableUrl,
+      codeUrl: project.codeUrl,
+      screenshots: project.screenshots,
+      submittedAt: project.submittedAt,
+    })
     .from(project)
     .where(and(eq(project.id, id), eq(project.creatorId, userId)))
     .limit(1);
@@ -142,6 +153,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     codeUrl: string;
     screenshots: string[];
     status: ProjectStatus;
+    submittedAt: Date;
     updatedAt: Date;
   }> = {};
 
@@ -182,22 +194,13 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   if (body.hackatimeProjectName !== undefined) {
     const hackatimeProjectName = toCleanString(body.hackatimeProjectName);
-    if (!hackatimeProjectName) {
-      return NextResponse.json(
-        { error: "Hackatime project name is required" },
-        { status: 400 },
-      );
-    }
     set.hackatimeProjectName = hackatimeProjectName;
   }
 
   if (body.playableUrl !== undefined) {
     const playableUrl = toCleanString(body.playableUrl);
-    if (!playableUrl) {
-      return NextResponse.json({ error: "Playable URL is required" }, { status: 400 });
-    }
-    if (!isValidUrlString(playableUrl)) {
-      return NextResponse.json({ error: "Playable URL must be http(s)" }, { status: 400 });
+    if (playableUrl && !isValidUrlString(playableUrl)) {
+      return NextResponse.json({ error: "Demo video URL must be http(s)" }, { status: 400 });
     }
     set.playableUrl = playableUrl;
   }
@@ -246,6 +249,54 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       { error: "Editor name should only be set when editor is Other" },
       { status: 400 },
     );
+  }
+
+  // Enforce required fields when the project is in the review queue.
+  const nextStatus = (set.status ?? current.status) as ProjectStatus;
+  if (nextStatus === "in-review") {
+    const nextName = (set.name ?? current.name).trim();
+    const nextDescription = (set.description ?? current.description).trim();
+    const nextHackatime = (set.hackatimeProjectName ?? current.hackatimeProjectName).trim();
+    const nextPlayable = (set.playableUrl ?? current.playableUrl).trim();
+    const nextCodeUrl = (set.codeUrl ?? current.codeUrl).trim();
+    const nextScreenshots = (set.screenshots ?? current.screenshots) ?? [];
+
+    if (!nextName) return NextResponse.json({ error: "Project name is required" }, { status: 400 });
+    if (!nextDescription) {
+      return NextResponse.json({ error: "Description is required" }, { status: 400 });
+    }
+    if (!nextHackatime) {
+      return NextResponse.json(
+        { error: "Hackatime project name is required to submit for review" },
+        { status: 400 },
+      );
+    }
+    if (!nextPlayable) {
+      return NextResponse.json(
+        { error: "Demo video URL is required to submit for review" },
+        { status: 400 },
+      );
+    }
+    if (!isValidUrlString(nextPlayable)) {
+      return NextResponse.json({ error: "Demo video URL must be http(s)" }, { status: 400 });
+    }
+    if (!nextCodeUrl) {
+      return NextResponse.json({ error: "GitHub URL is required" }, { status: 400 });
+    }
+    if (!isValidUrlString(nextCodeUrl)) {
+      return NextResponse.json({ error: "GitHub URL must be http(s)" }, { status: 400 });
+    }
+    if (!Array.isArray(nextScreenshots) || nextScreenshots.length === 0) {
+      return NextResponse.json(
+        { error: "At least one screenshot is required to submit for review" },
+        { status: 400 },
+      );
+    }
+
+    // Log first submission time (only when entering review queue).
+    if (!current.submittedAt) {
+      set.submittedAt = new Date();
+    }
   }
 
   if (Object.keys(set).length === 0) {

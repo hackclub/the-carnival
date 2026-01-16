@@ -87,39 +87,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Description is required" }, { status: 400 });
   }
 
-  if (!isProjectEditor(editorRaw)) {
-    return NextResponse.json({ error: "Editor is required" }, { status: 400 });
+  // Only required on first creation: name, description, GitHub URL (codeUrl).
+  // Other fields can be filled later before submitting for review.
+  const editor =
+    editorRaw === undefined || editorRaw === null || editorRaw === "" ? ("vscode" as const) : editorRaw;
+
+  if (!isProjectEditor(editor)) {
+    return NextResponse.json({ error: "Invalid editor" }, { status: 400 });
   }
-  if (editorRaw === "other" && !editorOther) {
+  if (editor === "other" && !editorOther) {
     return NextResponse.json(
       { error: "Please enter the editor name (Other)" },
       { status: 400 },
     );
   }
-  if (editorRaw !== "other" && editorOther) {
+  if (editor !== "other" && editorOther) {
     return NextResponse.json(
       { error: "Editor name should only be set when editor is Other" },
       { status: 400 },
     );
   }
 
-  if (!hackatimeProjectName) {
-    return NextResponse.json(
-      { error: "Hackatime project name is required" },
-      { status: 400 },
-    );
-  }
-  if (!playableUrl) {
-    return NextResponse.json({ error: "Playable URL is required" }, { status: 400 });
-  }
-  if (!isValidUrlString(playableUrl)) {
-    return NextResponse.json({ error: "Playable URL must be http(s)" }, { status: 400 });
-  }
   if (!codeUrl) {
     return NextResponse.json({ error: "Code URL is required" }, { status: 400 });
   }
   if (!isValidUrlString(codeUrl)) {
     return NextResponse.json({ error: "Code URL must be http(s)" }, { status: 400 });
+  }
+  if (playableUrl && !isValidUrlString(playableUrl)) {
+    return NextResponse.json({ error: "Demo video URL must be http(s)" }, { status: 400 });
   }
 
   const now = new Date();
@@ -130,10 +126,10 @@ export async function POST(req: Request) {
     creatorId: userId,
     name,
     description,
-    editor: editorRaw,
+    editor,
     editorOther: editorOther || null,
-    hackatimeProjectName,
-    playableUrl,
+    hackatimeProjectName, // may be empty until submission
+    playableUrl, // may be empty until submission
     codeUrl,
     screenshots,
     // status: default in schema
