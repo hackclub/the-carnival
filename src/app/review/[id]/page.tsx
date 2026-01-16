@@ -6,6 +6,7 @@ import ReviewProjectClient from "@/components/ReviewProjectClient";
 import { db } from "@/db";
 import { peerReview, project, user, type ReviewDecision, type UserRole } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
+import { fetchHackatimeUserIdAndProjectHoursByName } from "@/lib/hackatime";
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
   return role === "reviewer" || role === "admin";
@@ -37,11 +38,14 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
       codeUrl: project.codeUrl,
       screenshots: project.screenshots,
       status: project.status,
+      approvedHours: project.approvedHours,
       createdAt: project.createdAt,
+      submittedAt: project.submittedAt,
       updatedAt: project.updatedAt,
       creatorId: project.creatorId,
       creatorName: user.name,
       creatorEmail: user.email,
+      creatorSlackId: user.slackId,
     })
     .from(project)
     .leftJoin(user, eq(project.creatorId, user.id))
@@ -51,11 +55,23 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
   const p = projectRows[0];
   if (!p) notFound();
 
+  const hackatimeLookupId = typeof p.creatorSlackId === "string" ? p.creatorSlackId.trim() : "";
+  const hackatimeStats =
+    hackatimeLookupId
+      ? await fetchHackatimeUserIdAndProjectHoursByName(hackatimeLookupId)
+      : { userId: null as string | null, hoursByName: {} as Record<string, { hours: number; minutes: number }> };
+
+  const hackatimeHours =
+    hackatimeStats.hoursByName[p.hackatimeProjectName] ??
+    hackatimeStats.hoursByName[p.name] ??
+    null;
+
   const reviews = await db
     .select({
       id: peerReview.id,
       decision: peerReview.decision,
       reviewComment: peerReview.reviewComment,
+      approvedHours: peerReview.approvedHours,
       createdAt: peerReview.createdAt,
       reviewerName: user.name,
       reviewerEmail: user.email,
@@ -90,13 +106,19 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
             codeUrl: p.codeUrl,
             screenshots: p.screenshots,
             status: p.status,
+            approvedHours: p.approvedHours ?? null,
             creatorName: p.creatorName || "Unknown creator",
             creatorEmail: p.creatorEmail || "",
+            hackatimeUserId: hackatimeStats.userId,
+            hackatimeHours: hackatimeHours ? { hours: hackatimeHours.hours, minutes: hackatimeHours.minutes } : null,
+            createdAt: p.createdAt.toISOString(),
+            submittedAt: p.submittedAt ? p.submittedAt.toISOString() : null,
           },
           reviews: reviews.map((r) => ({
             id: r.id,
             decision: r.decision as ReviewDecision,
             reviewComment: r.reviewComment,
+            approvedHours: r.approvedHours ?? null,
             createdAt: r.createdAt.toISOString(),
             reviewerName: r.reviewerName || "Unknown reviewer",
             reviewerEmail: r.reviewerEmail || "",
