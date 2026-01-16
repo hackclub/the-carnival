@@ -64,6 +64,10 @@ export const project = pgTable("project", {
   codeUrl: text("code_url").notNull(),
   screenshots: text("screenshots").array().notNull(),
   status: projectStatus("status").notNull().default("work-in-progress"),
+  // Canonical approved hours for this project (set by a reviewer on approval).
+  approvedHours: integer("approved_hours"),
+  // Set when a creator submits their project for review (status transitions to "in-review").
+  submittedAt: timestamp("submitted_at"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
@@ -78,6 +82,8 @@ export const peerReview = pgTable("peer_review", {
     .references(() => user.id, { onDelete: "cascade" }),
   decision: reviewDecision("decision").notNull().default("comment"),
   reviewComment: text("review_comment").notNull(),
+  // Optional: reviewer-approved hours for a project (mainly used on approvals).
+  approvedHours: integer("approved_hours"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
