@@ -20,7 +20,17 @@ function getTimeLeft(targetDate: Date): TimeLeft {
 }
 
 export default function Countdown() {
-  const deadline = useMemo(() => new Date("2026-12-31T23:59:59Z"), []);
+  const deadline = useMemo(() => new Date("2026-02-16T23:59:59Z"), []);
+  const deadlineLabel = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      }).format(deadline),
+    [deadline],
+  );
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(() => getTimeLeft(deadline));
 
   useEffect(() => {
@@ -52,6 +62,10 @@ export default function Countdown() {
           <span className="text-xl md:text-2xl font-extrabold text-amber-900">
             🎪 Countdown to the Carnival Finale
           </span>
+        </div>
+
+        <div className="text-center text-[11px] md:text-sm text-amber-700 mb-4">
+          Deadline: <span className="font-semibold">{deadlineLabel}</span> (23:59 UTC)
         </div>
 
         {!isOver ? (
