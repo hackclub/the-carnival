@@ -112,7 +112,7 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
           <>
             <Link
               href="/projects"
-              className="bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-full font-medium transition-colors border border-border"
+              className="bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-full font-semibold transition-colors border border-border text-base shadow-sm"
             >
               Dashboard
             </Link>
@@ -181,7 +181,7 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
                 <button
                   type="button"
                   onClick={onSignOut}
-                  className="bg-carnival-red hover:bg-carnival-red/80 text-white px-4 py-2 rounded-full font-medium transition-colors"
+                  className="bg-carnival-red hover:bg-carnival-red/80 text-white px-6 py-3 rounded-full font-bold transition-colors text-lg shadow-md leading-none"
                 >
                   Sign out
                 </button>
@@ -194,20 +194,12 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
             type="button"
             onClick={onJoinCarnival}
             disabled={authLoading}
-            className="bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-full font-medium transition-colors"
+            className="bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-7 py-3.5 rounded-full font-bold transition-colors text-xl shadow-md leading-none"
           >
             {authLoading ? "Opening Identity…" : "Join Carnival"}
           </button>
         )}
 
-        {isAuthed ? (
-          <Link
-            href="https://hackclub.slack.com/archives/C091ZRTMF16"
-            className="bg-carnival-red hover:bg-carnival-red/80 text-white px-4 py-2 rounded-full font-medium transition-colors"
-          >
-            Open #Carnival
-          </Link>
-        ) : null}
       </div>
     </nav>
   );
