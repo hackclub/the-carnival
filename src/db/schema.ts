@@ -187,3 +187,66 @@ export const resource = pgTable("resource", {
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
+
+// ============================================================================
+// Shop + Tokens
+// ============================================================================
+
+export const tokenUpdateKind = pgEnum("token_update_kind", ["issue", "deduct"]);
+export type TokenUpdateKind = (typeof tokenUpdateKind.enumValues)[number];
+
+export const shopOrderStatus = pgEnum("shop_order_status", ["pending", "fulfilled", "cancelled"]);
+export type ShopOrderStatus = (typeof shopOrderStatus.enumValues)[number];
+
+export const shopItem = pgTable("shop_item", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  imageUrl: text("image_url").notNull(),
+  approvedHoursNeeded: integer("approved_hours_needed").notNull(),
+  tokenCost: integer("token_cost").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+});
+
+export const tokenLedger = pgTable(
+  "token_ledger",
+  {
+    id: text("id").primaryKey(),
+    kind: tokenUpdateKind("kind").notNull(),
+    tokens: integer("tokens").notNull(),
+    reason: text("reason").notNull(),
+    // The user whose wallet is being updated
+    issuedToUserId: text("issued_to_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    // Admin/user who performed the action (admin on issue/fulfill)
+    byUserId: text("by_user_id").references(() => user.id, { onDelete: "set null" }),
+    // Used for idempotency & traceability (e.g., "project_grant" + projectId)
+    referenceType: text("reference_type"),
+    referenceId: text("reference_id"),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("token_ledger_ref_kind_uniq").on(t.referenceType, t.referenceId, t.kind),
+  ],
+);
+
+export const shopOrder = pgTable("shop_order", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  status: shopOrderStatus("status").notNull().default("pending"),
+  shopItemId: text("shop_item_id")
+    .notNull()
+    .references(() => shopItem.id, { onDelete: "restrict" }),
+  itemNameSnapshot: text("item_name_snapshot").notNull(),
+  itemImageSnapshot: text("item_image_snapshot").notNull(),
+  tokenCostSnapshot: integer("token_cost_snapshot").notNull(),
+  fulfillmentLink: text("fulfillment_link"),
+  // admin who fulfilled the order
+  fulfilledById: text("fulfilled_by_id").references(() => user.id, { onDelete: "set null" }),
+  fulfilledAt: timestamp("fulfilled_at"),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+});

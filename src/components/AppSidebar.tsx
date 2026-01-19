@@ -8,6 +8,7 @@ import {
   FolderKanban,
   Compass,
   BookOpen,
+  ShoppingBag,
   ClipboardCheck,
   Gift,
   Users,
@@ -25,6 +26,7 @@ const NAV: NavItem[] = [
   { href: "/projects", label: "My projects", icon: FolderKanban },
   { href: "/explore", label: "Explore", icon: Compass },
   { href: "/resources", label: "Resources", icon: BookOpen },
+  { href: "/shop", label: "Shop", icon: ShoppingBag },
 ];
 
 export default function AppSidebar() {
@@ -87,6 +89,18 @@ export default function AppSidebar() {
 
           {isAdmin ? (
             <div className="mt-2 space-y-2">
+              <Link
+                href="/admin/shop"
+                className={[
+                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
+                  pathname === "/admin/shop" || pathname?.startsWith("/admin/shop/")
+                    ? "bg-carnival-blue/15 text-foreground border border-border"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                ].join(" ")}
+              >
+                <ShoppingBag size={18} />
+                Shop
+              </Link>
               <Link
                 href="/admin/grants"
                 className={[

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "@/lib/auth-client";
 
 type HeaderProps = {
@@ -10,6 +10,10 @@ type HeaderProps = {
    * Useful to disable on pages like /login.
    */
   showSectionLinks?: boolean;
+  /**
+   * Optional: server-provided initial wallet balance so dashboards don't flash "—".
+   */
+  initialWalletBalance?: number | null;
 };
 
 function getInitials(nameOrEmail?: string | null) {
@@ -18,10 +22,11 @@ function getInitials(nameOrEmail?: string | null) {
   return value[0]?.toUpperCase() ?? "?";
 }
 
-export default function Header({ showSectionLinks = true }: HeaderProps) {
+export default function Header({ showSectionLinks = true, initialWalletBalance = null }: HeaderProps) {
   const { data, isPending } = useSession();
   const detailsRef = useRef<HTMLDetailsElement | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(initialWalletBalance);
 
   // `better-auth` shapes can differ by version; keep this tolerant (but typed).
   type SessionUser = {
@@ -36,6 +41,29 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
   const sessionUser = (data as { user?: SessionUser } | null | undefined)?.user;
 
   const isAuthed = !!sessionUser?.id;
+
+  // Fetch wallet once per mount when authenticated (async callback style to satisfy lint rule).
+  useEffect(() => {
+    if (!isAuthed) return;
+    let cancelled = false;
+
+    fetch("/api/wallet/balance", { method: "GET" })
+      .then(async (res) => {
+        const json = (await res.json().catch(() => null)) as { balance?: unknown } | null;
+        if (!res.ok) return null;
+        const b = typeof json?.balance === "number" ? json.balance : Number(json?.balance);
+        return Number.isFinite(b) ? b : null;
+      })
+      .then((b) => {
+        if (cancelled) return;
+        if (typeof b === "number") setWalletBalance(b);
+      })
+      .catch(() => null);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthed]);
 
   const displayName = useMemo(() => {
     return sessionUser?.name?.trim() || sessionUser?.email?.trim() || "Unknown";
@@ -116,6 +144,21 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
             >
               Dashboard
             </Link>
+
+            <Link
+              href="/shop"
+              className="bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-full font-medium transition-colors border border-border"
+              onClick={() => closeMenu()}
+            >
+              Shop
+            </Link>
+
+            <div
+              className="bg-carnival-blue/15 border border-border text-foreground px-4 py-2 rounded-full font-semibold"
+              title="Token balance"
+            >
+              🪙 {walletBalance ?? "—"}
+            </div>
 
           <details ref={detailsRef} className="relative z-50">
             <summary className="list-none cursor-pointer select-none">
