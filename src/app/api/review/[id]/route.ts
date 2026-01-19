@@ -176,6 +176,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             status: statusLabel,
             comment,
             projectUrl: project_link,
+            reviewerId: userId,
+            reviewerName: reviewerName,
           });
         }
       }
