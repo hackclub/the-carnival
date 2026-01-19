@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ProjectEditor, ProjectStatus, ReviewDecision } from "@/db/schema";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import { Modal } from "@/components/ui";
@@ -72,13 +72,12 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
 
   const [checkReadme, setCheckReadme] = useState(false);
   const [checkTested, setCheckTested] = useState(false);
-  const [checkAiTransparency, setCheckAiTransparency] = useState(false);
+  const [aiUsage, setAiUsage] = useState<boolean | null>(null);
   const [checkGithubPublic, setCheckGithubPublic] = useState(false);
   const [checkDescriptionClear, setCheckDescriptionClear] = useState(false);
   const [checkScreenshotsWorking, setCheckScreenshotsWorking] = useState(false);
   const [checkAddressedRejection, setCheckAddressedRejection] = useState(false);
 
-  const hackatimeDetailsRef = useRef<HTMLDetailsElement | null>(null);
   const [hackatimeProjects, setHackatimeProjects] = useState<string[] | null>(null);
   const [hackatimeLoading, setHackatimeLoading] = useState(false);
   const [hackatimeError, setHackatimeError] = useState<string | null>(null);
@@ -148,50 +147,12 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
   const checklistOk =
     checkReadme &&
     checkTested &&
-    checkAiTransparency &&
+    aiUsage !== null &&
     checkGithubPublic &&
     checkDescriptionClear &&
     checkScreenshotsWorking;
 
   const submitConfirmOk = isReReview ? checkAddressedRejection : checklistOk;
-
-  const onHackatimeToggle = useCallback(
-    async (e: React.SyntheticEvent<HTMLDetailsElement>) => {
-      const isOpen = (e.currentTarget as HTMLDetailsElement).open;
-      if (!isOpen) return;
-      if (hackatimeProjects !== null || hackatimeLoading) return;
-
-      setHackatimeLoading(true);
-      setHackatimeError(null);
-      try {
-        const res = await fetch("/api/hackatime/projects", { method: "GET" });
-        const data = (await res.json().catch(() => null)) as
-          | { projects?: unknown; error?: unknown }
-          | null;
-
-        if (!res.ok) {
-          const message = typeof data?.error === "string" ? data.error : "Failed to load.";
-          setHackatimeError(message);
-          setHackatimeProjects([]);
-          setHackatimeLoading(false);
-          return;
-        }
-
-        setHackatimeProjects(cleanStringList(data?.projects));
-        setHackatimeLoading(false);
-      } catch {
-        setHackatimeError("Failed to load.");
-        setHackatimeProjects([]);
-        setHackatimeLoading(false);
-      }
-    },
-    [hackatimeLoading, hackatimeProjects],
-  );
-
-  const pickHackatimeProject = useCallback((name: string) => {
-    setHackatimeProjectName(name);
-    hackatimeDetailsRef.current?.removeAttribute("open");
-  }, []);
 
   const refreshHackatimeProjects = useCallback(async () => {
     setHackatimeLoading(true);
@@ -218,6 +179,12 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
       setHackatimeLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (hackatimeProjects === null && !hackatimeLoading) {
+      refreshHackatimeProjects();
+    }
+  }, [hackatimeLoading, hackatimeProjects, refreshHackatimeProjects]);
 
   const addScreenshotField = useCallback(() => {
     setScreenshotUrls((prev) => [...prev, ""]);
@@ -323,7 +290,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     // Reset confirmations each time.
     setCheckReadme(false);
     setCheckTested(false);
-    setCheckAiTransparency(false);
+      setAiUsage(null);
     setCheckGithubPublic(false);
     setCheckDescriptionClear(false);
     setCheckScreenshotsWorking(false);
@@ -551,78 +518,49 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
 
         <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">Hackatime project name</div>
-          <div className="space-y-3">
-            <input
+          <div className="space-y-2">
+            <select
               value={hackatimeProjectName}
-              readOnly
-              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-              placeholder="Pick from the list below"
-            />
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs text-muted-foreground">
-                You can’t type here — choose a project from the dropdown below.
-              </div>
-              <button
-                type="button"
-                onClick={() => setHackatimeProjectName("")}
-                className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline"
-                disabled={!hackatimeProjectName}
-              >
-                Clear
-              </button>
-            </div>
-
-            <details
-              ref={hackatimeDetailsRef}
-              className="rounded-2xl border border-border bg-muted overflow-hidden"
-              onToggle={onHackatimeToggle}
+              onChange={(e) => setHackatimeProjectName(e.target.value)}
+              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              disabled={hackatimeLoading || (hackatimeProjects?.length ?? 0) === 0}
             >
-              <summary className="cursor-pointer select-none px-4 py-3 text-sm text-foreground flex items-center justify-between">
-                <span>Browse Hackatime projects</span>
-                <span className="text-carnival-blue">▼</span>
-              </summary>
-              <div className="border-t border-border px-4 py-3 space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-xs text-muted-foreground">
-                    This list is fetched from your Hackatime account.
-                  </div>
-                  <button
-                    type="button"
-                    onClick={refreshHackatimeProjects}
-                    disabled={hackatimeLoading}
-                    className="text-xs font-semibold text-carnival-blue hover:underline disabled:opacity-60 disabled:hover:no-underline"
-                  >
-                    Refresh
-                  </button>
-                </div>
-
-                {hackatimeLoading ? (
-                  <div className="text-sm text-muted-foreground">Loading…</div>
-                ) : hackatimeError ? (
-                  <div className="text-sm text-red-200">
-                    Couldn’t load projects: {hackatimeError}
-                  </div>
-                ) : (hackatimeProjects?.length ?? 0) === 0 ? (
-                  <div className="text-sm text-muted-foreground">
-                    No projects found. (If you just started tracking, Hackatime may need a bit
-                    of data.)
-                  </div>
-                ) : (
-                  <div className="max-h-56 overflow-auto space-y-2">
-                    {hackatimeProjects!.map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => pickHackatimeProject(p)}
-                        className="w-full text-left px-3 py-2 rounded-xl bg-background hover:bg-muted border border-border text-sm text-foreground"
-                      >
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-                )}
+              <option value="">Select a Hackatime project</option>
+              {hackatimeProjects?.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+              <div>Fetched from your Hackatime account.</div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setHackatimeProjectName("")}
+                  className="font-semibold hover:text-foreground hover:underline disabled:opacity-60"
+                  disabled={!hackatimeProjectName}
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={refreshHackatimeProjects}
+                  disabled={hackatimeLoading}
+                  className="font-semibold text-carnival-blue hover:underline disabled:opacity-60 disabled:hover:no-underline"
+                >
+                  {hackatimeLoading ? "Loading…" : "Refresh"}
+                </button>
               </div>
-            </details>
+            </div>
+            {hackatimeError ? (
+              <div className="text-sm text-red-200">Couldn’t load projects: {hackatimeError}</div>
+            ) : null}
+            {!hackatimeLoading && (hackatimeProjects?.length ?? 0) === 0 ? (
+              <div className="text-sm text-muted-foreground">
+                No projects found. If you just started tracking, Hackatime may need a little time to sync.
+              </div>
+            ) : null}
           </div>
         </label>
 
@@ -898,13 +836,23 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
                     <div className="text-sm text-muted-foreground">You’re confident it’s stable enough for review.</div>
                   </div>
                 </label>
-                <label className="flex items-start gap-3">
-                  <input type="checkbox" checked={checkAiTransparency} onChange={(e) => setCheckAiTransparency(e.target.checked)} className="mt-1" />
-                  <div>
-                    <div className="text-foreground font-semibold">AI helped me build this (if used)</div>
-                    <div className="text-sm text-muted-foreground">AI is fine to use if you’re transparent about it.</div>
-                  </div>
-                </label>
+                <div className="mt-1">
+                  <label className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={aiUsage === true}
+                      onChange={(e) => setAiUsage(e.target.checked)}
+                      className="mt-1"
+                    />
+                    <div>
+                      <div className="text-foreground font-semibold">Did you use AI while building this?</div>
+                      <div className="text-sm text-muted-foreground">AI is fine to use if you’re transparent about it.</div>
+                    </div>
+                  </label>
+                  {aiUsage === null ? (
+                    <div className="text-xs text-amber-400 mt-1 pl-7">Please confirm by ticking or leaving it unchecked.</div>
+                  ) : null}
+                </div>
                 <label className="flex items-start gap-3">
                   <input type="checkbox" checked={checkGithubPublic} onChange={(e) => setCheckGithubPublic(e.target.checked)} className="mt-1" />
                   <div>
