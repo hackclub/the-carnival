@@ -43,6 +43,7 @@ export default async function ShopPage() {
     getLedgerForUser(db, userId, 50),
   ]);
 
+  // Map the raw DB shop items to their client Data Transfer Object (DTO) format for initial state hydration
   const initialItems: ShopItemDTO[] = items.map((i) => ({
     id: i.id,
     name: i.name,
