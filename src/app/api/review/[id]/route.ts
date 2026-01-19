@@ -163,9 +163,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           }
         }
 
-        await sendReviewEmail(creatorEmail, updates, reviewerName, project_link);
+        // Email is best-effort; failures shouldn’t block Slack DM.
+        await sendReviewEmail(creatorEmail, updates, reviewerName, project_link).catch((err) => {
+          console.warn("sendReviewEmail failed", err);
+        });
 
-        // Best-effort Slack DM from the bot.
         if (creatorSlackId) {
           const statusLabel = decision === "comment" ? "comment" : decision;
           await notifyReviewDM({

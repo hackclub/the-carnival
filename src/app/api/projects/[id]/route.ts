@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { project, type ProjectEditor, type ProjectStatus } from "@/db/schema";
+import { project, user, type ProjectEditor, type ProjectStatus } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
+import { notifyReviewDM } from "@/lib/slack";
 
 type UpdateProjectBody = {
   name?: unknown;
@@ -330,6 +331,39 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const p = updated[0];
   if (!p) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // If creator just submitted for review, send them a Slack DM (best-effort).
+  if (current.status !== "in-review" && p.status === "in-review") {
+    try {
+      const creator = await db
+        .select({ slackId: user.slackId })
+        .from(user)
+        .where(eq(user.id, userId))
+        .limit(1);
+
+      const slackId = creator[0]?.slackId;
+      if (slackId) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "";
+        let projectLink = `/projects/${p.id}`;
+        if (appUrl) {
+          try {
+            projectLink = new URL(`/projects/${p.id}`, appUrl).toString();
+          } catch {
+            // fall back to relative
+          }
+        }
+
+        await notifyReviewDM({
+          slackId,
+          projectName: p.name,
+          status: "submitted",
+          projectUrl: projectLink,
+        });
+      }
+    } catch (err) {
+      console.warn("notifyReviewDM on submit failed", err);
+    }
   }
 
   return NextResponse.json({ project: p });

@@ -7,24 +7,35 @@ async function sendEmailWithLoops(
     targetEmail: string,
     emailParams: Record<string, string>,
 ) {
-    const response = await fetch("https://app.loops.so/api/v1/transactional", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${LOOPS_API_KEY}`
-        },
-        body: JSON.stringify({
-            transactionalId: transactionEmailId,
-            "email": targetEmail,
-            "dataVariables": {
-                ...emailParams,
-            }
-        })
-    });
+    // Best-effort: do nothing if keys are missing.
+    if (!LOOPS_API_KEY || !transactionEmailId) {
+        console.warn("Loops API disabled (missing key or transactional ID)");
+        return;
+    }
 
-    const result = await response.json();
-    console.log(result);
-    if (!result.success) throw new Error("Failed to send loops email");
+    try {
+        const response = await fetch("https://app.loops.so/api/v1/transactional", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${LOOPS_API_KEY}`
+            },
+            body: JSON.stringify({
+                transactionalId: transactionEmailId,
+                "email": targetEmail,
+                "dataVariables": {
+                    ...emailParams,
+                }
+            })
+        });
+
+        const result = await response.json();
+        if (!result?.success) {
+            console.warn("Loops email send failed", result);
+        }
+    } catch (err) {
+        console.warn("Loops email send error", err);
+    }
 }
 
 

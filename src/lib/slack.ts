@@ -6,7 +6,7 @@ export const slack = token ? new WebClient(token) : null;
 type ReviewMessage = {
 	slackId: string;
 	projectName: string;
-	status: "submitted" | "in-review" | "approved" | "rejected" | "comment";
+	status: "submitted" | "in-review" | "approved" | "rejected" | "comment" | "shipped";
 	comment?: string;
 	projectUrl?: string;
 };
