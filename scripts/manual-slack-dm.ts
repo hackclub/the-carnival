@@ -1,8 +1,13 @@
 import { notifyReviewDM } from "../src/lib/slack";
 
 void (async () => {
+  const slackId = process.env.SLACK_USER_ID;
+  if (!slackId) {
+    throw new Error("Environment variable SLACK_USER_ID must be set to send a manual Slack DM.");
+  }
+
   await notifyReviewDM({
-    slackId: "U082UPTRQU8", // your real Slack user ID
+    slackId,
     projectName: "Test Project",
     status: "approved",
     comment: "Manual test DM",
