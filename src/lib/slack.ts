@@ -21,7 +21,7 @@ export async function notifyReviewDM(input: ReviewMessage) {
 		"Hey"
 		`Project: ${input.projectName}`,
 		`Status: ${input.status}`,
-		input.comment ? `Reviewer: ${input.comment}` : null,
+		input.comment ? `Comment: ${input.comment}` : null,
 		input.reviewerName ? `By: ${input.reviewerName}${input.reviewerId ? ` (${input.reviewerId})` : ""}` : input.reviewerId ? `By: ${input.reviewerId}` : null,
 		input.projectUrl ? `Link: ${input.projectUrl}` : null,
 	].filter(Boolean) as string[];
