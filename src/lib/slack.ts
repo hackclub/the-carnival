@@ -15,10 +15,9 @@ type ReviewMessage = {
 
 export async function notifyReviewDM(input: ReviewMessage) {
 	if (!slack || !input.slackId) return;
-	if (status:)
 
 	const lines = [
-		"Hey"
+		"Hey",
 		`Project: ${input.projectName}`,
 		`Status: ${input.status}`,
 		input.comment ? `Comment: ${input.comment}` : null,
