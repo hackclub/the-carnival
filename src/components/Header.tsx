@@ -145,20 +145,14 @@ export default function Header({ showSectionLinks = true, initialWalletBalance =
               Dashboard
             </Link>
 
-            <Link
-              href="/shop"
-              className="bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-full font-medium transition-colors border border-border"
-              onClick={() => closeMenu()}
-            >
-              Shop
-            </Link>
-
-            <div
-              className="bg-carnival-blue/15 border border-border text-foreground px-4 py-2 rounded-full font-semibold"
-              title="Token balance"
-            >
-              🪙 {walletBalance ?? "—"}
-            </div>
+            {!showSectionLinks ? (
+              <div
+                className="bg-carnival-blue/15 border border-border text-foreground px-4 py-2 rounded-full font-semibold"
+                title="Token balance"
+              >
+                🪙 {walletBalance ?? "—"}
+              </div>
+            ) : null}
 
           <details ref={detailsRef} className="relative z-50">
             <summary className="list-none cursor-pointer select-none">

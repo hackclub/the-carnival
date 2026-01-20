@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { peerReview, project, user, type ProjectStatus, type ReviewDecision, type UserRole } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
 import { sendReviewEmail } from "@/lib/loops";
+import { notifyReviewDM } from "@/lib/slack";
 
 type ReviewBody = {
   decision?: unknown;
@@ -90,7 +91,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const rows = await db
-    .select({ id: project.id, status: project.status, creatorId: project.creatorId })
+    .select({ id: project.id, name: project.name, status: project.status, creatorId: project.creatorId })
     .from(project)
     .where(eq(project.id, projectId))
     .limit(1);
@@ -133,12 +134,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     if (p.creatorId) {
       const creatorRows = await db
-        .select({ email: user.email })
+        .select({ email: user.email, slackId: user.slackId })
         .from(user)
         .where(eq(user.id, p.creatorId))
         .limit(1);
 
       const creatorEmail = creatorRows[0]?.email;
+      const creatorSlackId = creatorRows[0]?.slackId;
       if (creatorEmail) {
         const reviewerName = (session?.user as { name?: string | null } | undefined)?.name ?? "Reviewer";
 
@@ -161,11 +163,27 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           }
         }
 
-        await sendReviewEmail(creatorEmail, updates, reviewerName, project_link);
+        // Email is best-effort; failures shouldn’t block Slack DM.
+        await sendReviewEmail(creatorEmail, updates, reviewerName, project_link).catch((err) => {
+          console.warn("sendReviewEmail failed", err);
+        });
+
+        if (creatorSlackId) {
+          const statusLabel = decision === "comment" ? "comment" : decision;
+          await notifyReviewDM({
+            slackId: creatorSlackId,
+            projectName: p.name,
+            status: statusLabel,
+            comment,
+            projectUrl: project_link,
+            reviewerId: userId,
+            reviewerName: reviewerName,
+          });
+        }
       }
     }
   } catch (err) {
-    console.error("Failed to send review email", err);
+    console.error("Failed to send review email/Slack DM", err);
   }
 
   const statusUpdate = nextStatusForDecision(decision);
