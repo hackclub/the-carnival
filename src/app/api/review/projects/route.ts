@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { peerReview, project, user, type ProjectStatus, type UserRole } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
 
-function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
+function canReview(role: unknown) {
   return role === "reviewer" || role === "admin";
 }
 

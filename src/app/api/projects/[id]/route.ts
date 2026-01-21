@@ -380,9 +380,9 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
   const { id } = await ctx.params;
 
   const existing = await db
-    .select({ status: project.status })
+    .select({ status: project.status, creatorId: project.creatorId })
     .from(project)
-    .where(and(eq(project.id, id), eq(project.creatorId, userId)))
+    .where(eq(project.id, id))
     .limit(1);
 
   const current = existing[0];
@@ -390,6 +390,12 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  if (current.creatorId !== userId) {
+    return NextResponse.json(
+      { error: "Forbidden" },
+      { status: 403 },
+    );
+  }
   const isDeletable = current.status === "work-in-progress";
   if (!isDeletable) {
     return NextResponse.json(
