@@ -19,6 +19,12 @@ export async function notifyReviewDM(input: ReviewMessage) {
 	if (!slack || !input.slackId) return;
 
 	const ownerMention = input.creatorSlackId || input.slackId;
+	const appBaseUrl = "https://carnival.hackclub.com";
+	const projectLink = input.projectUrl
+		? input.projectUrl.startsWith("/")
+			? `${appBaseUrl}${input.projectUrl}`
+			: input.projectUrl
+		: null;
 
 	const statusLines: Record<ReviewMessage["status"], string[]> = {
 		submitted: [
@@ -32,7 +38,7 @@ export async function notifyReviewDM(input: ReviewMessage) {
 		],
 		rejected: [
 			`Hey${ownerMention ? ` <@${ownerMention}>` : ""},`,
-			"❌ Your project is rejected for now needs more work.",
+			"❌ Your project is rejected for now and needs more work.",
 			"See the reviewer notes and iterate, then resubmit for a re-review.",
 		],
 		comment: [
@@ -59,7 +65,7 @@ export async function notifyReviewDM(input: ReviewMessage) {
 				: input.reviewerId
 					? `By: ${input.reviewerId}`
 					: null,
-		input.projectUrl ? `Link: ${input.projectUrl}` : null,
+		projectLink ? `Link: ${projectLink}` : null,
 	];
 
 	try {
