@@ -1,18 +1,31 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { desc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
-import ProjectStatusBadge from "@/components/ProjectStatusBadge";
-import ProjectEditorBadge from "@/components/ProjectEditorBadge";
-import { db } from "@/db";
-import { project, user, type UserRole } from "@/db/schema";
+import ReviewFiltersClient from "@/components/ReviewFiltersClient";
+import ReviewQueueClient from "@/components/ReviewQueueClient";
+import { type ProjectStatus, type UserRole } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
   return role === "reviewer" || role === "admin";
 }
 
-export default async function ReviewQueuePage() {
+type FilterKey = "pending" | "approved" | "rejected";
+
+const FILTERS: Array<{ label: string; value: FilterKey; statuses: ProjectStatus[] }> = [
+  { label: "Pending", value: "pending", statuses: ["in-review"] },
+  { label: "Approved", value: "approved", statuses: ["shipped", "granted"] },
+  { label: "Rejected", value: "rejected", statuses: ["work-in-progress"] },
+];
+
+export default async function ReviewQueuePage({
+  searchParams,
+}: {
+  searchParams?: { status?: string };
+}) {
   const session = await getServerSession({ disableCookieCache: true });
   if (!session?.user?.id) {
     redirect("/login?callbackUrl=/review");
@@ -23,58 +36,22 @@ export default async function ReviewQueuePage() {
     redirect("/projects");
   }
 
-  const rows = await db
-    .select({
-      id: project.id,
-      name: project.name,
-      description: project.description,
-      editor: project.editor,
-      editorOther: project.editorOther,
-      status: project.status,
-      createdAt: project.createdAt,
-      submittedAt: project.submittedAt,
-      creatorName: user.name,
-    })
-    .from(project)
-    .leftJoin(user, eq(project.creatorId, user.id))
-    .where(eq(project.status, "in-review"))
-    .orderBy(desc(project.submittedAt), desc(project.createdAt));
+  const rawStatus = searchParams?.status;
+  const statusParam = Array.isArray(rawStatus) ? rawStatus[0] : rawStatus;
+  const allowed = new Set(FILTERS.map((f) => f.value));
+  const activeFilter: FilterKey = allowed.has(statusParam as FilterKey)
+    ? (statusParam as FilterKey)
+    : "pending";
+  void activeFilter;
 
   return (
     <AppShell title="Review queue">
-      {rows.length === 0 ? (
-        <div className="bg-card border border-border rounded-2xl p-8">
-          <div className="text-foreground font-semibold text-lg">No projects in review</div>
-          <div className="text-muted-foreground mt-1">
-            Projects show up here when creators submit them for review.
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {rows.map((p) => (
-            <Link
-              key={p.id}
-              href={`/review/${p.id}`}
-              className="bg-card border border-border rounded-2xl p-6 card-glow transition-all hover:bg-muted block"
-              aria-label={`Review ${p.name}`}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="text-foreground font-bold text-xl truncate">{p.name}</div>
-                  <div className="text-muted-foreground text-sm mt-1 truncate">
-                    by {p.creatorName || "Unknown creator"}
-                  </div>
-                  <div className="text-muted-foreground mt-3 overflow-hidden">{p.description}</div>
-                </div>
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                  <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
-                  <ProjectStatusBadge status={p.status} />
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+      <ReviewFiltersClient
+        filters={FILTERS.map((f) => ({ label: f.label, value: f.value }))}
+        defaultValue="pending"
+      />
+
+      <ReviewQueueClient />
     </AppShell>
   );
 }
