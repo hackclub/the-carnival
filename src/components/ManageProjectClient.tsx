@@ -70,6 +70,9 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
   const [submitStep, setSubmitStep] = useState<0 | 1>(0);
   const [submitting, setSubmitting] = useState(false);
 
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const [checkReadme, setCheckReadme] = useState(false);
   const [checkTested, setCheckTested] = useState(false);
   const [aiUsage, setAiUsage] = useState<boolean | null>(null);
@@ -100,6 +103,14 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
 
   const isInReview = status === "in-review";
   const isShipped = status === "shipped";
+  const canDelete = status === "work-in-progress";
+  const deleteDisabledReason = isGranted
+    ? "Granted projects cannot be deleted."
+    : isInReview
+      ? "Projects in review cannot be deleted."
+      : isShipped
+        ? "Shipped projects cannot be deleted."
+        : null;
 
   const latestRejectedReview = useMemo(() => {
     // Reviews are ordered newest-first in the initial payload.
@@ -306,6 +317,19 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     setCheckAddressedRejection(false);
   }, []);
 
+  const openDeleteConfirm = useCallback(() => {
+    if (!canDelete) {
+      if (deleteDisabledReason) toast(deleteDisabledReason);
+      return;
+    }
+    setDeleteOpen(true);
+  }, [canDelete, deleteDisabledReason]);
+
+  const closeDeleteConfirm = useCallback(() => {
+    if (deleting) return;
+    setDeleteOpen(false);
+  }, [deleting]);
+
   const onSubmitForReview = useCallback(async () => {
     if (isGranted) return;
     if (!submitRequirements.allOk) {
@@ -396,6 +420,31 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     screenshotUrls,
     submitRequirements.allOk,
   ]);
+
+  const onDeleteProject = useCallback(async () => {
+    if (!canDelete) return;
+    setDeleting(true);
+    const toastId = toast.loading("Deleting project…");
+    try {
+      const res = await fetch(`/api/projects/${encodeURIComponent(initial.id)}`, {
+        method: "DELETE",
+      });
+      const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+      if (!res.ok) {
+        const message = typeof data?.error === "string" ? data.error : "Failed to delete project.";
+        toast.error(message, { id: toastId });
+        setDeleting(false);
+        return;
+      }
+
+      toast.success("Project deleted.", { id: toastId });
+      setDeleteOpen(false);
+      window.location.href = "/projects";
+    } catch {
+      toast.error("Failed to delete project.", { id: toastId });
+      setDeleting(false);
+    }
+  }, [canDelete, initial.id]);
 
   return (
     <div className="space-y-6">
@@ -658,6 +707,30 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         </div>
       </div>
 
+      <div className="bg-card border border-border rounded-2xl p-6 space-y-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2">
+            <div className="text-foreground font-semibold text-lg">Delete project</div>
+            <div className="text-sm text-muted-foreground">
+              Remove this project and its review history. This is only available while the project is work-in-progress.
+            </div>
+            {!canDelete ? (
+              <div className="text-xs text-muted-foreground">
+                {deleteDisabledReason ?? "Deletion is not available for this status."}
+              </div>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={openDeleteConfirm}
+            disabled={!canDelete}
+            className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/40 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-full font-bold transition-colors"
+          >
+            Delete project
+          </button>
+        </div>
+      </div>
+
       <Modal
         open={submitOpen}
         onClose={closeSubmit}
@@ -897,6 +970,38 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
             </div>
           )
         )}
+      </Modal>
+
+      <Modal
+        open={deleteOpen}
+        onClose={closeDeleteConfirm}
+        title="Delete project"
+        description="This cannot be undone."
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
+            Deleting will permanently remove this project and any review comments. You can only delete while work-in-progress.
+          </div>
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={closeDeleteConfirm}
+              disabled={deleting}
+              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-full font-semibold transition-colors border border-border"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onDeleteProject}
+              disabled={deleting}
+              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-full font-bold transition-colors"
+            >
+              {deleting ? "Deleting…" : "Delete project"}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

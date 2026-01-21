@@ -169,6 +169,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         });
 
         if (creatorSlackId) {
+          const reviewerSlack = await db
+            .select({ slackId: user.slackId })
+            .from(user)
+            .where(eq(user.id, userId))
+            .limit(1);
+
+          const reviewerSlackId = reviewerSlack[0]?.slackId ?? undefined;
           const statusLabel = decision === "comment" ? "comment" : decision;
           await notifyReviewDM({
             slackId: creatorSlackId,
@@ -176,8 +183,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             status: statusLabel,
             comment,
             projectUrl: project_link,
-            reviewerId: userId,
+            reviewerSlackId,
             reviewerName: reviewerName,
+            reviewerId: userId,
+            creatorSlackId: creatorSlackId,
           });
         }
       }

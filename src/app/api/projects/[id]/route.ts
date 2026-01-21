@@ -359,6 +359,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           projectName: p.name,
           status: "submitted",
           projectUrl: projectLink,
+          creatorSlackId: slackId,
         });
       }
     } catch (err) {
@@ -367,6 +368,45 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   return NextResponse.json({ project: p });
+}
+
+export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession();
+  const userId = (session?.user as { id?: string } | undefined)?.id;
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await ctx.params;
+
+  const existing = await db
+    .select({ status: project.status, creatorId: project.creatorId })
+    .from(project)
+    .where(eq(project.id, id))
+    .limit(1);
+
+  const current = existing[0];
+  if (!current) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (current.creatorId !== userId) {
+    return NextResponse.json(
+      { error: "Forbidden" },
+      { status: 403 },
+    );
+  }
+  const isDeletable = current.status === "work-in-progress";
+  if (!isDeletable) {
+    return NextResponse.json(
+      { error: "Projects can only be deleted while work-in-progress." },
+      { status: 403 },
+    );
+  }
+
+  await db.delete(project).where(and(eq(project.id, id), eq(project.creatorId, userId)));
+
+  return NextResponse.json({ ok: true });
 }
 
 
