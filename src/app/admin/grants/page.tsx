@@ -8,11 +8,38 @@ import { db } from "@/db";
 import { project } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
 
-export default async function AdminGrantsPage() {
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
+type FilterKey = "all" | "granted" | "shipped";
+
+const FILTERS: Array<{ label: string; value: FilterKey; statuses: Array<"shipped" | "granted"> }> = [
+  { label: "All", value: "all", statuses: ["shipped", "granted"] },
+  { label: "Granted", value: "granted", statuses: ["granted"] },
+  { label: "Shipped", value: "shipped", statuses: ["shipped"] },
+];
+
+export default async function AdminGrantsPage({
+  searchParams,
+}: {
+  searchParams?:
+    | Promise<Record<string, string | string[] | undefined>>
+    | Record<string, string | string[] | undefined>;
+}) {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
   if (!session?.user?.id) redirect("/login?callbackUrl=/admin/grants");
   if (role !== "admin") redirect("/projects");
+
+  const sp = await searchParams;
+  const rawStatus = sp?.status;
+  const statusParam = Array.isArray(rawStatus) ? rawStatus[0] : rawStatus;
+  const allowed = new Set(FILTERS.map((f) => f.value));
+  const activeFilter: FilterKey = allowed.has(statusParam as FilterKey)
+    ? (statusParam as FilterKey)
+    : "all";
+  const active = FILTERS.find((f) => f.value === activeFilter) ?? FILTERS[0];
 
   const rows = await db
     .select({
@@ -25,16 +52,51 @@ export default async function AdminGrantsPage() {
       createdAt: project.createdAt,
     })
     .from(project)
-    .where(inArray(project.status, ["shipped", "granted"]))
+    .where(inArray(project.status, active.statuses))
     .orderBy(desc(project.createdAt));
 
   return (
     <AppShell title="Grants">
+      <div className="mb-6 flex flex-wrap gap-2">
+        {FILTERS.map((f) => {
+          const isActive = f.value === activeFilter;
+          return (
+            <Link
+              key={f.value}
+              href={`/admin/grants?status=${f.value}`}
+              className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                isActive
+                  ? "bg-carnival-red text-white border-carnival-red"
+                  : "bg-card text-foreground border-border hover:bg-muted"
+              }`}
+              aria-current={isActive ? "page" : undefined}
+            >
+              {f.label}
+            </Link>
+          );
+        })}
+      </div>
+
+      <div className="mb-6 text-sm text-muted-foreground">
+        Showing <span className="font-semibold text-foreground">{active.label.toLowerCase()}</span> projects{" "}
+        <span className="text-muted-foreground">({rows.length})</span>
+      </div>
+
       {rows.length === 0 ? (
         <div className="bg-card border border-border rounded-2xl p-8">
-          <div className="text-foreground font-semibold text-lg">No shipped projects</div>
+          <div className="text-foreground font-semibold text-lg">
+            {activeFilter === "granted"
+              ? "No granted projects"
+              : activeFilter === "shipped"
+                ? "No shipped projects"
+                : "No projects"}
+          </div>
           <div className="text-muted-foreground mt-1">
-            Approved projects show up here so you can grant them.
+            {activeFilter === "granted"
+              ? "Projects show up here after they’ve been granted."
+              : activeFilter === "shipped"
+                ? "Shipped projects show up here so you can grant them."
+                : "Shipped and granted projects show up here so you can manage grants."}
           </div>
         </div>
       ) : (
