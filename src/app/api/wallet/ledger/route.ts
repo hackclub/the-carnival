@@ -6,6 +6,7 @@ import { getLedgerForUser, getTokenBalance } from "@/lib/wallet";
 export async function GET(req: Request) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const url = new URL(req.url);
   const limitRaw = url.searchParams.get("limit");

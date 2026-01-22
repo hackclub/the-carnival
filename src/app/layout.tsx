@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Carnival YSWS",
   description: "Carnival YSWS - Build an extension or plugin, get a grant to upgrade your dev setup!",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

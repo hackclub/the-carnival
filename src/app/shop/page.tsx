@@ -14,7 +14,10 @@ export default async function ShopPage() {
   const userId = (session?.user as { id?: string } | undefined)?.id;
   if (!userId) redirect("/login?callbackUrl=/shop");
 
-  const [items, orders, balance, ledger] = await Promise.all([
+  const role = (session?.user as { role?: unknown } | undefined)?.role;
+  const isAdmin = role === "admin";
+
+  const [items, orders, balance, ledgerRows] = await Promise.all([
     db
       .select({
         id: shopItem.id,
@@ -40,7 +43,7 @@ export default async function ShopPage() {
       .where(eq(shopOrder.userId, userId))
       .orderBy(desc(shopOrder.createdAt)),
     getTokenBalance(db, userId),
-    getLedgerForUser(db, userId, 50),
+    isAdmin ? getLedgerForUser(db, userId, 50) : Promise.resolve([]),
   ]);
 
   // Map the raw DB shop items to their client Data Transfer Object (DTO) format for initial state hydration
@@ -64,17 +67,22 @@ export default async function ShopPage() {
     createdAt: o.createdAt.toISOString(),
   }));
 
-  const initialLedger: ShopLedgerDTO[] = ledger.map((l) => ({
-    id: l.id,
-    kind: l.kind,
-    tokens: l.tokens,
-    reason: l.reason,
-    createdAt: l.createdAt.toISOString(),
-  }));
+  const initialLedger: ShopLedgerDTO[] = isAdmin
+    ? ledgerRows.map((l) => ({
+        id: l.id,
+        kind: l.kind,
+        tokens: l.tokens,
+        reason: l.reason,
+        createdAt: l.createdAt.toISOString(),
+      }))
+    : [];
 
   return (
     <AppShell title="Shop">
-      <ShopClient initial={{ balance, items: initialItems, orders: initialOrders, ledger: initialLedger }} />
+      <ShopClient
+        canViewLedger={isAdmin}
+        initial={{ balance, items: initialItems, orders: initialOrders, ledger: initialLedger }}
+      />
     </AppShell>
   );
 }
