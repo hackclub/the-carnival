@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
+import { R2ImageUpload } from "@/components/R2ImageUpload";
 
 const EDITOR_OPTIONS = [
   { value: "vscode", label: "VS Code" },
@@ -443,23 +444,29 @@ export default function CreateProjectModal() {
           </div>
           <div className="space-y-3">
             {screenshotUrls.map((value, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <input
+              <div key={idx} className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm text-muted-foreground font-medium">Screenshot {idx + 1}</div>
+                  <button
+                    type="button"
+                    onClick={() => removeScreenshotField(idx)}
+                    className="h-10 px-4 rounded-full bg-muted hover:bg-muted/70 border border-border text-foreground font-semibold disabled:opacity-60"
+                    disabled={screenshotUrls.length <= 1}
+                    aria-label="Remove screenshot"
+                    title="Remove"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <R2ImageUpload
+                  label="Upload"
                   value={value}
-                  onChange={(e) => updateScreenshotField(idx, e.target.value)}
-                  className="flex-1 bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                  placeholder="https://..."
+                  onChange={(url) => updateScreenshotField(idx, url)}
+                  kind="project_screenshot"
+                  disabled={isSubmitting}
+                  helperText="Include screenshots of your project working (not your code)."
                 />
-                <button
-                  type="button"
-                  onClick={() => removeScreenshotField(idx)}
-                  className="h-12 px-4 rounded-2xl bg-muted hover:bg-muted/70 border border-border text-foreground font-semibold disabled:opacity-60"
-                  disabled={screenshotUrls.length <= 1}
-                  aria-label="Remove screenshot"
-                  title="Remove"
-                >
-                  Remove
-                </button>
               </div>
             ))}
             <button
@@ -469,11 +476,6 @@ export default function CreateProjectModal() {
             >
               Add screenshot
             </button>
-          </div>
-          <div className="mt-2 text-xs text-muted-foreground">
-            You can upload screenshots in the <span className="text-foreground">#cdn</span> channel on
-            Slack, then paste the image URLs here. Please include screenshots of your{" "}
-            <span className="text-foreground">project working</span>, not your code.
           </div>
         </label>
 

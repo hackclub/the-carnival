@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Button, Input } from "@/components/ui";
+import { R2ImageUpload } from "@/components/R2ImageUpload";
 
 type ItemForm = {
   id?: string;
@@ -92,11 +93,13 @@ export default function AdminShopItemFormClient({
         onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
         placeholder="e.g. Mechanical keyboard"
       />
-      <Input
-        label="Item image (URL)"
+      <R2ImageUpload
+        label="Item image"
         value={form.imageUrl}
-        onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
-        placeholder="https://…"
+        onChange={(url) => setForm((f) => ({ ...f, imageUrl: url }))}
+        kind="shop_item_image"
+        disabled={busy}
+        helperText="This image is required and will be shown in the shop."
       />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input

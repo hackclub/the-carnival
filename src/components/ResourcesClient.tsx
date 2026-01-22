@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { BookOpen, ExternalLink, FileText, Plus, Video, X } from "lucide-react";
 import { Input, Select, Button, Modal, Card, Badge, EmptyState } from "@/components/ui";
+import { R2ImageUpload } from "@/components/R2ImageUpload";
 
 export type ResourceItem = {
   id: string;
@@ -44,10 +45,15 @@ export default function ResourcesClient({
   const [showAddResource, setShowAddResource] = useState(false);
   const [addingEditor, setAddingEditor] = useState(false);
   const [addingResource, setAddingResource] = useState(false);
+  const [newEditorIconUrl, setNewEditorIconUrl] = useState("");
 
   const [newResources, setNewResources] = useState<
     { title: string; url: string; description: string; type: ResourceType }[]
   >([{ title: "", url: "", description: "", type: "documentation" }]);
+
+  const selectedEditorIconUrl = useMemo(() => {
+    return selectedEditor?.iconUrl ?? "";
+  }, [selectedEditor]);
 
   const refresh = useCallback(async () => {
     try {
@@ -107,7 +113,7 @@ export default function ResourcesClient({
         const res = await fetch("/api/editors", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, description }),
+          body: JSON.stringify({ name, description, iconUrl: newEditorIconUrl.trim() || null }),
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
@@ -117,6 +123,7 @@ export default function ResourcesClient({
         }
         toast.success("Editor created!", { id: toastId });
         e.currentTarget.reset();
+        setNewEditorIconUrl("");
         setShowAddEditor(false);
         await refresh();
         setAddingEditor(false);
@@ -125,7 +132,39 @@ export default function ResourcesClient({
         setAddingEditor(false);
       }
     },
-    [refresh]
+    [newEditorIconUrl, refresh]
+  );
+
+  const updateSelectedEditorIcon = useCallback(
+    async (nextUrl: string) => {
+      if (!selectedEditor) return;
+      if (!isAdmin) return;
+
+      const toastId = toast.loading("Saving icon…");
+      try {
+        const res = await fetch(`/api/editors/${encodeURIComponent(selectedEditor.id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ iconUrl: nextUrl.trim() || null }),
+        });
+        const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+        if (!res.ok) {
+          toast.error(typeof data?.error === "string" ? data.error : "Failed to save.", { id: toastId });
+          return;
+        }
+
+        // Update local state optimistically.
+        const updatedIconUrl = nextUrl.trim() || null;
+        setEditors((prev) =>
+          prev.map((e) => (e.id === selectedEditor.id ? { ...e, iconUrl: updatedIconUrl } : e))
+        );
+        setSelectedEditor((prev) => (prev ? { ...prev, iconUrl: updatedIconUrl } : prev));
+        toast.success("Saved.", { id: toastId });
+      } catch {
+        toast.error("Failed to save.", { id: toastId });
+      }
+    },
+    [isAdmin, selectedEditor]
   );
 
   const onCreateResources = useCallback(
@@ -254,7 +293,15 @@ export default function ResourcesClient({
               onClick={() => setSelectedEditor(ed)}
               className="p-6 text-left w-full"
             >
-              <div className="text-foreground font-bold text-xl truncate">{ed.name}</div>
+              <div className="flex items-center gap-3">
+                {ed.iconUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={ed.iconUrl} alt="" className="h-10 w-10 rounded-xl border border-border bg-muted object-cover" />
+                ) : (
+                  <div className="h-10 w-10 rounded-xl border border-border bg-muted" />
+                )}
+                <div className="text-foreground font-bold text-xl truncate">{ed.name}</div>
+              </div>
               {ed.description && (
                 <div className="text-muted-foreground mt-2 text-sm line-clamp-2">{ed.description}</div>
               )}
@@ -277,6 +324,19 @@ export default function ResourcesClient({
           maxWidth="2xl"
         >
           <div className="space-y-6">
+            {isAdmin ? (
+              <div className="rounded-2xl border border-border bg-card p-4">
+                <R2ImageUpload
+                  label="Editor icon (optional)"
+                  value={selectedEditorIconUrl}
+                  onChange={updateSelectedEditorIcon}
+                  kind="editor_icon"
+                  disabled={false}
+                  helperText="Shown on the resources grid."
+                />
+              </div>
+            ) : null}
+
             {selectedEditor.resources.length === 0 ? (
               <div className="text-center py-8">
                 <div className="text-muted-foreground">No resources yet for this editor.</div>
@@ -362,6 +422,14 @@ export default function ResourcesClient({
         <form onSubmit={onCreateEditor} className="space-y-4">
           <Input name="name" label="Name" required placeholder="e.g., VS Code, Neovim, Blender" disabled={addingEditor} />
           <Input name="description" label="Description (optional)" placeholder="Brief description of the editor/program" disabled={addingEditor} />
+          <R2ImageUpload
+            label="Icon (optional)"
+            value={newEditorIconUrl}
+            onChange={setNewEditorIconUrl}
+            kind="editor_icon"
+            disabled={addingEditor}
+            helperText="Optional icon shown on the resources grid."
+          />
           <div className="flex items-center justify-end gap-3 pt-2">
             <Button variant="ghost" type="button" onClick={() => setShowAddEditor(false)} disabled={addingEditor}>
               Cancel
