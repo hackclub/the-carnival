@@ -6,6 +6,7 @@ import { getAuthUser, parseJsonBody, toCleanString, toPositiveInt, generateId } 
 
 type CreateItemBody = {
   name?: unknown;
+  description?: unknown;
   imageUrl?: unknown;
   approvedHoursNeeded?: unknown;
   tokenCost?: unknown;
@@ -20,6 +21,7 @@ export async function GET() {
     .select({
       id: shopItem.id,
       name: shopItem.name,
+      description: shopItem.description,
       imageUrl: shopItem.imageUrl,
       approvedHoursNeeded: shopItem.approvedHoursNeeded,
       tokenCost: shopItem.tokenCost,
@@ -45,6 +47,7 @@ export async function POST(req: Request) {
 
   const body = await parseJsonBody<CreateItemBody>(req);
   const name = toCleanString(body?.name);
+  const description = toCleanString(body?.description) || null;
   const imageUrl = toCleanString(body?.imageUrl);
   const approvedHoursNeeded = toPositiveInt(body?.approvedHoursNeeded);
   const tokenCost = toPositiveInt(body?.tokenCost);
@@ -64,6 +67,7 @@ export async function POST(req: Request) {
   await db.insert(shopItem).values({
     id,
     name,
+    description,
     imageUrl,
     approvedHoursNeeded,
     tokenCost,
@@ -75,6 +79,7 @@ export async function POST(req: Request) {
     .select({
       id: shopItem.id,
       name: shopItem.name,
+      description: shopItem.description,
       imageUrl: shopItem.imageUrl,
       approvedHoursNeeded: shopItem.approvedHoursNeeded,
       tokenCost: shopItem.tokenCost,

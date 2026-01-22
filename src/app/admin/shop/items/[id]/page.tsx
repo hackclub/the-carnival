@@ -17,6 +17,7 @@ export default async function EditShopItemPage(props: { params: Promise<{ id: st
     .select({
       id: shopItem.id,
       name: shopItem.name,
+      description: shopItem.description,
       imageUrl: shopItem.imageUrl,
       approvedHoursNeeded: shopItem.approvedHoursNeeded,
       tokenCost: shopItem.tokenCost,
@@ -35,6 +36,7 @@ export default async function EditShopItemPage(props: { params: Promise<{ id: st
         initial={{
           id: item.id,
           name: item.name,
+          description: item.description ?? null,
           imageUrl: item.imageUrl,
           approvedHoursNeeded: item.approvedHoursNeeded ?? 0,
           tokenCost: item.tokenCost ?? 0,
