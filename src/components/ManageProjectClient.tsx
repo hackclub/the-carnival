@@ -193,6 +193,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
 
   useEffect(() => {
     if (hackatimeProjects === null && !hackatimeLoading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshHackatimeProjects();
     }
   }, [hackatimeLoading, hackatimeProjects, refreshHackatimeProjects]);
