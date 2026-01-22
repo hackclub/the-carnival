@@ -6,6 +6,7 @@ import { getAuthUser, parseJsonBody, toCleanString, toPositiveInt } from "@/lib/
 
 type PatchItemBody = {
   name?: unknown;
+  description?: unknown;
   imageUrl?: unknown;
   approvedHoursNeeded?: unknown;
   tokenCost?: unknown;
@@ -21,6 +22,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     .select({
       id: shopItem.id,
       name: shopItem.name,
+      description: shopItem.description,
       imageUrl: shopItem.imageUrl,
       approvedHoursNeeded: shopItem.approvedHoursNeeded,
       tokenCost: shopItem.tokenCost,
@@ -54,6 +56,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   const set: Partial<{
     name: string;
+    description: string | null;
     imageUrl: string;
     approvedHoursNeeded: number;
     tokenCost: number;
@@ -70,6 +73,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const imageUrl = toCleanString(body.imageUrl);
     if (!imageUrl) return NextResponse.json({ error: "imageUrl is required" }, { status: 400 });
     set.imageUrl = imageUrl;
+  }
+
+  if (body.description !== undefined) {
+    set.description = toCleanString(body.description) || null;
   }
 
   if (body.approvedHoursNeeded !== undefined) {
@@ -95,6 +102,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     .returning({
       id: shopItem.id,
       name: shopItem.name,
+      description: shopItem.description,
       imageUrl: shopItem.imageUrl,
       approvedHoursNeeded: shopItem.approvedHoursNeeded,
       tokenCost: shopItem.tokenCost,

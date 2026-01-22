@@ -18,6 +18,7 @@ export default async function AdminShopPage() {
       .select({
         id: shopItem.id,
         name: shopItem.name,
+        description: shopItem.description,
         imageUrl: shopItem.imageUrl,
         approvedHoursNeeded: shopItem.approvedHoursNeeded,
         tokenCost: shopItem.tokenCost,
@@ -43,6 +44,7 @@ export default async function AdminShopPage() {
   const initialItems: AdminShopItemDTO[] = items.map((i) => ({
     id: i.id,
     name: i.name,
+    description: i.description ?? null,
     imageUrl: i.imageUrl,
     approvedHoursNeeded: i.approvedHoursNeeded ?? 0,
     tokenCost: i.tokenCost ?? 0,

@@ -7,6 +7,7 @@ import { Button, Input, Modal } from "@/components/ui";
 export type ShopItemDTO = {
   id: string;
   name: string;
+  description: string | null;
   imageUrl: string;
   approvedHoursNeeded: number;
   tokenCost: number;
@@ -52,7 +53,11 @@ export default function ShopClient({
   const items = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return initial.items;
-    return initial.items.filter((i) => i.name.toLowerCase().includes(q));
+    return initial.items.filter((i) => {
+      if (i.name.toLowerCase().includes(q)) return true;
+      const d = (i.description ?? "").toLowerCase();
+      return d.includes(q);
+    });
   }, [initial.items, search]);
 
   const onOrder = useCallback(async (itemId: string) => {
@@ -134,6 +139,9 @@ export default function ShopClient({
                 />
                 <div className="mt-4">
                   <div className="text-foreground font-bold text-lg truncate">{i.name}</div>
+                  {i.description ? (
+                    <div className="text-sm text-muted-foreground mt-1 line-clamp-2">{i.description}</div>
+                  ) : null}
                   <div className="text-sm text-muted-foreground mt-1">
                     ~{i.approvedHoursNeeded} hours • Exact:{" "}
                     <span className="text-foreground font-semibold">{i.tokenCost}</span> tokens

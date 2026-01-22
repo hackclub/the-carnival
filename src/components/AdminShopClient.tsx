@@ -9,6 +9,7 @@ import { Button, Input } from "@/components/ui";
 export type AdminShopItemDTO = {
   id: string;
   name: string;
+  description: string | null;
   imageUrl: string;
   approvedHoursNeeded: number;
   tokenCost: number;
@@ -105,6 +106,9 @@ export default function AdminShopClient({
                 />
                 <div className="mt-3">
                   <div className="text-foreground font-bold truncate">{i.name}</div>
+                  {i.description ? (
+                    <div className="text-sm text-muted-foreground mt-1 line-clamp-2">{i.description}</div>
+                  ) : null}
                   <div className="text-sm text-muted-foreground mt-1">
                     ~{i.approvedHoursNeeded} hours • {i.tokenCost} tokens
                   </div>

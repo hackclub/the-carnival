@@ -201,6 +201,7 @@ export type ShopOrderStatus = (typeof shopOrderStatus.enumValues)[number];
 export const shopItem = pgTable("shop_item", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  description: text("description"),
   imageUrl: text("image_url").notNull(),
   approvedHoursNeeded: integer("approved_hours_needed").notNull(),
   tokenCost: integer("token_cost").notNull(),

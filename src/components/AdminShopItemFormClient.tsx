@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Button, Input } from "@/components/ui";
+import { Button, Input, Textarea } from "@/components/ui";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
 
 type ItemForm = {
   id?: string;
   name: string;
+  description: string;
   imageUrl: string;
   approvedHoursNeeded: string;
   tokenCost: string;
@@ -19,12 +20,20 @@ export default function AdminShopItemFormClient({
   initial,
 }: {
   mode: "create" | "edit";
-  initial?: { id: string; name: string; imageUrl: string; approvedHoursNeeded: number; tokenCost: number };
+  initial?: {
+    id: string;
+    name: string;
+    description: string | null;
+    imageUrl: string;
+    approvedHoursNeeded: number;
+    tokenCost: number;
+  };
 }) {
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState<ItemForm>(() => ({
     id: initial?.id,
     name: initial?.name ?? "",
+    description: initial?.description ?? "",
     imageUrl: initial?.imageUrl ?? "",
     approvedHoursNeeded: String(initial?.approvedHoursNeeded ?? 0),
     tokenCost: String(initial?.tokenCost ?? 0),
@@ -44,6 +53,7 @@ export default function AdminShopItemFormClient({
     try {
       const payload = {
         name: form.name,
+        description: form.description.trim() || null,
         imageUrl: form.imageUrl,
         approvedHoursNeeded: Number(form.approvedHoursNeeded),
         tokenCost: Number(form.tokenCost),
@@ -92,6 +102,14 @@ export default function AdminShopItemFormClient({
         value={form.name}
         onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
         placeholder="e.g. Mechanical keyboard"
+      />
+      <Textarea
+        label="Short description (optional)"
+        value={form.description}
+        onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+        placeholder="A short blurb shown in the shop…"
+        rows={3}
+        disabled={busy}
       />
       <R2ImageUpload
         label="Item image"
