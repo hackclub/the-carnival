@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ProjectEditor, ProjectStatus, ReviewDecision } from "@/db/schema";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import { Modal } from "@/components/ui";
+import { R2ImageUpload } from "@/components/R2ImageUpload";
 import toast from "react-hot-toast";
 
 const EDITOR_OPTIONS = [
@@ -653,23 +654,30 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
           </div>
           <div className="space-y-3">
             {screenshotUrls.map((value, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <input
+              <div key={idx} className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm text-muted-foreground font-medium">Screenshot {idx + 1}</div>
+                  <button
+                    type="button"
+                    onClick={() => removeScreenshotField(idx)}
+                    className="h-10 px-4 rounded-full bg-muted hover:bg-muted/70 border border-border text-foreground font-semibold disabled:opacity-60"
+                    disabled={screenshotUrls.length <= 1}
+                    aria-label="Remove screenshot"
+                    title="Remove"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <R2ImageUpload
+                  label="Upload"
                   value={value}
-                  onChange={(e) => updateScreenshotField(idx, e.target.value)}
-                  className="flex-1 bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                  placeholder="https://..."
+                  onChange={(url) => updateScreenshotField(idx, url)}
+                  kind="project_screenshot"
+                  projectId={initial.id}
+                  disabled={saving || isGranted}
+                  helperText="Include screenshots of your project working (not your code)."
                 />
-                <button
-                  type="button"
-                  onClick={() => removeScreenshotField(idx)}
-                  className="h-12 px-4 rounded-2xl bg-muted hover:bg-muted/70 border border-border text-foreground font-semibold disabled:opacity-60"
-                  disabled={screenshotUrls.length <= 1}
-                  aria-label="Remove screenshot"
-                  title="Remove"
-                >
-                  Remove
-                </button>
               </div>
             ))}
             <button
@@ -679,10 +687,6 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
             >
               Add screenshot
             </button>
-          </div>
-          <div className="mt-2 text-xs text-muted-foreground">
-            Upload screenshots in <span className="text-foreground">#cdn</span> on Slack, then paste the image URLs here. Include screenshots of your{" "}
-            <span className="text-foreground">project working</span>, not your code.
           </div>
         </label>
         </fieldset>
