@@ -99,7 +99,7 @@ export default function AppSidebar() {
                 ].join(" ")}
               >
                 <ShoppingBag size={18} />
-                Shop
+                Shop (Admin)
               </Link>
               <Link
                 href="/admin/grants"

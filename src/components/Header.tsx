@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { signIn, signOut, useSession } from "@/lib/auth-client";
 
 type HeaderProps = {
@@ -24,6 +25,7 @@ function getInitials(nameOrEmail?: string | null) {
 
 export default function Header({ showSectionLinks = true, initialWalletBalance = null }: HeaderProps) {
   const { data, isPending } = useSession();
+  const pathname = usePathname();
   const detailsRef = useRef<HTMLDetailsElement | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(initialWalletBalance);
@@ -41,6 +43,7 @@ export default function Header({ showSectionLinks = true, initialWalletBalance =
   const sessionUser = (data as { user?: SessionUser } | null | undefined)?.user;
 
   const isAuthed = !!sessionUser?.id;
+  const showDashboardLink = isAuthed && pathname === "/";
 
   // Fetch wallet once per mount when authenticated (async callback style to satisfy lint rule).
   useEffect(() => {
@@ -138,12 +141,14 @@ export default function Header({ showSectionLinks = true, initialWalletBalance =
           <span className="text-muted-foreground text-sm">Checking session…</span>
         ) : isAuthed ? (
           <>
-            <Link
-              href="/projects"
-              className="bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-full font-semibold transition-colors border border-border text-base shadow-sm"
-            >
-              Dashboard
-            </Link>
+            {showDashboardLink ? (
+              <Link
+                href="/projects"
+                className="bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-full font-semibold transition-colors border border-border text-base shadow-sm"
+              >
+                Dashboard
+              </Link>
+            ) : null}
 
             {!showSectionLinks ? (
               <div
