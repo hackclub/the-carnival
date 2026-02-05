@@ -10,6 +10,7 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:baseline": "bun scripts/db/baseline-drizzle-migrations.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },
@@ -17,6 +18,7 @@
     "@aws-sdk/client-s3": "^3.972.0",
     "@aws-sdk/s3-request-presigner": "^3.972.0",
     "@slack/web-api": "^7.13.0",
+    "airtable": "^0.12.2",
     "better-auth": "^1.4.10",
     "drizzle-orm": "^0.45.1",
     "lucide-react": "^0.542.0",

@@ -22,6 +22,90 @@
       "when": 1767618330178,
       "tag": "0002_petite_quicksilver",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1767618331178,
+      "tag": "0003_add_project_creator",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1767618332178,
+      "tag": "0004_add_roles_and_review_decisions",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1767618333178,
+      "tag": "0005_add_bounties",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1767618334178,
+      "tag": "0006_add_project_editor",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1767618335178,
+      "tag": "0007_add_editors_and_resources",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1767618336178,
+      "tag": "0008_add_bounty_completed",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1767618337178,
+      "tag": "0009_add_project_submitted_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1767618338178,
+      "tag": "0010_add_peer_review_approved_hours",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1767618339178,
+      "tag": "0011_add_project_approved_hours",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1767618340178,
+      "tag": "0012_add_shop_and_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1767618341178,
+      "tag": "0013_rename_bounty_prize_usd_to_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1767618342178,
+      "tag": "0014_add_shop_item_description",
+      "breakpoints": true
     }
   ]
 }
