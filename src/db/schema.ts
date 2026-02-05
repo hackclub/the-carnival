@@ -45,6 +45,14 @@ export const user = pgTable("user", {
   image: text("image"),
   slackId: text("slack_id"),
   verificationStatus: text("verification_status"),
+  birthday: text("birthday"), // ISO date (YYYY-MM-DD)
+  // Shipping/profile fields (filled once on first project submission; editable in account settings)
+  addressLine1: text("address_line_1"),
+  addressLine2: text("address_line_2"),
+  city: text("city"),
+  stateProvince: text("state_province"),
+  country: text("country"),
+  zipPostalCode: text("zip_postal_code"),
   role: userRole("role").notNull().default("user"),
   identityToken: text("identity_token"),
   refreshToken: text("refresh_token"),
