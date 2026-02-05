@@ -21,6 +21,13 @@ function createAuth() {
         slackId: createFieldAttribute("string", { required: false }),
         verificationStatus: createFieldAttribute("string", { required: false }),
         role: createFieldAttribute("string", { required: false }),
+        birthday: createFieldAttribute("string", { required: false }),
+        addressLine1: createFieldAttribute("string", { required: false }),
+        addressLine2: createFieldAttribute("string", { required: false }),
+        city: createFieldAttribute("string", { required: false }),
+        stateProvince: createFieldAttribute("string", { required: false }),
+        country: createFieldAttribute("string", { required: false }),
+        zipPostalCode: createFieldAttribute("string", { required: false }),
       },
     },
     emailAndPassword: {

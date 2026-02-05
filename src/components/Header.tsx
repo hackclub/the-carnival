@@ -198,6 +198,13 @@ export default function Header({ showSectionLinks = true, initialWalletBalance =
                 <div className="text-xs text-muted-foreground uppercase tracking-wide">
                   Profile
                 </div>
+                <Link
+                  href="/account"
+                  onClick={() => closeMenu()}
+                  className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Account settings →
+                </Link>
                 {sessionUser?.slackId ? (
                   <div className="text-sm text-muted-foreground">
                     <span className="text-muted-foreground">Slack:</span>{" "}

@@ -164,8 +164,6 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     checkDescriptionClear &&
     checkScreenshotsWorking;
 
-  const submitConfirmOk = isReReview ? checkAddressedRejection : checklistOk;
-
   const refreshHackatimeProjects = useCallback(async () => {
     setHackatimeLoading(true);
     setHackatimeError(null);
@@ -287,7 +285,6 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     name,
     playableUrl,
     screenshotUrls,
-    status,
   ]);
 
   const openSubmit = useCallback(() => {
@@ -374,13 +371,45 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => null)) as
-        | { project?: ApiProject; error?: unknown }
+        | { project?: ApiProject; error?: unknown; code?: unknown; missing?: unknown }
         | null;
 
       if (!res.ok) {
         const message =
           typeof data?.error === "string" ? data.error : "Failed to submit for review.";
-        toast.error(message, { id: toastId });
+        const code = typeof data?.code === "string" ? data.code : null;
+        if (code === "missing_profile_address") {
+          toast.custom(
+            (t) => (
+              <div className="bg-card border border-border rounded-2xl px-4 py-3 shadow-xl max-w-[520px]">
+                <div className="text-foreground font-semibold">Shipping address required</div>
+                <div className="text-muted-foreground text-sm mt-1">{message}</div>
+                <div className="mt-3 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => toast.dismiss(t.id)}
+                    className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast.dismiss(t.id);
+                      window.location.href = "/account";
+                    }}
+                    className="bg-carnival-red hover:bg-carnival-red/80 text-white px-4 py-2 rounded-full font-bold transition-colors text-sm"
+                  >
+                    Open account settings
+                  </button>
+                </div>
+              </div>
+            ),
+            { id: toastId, duration: 12000 },
+          );
+        } else {
+          toast.error(message, { id: toastId });
+        }
         setSubmitting(false);
         return;
       }
