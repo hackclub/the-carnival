@@ -20,7 +20,7 @@ export default async function BountiesPage() {
       id: bountyProject.id,
       name: bountyProject.name,
       description: bountyProject.description,
-      prizeUsd: bountyProject.prizeUsd,
+      prizeTokens: bountyProject.prizeTokens,
       completed: bountyProject.completed,
       createdAt: bountyProject.createdAt,
     })
@@ -47,7 +47,7 @@ export default async function BountiesPage() {
       id: p.id,
       name: p.name,
       description: p.description,
-      prizeUsd: p.prizeUsd,
+      prizeTokens: p.prizeTokens,
       claimedCount: set.size,
       claimedByMe: set.has(session.user.id),
       completed: p.completed,

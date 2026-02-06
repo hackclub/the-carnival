@@ -12,6 +12,7 @@ export async function GET() {
     .select({
       id: shopItem.id,
       name: shopItem.name,
+      description: shopItem.description,
       imageUrl: shopItem.imageUrl,
       approvedHoursNeeded: shopItem.approvedHoursNeeded,
       tokenCost: shopItem.tokenCost,

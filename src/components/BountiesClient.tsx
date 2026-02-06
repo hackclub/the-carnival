@@ -8,7 +8,7 @@ export type BountyListItem = {
   id: string;
   name: string;
   description: string;
-  prizeUsd: number;
+  prizeTokens: number;
   claimedCount: number;
   claimedByMe: boolean;
   completed: boolean;
@@ -35,7 +35,7 @@ export default function BountiesClient({
         id: p.id!,
         name: String(p.name ?? ""),
         description: String(p.description ?? ""),
-        prizeUsd: Number(p.prizeUsd ?? 0),
+        prizeTokens: Number(p.prizeTokens ?? 0),
         claimedCount: Number(p.claimedCount ?? 0),
         claimedByMe: Boolean(p.claimedByMe),
         completed: Boolean(p.completed),
@@ -49,7 +49,7 @@ export default function BountiesClient({
       const fd = new FormData(e.currentTarget);
       const name = String(fd.get("name") ?? "").trim();
       const description = String(fd.get("description") ?? "").trim();
-      const prizeUsd = Number(fd.get("prizeUsd") ?? 0);
+      const prizeTokens = Number(fd.get("prizeTokens") ?? 0);
 
       setCreating(true);
       const toastId = toast.loading("Creating bounty…");
@@ -57,7 +57,7 @@ export default function BountiesClient({
         const res = await fetch("/api/bounties", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, description, prizeUsd }),
+          body: JSON.stringify({ name, description, prizeTokens }),
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
@@ -130,7 +130,7 @@ export default function BountiesClient({
       const aAvail = a.claimedCount < 2 ? 1 : 0;
       const bAvail = b.claimedCount < 2 ? 1 : 0;
       if (aAvail !== bAvail) return bAvail - aAvail;
-      return (b.prizeUsd ?? 0) - (a.prizeUsd ?? 0);
+      return (b.prizeTokens ?? 0) - (a.prizeTokens ?? 0);
     });
   }, [items]);
 
@@ -150,13 +150,13 @@ export default function BountiesClient({
               disabled={creating}
             />
             <Input
-              name="prizeUsd"
-              label="Prize (USD)"
+              name="prizeTokens"
+              label="Prize (tokens)"
               type="number"
               min={1}
               step={1}
               required
-              placeholder="50"
+              placeholder="500"
               disabled={creating}
             />
             <Textarea
@@ -200,7 +200,7 @@ export default function BountiesClient({
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="text-sm text-muted-foreground">Prize</div>
-                    <div className="text-foreground font-bold text-lg">${b.prizeUsd}</div>
+                    <div className="text-foreground font-bold text-lg">{b.prizeTokens} tokens</div>
                   </div>
                 </div>
 

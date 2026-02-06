@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ProjectEditor, ProjectStatus, ReviewDecision } from "@/db/schema";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import { Modal } from "@/components/ui";
+import { R2ImageUpload } from "@/components/R2ImageUpload";
 import toast from "react-hot-toast";
 
 const EDITOR_OPTIONS = [
@@ -163,8 +164,6 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     checkDescriptionClear &&
     checkScreenshotsWorking;
 
-  const submitConfirmOk = isReReview ? checkAddressedRejection : checklistOk;
-
   const refreshHackatimeProjects = useCallback(async () => {
     setHackatimeLoading(true);
     setHackatimeError(null);
@@ -193,6 +192,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
 
   useEffect(() => {
     if (hackatimeProjects === null && !hackatimeLoading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshHackatimeProjects();
     }
   }, [hackatimeLoading, hackatimeProjects, refreshHackatimeProjects]);
@@ -285,7 +285,6 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     name,
     playableUrl,
     screenshotUrls,
-    status,
   ]);
 
   const openSubmit = useCallback(() => {
@@ -372,13 +371,45 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => null)) as
-        | { project?: ApiProject; error?: unknown }
+        | { project?: ApiProject; error?: unknown; code?: unknown; missing?: unknown }
         | null;
 
       if (!res.ok) {
         const message =
           typeof data?.error === "string" ? data.error : "Failed to submit for review.";
-        toast.error(message, { id: toastId });
+        const code = typeof data?.code === "string" ? data.code : null;
+        if (code === "missing_profile_address") {
+          toast.custom(
+            (t) => (
+              <div className="bg-card border border-border rounded-2xl px-4 py-3 shadow-xl max-w-[520px]">
+                <div className="text-foreground font-semibold">Shipping address required</div>
+                <div className="text-muted-foreground text-sm mt-1">{message}</div>
+                <div className="mt-3 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => toast.dismiss(t.id)}
+                    className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast.dismiss(t.id);
+                      window.location.href = "/account";
+                    }}
+                    className="bg-carnival-red hover:bg-carnival-red/80 text-white px-4 py-2 rounded-full font-bold transition-colors text-sm"
+                  >
+                    Open account settings
+                  </button>
+                </div>
+              </div>
+            ),
+            { id: toastId, duration: 12000 },
+          );
+        } else {
+          toast.error(message, { id: toastId });
+        }
         setSubmitting(false);
         return;
       }
@@ -652,23 +683,30 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
           </div>
           <div className="space-y-3">
             {screenshotUrls.map((value, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <input
+              <div key={idx} className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm text-muted-foreground font-medium">Screenshot {idx + 1}</div>
+                  <button
+                    type="button"
+                    onClick={() => removeScreenshotField(idx)}
+                    className="h-10 px-4 rounded-full bg-muted hover:bg-muted/70 border border-border text-foreground font-semibold disabled:opacity-60"
+                    disabled={screenshotUrls.length <= 1}
+                    aria-label="Remove screenshot"
+                    title="Remove"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <R2ImageUpload
+                  label="Upload"
                   value={value}
-                  onChange={(e) => updateScreenshotField(idx, e.target.value)}
-                  className="flex-1 bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                  placeholder="https://..."
+                  onChange={(url) => updateScreenshotField(idx, url)}
+                  kind="project_screenshot"
+                  projectId={initial.id}
+                  disabled={saving || isGranted}
+                  helperText="Include screenshots of your project working (not your code)."
                 />
-                <button
-                  type="button"
-                  onClick={() => removeScreenshotField(idx)}
-                  className="h-12 px-4 rounded-2xl bg-muted hover:bg-muted/70 border border-border text-foreground font-semibold disabled:opacity-60"
-                  disabled={screenshotUrls.length <= 1}
-                  aria-label="Remove screenshot"
-                  title="Remove"
-                >
-                  Remove
-                </button>
               </div>
             ))}
             <button
@@ -678,10 +716,6 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
             >
               Add screenshot
             </button>
-          </div>
-          <div className="mt-2 text-xs text-muted-foreground">
-            Upload screenshots in <span className="text-foreground">#cdn</span> on Slack, then paste the image URLs here. Include screenshots of your{" "}
-            <span className="text-foreground">project working</span>, not your code.
           </div>
         </label>
         </fieldset>

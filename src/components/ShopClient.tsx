@@ -7,6 +7,7 @@ import { Button, Input, Modal } from "@/components/ui";
 export type ShopItemDTO = {
   id: string;
   name: string;
+  description: string | null;
   imageUrl: string;
   approvedHoursNeeded: number;
   tokenCost: number;
@@ -34,7 +35,9 @@ export type ShopLedgerDTO = {
 
 export default function ShopClient({
   initial,
+  canViewLedger,
 }: {
+  canViewLedger: boolean;
   initial: {
     balance: number;
     items: ShopItemDTO[];
@@ -50,7 +53,11 @@ export default function ShopClient({
   const items = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return initial.items;
-    return initial.items.filter((i) => i.name.toLowerCase().includes(q));
+    return initial.items.filter((i) => {
+      if (i.name.toLowerCase().includes(q)) return true;
+      const d = (i.description ?? "").toLowerCase();
+      return d.includes(q);
+    });
   }, [initial.items, search]);
 
   const onOrder = useCallback(async (itemId: string) => {
@@ -89,9 +96,11 @@ export default function ShopClient({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="secondary" onClick={() => setShowLedger(true)}>
-            View ledger
-          </Button>
+          {canViewLedger ? (
+            <Button variant="secondary" onClick={() => setShowLedger(true)}>
+              View ledger
+            </Button>
+          ) : null}
           <Button variant="outline" onClick={() => setShowOrders(true)}>
             My orders{pendingCount ? ` (${pendingCount})` : ""}
           </Button>
@@ -130,6 +139,9 @@ export default function ShopClient({
                 />
                 <div className="mt-4">
                   <div className="text-foreground font-bold text-lg truncate">{i.name}</div>
+                  {i.description ? (
+                    <div className="text-sm text-muted-foreground mt-1 line-clamp-2">{i.description}</div>
+                  ) : null}
                   <div className="text-sm text-muted-foreground mt-1">
                     ~{i.approvedHoursNeeded} hours • Exact:{" "}
                     <span className="text-foreground font-semibold">{i.tokenCost}</span> tokens
@@ -191,38 +203,40 @@ export default function ShopClient({
         )}
       </Modal>
 
-      <Modal
-        open={showLedger}
-        onClose={() => setShowLedger(false)}
-        title="Token ledger"
-        description={`Balance: ${initial.balance} tokens`}
-        maxWidth="lg"
-      >
-        {initial.ledger.length === 0 ? (
-          <div className="text-muted-foreground">No ledger entries yet.</div>
-        ) : (
-          <div className="space-y-3">
-            {initial.ledger.map((l) => (
-              <div key={l.id} className="rounded-2xl border border-border bg-muted px-4 py-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="text-foreground font-semibold truncate">{l.reason}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {new Date(l.createdAt).toLocaleString()}
+      {canViewLedger ? (
+        <Modal
+          open={showLedger}
+          onClose={() => setShowLedger(false)}
+          title="Token ledger"
+          description={`Balance: ${initial.balance} tokens`}
+          maxWidth="lg"
+        >
+          {initial.ledger.length === 0 ? (
+            <div className="text-muted-foreground">No ledger entries yet.</div>
+          ) : (
+            <div className="space-y-3">
+              {initial.ledger.map((l) => (
+                <div key={l.id} className="rounded-2xl border border-border bg-muted px-4 py-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="text-foreground font-semibold truncate">{l.reason}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {new Date(l.createdAt).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-sm font-bold">
+                      <span className={l.kind === "issue" ? "text-carnival-blue" : "text-carnival-red"}>
+                        {l.kind === "issue" ? "+" : "-"}
+                        {l.tokens}
+                      </span>
                     </div>
                   </div>
-                  <div className="shrink-0 text-sm font-bold">
-                    <span className={l.kind === "issue" ? "text-carnival-blue" : "text-carnival-red"}>
-                      {l.kind === "issue" ? "+" : "-"}
-                      {l.tokens}
-                    </span>
-                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Modal>
+              ))}
+            </div>
+          )}
+        </Modal>
+      ) : null}
     </div>
   );
 }

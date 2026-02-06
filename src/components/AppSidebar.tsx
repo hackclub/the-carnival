@@ -9,6 +9,7 @@ import {
   Compass,
   BookOpen,
   ShoppingBag,
+  User,
   ClipboardCheck,
   Gift,
   Users,
@@ -27,6 +28,7 @@ const NAV: NavItem[] = [
   { href: "/explore", label: "Explore", icon: Compass },
   { href: "/resources", label: "Resources", icon: BookOpen },
   { href: "/shop", label: "Shop", icon: ShoppingBag },
+  { href: "/account", label: "Account", icon: User },
 ];
 
 export default function AppSidebar() {
@@ -99,7 +101,7 @@ export default function AppSidebar() {
                 ].join(" ")}
               >
                 <ShoppingBag size={18} />
-                Shop
+                Shop (Admin)
               </Link>
               <Link
                 href="/admin/grants"

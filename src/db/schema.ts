@@ -45,6 +45,14 @@ export const user = pgTable("user", {
   image: text("image"),
   slackId: text("slack_id"),
   verificationStatus: text("verification_status"),
+  birthday: text("birthday"), // ISO date (YYYY-MM-DD)
+  // Shipping/profile fields (filled once on first project submission; editable in account settings)
+  addressLine1: text("address_line_1"),
+  addressLine2: text("address_line_2"),
+  city: text("city"),
+  stateProvince: text("state_province"),
+  country: text("country"),
+  zipPostalCode: text("zip_postal_code"),
   role: userRole("role").notNull().default("user"),
   identityToken: text("identity_token"),
   refreshToken: text("refresh_token"),
@@ -92,7 +100,7 @@ export const bountyProject = pgTable("bounty_project", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description").notNull(),
-  prizeUsd: integer("prize_usd").notNull(),
+  prizeTokens: integer("prize_tokens").notNull(),
   completed: boolean("completed").notNull().default(false),
   createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull(),
@@ -201,6 +209,7 @@ export type ShopOrderStatus = (typeof shopOrderStatus.enumValues)[number];
 export const shopItem = pgTable("shop_item", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  description: text("description"),
   imageUrl: text("image_url").notNull(),
   approvedHoursNeeded: integer("approved_hours_needed").notNull(),
   tokenCost: integer("token_cost").notNull(),

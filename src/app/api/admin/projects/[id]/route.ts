@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { project, tokenLedger, type ProjectStatus } from "@/db/schema";
+import { peerReview, project, tokenLedger, user, type ProjectStatus } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
 import { tokensForApprovedHours } from "@/lib/tokens";
 import { generateId, isUniqueConstraintError } from "@/lib/api-utils";
+import {
+  createAirtableGrantRecord,
+  toAirtableCreateErrorDetails,
+  getAirtableConfigErrors,
+  AIRTABLE_GRANTS_TABLE_ENV,
+} from "@/lib/airtable";
 
 type AdminProjectPatchBody = {
   status?: unknown;
@@ -50,6 +56,138 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const nextStatus = body.status;
 
   try {
+    // If granting, create the Airtable record first. If Airtable fails, we abort the grant
+    // (so admins see the error immediately and we don't issue tokens without a record).
+    if (nextStatus === "granted") {
+      const rows = await db
+        .select({
+          id: project.id,
+          status: project.status,
+          creatorId: project.creatorId,
+          approvedHours: project.approvedHours,
+          name: project.name,
+          description: project.description,
+          codeUrl: project.codeUrl,
+          playableUrl: project.playableUrl,
+          screenshots: project.screenshots,
+          submittedAt: project.submittedAt,
+          creatorName: user.name,
+          creatorEmail: user.email,
+          creatorSlackId: user.slackId,
+          creatorBirthday: user.birthday,
+          addressLine1: user.addressLine1,
+          addressLine2: user.addressLine2,
+          city: user.city,
+          stateProvince: user.stateProvince,
+          country: user.country,
+          zipPostalCode: user.zipPostalCode,
+        })
+        .from(project)
+        .leftJoin(user, eq(project.creatorId, user.id))
+        .where(eq(project.id, id))
+        .limit(1);
+
+      const current = rows[0];
+      if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+      // Only allow granting from shipped (or no-op if already granted).
+      if (current.status !== "shipped" && current.status !== "granted") {
+        return NextResponse.json(
+          { error: "Project must be shipped before it can be granted." },
+          { status: 409 },
+        );
+      }
+
+      // If already granted, don't re-insert into Airtable.
+      if (current.status !== "granted") {
+        if (!current.creatorId) {
+          return NextResponse.json(
+            { error: "Project has no creator; cannot create Airtable record." },
+            { status: 409 },
+          );
+        }
+        if (current.approvedHours === null || current.approvedHours === undefined) {
+          return NextResponse.json(
+            { error: "Project has no approved hours; cannot create Airtable record." },
+            { status: 409 },
+          );
+        }
+
+        const missingEnv = getAirtableConfigErrors(process.env);
+        if (missingEnv.length) {
+          return NextResponse.json(
+            {
+              error: "Airtable is not configured for grants.",
+              details: `Missing env var(s): ${missingEnv.join(", ")}.`,
+              hints: [
+                "Add the missing env vars in .env.local and restart the dev server.",
+                `Make sure \`${AIRTABLE_GRANTS_TABLE_ENV}\` matches the table name (or table ID) in Airtable.`,
+              ],
+            },
+            { status: 500 },
+          );
+        }
+
+        try {
+          const reviews = await db
+            .select({
+              decision: peerReview.decision,
+              reviewComment: peerReview.reviewComment,
+              createdAt: peerReview.createdAt,
+              reviewerName: user.name,
+            })
+            .from(peerReview)
+            .leftJoin(user, eq(peerReview.reviewerId, user.id))
+            .where(eq(peerReview.projectId, id))
+            .orderBy(peerReview.createdAt);
+
+          await createAirtableGrantRecord({
+            project: {
+              name: current.name,
+              description: current.description,
+              codeUrl: current.codeUrl,
+              playableUrl: current.playableUrl,
+              screenshots: current.screenshots ?? [],
+              submittedAtIso: current.submittedAt ? current.submittedAt.toISOString() : null,
+              approvedHours: current.approvedHours ?? null,
+            },
+            creator: {
+              name: current.creatorName ?? "Unknown",
+              email: current.creatorEmail ?? "",
+              slackId: current.creatorSlackId ?? null,
+              birthdayIso: current.creatorBirthday ?? null,
+            },
+            shipping: {
+              addressLine1: current.addressLine1 ?? null,
+              addressLine2: current.addressLine2 ?? null,
+              city: current.city ?? null,
+              stateProvince: current.stateProvince ?? null,
+              country: current.country ?? null,
+              zipPostalCode: current.zipPostalCode ?? null,
+            },
+            reviewStatus: "Approved",
+            reviews: reviews.map((r) => ({
+              reviewerName: r.reviewerName || "Unknown reviewer",
+              decision: r.decision,
+              message: r.reviewComment,
+            })),
+          });
+        } catch (err) {
+          const details = toAirtableCreateErrorDetails(err);
+          return NextResponse.json(
+            {
+              error: "Failed to create Airtable grant record.",
+              details: details.message,
+              statusCode: details.statusCode,
+              airtableError: details.airtableError,
+              hints: details.hints,
+            },
+            { status: 502 },
+          );
+        }
+      }
+    }
+
     const result = await db.transaction(async (tx) => {
       const rows = await tx
         .select({

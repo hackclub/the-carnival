@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { project, user, type ProjectEditor, type ProjectStatus } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
@@ -294,6 +294,51 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         { error: "At least one screenshot is required to submit for review" },
         { status: 400 },
       );
+    }
+
+    // Shipping/profile fields are required on the first-ever submission.
+    // (After that, users can still edit them in /account, but we don't block re-submissions.)
+    if (current.status !== "in-review") {
+      const prior = await db
+        .select({ id: project.id })
+        .from(project)
+        .where(and(eq(project.creatorId, userId), isNotNull(project.submittedAt)))
+        .limit(1);
+
+      const hasSubmittedBefore = !!prior[0];
+      if (!hasSubmittedBefore) {
+        const profileRows = await db
+          .select({
+            addressLine1: user.addressLine1,
+            city: user.city,
+            stateProvince: user.stateProvince,
+            country: user.country,
+            zipPostalCode: user.zipPostalCode,
+          })
+          .from(user)
+          .where(eq(user.id, userId))
+          .limit(1);
+
+        const profile = profileRows[0];
+        const missing: string[] = [];
+        if (!profile?.addressLine1?.trim()) missing.push("Address (Line 1)");
+        if (!profile?.city?.trim()) missing.push("City");
+        if (!profile?.stateProvince?.trim()) missing.push("State / Province");
+        if (!profile?.country?.trim()) missing.push("Country");
+        if (!profile?.zipPostalCode?.trim()) missing.push("ZIP / Postal Code");
+
+        if (missing.length) {
+          return NextResponse.json(
+            {
+              error:
+                "Before submitting your first project, please add your shipping address in Account settings (/account).",
+              code: "missing_profile_address",
+              missing,
+            },
+            { status: 400 },
+          );
+        }
+      }
     }
 
     // If we are (re-)entering the review queue, refresh the queue timestamp.

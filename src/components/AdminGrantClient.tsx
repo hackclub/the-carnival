@@ -96,11 +96,69 @@ export default function AdminGrantClient({
           body: JSON.stringify({ status }),
         });
         const data = (await res.json().catch(() => null)) as
-          | { project?: { status?: ProjectStatus }; error?: unknown }
+          | {
+              project?: { status?: ProjectStatus };
+              error?: unknown;
+              details?: unknown;
+              hints?: unknown;
+              statusCode?: unknown;
+              airtableError?: unknown;
+            }
           | null;
         if (!res.ok) {
           const message = typeof data?.error === "string" ? data.error : "Failed to update status.";
-          toast.error(message, { id: toastId });
+          const details = typeof data?.details === "string" ? data.details : null;
+          const hints = Array.isArray(data?.hints)
+            ? data?.hints.filter((h): h is string => typeof h === "string")
+            : [];
+          const statusCode =
+            typeof data?.statusCode === "number" ? data.statusCode : undefined;
+          const airtableError =
+            typeof data?.airtableError === "string" ? data.airtableError : undefined;
+
+          if (details || hints.length) {
+            toast.custom(
+              (t) => (
+                <div className="bg-card border border-border rounded-2xl px-4 py-3 shadow-xl max-w-[720px]">
+                  <div className="text-foreground font-semibold">{message}</div>
+                  {statusCode || airtableError ? (
+                    <div className="text-muted-foreground text-xs mt-1">
+                      {statusCode ? `Airtable status: ${statusCode}` : null}
+                      {statusCode && airtableError ? " • " : null}
+                      {airtableError ? `Airtable error: ${airtableError}` : null}
+                    </div>
+                  ) : null}
+                  {details ? (
+                    <pre className="mt-3 text-xs text-muted-foreground whitespace-pre-wrap break-words bg-muted border border-border rounded-xl p-3">
+                      {details}
+                    </pre>
+                  ) : null}
+                  {hints.length ? (
+                    <div className="mt-3 text-sm">
+                      <div className="text-foreground font-semibold">What may be wrong</div>
+                      <ul className="mt-2 space-y-1 text-muted-foreground list-disc pl-5">
+                        {hints.map((h) => (
+                          <li key={h}>{h}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  <div className="mt-3 flex items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => toast.dismiss(t.id)}
+                      className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              ),
+              { id: toastId, duration: 20000 },
+            );
+          } else {
+            toast.error(message, { id: toastId });
+          }
           setBusy(false);
           return;
         }

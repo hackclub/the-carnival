@@ -14,7 +14,7 @@ import {
 type CreateBountyBody = {
   name?: unknown;
   description?: unknown;
-  prizeUsd?: unknown;
+  prizeTokens?: unknown;
 };
 
 export async function GET() {
@@ -26,7 +26,7 @@ export async function GET() {
       id: bountyProject.id,
       name: bountyProject.name,
       description: bountyProject.description,
-      prizeUsd: bountyProject.prizeUsd,
+      prizeTokens: bountyProject.prizeTokens,
       completed: bountyProject.completed,
       createdAt: bountyProject.createdAt,
     })
@@ -69,12 +69,12 @@ export async function POST(req: Request) {
 
   const name = toCleanString(body.name);
   const description = toCleanString(body.description);
-  const prizeUsd = toPositiveInt(body.prizeUsd);
+  const prizeTokens = toPositiveInt(body.prizeTokens);
 
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
   if (!description) return NextResponse.json({ error: "Description is required" }, { status: 400 });
-  if (!Number.isFinite(prizeUsd) || prizeUsd <= 0) {
-    return NextResponse.json({ error: "Prize must be a positive dollar amount" }, { status: 400 });
+  if (!Number.isFinite(prizeTokens) || prizeTokens <= 0) {
+    return NextResponse.json({ error: "Prize must be a positive token amount" }, { status: 400 });
   }
 
   const id = generateId();
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
     id,
     name,
     description,
-    prizeUsd,
+    prizeTokens,
     createdById: user.id,
     ...timestamps(),
   });

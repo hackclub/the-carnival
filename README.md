@@ -13,6 +13,48 @@ HC_IDENTITY_CLIENT_SECRET=...
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
+### Cloudflare R2 (image uploads)
+
+This app uploads images (project screenshots, shop item images, editor icons) directly from the browser to **Cloudflare R2** using **presigned URLs**.
+
+Add these to `.env.local` (all are environment variables so you can swap credentials quickly):
+
+```bash
+# Cloudflare R2 S3-compatible credentials + bucket
+R2_ACCOUNT_ID=...
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET=...
+
+# S3-compatible endpoint (optional; default uses R2_ACCOUNT_ID)
+# Example: https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+R2_ENDPOINT=
+
+# Required: public base URL for reading objects (custom domain / r2.dev / worker route).
+# This is what gets stored in the DB as the image URL.
+R2_PUBLIC_BASE_URL=https://<your-public-domain-or-r2-dev-host>
+
+# Optional (defaults to "auto" as recommended by Cloudflare)
+R2_REGION=auto
+```
+
+You also need to configure your R2 bucket CORS to allow browser uploads from your app origin.
+Because uploads are done with a **browser `PUT`** to the R2 endpoint, CORS must be configured on the bucket to allow your origins (dev + prod).
+
+Use a CORS policy like this (adjust origins as needed):
+
+```json
+[
+  {
+    "AllowedOrigins": ["http://localhost:3000", "https://your-prod-domain.com"],
+    "AllowedMethods": ["GET", "PUT", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
 ### Database
 
 Before starting the app, sync the database schema (this creates/help-updates tables like `verification` used by Better Auth):
