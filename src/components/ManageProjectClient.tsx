@@ -34,7 +34,8 @@ export type ManageProjectInitial = {
   editor: ProjectEditor;
   editorOther: string;
   hackatimeProjectName: string;
-  playableUrl: string;
+  videoUrl: string;
+  playableDemoUrl: string;
   codeUrl: string;
   screenshots: string[];
   status: ProjectStatus;
@@ -91,7 +92,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
   const [editor, setEditor] = useState<ProjectEditor>(initial.editor);
   const [editorOther, setEditorOther] = useState(initial.editorOther);
   const [hackatimeProjectName, setHackatimeProjectName] = useState(initial.hackatimeProjectName);
-  const [playableUrl, setPlayableUrl] = useState(initial.playableUrl);
+  const [videoUrl, setVideoUrl] = useState(initial.videoUrl);
+  const [playableDemoUrl, setPlayableDemoUrl] = useState(initial.playableDemoUrl);
   const [codeUrl, setCodeUrl] = useState(initial.codeUrl);
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>(
     (initial.screenshots?.length ?? 0) > 0 ? initial.screenshots : [""],
@@ -136,7 +138,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     const nameOk = name.trim().length > 0;
     const descriptionOk = description.trim().length > 0;
     const githubOk = codeUrl.trim().length > 0 && isValidUrlString(codeUrl.trim());
-    const demoOk = playableUrl.trim().length > 0 && isValidUrlString(playableUrl.trim());
+    const demoOk = videoUrl.trim().length > 0 && isValidUrlString(videoUrl.trim());
+    const playableOk = playableDemoUrl.trim().length > 0 && isValidUrlString(playableDemoUrl.trim());
     const hackatimeOk = hackatimeProjectName.trim().length > 0;
     const screenshotsOk = screenshots.length > 0;
 
@@ -145,16 +148,17 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
       descriptionOk,
       githubOk,
       demoOk,
+      playableOk,
       hackatimeOk,
       screenshotsOk,
       allOk:
-        nameOk && descriptionOk && githubOk && demoOk && hackatimeOk && screenshotsOk && editor !== "other"
+        nameOk && descriptionOk && githubOk && demoOk && playableOk && hackatimeOk && screenshotsOk && editor !== "other"
           ? true
-          : nameOk && descriptionOk && githubOk && demoOk && hackatimeOk && screenshotsOk && editor === "other"
+          : nameOk && descriptionOk && githubOk && demoOk && playableOk && hackatimeOk && screenshotsOk && editor === "other"
             ? editorOther.trim().length > 0
             : false,
     };
-  }, [codeUrl, description, editor, editorOther, hackatimeProjectName, name, playableUrl, screenshots]);
+  }, [codeUrl, description, editor, editorOther, hackatimeProjectName, name, playableDemoUrl, videoUrl, screenshots]);
 
   const checklistOk =
     checkReadme &&
@@ -228,7 +232,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
       editor,
       editorOther: editor === "other" ? editorOther.trim() : "",
       hackatimeProjectName: hackatimeProjectName.trim(),
-      playableUrl: playableUrl.trim(),
+      videoUrl: videoUrl.trim(),
+      playableDemoUrl: playableDemoUrl.trim(),
       codeUrl: codeUrl.trim(),
       screenshots: cleanList(screenshotUrls),
     };
@@ -260,7 +265,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         setEditor(p.editor);
         setEditorOther(p.editorOther ?? "");
         setHackatimeProjectName(p.hackatimeProjectName);
-        setPlayableUrl(p.playableUrl);
+        setVideoUrl(p.videoUrl);
+        setPlayableDemoUrl(p.playableDemoUrl);
         setCodeUrl(p.codeUrl);
         setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
         setStatus(p.status);
@@ -283,7 +289,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     initial.id,
     isGranted,
     name,
-    playableUrl,
+    playableDemoUrl,
+    videoUrl,
     screenshotUrls,
   ]);
 
@@ -357,7 +364,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
       editor,
       editorOther: editor === "other" ? editorOther.trim() : "",
       hackatimeProjectName: hackatimeProjectName.trim(),
-      playableUrl: playableUrl.trim(),
+      videoUrl: videoUrl.trim(),
+      playableDemoUrl: playableDemoUrl.trim(),
       codeUrl: codeUrl.trim(),
       screenshots: cleanList(screenshotUrls),
       status: "in-review",
@@ -421,7 +429,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         setEditor(p.editor);
         setEditorOther(p.editorOther ?? "");
         setHackatimeProjectName(p.hackatimeProjectName);
-        setPlayableUrl(p.playableUrl);
+        setVideoUrl(p.videoUrl);
+        setPlayableDemoUrl(p.playableDemoUrl);
         setCodeUrl(p.codeUrl);
         setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
         setStatus(p.status);
@@ -447,7 +456,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     initial.id,
     isGranted,
     name,
-    playableUrl,
+    playableDemoUrl,
+    videoUrl,
     screenshotUrls,
     submitRequirements.allOk,
   ]);
@@ -657,12 +667,24 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="block">
-            <div className="text-sm text-muted-foreground font-medium mb-2">Demo video URL</div>
+            <div className="text-sm text-muted-foreground font-medium mb-2">Video link</div>
             <input
-              value={playableUrl}
-              onChange={(e) => setPlayableUrl(e.target.value)}
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              required
               className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="https://youtu.be/... or https://..."
+            />
+          </label>
+
+          <label className="block">
+            <div className="text-sm text-muted-foreground font-medium mb-2">Playable demo link</div>
+            <input
+              value={playableDemoUrl}
+              onChange={(e) => setPlayableDemoUrl(e.target.value)}
+              required
+              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              placeholder="https://mygame.example.com or https://itch.io/..."
             />
           </label>
 
@@ -783,7 +805,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         {submitStep === 0 ? (
           <div className="space-y-4">
             <div className="rounded-2xl border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
-              You can’t submit until these are set: GitHub URL, demo video URL, Hackatime project name, and at least one screenshot.
+              You can’t submit until these are set: GitHub URL, video link, playable demo link, Hackatime project name, and at least one screenshot.
             </div>
 
             <div className="space-y-2 text-sm">
@@ -801,7 +823,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
                 </div>
               </div>
               <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
-                <div className="text-foreground">Demo video URL</div>
+                <div className="text-foreground">Video link</div>
                 <div
                   className={[
                     "px-2 py-0.5 rounded-md font-bold",
@@ -811,6 +833,19 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
                   ].join(" ")}
                 >
                   {submitRequirements.demoOk ? "Set" : "Missing/invalid"}
+                </div>
+              </div>
+              <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
+                <div className="text-foreground">Playable demo link</div>
+                <div
+                  className={[
+                    "px-2 py-0.5 rounded-md font-bold",
+                    submitRequirements.playableOk
+                      ? "text-emerald-300 bg-emerald-500/15"
+                      : "text-rose-300 bg-rose-500/15",
+                  ].join(" ")}
+                >
+                  {submitRequirements.playableOk ? "Set" : "Missing/invalid"}
                 </div>
               </div>
               <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">

@@ -31,7 +31,8 @@ type CreateProjectPayload = {
   editor: string;
   editorOther: string;
   hackatimeProjectName: string;
-  playableUrl: string;
+  videoUrl: string;
+  playableDemoUrl: string;
   codeUrl: string;
   screenshots: string[];
 };
@@ -128,7 +129,8 @@ export default function CreateProjectModal() {
       const editorValue = cleanString(fd.get("editor"));
       const editorOther = cleanString(fd.get("editorOther"));
       const hackatimeProjectName = cleanString(fd.get("hackatimeProjectName"));
-      const playableUrl = cleanString(fd.get("playableUrl"));
+      const videoUrl = cleanString(fd.get("videoUrl"));
+      const playableDemoUrl = cleanString(fd.get("playableDemoUrl"));
       const codeUrl = cleanString(fd.get("codeUrl"));
       const screenshots = screenshotUrls.map((s) => s.trim()).filter(Boolean);
 
@@ -138,7 +140,8 @@ export default function CreateProjectModal() {
         editor: editorValue,
         editorOther,
         hackatimeProjectName,
-        playableUrl,
+        videoUrl,
+        playableDemoUrl,
         codeUrl,
         screenshots,
       };
@@ -417,12 +420,25 @@ export default function CreateProjectModal() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="block">
             <div className="text-sm text-muted-foreground font-medium mb-2">
-              Demo video URL <span className="font-normal">(optional)</span>
+              Video link
             </div>
             <input
-              name="playableUrl"
+              name="videoUrl"
+              required
               className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="https://youtu.be/... or https://..."
+            />
+          </label>
+
+          <label className="block">
+            <div className="text-sm text-muted-foreground font-medium mb-2">
+              Playable demo link
+            </div>
+            <input
+              name="playableDemoUrl"
+              required
+              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              placeholder="https://mygame.example.com or https://itch.io/..."
             />
           </label>
 

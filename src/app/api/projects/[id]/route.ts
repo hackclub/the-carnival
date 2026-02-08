@@ -11,7 +11,8 @@ type UpdateProjectBody = {
   editor?: unknown;
   editorOther?: unknown;
   hackatimeProjectName?: unknown;
-  playableUrl?: unknown;
+  videoUrl?: unknown;
+  playableDemoUrl?: unknown;
   codeUrl?: unknown;
   screenshots?: unknown;
   status?: unknown;
@@ -78,7 +79,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
-      playableUrl: project.playableUrl,
+      videoUrl: project.videoUrl,
+      playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
       screenshots: project.screenshots,
       status: project.status,
@@ -116,7 +118,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
-      playableUrl: project.playableUrl,
+      videoUrl: project.videoUrl,
+      playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
       screenshots: project.screenshots,
       submittedAt: project.submittedAt,
@@ -151,7 +154,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     editor: ProjectEditor;
     editorOther: string | null;
     hackatimeProjectName: string;
-    playableUrl: string;
+    videoUrl: string;
+    playableDemoUrl: string;
     codeUrl: string;
     screenshots: string[];
     status: ProjectStatus;
@@ -200,12 +204,20 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     set.hackatimeProjectName = hackatimeProjectName;
   }
 
-  if (body.playableUrl !== undefined) {
-    const playableUrl = toCleanString(body.playableUrl);
-    if (playableUrl && !isValidUrlString(playableUrl)) {
-      return NextResponse.json({ error: "Demo video URL must be http(s)" }, { status: 400 });
+  if (body.videoUrl !== undefined) {
+    const videoUrl = toCleanString(body.videoUrl);
+    if (videoUrl && !isValidUrlString(videoUrl)) {
+      return NextResponse.json({ error: "Video link must be http(s)" }, { status: 400 });
     }
-    set.playableUrl = playableUrl;
+    set.videoUrl = videoUrl;
+  }
+
+  if (body.playableDemoUrl !== undefined) {
+    const playableDemoUrl = toCleanString(body.playableDemoUrl);
+    if (playableDemoUrl && !isValidUrlString(playableDemoUrl)) {
+      return NextResponse.json({ error: "Playable demo link must be http(s)" }, { status: 400 });
+    }
+    set.playableDemoUrl = playableDemoUrl;
   }
 
   if (body.codeUrl !== undefined) {
@@ -260,7 +272,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const nextName = (set.name ?? current.name).trim();
     const nextDescription = (set.description ?? current.description).trim();
     const nextHackatime = (set.hackatimeProjectName ?? current.hackatimeProjectName).trim();
-    const nextPlayable = (set.playableUrl ?? current.playableUrl).trim();
+    const nextVideo = (set.videoUrl ?? current.videoUrl).trim();
+    const nextPlayableDemo = (set.playableDemoUrl ?? current.playableDemoUrl).trim();
     const nextCodeUrl = (set.codeUrl ?? current.codeUrl).trim();
     const nextScreenshots = (set.screenshots ?? current.screenshots) ?? [];
 
@@ -274,14 +287,23 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         { status: 400 },
       );
     }
-    if (!nextPlayable) {
+    if (!nextVideo) {
       return NextResponse.json(
-        { error: "Demo video URL is required to submit for review" },
+        { error: "Video link is required to submit for review" },
         { status: 400 },
       );
     }
-    if (!isValidUrlString(nextPlayable)) {
-      return NextResponse.json({ error: "Demo video URL must be http(s)" }, { status: 400 });
+    if (!isValidUrlString(nextVideo)) {
+      return NextResponse.json({ error: "Video link must be http(s)" }, { status: 400 });
+    }
+    if (!nextPlayableDemo) {
+      return NextResponse.json(
+        { error: "Playable demo link is required to submit for review" },
+        { status: 400 },
+      );
+    }
+    if (!isValidUrlString(nextPlayableDemo)) {
+      return NextResponse.json({ error: "Playable demo link must be http(s)" }, { status: 400 });
     }
     if (!nextCodeUrl) {
       return NextResponse.json({ error: "GitHub URL is required" }, { status: 400 });
@@ -365,7 +387,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
-      playableUrl: project.playableUrl,
+      videoUrl: project.videoUrl,
+      playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
       screenshots: project.screenshots,
       status: project.status,

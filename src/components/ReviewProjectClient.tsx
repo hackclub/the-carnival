@@ -23,7 +23,8 @@ type ReviewableProject = {
   editor: ProjectEditor;
   editorOther: string;
   hackatimeProjectName: string;
-  playableUrl: string;
+  videoUrl: string;
+  playableDemoUrl: string;
   codeUrl: string;
   screenshots: string[];
   status: ProjectStatus;
@@ -206,13 +207,22 @@ export default function ReviewProjectClient({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <a
-            href={project.playableUrl}
+            href={project.playableDemoUrl}
             target="_blank"
             rel="noreferrer"
             className="rounded-2xl border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
           >
-            <div className="text-sm text-muted-foreground">Playable</div>
-            <div className="text-foreground font-semibold truncate">{project.playableUrl}</div>
+            <div className="text-sm text-muted-foreground">Playable demo link</div>
+            <div className="text-foreground font-semibold truncate">{project.playableDemoUrl}</div>
+          </a>
+          <a
+            href={project.videoUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-2xl border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
+          >
+            <div className="text-sm text-muted-foreground">Video</div>
+            <div className="text-foreground font-semibold truncate">{project.videoUrl}</div>
           </a>
           <a
             href={project.codeUrl}

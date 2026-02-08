@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import { getServerSession } from "@/lib/server-session";
+import { slack } from "@/lib/slack";
 import Link from "next/link";
 import { desc, inArray, eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -21,16 +22,38 @@ export default async function ExplorePage() {
       description: project.description,
       editor: project.editor,
       editorOther: project.editorOther,
-      playableUrl: project.playableUrl,
+      videoUrl: project.videoUrl,
+      playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
       status: project.status,
       createdAt: project.createdAt,
-      creatorName: user.name,
+      creatorSlackId: user.slackId,
     })
     .from(project)
     .leftJoin(user, eq(project.creatorId, user.id))
     .where(inArray(project.status, ["shipped", "granted"]))
     .orderBy(desc(project.createdAt));
+
+  const slackIds = Array.from(
+    new Set(projects.map((p) => p.creatorSlackId).filter((id): id is string => !!id)),
+  );
+  const slackNameById = new Map<string, string>();
+  if (slack && slackIds.length) {
+    const lookups = await Promise.allSettled(
+      slackIds.map(async (id) => {
+        const info = await slack.users.info({ user: id });
+        const userInfo = (info as { user?: { name?: string; profile?: { display_name?: string } } })
+          .user;
+        const displayName = userInfo?.profile?.display_name?.trim();
+        const name = userInfo?.name?.trim();
+        const label = displayName || name || id;
+        slackNameById.set(id, label);
+      }),
+    );
+    if (lookups.some((r) => r.status === "rejected")) {
+      console.warn("Failed to fetch some Slack usernames for Explore.");
+    }
+  }
 
   return (
     <AppShell title="Explore">
@@ -52,7 +75,7 @@ export default async function ExplorePage() {
                 <div className="min-w-0">
                   <div className="text-foreground font-bold text-xl truncate">{p.name}</div>
                   <div className="text-muted-foreground text-sm mt-1 truncate">
-                    by {p.creatorName || "Unknown creator"}
+                    by {(p.creatorSlackId && slackNameById.get(p.creatorSlackId)) || "Unknown creator"}
                   </div>
                   <div className="text-muted-foreground mt-3 overflow-hidden">{p.description}</div>
                 </div>
@@ -63,14 +86,16 @@ export default async function ExplorePage() {
               </div>
 
               <div className="mt-6 flex items-center gap-3">
-                <Link
-                  href={p.playableUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border text-sm"
-                >
-                  Play
-                </Link>
+                {p.playableDemoUrl || p.videoUrl ? (
+                  <Link
+                    href={p.playableDemoUrl || p.videoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border text-sm"
+                  >
+                    Play
+                  </Link>
+                ) : null}
                 <Link
                   href={p.codeUrl}
                   target="_blank"

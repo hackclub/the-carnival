@@ -10,7 +10,8 @@ type CreateProjectBody = {
   editor?: unknown;
   editorOther?: unknown;
   hackatimeProjectName?: unknown;
-  playableUrl?: unknown;
+  videoUrl?: unknown;
+  playableDemoUrl?: unknown;
   codeUrl?: unknown;
   screenshots?: unknown;
   status?: unknown;
@@ -70,7 +71,8 @@ export async function POST(req: Request) {
   const editorRaw = typeof body.editor === "string" ? body.editor.trim() : body.editor;
   const editorOther = toCleanString(body.editorOther);
   const hackatimeProjectName = toCleanString(body.hackatimeProjectName);
-  const playableUrl = toCleanString(body.playableUrl);
+  const videoUrl = toCleanString(body.videoUrl);
+  const playableDemoUrl = toCleanString(body.playableDemoUrl);
   const codeUrl = toCleanString(body.codeUrl);
 
   const screenshots = Array.isArray(body.screenshots)
@@ -87,8 +89,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Description is required" }, { status: 400 });
   }
 
-  // Only required on first creation: name, description, GitHub URL (codeUrl).
-  // Other fields can be filled later before submitting for review.
   const editor =
     editorRaw === undefined || editorRaw === null || editorRaw === "" ? ("vscode" as const) : editorRaw;
 
@@ -108,14 +108,23 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!videoUrl) {
+    return NextResponse.json({ error: "Video link is required" }, { status: 400 });
+  }
+  if (!isValidUrlString(videoUrl)) {
+    return NextResponse.json({ error: "Video link must be http(s)" }, { status: 400 });
+  }
+  if (!playableDemoUrl) {
+    return NextResponse.json({ error: "Playable demo link is required" }, { status: 400 });
+  }
+  if (!isValidUrlString(playableDemoUrl)) {
+    return NextResponse.json({ error: "Playable demo link must be http(s)" }, { status: 400 });
+  }
   if (!codeUrl) {
     return NextResponse.json({ error: "Code URL is required" }, { status: 400 });
   }
   if (!isValidUrlString(codeUrl)) {
     return NextResponse.json({ error: "Code URL must be http(s)" }, { status: 400 });
-  }
-  if (playableUrl && !isValidUrlString(playableUrl)) {
-    return NextResponse.json({ error: "Demo video URL must be http(s)" }, { status: 400 });
   }
 
   const now = new Date();
@@ -128,8 +137,9 @@ export async function POST(req: Request) {
     description,
     editor,
     editorOther: editorOther || null,
-    hackatimeProjectName, // may be empty until submission
-    playableUrl, // may be empty until submission
+    hackatimeProjectName,
+    videoUrl,
+    playableDemoUrl,
     codeUrl,
     screenshots,
     // status: default in schema
