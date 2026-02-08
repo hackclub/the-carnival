@@ -75,7 +75,10 @@ export default async function ExplorePage() {
                 <div className="min-w-0">
                   <div className="text-foreground font-bold text-xl truncate">{p.name}</div>
                   <div className="text-muted-foreground text-sm mt-1 truncate">
-                    by {(p.creatorSlackId && slackNameById.get(p.creatorSlackId)) || "Unknown creator"}
+                    by
+                    {p.creatorSlackId && slackNameById.get(p.creatorSlackId)
+                      ? ` @${slackNameById.get(p.creatorSlackId)}`
+                      : " Unknown creator"}
                   </div>
                   <div className="text-muted-foreground mt-3 overflow-hidden">{p.description}</div>
                 </div>
