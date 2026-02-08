@@ -66,7 +66,7 @@ try {
   const countRows = await sql.unsafe(
     'select count(*)::int as c from "drizzle"."__drizzle_migrations"',
   );
-  const count = Number((countRows as Array<{ c: number }>)[0]?.c ?? 0);
+  const count = Number(((countRows as unknown) as Array<{ c: number }>)[0]?.c ?? 0);
 
   if (count > 0) {
     console.log(`Baseline not needed: __drizzle_migrations already has ${count} row(s).`);
