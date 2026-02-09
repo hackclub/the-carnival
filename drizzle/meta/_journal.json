@@ -120,6 +120,27 @@
       "when": 1767618344178,
       "tag": "0016_add_user_birthday",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1767618345178,
+      "tag": "0017_add_project_playable_link",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1767618346178,
+      "tag": "0018_add_project_playable_links_not_empty",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1767618347178,
+      "tag": "0019_rename_playable_columns",
+      "breakpoints": true
     }
   ]
 }

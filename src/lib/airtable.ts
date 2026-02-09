@@ -16,7 +16,8 @@ export const AIRTABLE_GRANTS_TABLE_ENV = "AIRTABLE_GRANTS_TABLE";
 
 export const YSWS_AIRTABLE_FIELDS = {
   codeUrl: "Code URL",
-  playableUrl: "Playable URL",
+  videoUrl: "Video URL",
+  playableDemoUrl: "Playable Demo URL",
 
   howDidYouHearAboutThis: "How did you hear about this?",
   whatAreWeDoingWell: "What are we doing well?",
@@ -61,7 +62,8 @@ export type AirtableAttachment = {
 
 export type YswsSubmissionFields = {
   codeUrl: string | null;
-  playableUrl: string | null;
+  videoUrl: string | null;
+  playableDemoUrl: string | null;
 
   howDidYouHearAboutThis: string | null;
   whatAreWeDoingWell: string | null;
@@ -101,7 +103,8 @@ export type AirtableGrantCreateInput = {
     name: string;
     description: string;
     codeUrl: string;
-    playableUrl: string;
+    videoUrl: string;
+    playableDemoUrl: string;
     screenshots: string[];
     submittedAtIso: string | null;
     approvedHours: number | null;
@@ -296,7 +299,8 @@ export async function createAirtableGrantRecord(input: AirtableGrantCreateInput)
 
   // Project
   setIf(YSWS_AIRTABLE_FIELDS.codeUrl, input.project.codeUrl);
-  setIf(YSWS_AIRTABLE_FIELDS.playableUrl, input.project.playableUrl);
+  setIf(YSWS_AIRTABLE_FIELDS.videoUrl, input.project.videoUrl);
+  setIf(YSWS_AIRTABLE_FIELDS.playableDemoUrl, input.project.playableDemoUrl);
   setIf(YSWS_AIRTABLE_FIELDS.description, input.project.description);
   if (screenshotAttachments.length) {
     fields[YSWS_AIRTABLE_FIELDS.screenshot] = screenshotAttachments;
@@ -364,16 +368,25 @@ export function validateYswsSubmissionFields(fields: unknown): ValidationResult<
   const errors: string[] = [];
 
   const codeUrl = toHttpUrlOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.codeUrl));
-  const playableUrl = toHttpUrlOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.playableUrl));
+  const videoUrl = toHttpUrlOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.videoUrl));
+  const playableDemoUrl = toHttpUrlOrNull(
+    getField(fields, YSWS_AIRTABLE_FIELDS.playableDemoUrl),
+  );
   const hackatimeReviewLink = toHttpUrlOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.hackatimeReviewLink));
 
   // URL fields: if present but invalid, report it.
   const rawCodeUrl = toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.codeUrl));
   if (rawCodeUrl && !codeUrl) errors.push(`"${YSWS_AIRTABLE_FIELDS.codeUrl}" must be an http(s) URL.`);
 
-  const rawPlayableUrl = toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.playableUrl));
-  if (rawPlayableUrl && !playableUrl)
-    errors.push(`"${YSWS_AIRTABLE_FIELDS.playableUrl}" must be an http(s) URL.`);
+  const rawVideoUrl = toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.videoUrl));
+  if (rawVideoUrl && !videoUrl)
+    errors.push(`"${YSWS_AIRTABLE_FIELDS.videoUrl}" must be an http(s) URL.`);
+
+  const rawPlayableDemoUrl = toTrimmedStringOrNull(
+    getField(fields, YSWS_AIRTABLE_FIELDS.playableDemoUrl),
+  );
+  if (rawPlayableDemoUrl && !playableDemoUrl)
+    errors.push(`"${YSWS_AIRTABLE_FIELDS.playableDemoUrl}" must be an http(s) URL.`);
 
   const rawHackatimeReviewLink = toTrimmedStringOrNull(
     getField(fields, YSWS_AIRTABLE_FIELDS.hackatimeReviewLink),
@@ -400,7 +413,8 @@ export function validateYswsSubmissionFields(fields: unknown): ValidationResult<
 
   const data: YswsSubmissionFields = {
     codeUrl,
-    playableUrl,
+    videoUrl,
+    playableDemoUrl,
 
     howDidYouHearAboutThis: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.howDidYouHearAboutThis)),
     whatAreWeDoingWell: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.whatAreWeDoingWell)),
