@@ -38,21 +38,30 @@ export default async function ExplorePage() {
     new Set(projects.map((p) => p.creatorSlackId).filter((id): id is string => !!id)),
   );
   const slackNameById = new Map<string, string>();
-  if (slack && slackIds.length) {
-    const lookups = await Promise.allSettled(
-      slackIds.map(async (id) => {
-        const info = await slack.users.info({ user: id });
-        const userInfo = (info as { user?: { name?: string; profile?: { display_name?: string } } })
-          .user;
-        const displayName = userInfo?.profile?.display_name?.trim();
-        const name = userInfo?.name?.trim();
-        const label = displayName || name || id;
-        slackNameById.set(id, label);
-      }),
-    );
-    if (lookups.some((r) => r.status === "rejected")) {
-      console.warn("Failed to fetch some Slack usernames for Explore.");
+  if (slack) {
+    if (slackIds.length) {
+      // Assign slack to a non-null variable so TypeScript knows it's not null in the map callback
+      const slackClient = slack;
+      const lookups = await Promise.allSettled(
+        slackIds.map(async (id) => {
+          const info = await slackClient.users.info({ user: id });
+          const userInfo = (info as { user?: { name?: string; profile?: { display_name?: string } } })
+            .user;
+          const displayName = userInfo?.profile?.display_name?.trim();
+          const name = userInfo?.name?.trim();
+          const label = displayName || name || id;
+          slackNameById.set(id, label);
+        }),
+      );
+      if (lookups.some((r) => r.status === "rejected")) {
+        console.warn("Failed to fetch some Slack usernames for Explore.");
+      }
     }
+  } else if (slackIds.length) {
+    // Fallback: just use the Slack ID as the label if slack is not available
+    slackIds.forEach((id) => {
+      slackNameById.set(id, id);
+    });
   }
 
   return (
