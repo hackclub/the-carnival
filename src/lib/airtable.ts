@@ -17,7 +17,7 @@ export const AIRTABLE_GRANTS_TABLE_ENV = "AIRTABLE_GRANTS_TABLE";
 export const YSWS_AIRTABLE_FIELDS = {
   codeUrl: "Code URL",
   videoUrl: "Video URL",
-  playableDemoUrl: "Playable Demo URL",
+  playableDemoUrl: "Playable URL",
 
   howDidYouHearAboutThis: "How did you hear about this?",
   whatAreWeDoingWell: "What are we doing well?",
