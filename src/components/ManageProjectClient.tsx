@@ -823,19 +823,19 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
                 </div>
               </div>
               <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
-                <div className="text-foreground">Video link</div>
-                <div
-                  className={[
-                    "px-2 py-0.5 rounded-md font-bold",
-                    submitRequirements.demoOk
-                      ? "text-emerald-300 bg-emerald-500/15"
-                      : "text-rose-300 bg-rose-500/15",
-                  ].join(" ")}
-                >
-                  {submitRequirements.demoOk ? "Set" : "Missing/invalid"}
-                </div>
+              <div className="text-foreground">Video link</div>
+              <div
+                className={[
+                  "px-2 py-0.5 rounded-md font-bold",
+                  submitRequirements.demoOk
+                    ? "text-emerald-300 bg-emerald-500/15"
+                    : "text-rose-300 bg-rose-500/15",
+                ].join(" ")}
+              >
+                {submitRequirements.demoOk ? "Set" : "Missing/invalid"}
               </div>
-              <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
+            </div>
+            <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
                 <div className="text-foreground">Playable demo link</div>
                 <div
                   className={[

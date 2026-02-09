@@ -299,7 +299,6 @@ export async function createAirtableGrantRecord(input: AirtableGrantCreateInput)
 
   // Project
   setIf(YSWS_AIRTABLE_FIELDS.codeUrl, input.project.codeUrl);
-  setIf(YSWS_AIRTABLE_FIELDS.videoUrl, input.project.videoUrl);
   setIf(YSWS_AIRTABLE_FIELDS.playableDemoUrl, input.project.playableDemoUrl);
   setIf(YSWS_AIRTABLE_FIELDS.description, input.project.description);
   if (screenshotAttachments.length) {
