@@ -315,6 +315,162 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
 }
 
+export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession();
+  const adminUserId = (session?.user as { id?: string } | undefined)?.id;
+  const role = (session?.user as { role?: unknown } | undefined)?.role;
+  if (!adminUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isAdmin(role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { id } = await ctx.params;
+
+  const rows = await db
+    .select({
+      id: project.id,
+      status: project.status,
+      creatorId: project.creatorId,
+      approvedHours: project.approvedHours,
+      name: project.name,
+      description: project.description,
+      codeUrl: project.codeUrl,
+      videoUrl: project.videoUrl,
+      playableDemoUrl: project.playableDemoUrl,
+      screenshots: project.screenshots,
+      submittedAt: project.submittedAt,
+      creatorName: user.name,
+      creatorEmail: user.email,
+      creatorSlackId: user.slackId,
+      creatorBirthday: user.birthday,
+      addressLine1: user.addressLine1,
+      addressLine2: user.addressLine2,
+      city: user.city,
+      stateProvince: user.stateProvince,
+      country: user.country,
+      zipPostalCode: user.zipPostalCode,
+    })
+    .from(project)
+    .leftJoin(user, eq(project.creatorId, user.id))
+    .where(eq(project.id, id))
+    .limit(1);
+
+  const current = rows[0];
+  if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (current.status !== "granted") {
+    return NextResponse.json(
+      { error: "Project must be granted before pushing to Airtable." },
+      { status: 409 },
+    );
+  }
+
+  const issued = await db
+    .select({ id: tokenLedger.id })
+    .from(tokenLedger)
+    .where(
+      and(
+        eq(tokenLedger.referenceType, "project_grant"),
+        eq(tokenLedger.referenceId, id),
+        eq(tokenLedger.kind, "issue"),
+      ),
+    )
+    .limit(1);
+
+  if (!issued[0]) {
+    return NextResponse.json(
+      { error: "Tokens have not been issued for this project." },
+      { status: 409 },
+    );
+  }
+
+  if (!current.creatorId) {
+    return NextResponse.json(
+      { error: "Project has no creator; cannot create Airtable record." },
+      { status: 409 },
+    );
+  }
+  if (current.approvedHours === null || current.approvedHours === undefined) {
+    return NextResponse.json(
+      { error: "Project has no approved hours; cannot create Airtable record." },
+      { status: 409 },
+    );
+  }
+
+  const missingEnv = getAirtableConfigErrors(process.env);
+  if (missingEnv.length) {
+    return NextResponse.json(
+      {
+        error: "Airtable is not configured for grants.",
+        details: `Missing env var(s): ${missingEnv.join(", ")}.`,
+        hints: [
+          "Add the missing env vars in .env.local and restart the dev server.",
+          `Make sure \`${AIRTABLE_GRANTS_TABLE_ENV}\` matches the table name (or table ID) in Airtable.`,
+        ],
+      },
+      { status: 500 },
+    );
+  }
+
+  try {
+    const reviews = await db
+      .select({
+        decision: peerReview.decision,
+        reviewComment: peerReview.reviewComment,
+        createdAt: peerReview.createdAt,
+        reviewerName: user.name,
+      })
+      .from(peerReview)
+      .leftJoin(user, eq(peerReview.reviewerId, user.id))
+      .where(eq(peerReview.projectId, id))
+      .orderBy(peerReview.createdAt);
+
+    const record = await createAirtableGrantRecord({
+      project: {
+        name: current.name,
+        description: current.description,
+        codeUrl: current.codeUrl,
+        playableDemoUrl: current.playableDemoUrl,
+        videoUrl: current.videoUrl,
+        screenshots: current.screenshots ?? [],
+        submittedAtIso: current.submittedAt ? current.submittedAt.toISOString() : null,
+        approvedHours: current.approvedHours ?? null,
+      },
+      creator: {
+        name: current.creatorName ?? "Unknown",
+        email: current.creatorEmail ?? "",
+        slackId: current.creatorSlackId ?? null,
+        birthdayIso: current.creatorBirthday ?? null,
+      },
+      shipping: {
+        addressLine1: current.addressLine1 ?? null,
+        addressLine2: current.addressLine2 ?? null,
+        city: current.city ?? null,
+        stateProvince: current.stateProvince ?? null,
+        country: current.country ?? null,
+        zipPostalCode: current.zipPostalCode ?? null,
+      },
+      reviewStatus: "Approved",
+      reviews: reviews.map((r) => ({
+        reviewerName: r.reviewerName || "Unknown reviewer",
+        decision: r.decision,
+        message: r.reviewComment,
+      })),
+    });
+
+    return NextResponse.json({ ok: true, airtableRecordId: record.id });
+  } catch (err) {
+    const details = toAirtableCreateErrorDetails(err);
+    return NextResponse.json(
+      {
+        error: "Failed to create Airtable grant record.",
+        details: details.message,
+        statusCode: details.statusCode,
+        airtableError: details.airtableError,
+        hints: details.hints,
+      },
+      { status: 502 },
+    );
+  }
+}
+
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
   const role = (session?.user as { role?: unknown } | undefined)?.role;
