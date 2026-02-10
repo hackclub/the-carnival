@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { desc } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import AdminShopClient, { type AdminShopItemDTO, type AdminShopOrderDTO } from "@/components/AdminShopClient";
 import { db } from "@/db";
-import { shopItem, shopOrder } from "@/db/schema";
+import { shopItem, shopOrder, tokenLedger, user } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
 
 export default async function AdminShopPage() {
@@ -33,6 +33,7 @@ export default async function AdminShopPage() {
         .select({
           id: shopOrder.id,
           userId: shopOrder.userId,
+          requesterName: user.name,
           status: shopOrder.status,
           itemName: shopOrder.itemNameSnapshot,
           tokenCost: shopOrder.tokenCostSnapshot,
@@ -41,8 +42,22 @@ export default async function AdminShopPage() {
           fulfilledAt: shopOrder.fulfilledAt,
         })
         .from(shopOrder)
+        .leftJoin(user, eq(shopOrder.userId, user.id))
         .orderBy(desc(shopOrder.createdAt))
     : [];
+
+  const orderUserIds = Array.from(new Set(orders.map((o) => o.userId)));
+  const tokenBalances = isAdmin && orderUserIds.length > 0
+    ? await db
+        .select({
+          userId: tokenLedger.issuedToUserId,
+          balance: sql<number>`coalesce(sum(case when ${tokenLedger.kind} = 'issue' then ${tokenLedger.tokens} else -${tokenLedger.tokens} end), 0)`,
+        })
+        .from(tokenLedger)
+        .where(inArray(tokenLedger.issuedToUserId, orderUserIds))
+        .groupBy(tokenLedger.issuedToUserId)
+    : [];
+  const balanceByUserId = new Map(tokenBalances.map((row) => [row.userId, Number(row.balance ?? 0)]));
 
   const initialItems: AdminShopItemDTO[] = items.map((i) => ({
     id: i.id,
@@ -58,6 +73,8 @@ export default async function AdminShopPage() {
   const initialOrders: AdminShopOrderDTO[] = orders.map((o) => ({
     id: o.id,
     userId: o.userId,
+    requesterName: o.requesterName ?? o.userId,
+    requesterTokenBalance: balanceByUserId.get(o.userId) ?? 0,
     status: o.status,
     itemName: o.itemName,
     tokenCost: o.tokenCost ?? 0,
