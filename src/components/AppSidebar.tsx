@@ -89,8 +89,8 @@ export default function AppSidebar() {
             </Link>
           ) : null}
 
-          {isAdmin ? (
-            <div className="mt-2 space-y-2">
+          {canReview ? (
+            <div className="mt-2">
               <Link
                 href="/admin/shop"
                 className={[
@@ -101,8 +101,13 @@ export default function AppSidebar() {
                 ].join(" ")}
               >
                 <ShoppingBag size={18} />
-                Shop (Admin)
+                Shop (Staff)
               </Link>
+            </div>
+          ) : null}
+
+          {isAdmin ? (
+            <div className="mt-2 space-y-2">
               <Link
                 href="/admin/grants"
                 className={[

@@ -10,36 +10,39 @@ import { getServerSession } from "@/lib/server-session";
 export default async function AdminShopPage() {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
+  const canManageShopItems = role === "reviewer" || role === "admin";
+  const isAdmin = role === "admin";
   if (!session?.user?.id) redirect("/login?callbackUrl=/admin/shop");
-  if (role !== "admin") redirect("/projects");
+  if (!canManageShopItems) redirect("/projects");
 
-  const [items, orders] = await Promise.all([
-    db
-      .select({
-        id: shopItem.id,
-        name: shopItem.name,
-        description: shopItem.description,
-        imageUrl: shopItem.imageUrl,
-        approvedHoursNeeded: shopItem.approvedHoursNeeded,
-        tokenCost: shopItem.tokenCost,
-        createdAt: shopItem.createdAt,
-        updatedAt: shopItem.updatedAt,
-      })
-      .from(shopItem),
-    db
-      .select({
-        id: shopOrder.id,
-        userId: shopOrder.userId,
-        status: shopOrder.status,
-        itemName: shopOrder.itemNameSnapshot,
-        tokenCost: shopOrder.tokenCostSnapshot,
-        fulfillmentLink: shopOrder.fulfillmentLink,
-        createdAt: shopOrder.createdAt,
-        fulfilledAt: shopOrder.fulfilledAt,
-      })
-      .from(shopOrder)
-      .orderBy(desc(shopOrder.createdAt)),
-  ]);
+  const items = await db
+    .select({
+      id: shopItem.id,
+      name: shopItem.name,
+      description: shopItem.description,
+      imageUrl: shopItem.imageUrl,
+      approvedHoursNeeded: shopItem.approvedHoursNeeded,
+      tokenCost: shopItem.tokenCost,
+      createdAt: shopItem.createdAt,
+      updatedAt: shopItem.updatedAt,
+    })
+    .from(shopItem);
+
+  const orders = isAdmin
+    ? await db
+        .select({
+          id: shopOrder.id,
+          userId: shopOrder.userId,
+          status: shopOrder.status,
+          itemName: shopOrder.itemNameSnapshot,
+          tokenCost: shopOrder.tokenCostSnapshot,
+          fulfillmentLink: shopOrder.fulfillmentLink,
+          createdAt: shopOrder.createdAt,
+          fulfilledAt: shopOrder.fulfilledAt,
+        })
+        .from(shopOrder)
+        .orderBy(desc(shopOrder.createdAt))
+    : [];
 
   const initialItems: AdminShopItemDTO[] = items.map((i) => ({
     id: i.id,
@@ -64,7 +67,7 @@ export default async function AdminShopPage() {
   }));
 
   return (
-    <AppShell title="Shop (Admin)">
+    <AppShell title="Shop (Staff)">
       <div className="mb-6 flex items-center justify-between gap-4">
         <div className="text-muted-foreground">Create/edit items and fulfill orders.</div>
         <Link
@@ -75,7 +78,7 @@ export default async function AdminShopPage() {
         </Link>
       </div>
 
-      <AdminShopClient initial={{ items: initialItems, orders: initialOrders }} />
+      <AdminShopClient initial={{ items: initialItems, orders: initialOrders }} canManageOrders={isAdmin} />
     </AppShell>
   );
 }
