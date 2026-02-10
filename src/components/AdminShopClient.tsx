@@ -51,6 +51,8 @@ export default function AdminShopClient({
     : "pending";
 
   const [fulfillmentLinks, setFulfillmentLinks] = useState<Record<string, string>>({});
+  const [deductOverrides, setDeductOverrides] = useState<Record<string, string>>({});
+  const [deductOverrideNotes, setDeductOverrideNotes] = useState<Record<string, string>>({});
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
 
   const filteredOrders = useMemo(() => {
@@ -61,8 +63,14 @@ export default function AdminShopClient({
 
   const onFulfill = useCallback(async (orderId: string) => {
     const link = (fulfillmentLinks[orderId] ?? "").trim();
+    const override = (deductOverrides[orderId] ?? "").trim();
+    const overrideNote = (deductOverrideNotes[orderId] ?? "").trim();
     if (!link) {
       toast.error("Enter a fulfillment proof link first.");
+      return;
+    }
+    if (override !== "" && !overrideNote) {
+      toast.error("Add an override note when manually setting token deduction.");
       return;
     }
 
@@ -72,7 +80,11 @@ export default function AdminShopClient({
       const res = await fetch(`/api/admin/shop/orders/${encodeURIComponent(orderId)}/fulfill`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fulfillmentLink: link }),
+        body: JSON.stringify({
+          fulfillmentLink: link,
+          deductTokensOverride: override === "" ? undefined : override,
+          deductTokensOverrideNote: override === "" ? undefined : overrideNote,
+        }),
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
@@ -87,7 +99,7 @@ export default function AdminShopClient({
       toast.error("Failed to fulfill order.", { id: toastId });
       setBusyOrderId(null);
     }
-  }, [fulfillmentLinks]);
+  }, [deductOverrideNotes, deductOverrides, fulfillmentLinks]);
 
   return (
     <div className="space-y-8">
@@ -159,7 +171,7 @@ export default function AdminShopClient({
               <div className="text-muted-foreground mt-1">
                 {activeFilter === "fulfilled"
                   ? "Previously-fulfilled orders."
-                  : "Enter fulfillment proof link (HCB card) and fulfill."}
+                : "Enter fulfillment proof link and optionally override token deduction before fulfilling."}
               </div>
             </div>
             <div className="text-sm text-muted-foreground">{filteredOrders.length} shown</div>
@@ -198,6 +210,23 @@ export default function AdminShopClient({
                           }
                           size="small"
                         />
+                      <Input
+                        placeholder={`Override token deduction (default ${o.tokenCost})`}
+                        value={deductOverrides[o.id] ?? ""}
+                        onChange={(e) =>
+                          setDeductOverrides((m) => ({ ...m, [o.id]: e.target.value }))
+                        }
+                        inputMode="numeric"
+                        size="small"
+                      />
+                      <Input
+                        placeholder="Override note (required when overriding)"
+                        value={deductOverrideNotes[o.id] ?? ""}
+                        onChange={(e) =>
+                          setDeductOverrideNotes((m) => ({ ...m, [o.id]: e.target.value }))
+                        }
+                        size="small"
+                      />
                         <Button
                           variant="secondary"
                           loading={busyOrderId === o.id}
