@@ -20,6 +20,8 @@ export type AdminShopItemDTO = {
 export type AdminShopOrderDTO = {
   id: string;
   userId: string;
+  requesterName: string;
+  requesterTokenBalance: number;
   status: "pending" | "fulfilled" | "cancelled";
   itemName: string;
   tokenCost: number;
@@ -191,9 +193,10 @@ export default function AdminShopClient({
                 <div key={o.id} className="rounded-2xl border border-border bg-muted px-4 py-4">
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="text-foreground font-semibold truncate">{o.itemName}</div>
+                      <div className="text-foreground font-semibold truncate">Requested item: {o.itemName}</div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        {new Date(o.createdAt).toLocaleString()} • {o.tokenCost} tokens • user {o.userId} •{" "}
+                        {new Date(o.createdAt).toLocaleString()} • cost {o.tokenCost} tokens • {o.requesterName} •
+                        available {o.requesterTokenBalance} tokens •{" "}
                         <span className="font-semibold">{o.status}</span>
                         {o.status === "fulfilled" && o.fulfilledAt
                           ? ` • fulfilled ${new Date(o.fulfilledAt).toLocaleString()}`
