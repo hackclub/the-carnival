@@ -23,8 +23,8 @@ export async function POST(req: Request) {
   if (!kindRaw) return NextResponse.json({ error: "kind is required" }, { status: 400 });
   if (!isKind(kindRaw)) return NextResponse.json({ error: "Invalid kind" }, { status: 400 });
 
-  // Admin-only kinds
-  if ((kindRaw === "shop_item_image" || kindRaw === "editor_icon") && !user.isAdmin) {
+  // Admin-only kinds, except shop item images which reviewers can manage.
+  if ((kindRaw === "shop_item_image" && !user.isReviewer) || (kindRaw === "editor_icon" && !user.isAdmin)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
