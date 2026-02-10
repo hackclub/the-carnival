@@ -26,7 +26,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const hasOverride = rawOverride !== undefined && rawOverride !== null && rawOverride !== "";
   let deductTokensOverride: number | null = null;
   if (hasOverride) {
-    const parsed = toPositiveInt(rawOverride);
+    const overrideString = String(rawOverride);
+    if (!/^\d+$/.test(overrideString)) {
+      return NextResponse.json(
+        { error: "deductTokensOverride must be a non-negative integer" },
+        { status: 400 },
+      );
+    }
+    const parsed = toPositiveInt(overrideString);
     if (!Number.isFinite(parsed) || parsed < 0) {
       return NextResponse.json(
         { error: "deductTokensOverride must be a non-negative integer" },
@@ -71,7 +78,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const balance = await getTokenBalance(tx, order.userId);
     const cost = hasOverride ? (deductTokensOverride ?? 0) : (order.tokenCost ?? 0);
     if (balance < cost) {
-      return { error: "User has insufficient tokens to fulfill this order" as const, status: 409 as const };
+      return {
+        error: `Cannot deduct ${cost} tokens because user only has ${balance} available`,
+        status: 409 as const,
+      };
     }
 
     const defaultCost = order.tokenCost ?? 0;

@@ -21,8 +21,11 @@ export async function GET() {
       shopItemId: shopOrder.shopItemId,
       itemName: shopOrder.itemNameSnapshot,
       itemImageUrl: shopOrder.itemImageSnapshot,
+      itemDescription: shopOrder.itemDescriptionSnapshot,
       tokenCost: shopOrder.tokenCostSnapshot,
       fulfillmentLink: shopOrder.fulfillmentLink,
+      cancellationReason: shopOrder.cancellationReason,
+      cancelledAt: shopOrder.cancelledAt,
       fulfilledAt: shopOrder.fulfilledAt,
       createdAt: shopOrder.createdAt,
     })
@@ -33,6 +36,9 @@ export async function GET() {
   return NextResponse.json({
     orders: orders.map((o) => ({
       ...o,
+      itemDescription: o.itemDescription ?? null,
+      cancellationReason: o.cancellationReason ?? null,
+      cancelledAt: o.cancelledAt ? o.cancelledAt.toISOString() : null,
       fulfilledAt: o.fulfilledAt ? o.fulfilledAt.toISOString() : null,
       createdAt: o.createdAt.toISOString(),
     })),
@@ -52,6 +58,7 @@ export async function POST(req: Request) {
       id: shopItem.id,
       name: shopItem.name,
       imageUrl: shopItem.imageUrl,
+      description: shopItem.description,
       tokenCost: shopItem.tokenCost,
     })
     .from(shopItem)
@@ -76,6 +83,7 @@ export async function POST(req: Request) {
     shopItemId: item.id,
     itemNameSnapshot: item.name,
     itemImageSnapshot: item.imageUrl,
+    itemDescriptionSnapshot: item.description ?? null,
     tokenCostSnapshot: item.tokenCost ?? 0,
     createdAt: now,
     updatedAt: now,

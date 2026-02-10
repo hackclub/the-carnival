@@ -141,6 +141,13 @@
       "when": 1767618347178,
       "tag": "0019_rename_playable_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1767618348178,
+      "tag": "0020_add_shop_order_cancellation_and_description",
+      "breakpoints": true
     }
   ]
 }
