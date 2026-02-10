@@ -17,8 +17,12 @@ export async function GET() {
       shopItemId: shopOrder.shopItemId,
       itemName: shopOrder.itemNameSnapshot,
       itemImageUrl: shopOrder.itemImageSnapshot,
+      itemDescription: shopOrder.itemDescriptionSnapshot,
       tokenCost: shopOrder.tokenCostSnapshot,
       fulfillmentLink: shopOrder.fulfillmentLink,
+      cancellationReason: shopOrder.cancellationReason,
+      cancelledById: shopOrder.cancelledById,
+      cancelledAt: shopOrder.cancelledAt,
       fulfilledById: shopOrder.fulfilledById,
       fulfilledAt: shopOrder.fulfilledAt,
       createdAt: shopOrder.createdAt,
@@ -30,6 +34,10 @@ export async function GET() {
   return NextResponse.json({
     orders: orders.map((o) => ({
       ...o,
+      itemDescription: o.itemDescription ?? null,
+      cancellationReason: o.cancellationReason ?? null,
+      cancelledById: o.cancelledById ?? null,
+      cancelledAt: o.cancelledAt ? o.cancelledAt.toISOString() : null,
       fulfilledAt: o.fulfilledAt ? o.fulfilledAt.toISOString() : null,
       createdAt: o.createdAt.toISOString(),
       updatedAt: o.updatedAt.toISOString(),

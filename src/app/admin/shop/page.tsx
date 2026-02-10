@@ -34,14 +34,21 @@ export default async function AdminShopPage() {
           id: shopOrder.id,
           userId: shopOrder.userId,
           requesterName: user.name,
+          requesterEmail: user.email,
           status: shopOrder.status,
           itemName: shopOrder.itemNameSnapshot,
+          itemImageUrl: shopOrder.itemImageSnapshot,
+          itemDescription: shopOrder.itemDescriptionSnapshot,
+          currentItemDescription: shopItem.description,
           tokenCost: shopOrder.tokenCostSnapshot,
           fulfillmentLink: shopOrder.fulfillmentLink,
+          cancellationReason: shopOrder.cancellationReason,
+          cancelledAt: shopOrder.cancelledAt,
           createdAt: shopOrder.createdAt,
           fulfilledAt: shopOrder.fulfilledAt,
         })
         .from(shopOrder)
+        .leftJoin(shopItem, eq(shopOrder.shopItemId, shopItem.id))
         .leftJoin(user, eq(shopOrder.userId, user.id))
         .orderBy(desc(shopOrder.createdAt))
     : [];
@@ -74,11 +81,16 @@ export default async function AdminShopPage() {
     id: o.id,
     userId: o.userId,
     requesterName: o.requesterName ?? o.userId,
+    requesterEmail: o.requesterEmail ?? null,
     requesterTokenBalance: balanceByUserId.get(o.userId) ?? 0,
     status: o.status,
     itemName: o.itemName,
+    itemImageUrl: o.itemImageUrl,
+    itemDescription: o.itemDescription ?? o.currentItemDescription ?? null,
     tokenCost: o.tokenCost ?? 0,
     fulfillmentLink: o.fulfillmentLink ?? null,
+    cancellationReason: o.cancellationReason ?? null,
+    cancelledAt: o.cancelledAt ? o.cancelledAt.toISOString() : null,
     createdAt: o.createdAt.toISOString(),
     fulfilledAt: o.fulfilledAt ? o.fulfilledAt.toISOString() : null,
   }));

@@ -252,8 +252,12 @@ export const shopOrder = pgTable("shop_order", {
     .references(() => shopItem.id, { onDelete: "restrict" }),
   itemNameSnapshot: text("item_name_snapshot").notNull(),
   itemImageSnapshot: text("item_image_snapshot").notNull(),
+  itemDescriptionSnapshot: text("item_description_snapshot"),
   tokenCostSnapshot: integer("token_cost_snapshot").notNull(),
   fulfillmentLink: text("fulfillment_link"),
+  cancellationReason: text("cancellation_reason"),
+  cancelledById: text("cancelled_by_id").references(() => user.id, { onDelete: "set null" }),
+  cancelledAt: timestamp("cancelled_at"),
   // admin who fulfilled the order
   fulfilledById: text("fulfilled_by_id").references(() => user.id, { onDelete: "set null" }),
   fulfilledAt: timestamp("fulfilled_at"),
