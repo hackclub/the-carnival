@@ -38,8 +38,10 @@ const ORDER_FILTERS: Array<{ label: string; value: OrderFilterKey }> = [
 
 export default function AdminShopClient({
   initial,
+  canManageOrders = true,
 }: {
   initial: { items: AdminShopItemDTO[]; orders: AdminShopOrderDTO[] };
+  canManageOrders?: boolean;
 }) {
   const searchParams = useSearchParams();
   const rawStatus = searchParams.get("status");
@@ -89,7 +91,8 @@ export default function AdminShopClient({
 
   return (
     <div className="space-y-8">
-      <div className="bg-card border border-border rounded-2xl p-6">
+      {canManageOrders ? (
+        <div className="bg-card border border-border rounded-2xl p-6">
         <div className="text-foreground font-semibold text-lg">Items</div>
         {initial.items.length === 0 ? (
           <div className="text-muted-foreground mt-3">No items yet.</div>
@@ -229,7 +232,8 @@ export default function AdminShopClient({
             ))}
           </div>
         )}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

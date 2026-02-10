@@ -9,8 +9,9 @@ import { getServerSession } from "@/lib/server-session";
 export default async function EditShopItemPage(props: { params: Promise<{ id: string }> }) {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
+  const canManageShopItems = role === "reviewer" || role === "admin";
   if (!session?.user?.id) redirect("/login?callbackUrl=/admin/shop");
-  if (role !== "admin") redirect("/projects");
+  if (!canManageShopItems) redirect("/projects");
 
   const { id } = await props.params;
   const rows = await db

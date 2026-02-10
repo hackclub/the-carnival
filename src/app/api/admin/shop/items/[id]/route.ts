@@ -15,7 +15,7 @@ type PatchItemBody = {
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user.isReviewer) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await ctx.params;
   const rows = await db
@@ -48,7 +48,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user.isReviewer) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await ctx.params;
   const body = await parseJsonBody<PatchItemBody>(req);

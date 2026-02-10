@@ -15,7 +15,7 @@ type CreateItemBody = {
 export async function GET() {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user.isReviewer) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const items = await db
     .select({
@@ -43,7 +43,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user.isReviewer) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await parseJsonBody<CreateItemBody>(req);
   const name = toCleanString(body?.name);
