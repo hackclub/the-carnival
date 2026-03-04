@@ -69,6 +69,9 @@ export async function POST(req: Request) {
   if (!item) return NextResponse.json({ error: "Item not found" }, { status: 404 });
 
   const balance = await getTokenBalance(db, user.id);
+  if (balance <= 0) {
+    return NextResponse.json({ error: "You must have tokens to place an order" }, { status: 409 });
+  }
   if (balance < (item.tokenCost ?? 0)) {
     return NextResponse.json({ error: "Insufficient tokens" }, { status: 409 });
   }
