@@ -13,6 +13,7 @@ import {
   ClipboardCheck,
   Gift,
   Users,
+  ClipboardList,
   LucideIcon,
 } from "lucide-react";
 
@@ -108,6 +109,18 @@ export default function AppSidebar() {
 
           {isAdmin ? (
             <div className="mt-2 space-y-2">
+              <Link
+                href="/admin/orders"
+                className={[
+                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
+                  pathname === "/admin/orders" || pathname?.startsWith("/admin/orders/")
+                    ? "bg-carnival-blue/15 text-foreground border border-border"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                ].join(" ")}
+              >
+                <ClipboardList size={18} />
+                Orders
+              </Link>
               <Link
                 href="/admin/grants"
                 className={[
