@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import type { ProjectEditor, ProjectStatus, ReviewDecision } from "@/db/schema";
+import { buildBillyUrl } from "@/lib/constants";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import toast from "react-hot-toast";
@@ -86,7 +87,7 @@ export default function ReviewProjectClient({
     const start = formatYmd(project.createdAt);
     const end = formatYmd(project.submittedAt ?? project.createdAt);
     if (!start || !end) return null;
-    return `https://billy.3kh0.net/?u=${encodeURIComponent(hackatimeId)}&d=${start}-${end}`;
+    return buildBillyUrl(hackatimeId, start, end);
   }, [project.createdAt, project.hackatimeUserId, project.submittedAt]);
 
   const hackatimeLoggedLabel = useMemo(() => {
