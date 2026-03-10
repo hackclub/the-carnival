@@ -18,8 +18,6 @@ export async function GET(request: Request) {
     );
   }
 
-  console.log(`Fetching Hackatime projects for user ${slackId}`);
-
   try {
     const projects = await fetchHackatimeProjectNames(slackId);
     return NextResponse.json({ projects });
