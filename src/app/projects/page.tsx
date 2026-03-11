@@ -22,13 +22,7 @@ export default async function ProjectsPage() {
     redirect("/login?callbackUrl=/projects");
   }
 
-  const hackatimeUserId = (() => {
-    const maybe = session.user as unknown as { slackId?: unknown };
-    return typeof maybe.slackId === "string" ? maybe.slackId : undefined;
-  })();
-  const hoursByName = hackatimeUserId
-    ? await fetchHackatimeProjectHoursByName(hackatimeUserId)
-    : {};
+  const hoursByName = await fetchHackatimeProjectHoursByName(session.user.id);
 
   const myProjects = await db
     .select({
