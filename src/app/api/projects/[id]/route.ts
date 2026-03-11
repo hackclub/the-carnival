@@ -11,6 +11,9 @@ type UpdateProjectBody = {
   editor?: unknown;
   editorOther?: unknown;
   hackatimeProjectName?: unknown;
+  hackatimeStartedAt?: unknown;
+  hackatimeStoppedAt?: unknown;
+  hackatimeTotalSeconds?: unknown;
   videoUrl?: unknown;
   playableDemoUrl?: unknown;
   codeUrl?: unknown;
@@ -29,6 +32,25 @@ function isValidUrlString(value: string) {
   } catch {
     return false;
   }
+}
+
+function toOptionalIsoDate(value: unknown): Date | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value !== "string") return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function toOptionalNonNegativeInt(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value >= 0) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const n = Number(value.trim());
+    if (Number.isFinite(n) && Number.isInteger(n) && n >= 0) return n;
+  }
+  return null;
 }
 
 function isProjectEditor(value: unknown): value is ProjectEditor {
@@ -79,6 +101,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
+      hackatimeStartedAt: project.hackatimeStartedAt,
+      hackatimeStoppedAt: project.hackatimeStoppedAt,
+      hackatimeTotalSeconds: project.hackatimeTotalSeconds,
       videoUrl: project.videoUrl,
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
@@ -118,6 +143,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
+      hackatimeStartedAt: project.hackatimeStartedAt,
+      hackatimeStoppedAt: project.hackatimeStoppedAt,
+      hackatimeTotalSeconds: project.hackatimeTotalSeconds,
       videoUrl: project.videoUrl,
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
@@ -154,6 +182,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     editor: ProjectEditor;
     editorOther: string | null;
     hackatimeProjectName: string;
+    hackatimeStartedAt: Date | null;
+    hackatimeStoppedAt: Date | null;
+    hackatimeTotalSeconds: number | null;
     videoUrl: string;
     playableDemoUrl: string;
     codeUrl: string;
@@ -202,6 +233,15 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (body.hackatimeProjectName !== undefined) {
     const hackatimeProjectName = toCleanString(body.hackatimeProjectName);
     set.hackatimeProjectName = hackatimeProjectName;
+  }
+  if (body.hackatimeStartedAt !== undefined) {
+    set.hackatimeStartedAt = toOptionalIsoDate(body.hackatimeStartedAt);
+  }
+  if (body.hackatimeStoppedAt !== undefined) {
+    set.hackatimeStoppedAt = toOptionalIsoDate(body.hackatimeStoppedAt);
+  }
+  if (body.hackatimeTotalSeconds !== undefined) {
+    set.hackatimeTotalSeconds = toOptionalNonNegativeInt(body.hackatimeTotalSeconds);
   }
 
   if (body.videoUrl !== undefined) {
@@ -387,6 +427,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
+      hackatimeStartedAt: project.hackatimeStartedAt,
+      hackatimeStoppedAt: project.hackatimeStoppedAt,
+      hackatimeTotalSeconds: project.hackatimeTotalSeconds,
       videoUrl: project.videoUrl,
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,

@@ -34,6 +34,9 @@ export type ManageProjectInitial = {
   editor: ProjectEditor;
   editorOther: string;
   hackatimeProjectName: string;
+  hackatimeStartedAt: string | null;
+  hackatimeStoppedAt: string | null;
+  hackatimeTotalSeconds: number | null;
   videoUrl: string;
   playableDemoUrl: string;
   codeUrl: string;
@@ -51,17 +54,21 @@ export type ManageProjectInitial = {
 };
 
 type ApiProject = ManageProjectInitial;
+type HackatimeProjectOption = {
+  name: string;
+  startedAt: string | null;
+  stoppedAt: string | null;
+  totalSeconds: number;
+};
 
 function cleanList(values: string[]) {
   return values.map((v) => v.trim()).filter(Boolean);
 }
 
-function cleanStringList(value: unknown) {
-  const raw = Array.isArray(value) ? value : [];
-  return raw
-    .filter((p): p is string => typeof p === "string")
-    .map((p) => p.trim())
-    .filter(Boolean);
+function toLocalDateTime(value: string | null) {
+  if (!value) return "—";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
 }
 
 export default function ManageProjectClient({ initial }: { initial: ManageProjectInitial }) {
@@ -83,15 +90,21 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
   const [checkScreenshotsWorking, setCheckScreenshotsWorking] = useState(false);
   const [checkAddressedRejection, setCheckAddressedRejection] = useState(false);
 
-  const [hackatimeProjects, setHackatimeProjects] = useState<string[] | null>(null);
+  const [hackatimeProjects, setHackatimeProjects] = useState<HackatimeProjectOption[] | null>(null);
   const [hackatimeLoading, setHackatimeLoading] = useState(false);
   const [hackatimeError, setHackatimeError] = useState<string | null>(null);
+  const [hackatimeConnectUrl, setHackatimeConnectUrl] = useState<string | null>(null);
 
   const [name, setName] = useState(initial.name);
   const [description, setDescription] = useState(initial.description);
   const [editor, setEditor] = useState<ProjectEditor>(initial.editor);
   const [editorOther, setEditorOther] = useState(initial.editorOther);
   const [hackatimeProjectName, setHackatimeProjectName] = useState(initial.hackatimeProjectName);
+  const [hackatimeStartedAt, setHackatimeStartedAt] = useState<string | null>(initial.hackatimeStartedAt);
+  const [hackatimeStoppedAt, setHackatimeStoppedAt] = useState<string | null>(initial.hackatimeStoppedAt);
+  const [hackatimeTotalSeconds, setHackatimeTotalSeconds] = useState<number | null>(
+    initial.hackatimeTotalSeconds,
+  );
   const [videoUrl, setVideoUrl] = useState(initial.videoUrl);
   const [playableDemoUrl, setPlayableDemoUrl] = useState(initial.playableDemoUrl);
   const [codeUrl, setCodeUrl] = useState(initial.codeUrl);
@@ -172,24 +185,63 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     setHackatimeLoading(true);
     setHackatimeError(null);
     try {
-      const res = await fetch("/api/hackatime/projects", { method: "GET" });
+      const returnTo = `${window.location.pathname}${window.location.search}`;
+      const res = await fetch(
+        `/api/hackatime/projects?returnTo=${encodeURIComponent(returnTo)}`,
+        { method: "GET" },
+      );
       const data = (await res.json().catch(() => null)) as
-        | { projects?: unknown; error?: unknown }
+        | { projects?: unknown; error?: unknown; code?: unknown; connectUrl?: unknown }
         | null;
 
       if (!res.ok) {
+        const code = typeof data?.code === "string" ? data.code : "";
+        const connectUrl =
+          typeof data?.connectUrl === "string" && data.connectUrl.trim() ? data.connectUrl : null;
+        if (code === "oauth_required") {
+          setHackatimeConnectUrl(
+            connectUrl ??
+              `/api/hackatime/oauth/start?returnTo=${encodeURIComponent(returnTo)}`,
+          );
+        }
         const message = typeof data?.error === "string" ? data.error : "Failed to load.";
         setHackatimeError(message);
-        setHackatimeProjects([]);
+        setHackatimeProjects(null);
         setHackatimeLoading(false);
         return;
       }
 
-      setHackatimeProjects(cleanStringList(data?.projects));
+      const raw = Array.isArray(data?.projects) ? data.projects : [];
+      const projects = raw
+        .map((p) => {
+          if (!p || typeof p !== "object") return null;
+          const row = p as {
+            name?: unknown;
+            startedAt?: unknown;
+            stoppedAt?: unknown;
+            totalSeconds?: unknown;
+          };
+          const name = typeof row.name === "string" ? row.name.trim() : "";
+          if (!name) return null;
+          const totalSeconds =
+            typeof row.totalSeconds === "number" && Number.isFinite(row.totalSeconds)
+              ? Math.max(0, Math.floor(row.totalSeconds))
+              : 0;
+          return {
+            name,
+            startedAt: typeof row.startedAt === "string" ? row.startedAt : null,
+            stoppedAt: typeof row.stoppedAt === "string" ? row.stoppedAt : null,
+            totalSeconds,
+          } satisfies HackatimeProjectOption;
+        })
+        .filter((p): p is HackatimeProjectOption => !!p);
+
+      setHackatimeProjects(projects);
+      setHackatimeConnectUrl(null);
       setHackatimeLoading(false);
     } catch {
       setHackatimeError("Failed to load.");
-      setHackatimeProjects([]);
+      setHackatimeProjects(null);
       setHackatimeLoading(false);
     }
   }, []);
@@ -232,6 +284,9 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
       editor,
       editorOther: editor === "other" ? editorOther.trim() : "",
       hackatimeProjectName: hackatimeProjectName.trim(),
+      hackatimeStartedAt,
+      hackatimeStoppedAt,
+      hackatimeTotalSeconds,
       videoUrl: videoUrl.trim(),
       playableDemoUrl: playableDemoUrl.trim(),
       codeUrl: codeUrl.trim(),
@@ -265,6 +320,11 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         setEditor(p.editor);
         setEditorOther(p.editorOther ?? "");
         setHackatimeProjectName(p.hackatimeProjectName);
+        setHackatimeStartedAt(p.hackatimeStartedAt ?? null);
+        setHackatimeStoppedAt(p.hackatimeStoppedAt ?? null);
+        setHackatimeTotalSeconds(
+          typeof p.hackatimeTotalSeconds === "number" ? p.hackatimeTotalSeconds : null,
+        );
         setVideoUrl(p.videoUrl);
         setPlayableDemoUrl(p.playableDemoUrl);
         setCodeUrl(p.codeUrl);
@@ -286,6 +346,9 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     editor,
     editorOther,
     hackatimeProjectName,
+    hackatimeStartedAt,
+    hackatimeStoppedAt,
+    hackatimeTotalSeconds,
     initial.id,
     isGranted,
     name,
@@ -364,6 +427,9 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
       editor,
       editorOther: editor === "other" ? editorOther.trim() : "",
       hackatimeProjectName: hackatimeProjectName.trim(),
+      hackatimeStartedAt,
+      hackatimeStoppedAt,
+      hackatimeTotalSeconds,
       videoUrl: videoUrl.trim(),
       playableDemoUrl: playableDemoUrl.trim(),
       codeUrl: codeUrl.trim(),
@@ -429,6 +495,11 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         setEditor(p.editor);
         setEditorOther(p.editorOther ?? "");
         setHackatimeProjectName(p.hackatimeProjectName);
+        setHackatimeStartedAt(p.hackatimeStartedAt ?? null);
+        setHackatimeStoppedAt(p.hackatimeStoppedAt ?? null);
+        setHackatimeTotalSeconds(
+          typeof p.hackatimeTotalSeconds === "number" ? p.hackatimeTotalSeconds : null,
+        );
         setVideoUrl(p.videoUrl);
         setPlayableDemoUrl(p.playableDemoUrl);
         setCodeUrl(p.codeUrl);
@@ -453,6 +524,9 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     editor,
     editorOther,
     hackatimeProjectName,
+    hackatimeStartedAt,
+    hackatimeStoppedAt,
+    hackatimeTotalSeconds,
     initial.id,
     isGranted,
     name,
@@ -611,14 +685,21 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
           <div className="space-y-2">
             <select
               value={hackatimeProjectName}
-              onChange={(e) => setHackatimeProjectName(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setHackatimeProjectName(next);
+                const selected = (hackatimeProjects ?? []).find((p) => p.name === next) ?? null;
+                setHackatimeStartedAt(selected?.startedAt ?? null);
+                setHackatimeStoppedAt(selected?.stoppedAt ?? null);
+                setHackatimeTotalSeconds(selected?.totalSeconds ?? null);
+              }}
               className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               disabled={hackatimeLoading || (hackatimeProjects?.length ?? 0) === 0}
             >
               <option value="">Select a Hackatime project</option>
               {hackatimeProjects?.map((p) => (
-                <option key={p} value={p}>
-                  {p}
+                <option key={p.name} value={p.name}>
+                  {p.name}
                 </option>
               ))}
             </select>
@@ -627,7 +708,12 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setHackatimeProjectName("")}
+                  onClick={() => {
+                    setHackatimeProjectName("");
+                    setHackatimeStartedAt(null);
+                    setHackatimeStoppedAt(null);
+                    setHackatimeTotalSeconds(null);
+                  }}
                   className="font-semibold hover:text-foreground hover:underline disabled:opacity-60"
                   disabled={!hackatimeProjectName}
                 >
@@ -643,6 +729,20 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
                 </button>
               </div>
             </div>
+            {hackatimeProjectName ? (
+              <div className="text-xs text-muted-foreground rounded-xl border border-border bg-muted px-3 py-2">
+                Started: {toLocalDateTime(hackatimeStartedAt)} • Stopped:{" "}
+                {toLocalDateTime(hackatimeStoppedAt)}
+              </div>
+            ) : null}
+            {hackatimeConnectUrl ? (
+              <a
+                href={hackatimeConnectUrl}
+                className="inline-flex items-center justify-center bg-carnival-blue hover:bg-carnival-blue/80 text-white px-4 py-2 rounded-full font-semibold transition-colors"
+              >
+                Connect Hackatime
+              </a>
+            ) : null}
             {hackatimeError ? (
               <div className="text-sm text-red-200">Couldn’t load projects: {hackatimeError}</div>
             ) : null}

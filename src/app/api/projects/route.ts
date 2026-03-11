@@ -10,6 +10,9 @@ type CreateProjectBody = {
   editor?: unknown;
   editorOther?: unknown;
   hackatimeProjectName?: unknown;
+  hackatimeStartedAt?: unknown;
+  hackatimeStoppedAt?: unknown;
+  hackatimeTotalSeconds?: unknown;
   videoUrl?: unknown;
   playableDemoUrl?: unknown;
   codeUrl?: unknown;
@@ -28,6 +31,25 @@ function isValidUrlString(value: string) {
   } catch {
     return false;
   }
+}
+
+function toOptionalIsoDate(value: unknown): Date | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value !== "string") return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function toOptionalNonNegativeInt(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value >= 0) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const n = Number(value.trim());
+    if (Number.isFinite(n) && Number.isInteger(n) && n >= 0) return n;
+  }
+  return null;
 }
 
 function isProjectEditor(value: unknown): value is ProjectEditor {
@@ -71,6 +93,9 @@ export async function POST(req: Request) {
   const editorRaw = typeof body.editor === "string" ? body.editor.trim() : body.editor;
   const editorOther = toCleanString(body.editorOther);
   const hackatimeProjectName = toCleanString(body.hackatimeProjectName);
+  const hackatimeStartedAt = toOptionalIsoDate(body.hackatimeStartedAt);
+  const hackatimeStoppedAt = toOptionalIsoDate(body.hackatimeStoppedAt);
+  const hackatimeTotalSeconds = toOptionalNonNegativeInt(body.hackatimeTotalSeconds);
   const videoUrl = toCleanString(body.videoUrl);
   const playableDemoUrl = toCleanString(body.playableDemoUrl);
   const codeUrl = toCleanString(body.codeUrl);
@@ -138,6 +163,9 @@ export async function POST(req: Request) {
     editor,
     editorOther: editorOther || null,
     hackatimeProjectName,
+    hackatimeStartedAt,
+    hackatimeStoppedAt,
+    hackatimeTotalSeconds,
     videoUrl,
     playableDemoUrl,
     codeUrl,

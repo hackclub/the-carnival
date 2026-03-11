@@ -34,6 +34,8 @@ type ReviewableProject = {
   creatorEmail: string;
   hackatimeUserId: string | null;
   hackatimeHours: { hours: number; minutes: number } | null;
+  hackatimeStartedAt: string | null;
+  hackatimeStoppedAt: string | null;
   createdAt: string; // ISO
   submittedAt: string | null; // ISO
 };
@@ -84,11 +86,13 @@ export default function ReviewProjectClient({
   const billyLink = useMemo(() => {
     const hackatimeId = project.hackatimeUserId?.trim();
     if (!hackatimeId) return null;
-    const start = formatYmd(project.createdAt);
-    const end = formatYmd(project.submittedAt ?? project.createdAt);
-    if (!start || !end) return null;
-    return buildBillyUrl(hackatimeId, start, end);
-  }, [project.createdAt, project.hackatimeUserId, project.submittedAt]);
+    const date =
+      formatYmd(project.hackatimeStartedAt) ??
+      formatYmd(project.createdAt) ??
+      formatYmd(project.submittedAt ?? project.createdAt);
+    if (!date) return null;
+    return buildBillyUrl(hackatimeId, date);
+  }, [project.createdAt, project.hackatimeStartedAt, project.hackatimeUserId, project.submittedAt]);
 
   const hackatimeLoggedLabel = useMemo(() => {
     if (!project.hackatimeHours) return "Unavailable";
@@ -202,6 +206,18 @@ export default function ReviewProjectClient({
             <div className="text-muted-foreground">Submitted</div>
             <div className="text-foreground font-semibold">
               {project.submittedAt ? new Date(project.submittedAt).toLocaleString() : "—"}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border bg-muted px-4 py-3">
+            <div className="text-muted-foreground">Hackatime started</div>
+            <div className="text-foreground font-semibold">
+              {project.hackatimeStartedAt ? new Date(project.hackatimeStartedAt).toLocaleString() : "—"}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border bg-muted px-4 py-3">
+            <div className="text-muted-foreground">Hackatime stopped</div>
+            <div className="text-foreground font-semibold">
+              {project.hackatimeStoppedAt ? new Date(project.hackatimeStoppedAt).toLocaleString() : "—"}
             </div>
           </div>
         </div>

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useSession } from "@/lib/auth-client";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
 
 const EDITOR_OPTIONS = [
@@ -31,21 +30,30 @@ type CreateProjectPayload = {
   editor: string;
   editorOther: string;
   hackatimeProjectName: string;
+  hackatimeStartedAt: string | null;
+  hackatimeStoppedAt: string | null;
+  hackatimeTotalSeconds: number | null;
   videoUrl: string;
   playableDemoUrl: string;
   codeUrl: string;
   screenshots: string[];
 };
 
+type HackatimeProjectOption = {
+  name: string;
+  startedAt: string | null;
+  stoppedAt: string | null;
+  totalSeconds: number;
+};
+
 function cleanString(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function splitLines(value: string) {
-  return value
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
+function toLocalDateTime(value: string | null) {
+  if (!value) return "—";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
 }
 
 export default function CreateProjectModal() {
@@ -55,15 +63,13 @@ export default function CreateProjectModal() {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const hackatimeDetailsRef = useRef<HTMLDetailsElement | null>(null);
 
-  const { data: sessionData } = useSession();
-  type SessionUser = { slackId?: string | null };
-  const slackId = (sessionData as { user?: SessionUser } | null | undefined)?.user?.slackId ?? null;
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hackatimeProjects, setHackatimeProjects] = useState<string[] | null>(null);
+  const [hackatimeProjects, setHackatimeProjects] = useState<HackatimeProjectOption[] | null>(null);
   const [hackatimeLoading, setHackatimeLoading] = useState(false);
   const [hackatimeError, setHackatimeError] = useState<string | null>(null);
+  const [hackatimeConnectUrl, setHackatimeConnectUrl] = useState<string | null>(null);
+  const [selectedHackatime, setSelectedHackatime] = useState<HackatimeProjectOption | null>(null);
   const [editor, setEditor] = useState<(typeof EDITOR_OPTIONS)[number]["value"]>("vscode");
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>([""]);
 
@@ -129,6 +135,8 @@ export default function CreateProjectModal() {
       const editorValue = cleanString(fd.get("editor"));
       const editorOther = cleanString(fd.get("editorOther"));
       const hackatimeProjectName = cleanString(fd.get("hackatimeProjectName"));
+      const selectedHackatimeByName =
+        hackatimeProjects?.find((p) => p.name === hackatimeProjectName) ?? selectedHackatime;
       const videoUrl = cleanString(fd.get("videoUrl"));
       const playableDemoUrl = cleanString(fd.get("playableDemoUrl"));
       const codeUrl = cleanString(fd.get("codeUrl"));
@@ -140,6 +148,9 @@ export default function CreateProjectModal() {
         editor: editorValue,
         editorOther,
         hackatimeProjectName,
+        hackatimeStartedAt: selectedHackatimeByName?.startedAt ?? null,
+        hackatimeStoppedAt: selectedHackatimeByName?.stoppedAt ?? null,
+        hackatimeTotalSeconds: selectedHackatimeByName?.totalSeconds ?? null,
         videoUrl,
         playableDemoUrl,
         codeUrl,
@@ -171,7 +182,7 @@ export default function CreateProjectModal() {
         setIsSubmitting(false);
       }
     },
-    [router, screenshotUrls],
+    [hackatimeProjects, router, screenshotUrls, selectedHackatime],
   );
 
   const addScreenshotField = useCallback(() => {
@@ -199,44 +210,82 @@ export default function CreateProjectModal() {
       setHackatimeLoading(true);
       setHackatimeError(null);
       try {
-        const url = slackId
-          ? `/api/hackatime/projects?slackId=${encodeURIComponent(slackId)}`
-          : "/api/hackatime/projects";
-        const res = await fetch(url, { method: "GET" });
+        const returnTo = (() => {
+          const qs = searchParams.toString();
+          return qs ? `${pathname}?${qs}` : pathname;
+        })();
+        const res = await fetch(
+          `/api/hackatime/projects?returnTo=${encodeURIComponent(returnTo)}`,
+          { method: "GET" },
+        );
         const data = (await res.json().catch(() => null)) as
-          | { projects?: unknown; error?: unknown }
+          | { projects?: unknown; error?: unknown; code?: unknown; connectUrl?: unknown }
           | null;
 
         if (!res.ok) {
+          const code = typeof data?.code === "string" ? data.code : "";
+          const connectUrl =
+            typeof data?.connectUrl === "string" && data.connectUrl.trim()
+              ? data.connectUrl
+              : null;
+          if (code === "oauth_required") {
+            const qs = searchParams.toString();
+            const returnTo = qs ? `${pathname}?${qs}` : pathname;
+            setHackatimeConnectUrl(
+              connectUrl ??
+                `/api/hackatime/oauth/start?returnTo=${encodeURIComponent(returnTo)}`,
+            );
+          }
           const message = typeof data?.error === "string" ? data.error : "Failed to load.";
           setHackatimeError(message);
-          setHackatimeProjects([]);
+          setHackatimeProjects(null);
           setHackatimeLoading(false);
           return;
         }
 
-        const raw = Array.isArray(data?.projects) ? data?.projects : [];
+        const raw = Array.isArray(data?.projects) ? data.projects : [];
         const projects = raw
-          .filter((p): p is string => typeof p === "string")
-          .map((p) => p.trim())
-          .filter(Boolean);
+          .map((p) => {
+            if (!p || typeof p !== "object") return null;
+            const row = p as {
+              name?: unknown;
+              startedAt?: unknown;
+              stoppedAt?: unknown;
+              totalSeconds?: unknown;
+            };
+            const name = typeof row.name === "string" ? row.name.trim() : "";
+            if (!name) return null;
+            const totalSeconds =
+              typeof row.totalSeconds === "number" && Number.isFinite(row.totalSeconds)
+                ? Math.max(0, Math.floor(row.totalSeconds))
+                : 0;
+            return {
+              name,
+              startedAt: typeof row.startedAt === "string" ? row.startedAt : null,
+              stoppedAt: typeof row.stoppedAt === "string" ? row.stoppedAt : null,
+              totalSeconds,
+            } satisfies HackatimeProjectOption;
+          })
+          .filter((p): p is HackatimeProjectOption => !!p);
 
         setHackatimeProjects(projects);
+        setHackatimeConnectUrl(null);
         setHackatimeLoading(false);
       } catch {
         setHackatimeError("Failed to load.");
-        setHackatimeProjects([]);
+        setHackatimeProjects(null);
         setHackatimeLoading(false);
       }
     },
-    [hackatimeLoading, hackatimeProjects, slackId],
+    [hackatimeLoading, hackatimeProjects, pathname, searchParams],
   );
 
-  const pickHackatimeProject = useCallback((name: string) => {
+  const pickHackatimeProject = useCallback((project: HackatimeProjectOption) => {
     const input = document.querySelector(
       'input[name="hackatimeProjectName"]',
     ) as HTMLInputElement | null;
-    if (input) input.value = name;
+    if (input) input.value = project.name;
+    setSelectedHackatime(project);
     hackatimeDetailsRef.current?.removeAttribute("open");
   }, []);
 
@@ -359,9 +408,22 @@ export default function CreateProjectModal() {
                 className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
                 placeholder="Pick from the list below (or add later)"
               />
+              <input type="hidden" name="hackatimeStartedAt" value={selectedHackatime?.startedAt ?? ""} />
+              <input type="hidden" name="hackatimeStoppedAt" value={selectedHackatime?.stoppedAt ?? ""} />
+              <input
+                type="hidden"
+                name="hackatimeTotalSeconds"
+                value={selectedHackatime ? String(selectedHackatime.totalSeconds) : ""}
+              />
               <div className="text-xs text-muted-foreground">
                 You can’t type here — choose a project from the dropdown below.
               </div>
+              {selectedHackatime ? (
+                <div className="text-xs text-muted-foreground rounded-xl border border-border bg-muted px-3 py-2">
+                  Started: {toLocalDateTime(selectedHackatime.startedAt)} • Stopped:{" "}
+                  {toLocalDateTime(selectedHackatime.stoppedAt)}
+                </div>
+              ) : null}
 
               <details
                 ref={hackatimeDetailsRef}
@@ -375,6 +437,18 @@ export default function CreateProjectModal() {
                 <div className="border-t border-border px-4 py-3">
                   {hackatimeLoading ? (
                     <div className="text-sm text-muted-foreground">Loading…</div>
+                  ) : hackatimeConnectUrl ? (
+                    <div className="space-y-2">
+                      <div className="text-sm text-muted-foreground">
+                        Connect your Hackatime account to load projects.
+                      </div>
+                      <a
+                        href={hackatimeConnectUrl}
+                        className="inline-flex items-center justify-center bg-carnival-blue hover:bg-carnival-blue/80 text-white px-4 py-2 rounded-full font-semibold transition-colors"
+                      >
+                        Connect Hackatime
+                      </a>
+                    </div>
                   ) : hackatimeError ? (
                     <div className="text-sm text-red-200">
                       Couldn’t load projects: {hackatimeError}
@@ -388,12 +462,12 @@ export default function CreateProjectModal() {
                     <div className="max-h-56 overflow-auto space-y-2">
                       {hackatimeProjects!.map((p) => (
                         <button
-                          key={p}
+                          key={p.name}
                           type="button"
                           onClick={() => pickHackatimeProject(p)}
                           className="w-full text-left px-3 py-2 rounded-xl bg-background hover:bg-muted border border-border text-sm text-foreground"
                         >
-                          {p}
+                          {p.name}
                         </button>
                       ))}
                     </div>
