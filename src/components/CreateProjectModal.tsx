@@ -23,6 +23,7 @@ const EDITOR_OPTIONS = [
   { value: "unity", label: "Unity" },
   { value: "other", label: "Other" },
 ] as const;
+const MIN_SCREENSHOTS = 3;
 
 type CreateProjectPayload = {
   name: string;
@@ -71,7 +72,9 @@ export default function CreateProjectModal() {
   const [hackatimeConnectUrl, setHackatimeConnectUrl] = useState<string | null>(null);
   const [selectedHackatime, setSelectedHackatime] = useState<HackatimeProjectOption | null>(null);
   const [editor, setEditor] = useState<(typeof EDITOR_OPTIONS)[number]["value"]>("vscode");
-  const [screenshotUrls, setScreenshotUrls] = useState<string[]>([""]);
+  const [screenshotUrls, setScreenshotUrls] = useState<string[]>(
+    Array.from({ length: MIN_SCREENSHOTS }, () => ""),
+  );
 
   const shouldBeOpen = useMemo(() => {
     const v = searchParams.get("new");
@@ -109,7 +112,7 @@ export default function CreateProjectModal() {
     const onClose = () => {
       setIsSubmitting(false);
       setError(null);
-      setScreenshotUrls([""]);
+      setScreenshotUrls(Array.from({ length: MIN_SCREENSHOTS }, () => ""));
       clearNewParam();
     };
 
@@ -141,6 +144,12 @@ export default function CreateProjectModal() {
       const playableDemoUrl = cleanString(fd.get("playableDemoUrl"));
       const codeUrl = cleanString(fd.get("codeUrl"));
       const screenshots = screenshotUrls.map((s) => s.trim()).filter(Boolean);
+
+      if (screenshots.length < MIN_SCREENSHOTS) {
+        setError(`Please upload at least ${MIN_SCREENSHOTS} screenshots.`);
+        setIsSubmitting(false);
+        return;
+      }
 
       const payload: CreateProjectPayload = {
         name,
@@ -195,9 +204,9 @@ export default function CreateProjectModal() {
 
   const removeScreenshotField = useCallback((idx: number) => {
     setScreenshotUrls((prev) => {
-      if (prev.length <= 1) return [""];
+      if (prev.length <= MIN_SCREENSHOTS) return prev;
       const next = prev.filter((_, i) => i !== idx);
-      return next.length === 0 ? [""] : next;
+      return next.length < MIN_SCREENSHOTS ? prev : next;
     });
   }, []);
 
@@ -530,7 +539,7 @@ export default function CreateProjectModal() {
         <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">
             Screenshots
-            <span className="text-muted-foreground font-normal"> (optional)</span>
+            <span className="text-muted-foreground font-normal"> (minimum {MIN_SCREENSHOTS})</span>
           </div>
           <div className="space-y-3">
             {screenshotUrls.map((value, idx) => (
@@ -541,7 +550,7 @@ export default function CreateProjectModal() {
                     type="button"
                     onClick={() => removeScreenshotField(idx)}
                     className="h-10 px-4 rounded-full bg-muted hover:bg-muted/70 border border-border text-foreground font-semibold disabled:opacity-60"
-                    disabled={screenshotUrls.length <= 1}
+                    disabled={screenshotUrls.length <= MIN_SCREENSHOTS}
                     aria-label="Remove screenshot"
                     title="Remove"
                   >

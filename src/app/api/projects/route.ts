@@ -19,6 +19,7 @@ type CreateProjectBody = {
   screenshots?: unknown;
   status?: unknown;
 };
+const MIN_SCREENSHOTS = 3;
 
 function toCleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -150,6 +151,12 @@ export async function POST(req: Request) {
   }
   if (!isValidUrlString(codeUrl)) {
     return NextResponse.json({ error: "Code URL must be http(s)" }, { status: 400 });
+  }
+  if (screenshots.length < MIN_SCREENSHOTS) {
+    return NextResponse.json(
+      { error: `Please upload at least ${MIN_SCREENSHOTS} screenshots` },
+      { status: 400 },
+    );
   }
 
   const now = new Date();

@@ -49,6 +49,12 @@ function deriveStartIso(stoppedIso: string | null, totalSeconds: number) {
   return new Date(stoppedMs - totalSeconds * 1000).toISOString();
 }
 
+function toEpochMsOrZero(value: string | null) {
+  if (!value) return 0;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
 export async function getHackatimeAccessTokenForUser(userId: string): Promise<string | null> {
   const rows = await db
     .select({ hackatimeAccessToken: user.hackatimeAccessToken })
@@ -104,7 +110,11 @@ export async function fetchHackatimeProjectsByAccessToken(
       return { name, totalSeconds, startedAt, stoppedAt };
     })
     .filter((p) => p.name.length > 0)
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => {
+      const recencyDiff = toEpochMsOrZero(b.stoppedAt) - toEpochMsOrZero(a.stoppedAt);
+      if (recencyDiff !== 0) return recencyDiff;
+      return a.name.localeCompare(b.name);
+    });
 }
 
 export async function fetchHackatimeProjectsForUser(userId: string): Promise<HackatimeProjectSummary[]> {
