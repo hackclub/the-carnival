@@ -6,6 +6,19 @@ import { getServerSession } from "@/lib/server-session";
 const OAUTH_STATE_COOKIE = "hackatime_oauth_state";
 const OAUTH_RETURN_COOKIE = "hackatime_oauth_return_to";
 
+function getAppOrigin(request: Request) {
+  const configured = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "";
+  if (configured) {
+    try {
+      const u = new URL(configured);
+      if (u.protocol === "http:" || u.protocol === "https:") return u.origin;
+    } catch {
+      // Fallback to request origin.
+    }
+  }
+  return new URL(request.url).origin;
+}
+
 function normalizeReturnTo(value: string | null) {
   const v = (value ?? "").trim();
   if (!v.startsWith("/")) return "/projects";
@@ -13,18 +26,19 @@ function normalizeReturnTo(value: string | null) {
 }
 
 export async function GET(request: Request) {
+  const appOrigin = getAppOrigin(request);
   const session = await getServerSession({ disableCookieCache: true });
   const userId = (session?.user as { id?: string } | undefined)?.id;
 
   if (!userId) {
-    return NextResponse.redirect(new URL("/login?callbackUrl=/projects?new=1", request.url));
+    return NextResponse.redirect(new URL("/login?callbackUrl=%2Fprojects%3Fnew%3D1", appOrigin));
   }
 
   const clientId = process.env.HACKATIME_OAUTH_CLIENT_ID;
   const redirectUri = process.env.HACKATIME_OAUTH_REDIRECT_URI;
   if (!clientId || !redirectUri) {
     return NextResponse.redirect(
-      new URL("/projects?new=1&hackatime=oauth_not_configured", request.url),
+      new URL("/projects?new=1&hackatime=oauth_not_configured", appOrigin),
     );
   }
 

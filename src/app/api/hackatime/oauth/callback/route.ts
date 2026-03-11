@@ -27,11 +27,25 @@ function normalizeReturnTo(value: string | null) {
   return v;
 }
 
+function getAppOrigin(request: Request) {
+  const configured = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "";
+  if (configured) {
+    try {
+      const u = new URL(configured);
+      if (u.protocol === "http:" || u.protocol === "https:") return u.origin;
+    } catch {
+      // Fallback to request origin.
+    }
+  }
+  return new URL(request.url).origin;
+}
+
 export async function GET(request: Request) {
+  const appOrigin = getAppOrigin(request);
   const session = await getServerSession({ disableCookieCache: true });
   const appUserId = (session?.user as { id?: string } | undefined)?.id;
   if (!appUserId) {
-    return NextResponse.redirect(new URL("/login?callbackUrl=/projects?new=1", request.url));
+    return NextResponse.redirect(new URL("/login?callbackUrl=%2Fprojects%3Fnew%3D1", appOrigin));
   }
 
   const reqUrl = new URL(request.url);
@@ -46,15 +60,15 @@ export async function GET(request: Request) {
   jar.delete(OAUTH_RETURN_COOKIE);
 
   if (!incomingState || !storedState || incomingState !== storedState) {
-    return NextResponse.redirect(new URL(withStatusParam(returnTo, "invalid_state"), request.url));
+    return NextResponse.redirect(new URL(withStatusParam(returnTo, "invalid_state"), appOrigin));
   }
 
   if (oauthError) {
-    return NextResponse.redirect(new URL(withStatusParam(returnTo, "denied"), request.url));
+    return NextResponse.redirect(new URL(withStatusParam(returnTo, "denied"), appOrigin));
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL(withStatusParam(returnTo, "missing_code"), request.url));
+    return NextResponse.redirect(new URL(withStatusParam(returnTo, "missing_code"), appOrigin));
   }
 
   const clientId = process.env.HACKATIME_OAUTH_CLIENT_ID;
@@ -62,7 +76,7 @@ export async function GET(request: Request) {
   const redirectUri = process.env.HACKATIME_OAUTH_REDIRECT_URI;
   if (!clientId || !redirectUri) {
     return NextResponse.redirect(
-      new URL(withStatusParam(returnTo, "oauth_not_configured"), request.url),
+      new URL(withStatusParam(returnTo, "oauth_not_configured"), appOrigin),
     );
   }
 
@@ -88,7 +102,7 @@ export async function GET(request: Request) {
   const accessToken = typeof tokenData.access_token === "string" ? tokenData.access_token.trim() : "";
   if (!tokenRes.ok || !accessToken) {
     return NextResponse.redirect(
-      new URL(withStatusParam(returnTo, "token_exchange_failed"), request.url),
+      new URL(withStatusParam(returnTo, "token_exchange_failed"), appOrigin),
     );
   }
 
@@ -106,5 +120,5 @@ export async function GET(request: Request) {
     })
     .where(eq(user.id, appUserId));
 
-  return NextResponse.redirect(new URL(withStatusParam(returnTo, "connected"), request.url));
+  return NextResponse.redirect(new URL(withStatusParam(returnTo, "connected"), appOrigin));
 }
