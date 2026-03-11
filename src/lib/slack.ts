@@ -19,7 +19,7 @@ export async function notifyReviewDM(input: ReviewMessage) {
 	if (!slack || !input.slackId) return;
 
 	const ownerMention = input.creatorSlackId || input.slackId;
-	const appBaseUrl = "https://carnival.hackclub.com";
+	const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "https://carnival.hackclub.com";
 	const projectLink = input.projectUrl
 		? input.projectUrl.startsWith("/")
 			? `${appBaseUrl}${input.projectUrl}`

@@ -6,7 +6,6 @@ import AdminGrantClient from "@/components/AdminGrantClient";
 import { db } from "@/db";
 import { peerReview, project, user } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
-import { fetchHackatimeUserIdAndProjectHoursByName } from "@/lib/hackatime";
 
 export default async function AdminGrantDetailPage(props: { params: Promise<{ id: string }> }) {
   const session = await getServerSession({ disableCookieCache: true });
@@ -24,6 +23,9 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
+      hackatimeStartedAt: project.hackatimeStartedAt,
+      hackatimeStoppedAt: project.hackatimeStoppedAt,
+      hackatimeTotalSeconds: project.hackatimeTotalSeconds,
       videoUrl: project.videoUrl,
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
@@ -36,6 +38,7 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
       creatorId: project.creatorId,
       creatorName: user.name,
       creatorEmail: user.email,
+      creatorHackatimeUserId: user.hackatimeUserId,
       creatorSlackId: user.slackId,
       creatorVerificationStatus: user.verificationStatus,
     })
@@ -62,19 +65,11 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
     .where(eq(peerReview.projectId, p.id))
     .orderBy(desc(peerReview.createdAt));
 
-  const hackatimeLookupId = typeof p.creatorSlackId === "string" ? p.creatorSlackId.trim() : "";
-  const hackatimeStats =
-    hackatimeLookupId
-      ? await fetchHackatimeUserIdAndProjectHoursByName(hackatimeLookupId)
-      : {
-          userId: null as string | null,
-          hoursByName: {} as Record<string, { hours: number; minutes: number }>,
-        };
-
-  const hackatimeHours =
-    hackatimeStats.hoursByName[p.hackatimeProjectName] ??
-    hackatimeStats.hoursByName[p.name] ??
-    null;
+  const totalSeconds =
+    typeof p.hackatimeTotalSeconds === "number" && Number.isFinite(p.hackatimeTotalSeconds)
+      ? Math.max(0, Math.floor(p.hackatimeTotalSeconds))
+      : 0;
+  const hackatimeHours = { hours: Math.floor(totalSeconds / 3600), minutes: Math.floor(totalSeconds / 60) % 60 };
 
   return (
     <AppShell title="Grant project">
@@ -101,8 +96,11 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
             approvedHours: p.approvedHours ?? null,
             createdAt: p.createdAt.toISOString(),
             submittedAt: p.submittedAt ? p.submittedAt.toISOString() : null,
-            hackatimeUserId: hackatimeStats.userId,
+            hackatimeUserId:
+              typeof p.creatorHackatimeUserId === "string" ? p.creatorHackatimeUserId : null,
             hackatimeHours: hackatimeHours ? { hours: hackatimeHours.hours, minutes: hackatimeHours.minutes } : null,
+            hackatimeStartedAt: p.hackatimeStartedAt ? p.hackatimeStartedAt.toISOString() : null,
+            hackatimeStoppedAt: p.hackatimeStoppedAt ? p.hackatimeStoppedAt.toISOString() : null,
           },
           creator: {
             id: p.creatorId || "",

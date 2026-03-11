@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import ReviewProjectClient from "@/components/ReviewProjectClient";
 import { db } from "@/db";
 import { peerReview, project, user, type ReviewDecision, type UserRole } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
-import { fetchHackatimeUserIdAndProjectHoursByName } from "@/lib/hackatime";
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
   return role === "reviewer" || role === "admin";
@@ -34,6 +33,9 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
+      hackatimeStartedAt: project.hackatimeStartedAt,
+      hackatimeStoppedAt: project.hackatimeStoppedAt,
+      hackatimeTotalSeconds: project.hackatimeTotalSeconds,
       videoUrl: project.videoUrl,
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
@@ -46,7 +48,7 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
       creatorId: project.creatorId,
       creatorName: user.name,
       creatorEmail: user.email,
-      creatorSlackId: user.slackId,
+      creatorHackatimeUserId: user.hackatimeUserId,
     })
     .from(project)
     .leftJoin(user, eq(project.creatorId, user.id))
@@ -56,16 +58,11 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
   const p = projectRows[0];
   if (!p) notFound();
 
-  const hackatimeLookupId = typeof p.creatorSlackId === "string" ? p.creatorSlackId.trim() : "";
-  const hackatimeStats =
-    hackatimeLookupId
-      ? await fetchHackatimeUserIdAndProjectHoursByName(hackatimeLookupId)
-      : { userId: null as string | null, hoursByName: {} as Record<string, { hours: number; minutes: number }> };
-
-  const hackatimeHours =
-    hackatimeStats.hoursByName[p.hackatimeProjectName] ??
-    hackatimeStats.hoursByName[p.name] ??
-    null;
+  const totalSeconds =
+    typeof p.hackatimeTotalSeconds === "number" && Number.isFinite(p.hackatimeTotalSeconds)
+      ? Math.max(0, Math.floor(p.hackatimeTotalSeconds))
+      : 0;
+  const hackatimeHours = { hours: Math.floor(totalSeconds / 3600), minutes: Math.floor(totalSeconds / 60) % 60 };
 
   const reviews = await db
     .select({
@@ -111,8 +108,11 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
             approvedHours: p.approvedHours ?? null,
             creatorName: p.creatorName || "Unknown creator",
             creatorEmail: p.creatorEmail || "",
-            hackatimeUserId: hackatimeStats.userId,
+            hackatimeUserId:
+              typeof p.creatorHackatimeUserId === "string" ? p.creatorHackatimeUserId : null,
             hackatimeHours: hackatimeHours ? { hours: hackatimeHours.hours, minutes: hackatimeHours.minutes } : null,
+            hackatimeStartedAt: p.hackatimeStartedAt ? p.hackatimeStartedAt.toISOString() : null,
+            hackatimeStoppedAt: p.hackatimeStoppedAt ? p.hackatimeStoppedAt.toISOString() : null,
             createdAt: p.createdAt.toISOString(),
             submittedAt: p.submittedAt ? p.submittedAt.toISOString() : null,
           },

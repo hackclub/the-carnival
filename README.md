@@ -4,13 +4,25 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ### Environment
 
-Create `.env.local` with at least:
+Copy `.env.example` to `.env.local` and fill in the values:
+
+```bash
+cp .env.example .env.local
+```
+
+Required variables for basic app + auth:
 
 ```bash
 DATABASE_URL=postgres://...
+BETTER_AUTH_SECRET=...          # Generate a secure random string
+HC_IDENTITY_HOST=https://hca.dinosaurbbq.org
 HC_IDENTITY_CLIENT_ID=...
 HC_IDENTITY_CLIENT_SECRET=...
+HC_IDENTITY_REDIRECT_URI=http://localhost:3000/api/auth/callback/hackclub-identity
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+HACKATIME_OAUTH_CLIENT_ID=...
+HACKATIME_OAUTH_CLIENT_SECRET=...
+HACKATIME_OAUTH_REDIRECT_URI=http://localhost:3000/api/hackatime/oauth/callback
 ```
 
 ### Cloudflare R2 (image uploads)
@@ -68,14 +80,10 @@ bun run db:push
 Run the development server:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
 bun dev
 ```
+
+(Or use `npm run dev`, `yarn dev`, or `pnpm dev` if you prefer.)
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 

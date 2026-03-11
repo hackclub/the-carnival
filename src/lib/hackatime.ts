@@ -1,144 +1,95 @@
-type HackatimeStatsResponse = {
-  data?: {
-    user_id?: string | number;
-    projects?: {
-      id?: string;
-      name?: string;
-      total_seconds?: number;
-      hours?: number;
-      minutes?: number;
-    }[];
-  };
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { user } from "@/db/schema";
+
+type HackatimeProjectsResponse = {
+  projects?: {
+    name?: string;
+    total_seconds?: number;
+    most_recent_heartbeat?: string;
+    archived?: boolean;
+  }[];
 };
 
-async function makeHackatimeRequest(uri: string) {
-  const token = process.env.HACKATIME_API_TOKEN;
-  if (!token) {
-    throw new Error("Missing HACKATIME_API_TOKEN");
-  }
+type HackatimeMeResponse = {
+  id?: string | number;
+};
 
-  const rackAttackBypass = process.env.HACKATIME_RACK_ATTACK_BYPASS_TOKEN;
+export type HackatimeProjectSummary = {
+  name: string;
+  totalSeconds: number;
+  startedAt: string | null;
+  stoppedAt: string | null;
+};
 
-  const response = await fetch(uri, {
+async function makeHackatimeAuthedRequest(uri: string, accessToken: string) {
+  return fetch(uri, {
     headers: {
-      Authorization: `Bearer ${token}`,
-      ...(rackAttackBypass ? { "Rack-Attack-Bypass": rackAttackBypass } : {}),
+      Authorization: `Bearer ${accessToken}`,
     },
-    // Keep this dynamic; stats can change quickly.
     cache: "no-store",
   });
-  return response;
 }
 
-// the user id here is most likely always going to be the user's slack id
-export async function fetchHackatimeProjectHoursByName(
-  hackatimeUserId: string,
-): Promise<Record<string, { hours: number; minutes: number }>> {
-  const uri = `https://hackatime.hackclub.com/api/v1/users/${hackatimeUserId}/stats?features=projects`;
-
-  try {
-    const response = await makeHackatimeRequest(uri);
-    if (!response.ok) return {};
-
-    const raw = (await response.json()) as HackatimeStatsResponse;
-    const projects = raw.data?.projects ?? [];
-
-    const out: Record<string, { hours: number; minutes: number }> = {};
-    for (const p of projects) {
-      const name = (p.name ?? "").trim();
-      if (!name) continue;
-
-      const hours =
-        typeof p.hours === "number" && Number.isFinite(p.hours) ? p.hours : undefined;
-      const minutes =
-        typeof p.minutes === "number" && Number.isFinite(p.minutes) ? p.minutes : undefined;
-
-      if (hours !== undefined && minutes !== undefined) {
-        out[name] = {
-          hours: Math.max(0, Math.floor(hours)),
-          minutes: Math.max(0, Math.floor(minutes)),
-        };
-        continue;
-      }
-
-      const seconds = typeof p.total_seconds === "number" ? p.total_seconds : 0;
-      const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
-      const totalMinutes = Math.floor(safeSeconds / 60);
-
-      out[name] = {
-        hours: Math.floor(totalMinutes / 60),
-        minutes: totalMinutes % 60,
-      };
-    }
-    return out;
-  } catch {
-    // Hackatime is an enhancement; don't break pages if it's down/misconfigured.
-    return {};
-  }
+function toSafeSeconds(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
 }
 
-export async function fetchHackatimeUserIdAndProjectHoursByName(
-  hackatimeUserId: string,
-): Promise<{
-  userId: string | null;
-  hoursByName: Record<string, { hours: number; minutes: number }>;
-}> {
-  const uri = `https://hackatime.hackclub.com/api/v1/users/${hackatimeUserId}/stats?features=projects`;
-
-  try {
-    const response = await makeHackatimeRequest(uri);
-    if (!response.ok) return { userId: null, hoursByName: {} };
-
-    const raw = (await response.json()) as HackatimeStatsResponse;
-    const projects = raw.data?.projects ?? [];
-
-    const userId =
-      typeof raw.data?.user_id === "number"
-        ? String(raw.data.user_id)
-        : typeof raw.data?.user_id === "string"
-          ? raw.data.user_id.trim() || null
-          : null;
-
-    const hoursByName: Record<string, { hours: number; minutes: number }> = {};
-    for (const p of projects) {
-      const name = (p.name ?? "").trim();
-      if (!name) continue;
-
-      const hours = typeof p.hours === "number" && Number.isFinite(p.hours) ? p.hours : undefined;
-      const minutes =
-        typeof p.minutes === "number" && Number.isFinite(p.minutes) ? p.minutes : undefined;
-
-      if (hours !== undefined && minutes !== undefined) {
-        hoursByName[name] = {
-          hours: Math.max(0, Math.floor(hours)),
-          minutes: Math.max(0, Math.floor(minutes)),
-        };
-        continue;
-      }
-
-      const seconds = typeof p.total_seconds === "number" ? p.total_seconds : 0;
-      const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
-      const totalMinutes = Math.floor(safeSeconds / 60);
-
-      hoursByName[name] = {
-        hours: Math.floor(totalMinutes / 60),
-        minutes: totalMinutes % 60,
-      };
-    }
-
-    return { userId, hoursByName };
-  } catch {
-    // Hackatime is an enhancement; don't break pages if it's down/misconfigured.
-    return { userId: null, hoursByName: {} };
-  }
+function toIsoOrNull(value: unknown) {
+  if (typeof value !== "string") return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
 }
 
-export async function fetchHackatimeProjectNames(
-  hackatimeUserId: string,
-): Promise<string[]> {
-  const uri = `https://hackatime.hackclub.com/api/v1/users/${hackatimeUserId}/stats?features=projects`;
+function deriveStartIso(stoppedIso: string | null, totalSeconds: number) {
+  if (!stoppedIso || totalSeconds <= 0) return null;
+  const stoppedMs = new Date(stoppedIso).getTime();
+  if (!Number.isFinite(stoppedMs)) return null;
+  return new Date(stoppedMs - totalSeconds * 1000).toISOString();
+}
 
-  const response = await makeHackatimeRequest(uri);
+function toEpochMsOrZero(value: string | null) {
+  if (!value) return 0;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+export async function getHackatimeAccessTokenForUser(userId: string): Promise<string | null> {
+  const rows = await db
+    .select({ hackatimeAccessToken: user.hackatimeAccessToken })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+  const token = rows[0]?.hackatimeAccessToken;
+  return typeof token === "string" && token.trim() ? token : null;
+}
+
+export async function fetchHackatimeIdentityFromToken(accessToken: string): Promise<{ userId: string | null }> {
+  const response = await makeHackatimeAuthedRequest(
+    "https://hackatime.hackclub.com/api/v1/authenticated/me",
+    accessToken,
+  );
+  if (!response.ok) return { userId: null };
+
+  const raw = (await response.json().catch(() => ({}))) as HackatimeMeResponse;
+  const id =
+    typeof raw.id === "number"
+      ? String(raw.id)
+      : typeof raw.id === "string"
+        ? raw.id.trim()
+        : "";
+  return { userId: id || null };
+}
+
+export async function fetchHackatimeProjectsByAccessToken(
+  accessToken: string,
+): Promise<HackatimeProjectSummary[]> {
+  const response = await makeHackatimeAuthedRequest(
+    "https://hackatime.hackclub.com/api/v1/authenticated/projects?include_archived=false",
+    accessToken,
+  );
+
   if (!response.ok) {
     const body = await response.text().catch(() => "");
     throw new Error(
@@ -146,14 +97,48 @@ export async function fetchHackatimeProjectNames(
     );
   }
 
-  const raw = (await response.json()) as HackatimeStatsResponse;
-  const projects = raw.data?.projects ?? [];
+  const raw = (await response.json().catch(() => ({}))) as HackatimeProjectsResponse;
+  const projects = Array.isArray(raw.projects) ? raw.projects : [];
 
-  const names = new Set<string>();
-  for (const p of projects) {
-    const name = (p.name ?? "").trim();
-    if (name) names.add(name);
+  return projects
+    .filter((p) => !p.archived)
+    .map((p) => {
+      const name = typeof p.name === "string" ? p.name.trim() : "";
+      const totalSeconds = toSafeSeconds(p.total_seconds);
+      const stoppedAt = toIsoOrNull(p.most_recent_heartbeat);
+      const startedAt = deriveStartIso(stoppedAt, totalSeconds);
+      return { name, totalSeconds, startedAt, stoppedAt };
+    })
+    .filter((p) => p.name.length > 0)
+    .sort((a, b) => {
+      const recencyDiff = toEpochMsOrZero(b.stoppedAt) - toEpochMsOrZero(a.stoppedAt);
+      if (recencyDiff !== 0) return recencyDiff;
+      return a.name.localeCompare(b.name);
+    });
+}
+
+export async function fetchHackatimeProjectsForUser(userId: string): Promise<HackatimeProjectSummary[]> {
+  const token = await getHackatimeAccessTokenForUser(userId);
+  if (!token) return [];
+
+  try {
+    return await fetchHackatimeProjectsByAccessToken(token);
+  } catch {
+    return [];
   }
+}
 
-  return Array.from(names).sort((a, b) => a.localeCompare(b));
+export async function fetchHackatimeProjectHoursByName(
+  userId: string,
+): Promise<Record<string, { hours: number; minutes: number }>> {
+  const projects = await fetchHackatimeProjectsForUser(userId);
+  const out: Record<string, { hours: number; minutes: number }> = {};
+  for (const p of projects) {
+    const totalMinutes = Math.floor(p.totalSeconds / 60);
+    out[p.name] = {
+      hours: Math.floor(totalMinutes / 60),
+      minutes: totalMinutes % 60,
+    };
+  }
+  return out;
 }

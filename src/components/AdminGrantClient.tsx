@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import type { ProjectEditor, ProjectStatus, ReviewDecision } from "@/db/schema";
+import { buildBillyUrl } from "@/lib/constants";
 import { Modal } from "@/components/ui";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
@@ -24,6 +25,8 @@ type GrantProject = {
   submittedAt: string | null; // ISO
   hackatimeUserId: string | null;
   hackatimeHours: { hours: number; minutes: number } | null;
+  hackatimeStartedAt: string | null;
+  hackatimeStoppedAt: string | null;
 };
 
 type GrantCreator = {
@@ -75,11 +78,13 @@ export default function AdminGrantClient({
   const billyLink = useMemo(() => {
     const hackatimeId = project.hackatimeUserId?.trim();
     if (!hackatimeId) return null;
-    const start = formatYmd(project.createdAt);
-    const end = formatYmd(project.submittedAt ?? project.createdAt);
-    if (!start || !end) return null;
-    return `https://billy.3kh0.net/?u=${encodeURIComponent(hackatimeId)}&d=${start}-${end}`;
-  }, [project.createdAt, project.hackatimeUserId, project.submittedAt]);
+    const date =
+      formatYmd(project.hackatimeStartedAt) ??
+      formatYmd(project.createdAt) ??
+      formatYmd(project.submittedAt ?? project.createdAt);
+    if (!date) return null;
+    return buildBillyUrl(hackatimeId, date);
+  }, [project.createdAt, project.hackatimeStartedAt, project.hackatimeUserId, project.submittedAt]);
 
   const screenshots = project.screenshots ?? [];
   const activeScreenshot = screenshots[screenshotIndex] ?? null;
@@ -377,7 +382,10 @@ export default function AdminGrantClient({
           <div className="flex items-center justify-between gap-3">
             <div className="text-xs text-muted-foreground">
               Created: {new Date(project.createdAt).toLocaleString()} • Submitted:{" "}
-              {project.submittedAt ? new Date(project.submittedAt).toLocaleString() : "—"}
+              {project.submittedAt ? new Date(project.submittedAt).toLocaleString() : "—"} • Started:{" "}
+              {project.hackatimeStartedAt ? new Date(project.hackatimeStartedAt).toLocaleString() : "—"} •
+              Stopped:{" "}
+              {project.hackatimeStoppedAt ? new Date(project.hackatimeStoppedAt).toLocaleString() : "—"}
             </div>
             {billyLink ? (
               <a
