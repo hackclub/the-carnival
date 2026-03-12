@@ -6,6 +6,7 @@ import { account, session as sessionTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 const REQUIRED_IDENTITY_SCOPES = ["address", "birthdate"] as const;
+const ENFORCE_IDENTITY_SCOPE_REAUTH = process.env.ENFORCE_IDENTITY_SCOPE_REAUTH === "1";
 
 function parseScopes(scope: string | null | undefined): Set<string> {
   if (!scope) return new Set();
@@ -41,6 +42,7 @@ export async function getServerSession(options?: {
   const currentSession = await auth.api.getSession({ headers: clean, query: options });
   const userId = (currentSession?.user as { id?: string } | undefined)?.id;
   if (!userId) return currentSession;
+  if (!ENFORCE_IDENTITY_SCOPE_REAUTH) return currentSession;
 
   const identityAccount = await db
     .select({ scope: account.scope })
@@ -53,6 +55,11 @@ export async function getServerSession(options?: {
   }
 
   const scope = identityAccount[0].scope;
+  if (!scope?.trim()) {
+    // Some providers/flows may not persist account.scope reliably.
+    // Don't force-logout in that case to avoid auth loops.
+    return currentSession;
+  }
   if (hasRequiredIdentityScopes(scope)) {
     return currentSession;
   }
