@@ -78,13 +78,23 @@ export default function AdminGrantClient({
   const billyLink = useMemo(() => {
     const hackatimeId = project.hackatimeUserId?.trim();
     if (!hackatimeId) return null;
-    const date =
+    const start =
       formatYmd(project.hackatimeStartedAt) ??
       formatYmd(project.createdAt) ??
       formatYmd(project.submittedAt ?? project.createdAt);
-    if (!date) return null;
-    return buildBillyUrl(hackatimeId, date);
-  }, [project.createdAt, project.hackatimeStartedAt, project.hackatimeUserId, project.submittedAt]);
+    const end =
+      formatYmd(project.hackatimeStoppedAt) ??
+      formatYmd(project.submittedAt) ??
+      formatYmd(project.createdAt);
+    if (!start || !end) return null;
+    return buildBillyUrl(hackatimeId, start, end);
+  }, [
+    project.createdAt,
+    project.hackatimeStartedAt,
+    project.hackatimeStoppedAt,
+    project.hackatimeUserId,
+    project.submittedAt,
+  ]);
 
   const screenshots = project.screenshots ?? [];
   const activeScreenshot = screenshots[screenshotIndex] ?? null;
