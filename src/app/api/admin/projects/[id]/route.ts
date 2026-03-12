@@ -30,6 +30,9 @@ function isAdminEditableStatus(value: unknown): value is ProjectStatus {
 }
 
 type IdentityGrantProfile = {
+  name: string | null;
+  email: string | null;
+  slackId: string | null;
   birthday: string | null;
   addressLine1: string | null;
   addressLine2: string | null;
@@ -40,6 +43,9 @@ type IdentityGrantProfile = {
 };
 
 const EMPTY_IDENTITY_GRANT_PROFILE: IdentityGrantProfile = {
+  name: null,
+  email: null,
+  slackId: null,
   birthday: null,
   addressLine1: null,
   addressLine2: null,
@@ -100,7 +106,13 @@ function getAddressSource(payload: unknown): Record<string, unknown> | null {
   }
 
   if (Array.isArray(root.addresses)) {
-    const first = root.addresses.find((a) => a && typeof a === "object" && !Array.isArray(a));
+    const primary = root.addresses.find((a) => {
+      if (!a || typeof a !== "object" || Array.isArray(a)) return false;
+      const row = a as { primary?: unknown };
+      return row.primary === true;
+    });
+    const first =
+      primary ?? root.addresses.find((a) => a && typeof a === "object" && !Array.isArray(a));
     if (first && typeof first === "object") return first as Record<string, unknown>;
   }
 
@@ -109,6 +121,9 @@ function getAddressSource(payload: unknown): Record<string, unknown> | null {
 
 function parseIdentityGrantProfile(payload: unknown): IdentityGrantProfile {
   const out: IdentityGrantProfile = {
+    name: null,
+    email: null,
+    slackId: null,
     birthday: null,
     addressLine1: null,
     addressLine2: null,
@@ -125,6 +140,20 @@ function parseIdentityGrantProfile(payload: unknown): IdentityGrantProfile {
       ? (root.identity as Record<string, unknown>)
       : root;
 
+  const firstName = toNullableString(identity.first_name ?? identity.firstName);
+  const lastName = toNullableString(identity.last_name ?? identity.lastName);
+  const legalFirstName = toNullableString(identity.legal_first_name ?? identity.legalFirstName);
+  const legalLastName = toNullableString(identity.legal_last_name ?? identity.legalLastName);
+
+  const joined = [firstName, lastName].filter((p): p is string => !!p).join(" ").trim();
+  const legalJoined = [legalFirstName, legalLastName]
+    .filter((p): p is string => !!p)
+    .join(" ")
+    .trim();
+  out.name = joined || legalJoined || null;
+  out.email = toNullableString(identity.primary_email ?? identity.email);
+  out.slackId = toNullableString(identity.slack_id ?? identity.slackId);
+
   out.birthday = toIsoDateOnlyOrNull(
     identity.birthday ?? identity.birthdate ?? identity.date_of_birth ?? identity.dob,
   );
@@ -133,18 +162,32 @@ function parseIdentityGrantProfile(payload: unknown): IdentityGrantProfile {
   if (!address) return out;
 
   out.addressLine1 = toNullableString(
-    address.address_line_1 ?? address.addressLine1 ?? address.line1 ?? address.street_1,
+    address.line_1 ??
+      address.address_line_1 ??
+      address.addressLine1 ??
+      address.line1 ??
+      address.street_1,
   );
   out.addressLine2 = toNullableString(
-    address.address_line_2 ?? address.addressLine2 ?? address.line2 ?? address.street_2,
+    address.line_2 ??
+      address.address_line_2 ??
+      address.addressLine2 ??
+      address.line2 ??
+      address.street_2,
   );
   out.city = toNullableString(address.city ?? address.locality ?? address.town);
   out.stateProvince = toNullableString(
-    address.state_province ?? address.stateProvince ?? address.state ?? address.region,
+    address.state ??
+      address.state_province ??
+      address.stateProvince ??
+      address.region,
   );
   out.country = toNullableString(address.country ?? address.country_code ?? address.countryCode);
   out.zipPostalCode = toNullableString(
-    address.zip_postal_code ?? address.zipPostalCode ?? address.postal_code ?? address.postcode,
+    address.postal_code ??
+      address.zip_postal_code ??
+      address.zipPostalCode ??
+      address.postcode,
   );
 
   return out;
@@ -153,7 +196,7 @@ function parseIdentityGrantProfile(payload: unknown): IdentityGrantProfile {
 async function fetchIdentityGrantProfile(identityToken: string | null): Promise<IdentityGrantProfile> {
   if (!identityToken) return EMPTY_IDENTITY_GRANT_PROFILE;
 
-  const identityHost = process.env.HC_IDENTITY_HOST;
+  const identityHost = process.env.HC_IDENTITY_HOST ?? "https://auth.hackclub.com";
   if (!identityHost) return EMPTY_IDENTITY_GRANT_PROFILE;
 
   try {
@@ -194,9 +237,9 @@ function buildAirtableGrantInput(
       approvedHours: current.approvedHours ?? null,
     },
     creator: {
-      name: current.creatorName ?? "Unknown",
-      email: current.creatorEmail ?? "",
-      slackId: current.creatorSlackId ?? null,
+      name: identityProfile.name ?? current.creatorName ?? "Unknown",
+      email: identityProfile.email ?? current.creatorEmail ?? "",
+      slackId: identityProfile.slackId ?? current.creatorSlackId ?? null,
       birthdayIso: identityProfile.birthday ?? current.creatorBirthday ?? null,
     },
     shipping: {
