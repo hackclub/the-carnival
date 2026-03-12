@@ -7,6 +7,69 @@ import * as schema from "@/db/schema";
 
 let _auth: ReturnType<typeof betterAuth> | null = null;
 
+function toNullableString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const s = value.trim();
+  return s ? s : null;
+}
+
+function toIsoDateOnlyOrNull(value: unknown): string | null {
+  const raw = toNullableString(value);
+  if (!raw) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+function extractIdentityAddress(
+  userData: Record<string, unknown>,
+): {
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  stateProvince: string | null;
+  country: string | null;
+  zipPostalCode: string | null;
+} {
+  const empty = {
+    addressLine1: null,
+    addressLine2: null,
+    city: null,
+    stateProvince: null,
+    country: null,
+    zipPostalCode: null,
+  };
+
+  const source =
+    (userData.address && typeof userData.address === "object" && !Array.isArray(userData.address)
+      ? (userData.address as Record<string, unknown>)
+      : Array.isArray(userData.addresses)
+        ? ((userData.addresses.find((a) => a && typeof a === "object" && !Array.isArray(a)) as
+            | Record<string, unknown>
+            | undefined) ?? null)
+        : null) ?? userData;
+
+  if (!source || typeof source !== "object") return empty;
+
+  return {
+    addressLine1: toNullableString(
+      source.address_line_1 ?? source.addressLine1 ?? source.line1 ?? source.street_1,
+    ),
+    addressLine2: toNullableString(
+      source.address_line_2 ?? source.addressLine2 ?? source.line2 ?? source.street_2,
+    ),
+    city: toNullableString(source.city ?? source.locality ?? source.town),
+    stateProvince: toNullableString(
+      source.state_province ?? source.stateProvince ?? source.state ?? source.region,
+    ),
+    country: toNullableString(source.country ?? source.country_code ?? source.countryCode),
+    zipPostalCode: toNullableString(
+      source.zip_postal_code ?? source.zipPostalCode ?? source.postal_code ?? source.postcode,
+    ),
+  };
+}
+
 function createAuth() {
   const identityHost = process.env.HC_IDENTITY_HOST!;
   
@@ -43,9 +106,18 @@ function createAuth() {
             clientSecret: process.env.HC_IDENTITY_CLIENT_SECRET!,
             discoveryUrl: `${identityHost}/.well-known/openid-configuration`,
             redirectURI: process.env.HC_IDENTITY_REDIRECT_URI!,
-            // These claims are supported by the provider; scopes_supported lists at least openid/profile.
-            scopes: ['profile', 'email', 'name', 'slack_id', 'verification_status'],
-            // add "basic_info" and "addresses" after being officialized
+            // Request identity profile + shipping fields used for grants.
+            scopes: [
+              "openid",
+              "profile",
+              "email",
+              "name",
+              "basic_info",
+              "birthdate",
+              "address",
+              "slack_id",
+              "verification_status",
+            ],
 
             getToken: async ({ code, redirectURI }) => {
               const clientId = process.env.HC_IDENTITY_CLIENT_ID!;
@@ -98,6 +170,17 @@ function createAuth() {
                   const slackId = (userData.slack_id as string | undefined) ?? null;
                   const verificationStatus =
                     (userData.verification_status as string | undefined) ?? null;
+                  const birthday = toIsoDateOnlyOrNull(
+                    userData.birthdate ?? userData.birthday ?? userData.date_of_birth ?? userData.dob,
+                  );
+                  const {
+                    addressLine1,
+                    addressLine2,
+                    city,
+                    stateProvince,
+                    country,
+                    zipPostalCode,
+                  } = extractIdentityAddress(userData);
                   const identityToken = (data.access_token as string | undefined) ?? null;
                   const refreshToken = (data.refresh_token as string | undefined) ?? null;
 
@@ -112,6 +195,13 @@ function createAuth() {
                       image,
                       slackId,
                       verificationStatus,
+                      birthday,
+                      addressLine1,
+                      addressLine2,
+                      city,
+                      stateProvince,
+                      country,
+                      zipPostalCode,
                       identityToken,
                       refreshToken,
                       createdAt: now,
@@ -126,6 +216,13 @@ function createAuth() {
                         image,
                         slackId,
                         verificationStatus,
+                        birthday,
+                        addressLine1,
+                        addressLine2,
+                        city,
+                        stateProvince,
+                        country,
+                        zipPostalCode,
                         identityToken,
                         refreshToken,
                         updatedAt: now,
@@ -141,6 +238,13 @@ function createAuth() {
                     image: image ?? undefined,
                     slackId,
                     verificationStatus,
+                    birthday,
+                    addressLine1,
+                    addressLine2,
+                    city,
+                    stateProvince,
+                    country,
+                    zipPostalCode,
                     identityToken,
                     refreshToken,
                   };
