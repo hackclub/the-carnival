@@ -5,8 +5,13 @@ import { user } from "@/db/schema";
 type HackatimeProjectsResponse = {
   projects?: {
     name?: string;
-    total_seconds?: number;
-    most_recent_heartbeat?: string;
+    total_seconds?: number | string;
+    seconds?: number | string;
+    totalSeconds?: number | string;
+    most_recent_heartbeat?: string | { time?: string; created_at?: string; timestamp?: string } | null;
+    most_recent_heartbeat_at?: string;
+    last_heartbeat_at?: string;
+    last_heartbeat?: string;
     archived?: boolean;
   }[];
 };
@@ -32,7 +37,14 @@ async function makeHackatimeAuthedRequest(uri: string, accessToken: string) {
 }
 
 function toSafeSeconds(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.floor(value));
+  }
+  if (typeof value === "string") {
+    const n = Number(value.trim());
+    if (Number.isFinite(n)) return Math.max(0, Math.floor(n));
+  }
+  return 0;
 }
 
 function toIsoOrNull(value: unknown) {
@@ -40,6 +52,13 @@ function toIsoOrNull(value: unknown) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
+}
+
+function pickHeartbeatIso(value: unknown): string | null {
+  if (typeof value === "string") return toIsoOrNull(value);
+  if (!value || typeof value !== "object") return null;
+  const row = value as { time?: unknown; created_at?: unknown; timestamp?: unknown };
+  return toIsoOrNull(row.time ?? row.created_at ?? row.timestamp ?? null);
 }
 
 function deriveStartIso(stoppedIso: string | null, totalSeconds: number) {
@@ -101,11 +120,18 @@ export async function fetchHackatimeProjectsByAccessToken(
   const projects = Array.isArray(raw.projects) ? raw.projects : [];
 
   return projects
-    .filter((p) => !p.archived)
+    .filter((p) => p.archived !== true)
     .map((p) => {
       const name = typeof p.name === "string" ? p.name.trim() : "";
-      const totalSeconds = toSafeSeconds(p.total_seconds);
-      const stoppedAt = toIsoOrNull(p.most_recent_heartbeat);
+      const totalSeconds = toSafeSeconds(p.total_seconds ?? p.seconds ?? p.totalSeconds);
+      const stoppedAt =
+        pickHeartbeatIso(
+          p.most_recent_heartbeat ??
+            p.most_recent_heartbeat_at ??
+            p.last_heartbeat_at ??
+            p.last_heartbeat ??
+            null,
+        ) ?? null;
       const startedAt = deriveStartIso(stoppedAt, totalSeconds);
       return { name, totalSeconds, startedAt, stoppedAt };
     })

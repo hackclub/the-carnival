@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { project, user, type ProjectEditor, type ProjectStatus } from "@/db/schema";
+import { fetchHackatimeProjectsForUser } from "@/lib/hackatime";
 import { getServerSession } from "@/lib/server-session";
 import { notifyReviewDM } from "@/lib/slack";
 
@@ -399,6 +400,23 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
             },
             { status: 400 },
           );
+        }
+      }
+
+      // Auto-sync Hackatime timing metadata at submit time so users who connected
+      // Hackatime after selecting a project name still get accurate timestamps/hours.
+      if (nextHackatime) {
+        try {
+          const hackatimeProjects = await fetchHackatimeProjectsForUser(userId);
+          const wanted = nextHackatime.trim().toLowerCase();
+          const matched = hackatimeProjects.find((p) => p.name.trim().toLowerCase() === wanted);
+          if (matched) {
+            set.hackatimeStartedAt = matched.startedAt ? new Date(matched.startedAt) : null;
+            set.hackatimeStoppedAt = matched.stoppedAt ? new Date(matched.stoppedAt) : null;
+            set.hackatimeTotalSeconds = matched.totalSeconds;
+          }
+        } catch {
+          // Best-effort only; do not block submissions if Hackatime is unavailable.
         }
       }
     }
