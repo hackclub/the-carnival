@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { peerReview, project, tokenLedger, user, type ProjectStatus } from "@/db/schema";
+import { peerReview, project, tokenLedger, user, type ProjectStatus, type ReviewDecision } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
 import { tokensForApprovedHours } from "@/lib/tokens";
 import { generateId, isUniqueConstraintError } from "@/lib/api-utils";
@@ -27,6 +27,189 @@ function isAdminEditableStatus(value: unknown): value is ProjectStatus {
     value === "shipped" ||
     value === "granted"
   );
+}
+
+type IdentityGrantProfile = {
+  birthday: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  stateProvince: string | null;
+  country: string | null;
+  zipPostalCode: string | null;
+};
+
+const EMPTY_IDENTITY_GRANT_PROFILE: IdentityGrantProfile = {
+  birthday: null,
+  addressLine1: null,
+  addressLine2: null,
+  city: null,
+  stateProvince: null,
+  country: null,
+  zipPostalCode: null,
+};
+
+type GrantProjectRow = {
+  name: string;
+  description: string;
+  codeUrl: string;
+  playableDemoUrl: string;
+  videoUrl: string;
+  screenshots: string[] | null;
+  submittedAt: Date | null;
+  approvedHours: number | null;
+  creatorName: string | null;
+  creatorEmail: string | null;
+  creatorSlackId: string | null;
+  creatorBirthday: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  stateProvince: string | null;
+  country: string | null;
+  zipPostalCode: string | null;
+};
+
+type GrantReviewRow = {
+  reviewerName: string | null;
+  decision: ReviewDecision;
+  reviewComment: string;
+};
+
+function toNullableString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function toIsoDateOnlyOrNull(value: unknown): string | null {
+  const raw = toNullableString(value);
+  if (!raw) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+function getAddressSource(payload: unknown): Record<string, unknown> | null {
+  if (!payload || typeof payload !== "object") return null;
+  const root = payload as Record<string, unknown>;
+
+  if (root.address && typeof root.address === "object" && !Array.isArray(root.address)) {
+    return root.address as Record<string, unknown>;
+  }
+
+  if (Array.isArray(root.addresses)) {
+    const first = root.addresses.find((a) => a && typeof a === "object" && !Array.isArray(a));
+    if (first && typeof first === "object") return first as Record<string, unknown>;
+  }
+
+  return root;
+}
+
+function parseIdentityGrantProfile(payload: unknown): IdentityGrantProfile {
+  const out: IdentityGrantProfile = {
+    birthday: null,
+    addressLine1: null,
+    addressLine2: null,
+    city: null,
+    stateProvince: null,
+    country: null,
+    zipPostalCode: null,
+  };
+
+  if (!payload || typeof payload !== "object") return out;
+  const root = payload as Record<string, unknown>;
+  const identity =
+    root.identity && typeof root.identity === "object" && !Array.isArray(root.identity)
+      ? (root.identity as Record<string, unknown>)
+      : root;
+
+  out.birthday = toIsoDateOnlyOrNull(
+    identity.birthday ?? identity.birthdate ?? identity.date_of_birth ?? identity.dob,
+  );
+
+  const address = getAddressSource(identity);
+  if (!address) return out;
+
+  out.addressLine1 = toNullableString(
+    address.address_line_1 ?? address.addressLine1 ?? address.line1 ?? address.street_1,
+  );
+  out.addressLine2 = toNullableString(
+    address.address_line_2 ?? address.addressLine2 ?? address.line2 ?? address.street_2,
+  );
+  out.city = toNullableString(address.city ?? address.locality ?? address.town);
+  out.stateProvince = toNullableString(
+    address.state_province ?? address.stateProvince ?? address.state ?? address.region,
+  );
+  out.country = toNullableString(address.country ?? address.country_code ?? address.countryCode);
+  out.zipPostalCode = toNullableString(
+    address.zip_postal_code ?? address.zipPostalCode ?? address.postal_code ?? address.postcode,
+  );
+
+  return out;
+}
+
+async function fetchIdentityGrantProfile(identityToken: string | null): Promise<IdentityGrantProfile> {
+  if (!identityToken) return EMPTY_IDENTITY_GRANT_PROFILE;
+
+  const identityHost = process.env.HC_IDENTITY_HOST;
+  if (!identityHost) return EMPTY_IDENTITY_GRANT_PROFILE;
+
+  try {
+    const res = await fetch(`${identityHost}/api/v1/me`, {
+      headers: { Authorization: `Bearer ${identityToken}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return EMPTY_IDENTITY_GRANT_PROFILE;
+    const raw = (await res.json().catch(() => null)) as unknown;
+    return parseIdentityGrantProfile(raw);
+  } catch {
+    return EMPTY_IDENTITY_GRANT_PROFILE;
+  }
+}
+
+function mapReviewsForAirtable(reviews: GrantReviewRow[]) {
+  return reviews.map((r) => ({
+    reviewerName: r.reviewerName || "Unknown reviewer",
+    decision: r.decision,
+    message: r.reviewComment,
+  }));
+}
+
+function buildAirtableGrantInput(
+  current: GrantProjectRow,
+  identityProfile: IdentityGrantProfile,
+  reviews: GrantReviewRow[],
+) {
+  return {
+    project: {
+      name: current.name,
+      description: current.description,
+      codeUrl: current.codeUrl,
+      playableDemoUrl: current.playableDemoUrl,
+      videoUrl: current.videoUrl,
+      screenshots: current.screenshots ?? [],
+      submittedAtIso: current.submittedAt ? current.submittedAt.toISOString() : null,
+      approvedHours: current.approvedHours ?? null,
+    },
+    creator: {
+      name: current.creatorName ?? "Unknown",
+      email: current.creatorEmail ?? "",
+      slackId: current.creatorSlackId ?? null,
+      birthdayIso: identityProfile.birthday ?? current.creatorBirthday ?? null,
+    },
+    shipping: {
+      addressLine1: identityProfile.addressLine1 ?? current.addressLine1 ?? null,
+      addressLine2: identityProfile.addressLine2 ?? current.addressLine2 ?? null,
+      city: identityProfile.city ?? current.city ?? null,
+      stateProvince: identityProfile.stateProvince ?? current.stateProvince ?? null,
+      country: identityProfile.country ?? current.country ?? null,
+      zipPostalCode: identityProfile.zipPostalCode ?? current.zipPostalCode ?? null,
+    },
+    reviewStatus: "Approved" as const,
+    reviews: mapReviewsForAirtable(reviews),
+  };
 }
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -75,6 +258,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           creatorName: user.name,
           creatorEmail: user.email,
           creatorSlackId: user.slackId,
+          creatorIdentityToken: user.identityToken,
           creatorBirthday: user.birthday,
           addressLine1: user.addressLine1,
           addressLine2: user.addressLine2,
@@ -130,6 +314,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         }
 
         try {
+          const identityProfile = await fetchIdentityGrantProfile(current.creatorIdentityToken ?? null);
+
           const reviews = await db
             .select({
               decision: peerReview.decision,
@@ -142,38 +328,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
             .where(eq(peerReview.projectId, id))
             .orderBy(peerReview.createdAt);
 
-          await createAirtableGrantRecord({
-            project: {
-              name: current.name,
-              description: current.description,
-              codeUrl: current.codeUrl,
-              playableDemoUrl: current.playableDemoUrl,
-              videoUrl: current.videoUrl,
-              screenshots: current.screenshots ?? [],
-              submittedAtIso: current.submittedAt ? current.submittedAt.toISOString() : null,
-              approvedHours: current.approvedHours ?? null,
-            },
-            creator: {
-              name: current.creatorName ?? "Unknown",
-              email: current.creatorEmail ?? "",
-              slackId: current.creatorSlackId ?? null,
-              birthdayIso: current.creatorBirthday ?? null,
-            },
-            shipping: {
-              addressLine1: current.addressLine1 ?? null,
-              addressLine2: current.addressLine2 ?? null,
-              city: current.city ?? null,
-              stateProvince: current.stateProvince ?? null,
-              country: current.country ?? null,
-              zipPostalCode: current.zipPostalCode ?? null,
-            },
-            reviewStatus: "Approved",
-            reviews: reviews.map((r) => ({
-              reviewerName: r.reviewerName || "Unknown reviewer",
-              decision: r.decision,
-              message: r.reviewComment,
-            })),
-          });
+          await createAirtableGrantRecord(
+            buildAirtableGrantInput(current, identityProfile, reviews),
+          );
         } catch (err) {
           const details = toAirtableCreateErrorDetails(err);
           return NextResponse.json(
@@ -340,6 +497,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       creatorName: user.name,
       creatorEmail: user.email,
       creatorSlackId: user.slackId,
+      creatorIdentityToken: user.identityToken,
       creatorBirthday: user.birthday,
       addressLine1: user.addressLine1,
       addressLine2: user.addressLine2,
@@ -410,6 +568,8 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   try {
+    const identityProfile = await fetchIdentityGrantProfile(current.creatorIdentityToken ?? null);
+
     const reviews = await db
       .select({
         decision: peerReview.decision,
@@ -422,38 +582,9 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       .where(eq(peerReview.projectId, id))
       .orderBy(peerReview.createdAt);
 
-    const record = await createAirtableGrantRecord({
-      project: {
-        name: current.name,
-        description: current.description,
-        codeUrl: current.codeUrl,
-        playableDemoUrl: current.playableDemoUrl,
-        videoUrl: current.videoUrl,
-        screenshots: current.screenshots ?? [],
-        submittedAtIso: current.submittedAt ? current.submittedAt.toISOString() : null,
-        approvedHours: current.approvedHours ?? null,
-      },
-      creator: {
-        name: current.creatorName ?? "Unknown",
-        email: current.creatorEmail ?? "",
-        slackId: current.creatorSlackId ?? null,
-        birthdayIso: current.creatorBirthday ?? null,
-      },
-      shipping: {
-        addressLine1: current.addressLine1 ?? null,
-        addressLine2: current.addressLine2 ?? null,
-        city: current.city ?? null,
-        stateProvince: current.stateProvince ?? null,
-        country: current.country ?? null,
-        zipPostalCode: current.zipPostalCode ?? null,
-      },
-      reviewStatus: "Approved",
-      reviews: reviews.map((r) => ({
-        reviewerName: r.reviewerName || "Unknown reviewer",
-        decision: r.decision,
-        message: r.reviewComment,
-      })),
-    });
+    const record = await createAirtableGrantRecord(
+      buildAirtableGrantInput(current, identityProfile, reviews),
+    );
 
     return NextResponse.json({ ok: true, airtableRecordId: record.id });
   } catch (err) {
