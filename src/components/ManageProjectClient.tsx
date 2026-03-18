@@ -1,10 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ProjectEditor, ProjectStatus, ReviewDecision } from "@/db/schema";
+import type {
+  ProjectEditor,
+  ProjectStatus,
+  ProjectSubmissionChecklist,
+  ReviewDecision,
+} from "@/db/schema";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import { Modal } from "@/components/ui";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
+import {
+  hasRequiredProjectSubmissionChecklistAnswers,
+  normalizeProjectSubmissionChecklist,
+  PROJECT_SUBMISSION_CHECKLIST_ITEMS,
+} from "@/lib/project-submission-checklist";
 import toast from "react-hot-toast";
 
 const EDITOR_OPTIONS = [
@@ -41,6 +51,7 @@ export type ManageProjectInitial = {
   playableDemoUrl: string;
   codeUrl: string;
   screenshots: string[];
+  submissionChecklist: ProjectSubmissionChecklist | null;
   status: ProjectStatus;
   approvedHours: number | null;
   reviews: Array<{
@@ -72,6 +83,7 @@ function toLocalDateTime(value: string | null) {
 }
 
 export default function ManageProjectClient({ initial }: { initial: ManageProjectInitial }) {
+  const initialSubmissionChecklist = normalizeProjectSubmissionChecklist(initial.submissionChecklist);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -82,12 +94,19 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const [checkReadme, setCheckReadme] = useState(false);
-  const [checkTested, setCheckTested] = useState(false);
-  const [aiUsage, setAiUsage] = useState<boolean | null>(null);
-  const [checkGithubPublic, setCheckGithubPublic] = useState(false);
-  const [checkDescriptionClear, setCheckDescriptionClear] = useState(false);
-  const [checkScreenshotsWorking, setCheckScreenshotsWorking] = useState(false);
+  const [savedSubmissionChecklist, setSavedSubmissionChecklist] = useState<ProjectSubmissionChecklist | null>(
+    initial.submissionChecklist ?? null,
+  );
+  const [checkReadme, setCheckReadme] = useState(initialSubmissionChecklist.readmeInstructions);
+  const [checkTested, setCheckTested] = useState(initialSubmissionChecklist.testedWorking);
+  const [aiUsage, setAiUsage] = useState(initialSubmissionChecklist.usedAi);
+  const [checkGithubPublic, setCheckGithubPublic] = useState(initialSubmissionChecklist.githubPublic);
+  const [checkDescriptionClear, setCheckDescriptionClear] = useState(
+    initialSubmissionChecklist.descriptionClear,
+  );
+  const [checkScreenshotsWorking, setCheckScreenshotsWorking] = useState(
+    initialSubmissionChecklist.screenshotsWorking,
+  );
   const [checkAddressedRejection, setCheckAddressedRejection] = useState(false);
 
   const [hackatimeProjects, setHackatimeProjects] = useState<HackatimeProjectOption[] | null>(null);
@@ -173,13 +192,34 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     };
   }, [codeUrl, description, editor, editorOther, hackatimeProjectName, name, playableDemoUrl, videoUrl, screenshots]);
 
-  const checklistOk =
-    checkReadme &&
-    checkTested &&
-    aiUsage !== null &&
-    checkGithubPublic &&
-    checkDescriptionClear &&
-    checkScreenshotsWorking;
+  const submissionChecklist = useMemo<ProjectSubmissionChecklist>(
+    () => ({
+      readmeInstructions: checkReadme,
+      testedWorking: checkTested,
+      usedAi: aiUsage,
+      githubPublic: checkGithubPublic,
+      descriptionClear: checkDescriptionClear,
+      screenshotsWorking: checkScreenshotsWorking,
+    }),
+    [aiUsage, checkDescriptionClear, checkGithubPublic, checkReadme, checkScreenshotsWorking, checkTested],
+  );
+
+  const checklistOk = useMemo(
+    () => hasRequiredProjectSubmissionChecklistAnswers(submissionChecklist),
+    [submissionChecklist],
+  );
+
+  const setChecklistValue = useCallback(
+    (key: keyof ProjectSubmissionChecklist, checked: boolean) => {
+      if (key === "readmeInstructions") setCheckReadme(checked);
+      else if (key === "testedWorking") setCheckTested(checked);
+      else if (key === "usedAi") setAiUsage(checked);
+      else if (key === "githubPublic") setCheckGithubPublic(checked);
+      else if (key === "descriptionClear") setCheckDescriptionClear(checked);
+      else if (key === "screenshotsWorking") setCheckScreenshotsWorking(checked);
+    },
+    [],
+  );
 
   const refreshHackatimeProjects = useCallback(async () => {
     setHackatimeLoading(true);
@@ -329,6 +369,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         setPlayableDemoUrl(p.playableDemoUrl);
         setCodeUrl(p.codeUrl);
         setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
+        setSavedSubmissionChecklist(p.submissionChecklist ?? null);
         setStatus(p.status);
       }
 
@@ -367,17 +408,18 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
       toast("This project has already been shipped.");
       return;
     }
-    // Reset confirmations each time.
-    setCheckReadme(false);
-    setCheckTested(false);
-      setAiUsage(null);
-    setCheckGithubPublic(false);
-    setCheckDescriptionClear(false);
-    setCheckScreenshotsWorking(false);
+    // Rehydrate from the last saved submission state.
+    const checklist = normalizeProjectSubmissionChecklist(savedSubmissionChecklist);
+    setCheckReadme(checklist.readmeInstructions);
+    setCheckTested(checklist.testedWorking);
+    setAiUsage(checklist.usedAi);
+    setCheckGithubPublic(checklist.githubPublic);
+    setCheckDescriptionClear(checklist.descriptionClear);
+    setCheckScreenshotsWorking(checklist.screenshotsWorking);
     setCheckAddressedRejection(false);
     setSubmitStep(0);
     setSubmitOpen(true);
-  }, [isGranted, isInReview, isShipped]);
+  }, [isGranted, isInReview, isShipped, savedSubmissionChecklist]);
 
   const closeSubmit = useCallback(() => {
     setSubmitOpen(false);
@@ -414,7 +456,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
       }
     } else {
       if (!checklistOk) {
-        toast.error("Please check all items before submitting.");
+        toast.error("Please check all required checklist items before submitting.");
         setSubmitStep(1);
         return;
       }
@@ -436,6 +478,9 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
       screenshots: cleanList(screenshotUrls),
       status: "in-review",
     };
+    if (!isReReview) {
+      payload.submissionChecklist = submissionChecklist;
+    }
 
     const toastId = toast.loading("Submitting for review…");
     try {
@@ -504,6 +549,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         setPlayableDemoUrl(p.playableDemoUrl);
         setCodeUrl(p.codeUrl);
         setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
+        setSavedSubmissionChecklist(p.submissionChecklist ?? null);
         setStatus(p.status);
       }
 
@@ -532,6 +578,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     name,
     playableDemoUrl,
     videoUrl,
+    submissionChecklist,
     screenshotUrls,
     submitRequirements.allOk,
   ]);
@@ -593,7 +640,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         ) : (
           <div className="flex items-center justify-between gap-4">
             <div className="text-sm text-muted-foreground">
-              When you’re ready, submit for review. You’ll need to fill all required fields and complete the checklist.
+              When you’re ready, submit for review. You’ll need to fill all required fields and complete required checklist items.
             </div>
             <button
               type="button"
@@ -898,7 +945,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
             ? "First, make sure the required fields are filled."
             : isReReview
               ? "Confirm you've addressed the most recent reviewer feedback before re-submitting."
-              : "Confirm each item before submitting your project for review."
+              : "Only required checklist items block submission; optional answers are still shared with reviewers."
         }
         maxWidth="lg"
       >
@@ -1063,59 +1110,36 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
             </div>
           ) : (
             <div className="space-y-4">
+              <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
+                Required items must be checked. Optional items are recorded for reviewer context.
+              </div>
               <div className="space-y-3">
-                <label className="flex items-start gap-3">
-                  <input type="checkbox" checked={checkReadme} onChange={(e) => setCheckReadme(e.target.checked)} className="mt-1" />
-                  <div>
-                    <div className="text-foreground font-semibold">My README contains instructions to build and/or run my extension</div>
-                    <div className="text-sm text-muted-foreground">Reviewers should be able to follow it and reproduce.</div>
-                  </div>
-                </label>
-                <label className="flex items-start gap-3">
-                  <input type="checkbox" checked={checkTested} onChange={(e) => setCheckTested(e.target.checked)} className="mt-1" />
-                  <div>
-                    <div className="text-foreground font-semibold">I have tested my extension/plugin and it works without breaking</div>
-                    <div className="text-sm text-muted-foreground">You’re confident it’s stable enough for review.</div>
-                  </div>
-                </label>
-                <div className="mt-1">
-                  <label className="flex items-start gap-3">
+                {PROJECT_SUBMISSION_CHECKLIST_ITEMS.map((item) => (
+                  <label key={item.key} className="flex items-start gap-3">
                     <input
                       type="checkbox"
-                      checked={aiUsage === true}
-                      onChange={(e) => setAiUsage(e.target.checked)}
+                      checked={submissionChecklist[item.key]}
+                      onChange={(e) => setChecklistValue(item.key, e.target.checked)}
                       className="mt-1"
                     />
                     <div>
-                      <div className="text-foreground font-semibold">Did you use AI while building this?</div>
-                      <div className="text-sm text-muted-foreground">AI is fine to use if you’re transparent about it.</div>
+                      <div className="text-foreground font-semibold">
+                        {item.label}
+                        <span
+                          className={[
+                            "ml-2 inline-flex rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide",
+                            item.required
+                              ? "bg-rose-500/15 text-rose-200"
+                              : "bg-emerald-500/15 text-emerald-200",
+                          ].join(" ")}
+                        >
+                          {item.required ? "Required" : "Optional"}
+                        </span>
+                      </div>
+                      <div className="text-sm text-muted-foreground">{item.helper}</div>
                     </div>
                   </label>
-                  {aiUsage === null ? (
-                    <div className="text-xs text-amber-400 mt-1 pl-7">Please confirm by ticking or leaving it unchecked.</div>
-                  ) : null}
-                </div>
-                <label className="flex items-start gap-3">
-                  <input type="checkbox" checked={checkGithubPublic} onChange={(e) => setCheckGithubPublic(e.target.checked)} className="mt-1" />
-                  <div>
-                    <div className="text-foreground font-semibold">The GitHub URL is publicly accessible for reviewers</div>
-                    <div className="text-sm text-muted-foreground">Private repos can’t be reviewed.</div>
-                  </div>
-                </label>
-                <label className="flex items-start gap-3">
-                  <input type="checkbox" checked={checkDescriptionClear} onChange={(e) => setCheckDescriptionClear(e.target.checked)} className="mt-1" />
-                  <div>
-                    <div className="text-foreground font-semibold">The description clearly explains what the project is and what it does</div>
-                    <div className="text-sm text-muted-foreground">Make it easy to understand quickly.</div>
-                  </div>
-                </label>
-                <label className="flex items-start gap-3">
-                  <input type="checkbox" checked={checkScreenshotsWorking} onChange={(e) => setCheckScreenshotsWorking(e.target.checked)} className="mt-1" />
-                  <div>
-                    <div className="text-foreground font-semibold">I included screenshots of my project working (not my code)</div>
-                    <div className="text-sm text-muted-foreground">Screenshots should show the extension/plugin in action.</div>
-                  </div>
-                </label>
+                ))}
               </div>
 
               <div className="flex items-center justify-between gap-3 pt-2">
@@ -1175,5 +1199,3 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     </div>
   );
 }
-
-

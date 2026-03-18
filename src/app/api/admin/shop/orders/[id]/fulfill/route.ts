@@ -1,15 +1,26 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { shopOrder, tokenLedger } from "@/db/schema";
+import { shopOrder, tokenLedger, user as dbUser } from "@/db/schema";
 import { getAuthUser, parseJsonBody, toCleanString, toPositiveInt, generateId } from "@/lib/api-utils";
 import { getTokenBalance } from "@/lib/wallet";
+import { sendShopOrderFulfilledEmail } from "@/lib/loops";
 
 type FulfillBody = {
   fulfillmentLink?: unknown;
   deductTokensOverride?: unknown;
   deductTokensOverrideNote?: unknown;
 };
+
+function toAbsoluteAppUrl(path: string) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+  if (!appUrl) return path;
+  try {
+    return new URL(path, appUrl).toString();
+  } catch {
+    return path;
+  }
+}
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getAuthUser();
@@ -60,8 +71,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         itemName: shopOrder.itemNameSnapshot,
         tokenCost: shopOrder.tokenCostSnapshot,
         fulfillmentLink: shopOrder.fulfillmentLink,
+        requesterEmail: dbUser.email,
       })
       .from(shopOrder)
+      .innerJoin(dbUser, eq(dbUser.id, shopOrder.userId))
       .where(eq(shopOrder.id, id))
       .limit(1);
 
@@ -69,7 +82,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (!order) return { error: "Not found" as const, status: 404 as const };
 
     if (order.status === "fulfilled") {
-      return { ok: true as const };
+      return { ok: true as const, requesterEmail: null, fulfilledOrder: null };
     }
     if (order.status !== "pending") {
       return { error: "Order is not pending" as const, status: 409 as const };
@@ -122,10 +135,26 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return { error: "Failed to fulfill order" as const, status: 409 as const };
     }
 
-    return { ok: true as const };
+    return {
+      ok: true as const,
+      requesterEmail: order.requesterEmail,
+      fulfilledOrder: {
+        orderId: order.id,
+        itemName: order.itemName,
+        fulfillmentLink,
+      },
+    };
   });
 
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
+  if (result.requesterEmail && result.fulfilledOrder) {
+    const requesterOrdersLink = toAbsoluteAppUrl("/shop");
+    await sendShopOrderFulfilledEmail(result.requesterEmail, {
+      ...result.fulfilledOrder,
+      requesterOrdersLink,
+    }).catch((err) => {
+      console.warn("sendShopOrderFulfilledEmail failed", err);
+    });
+  }
   return NextResponse.json({ ok: true });
 }
-

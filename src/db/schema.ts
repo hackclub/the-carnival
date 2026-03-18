@@ -1,4 +1,5 @@
-import { pgTable, text, timestamp, boolean, pgEnum, integer, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { pgTable, text, timestamp, boolean, pgEnum, integer, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 
 export const userRole = pgEnum("user_role", ["user", "reviewer", "admin"]);
 export type UserRole = (typeof userRole.enumValues)[number];
@@ -36,6 +37,15 @@ export type ProjectEditor = (typeof projectEditor.enumValues)[number];
 
 export const reviewDecision = pgEnum("review_decision", ["approved", "rejected", "comment"]);
 export type ReviewDecision = (typeof reviewDecision.enumValues)[number];
+
+export type ProjectSubmissionChecklist = {
+  readmeInstructions: boolean;
+  testedWorking: boolean;
+  usedAi: boolean;
+  githubPublic: boolean;
+  descriptionClear: boolean;
+  screenshotsWorking: boolean;
+};
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -82,6 +92,7 @@ export const project = pgTable("project", {
   status: projectStatus("status").notNull().default("work-in-progress"),
   // Canonical approved hours for this project (set by a reviewer on approval).
   approvedHours: integer("approved_hours"),
+  submissionChecklist: jsonb("submission_checklist").$type<ProjectSubmissionChecklist>(),
   // Set when a creator submits their project for review (status transitions to "in-review").
   submittedAt: timestamp("submitted_at"),
   createdAt: timestamp("created_at").notNull(),
@@ -104,11 +115,17 @@ export const peerReview = pgTable("peer_review", {
   updatedAt: timestamp("updated_at").notNull(),
 });
 
+export type BountyHelpfulLink = {
+  label: string;
+  url: string;
+};
+
 export const bountyProject = pgTable("bounty_project", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description").notNull(),
-  prizeTokens: integer("prize_tokens").notNull(),
+  prizeUsd: integer("prize_usd").notNull(),
+  helpfulLinks: jsonb("helpful_links").$type<BountyHelpfulLink[]>().notNull().default(sql`'[]'::jsonb`),
   completed: boolean("completed").notNull().default(false),
   createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull(),
@@ -219,6 +236,7 @@ export const shopItem = pgTable("shop_item", {
   name: text("name").notNull(),
   description: text("description"),
   imageUrl: text("image_url").notNull(),
+  orderNoteRequired: boolean("order_note_required").notNull().default(false),
   approvedHoursNeeded: integer("approved_hours_needed").notNull(),
   tokenCost: integer("token_cost").notNull(),
   createdAt: timestamp("created_at").notNull(),
@@ -260,6 +278,7 @@ export const shopOrder = pgTable("shop_order", {
   itemNameSnapshot: text("item_name_snapshot").notNull(),
   itemImageSnapshot: text("item_image_snapshot").notNull(),
   itemDescriptionSnapshot: text("item_description_snapshot"),
+  orderNote: text("order_note"),
   tokenCostSnapshot: integer("token_cost_snapshot").notNull(),
   fulfillmentLink: text("fulfillment_link"),
   cancellationReason: text("cancellation_reason"),

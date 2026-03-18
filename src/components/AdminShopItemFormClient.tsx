@@ -11,6 +11,7 @@ type ItemForm = {
   name: string;
   description: string;
   imageUrl: string;
+  orderNoteRequired: boolean;
   approvedHoursNeeded: string;
   tokenCost: string;
 };
@@ -25,6 +26,7 @@ export default function AdminShopItemFormClient({
     name: string;
     description: string | null;
     imageUrl: string;
+    orderNoteRequired: boolean;
     approvedHoursNeeded: number;
     tokenCost: number;
   };
@@ -35,6 +37,7 @@ export default function AdminShopItemFormClient({
     name: initial?.name ?? "",
     description: initial?.description ?? "",
     imageUrl: initial?.imageUrl ?? "",
+    orderNoteRequired: initial?.orderNoteRequired ?? false,
     approvedHoursNeeded: String(initial?.approvedHoursNeeded ?? 0),
     tokenCost: String(initial?.tokenCost ?? 0),
   }));
@@ -55,6 +58,7 @@ export default function AdminShopItemFormClient({
         name: form.name,
         description: form.description.trim() || null,
         imageUrl: form.imageUrl,
+        orderNoteRequired: form.orderNoteRequired,
         approvedHoursNeeded: Number(form.approvedHoursNeeded),
         tokenCost: Number(form.tokenCost),
       };
@@ -119,6 +123,21 @@ export default function AdminShopItemFormClient({
         disabled={busy}
         helperText="This image is required and will be shown in the shop."
       />
+      <label className="flex items-start gap-3 rounded-2xl border border-border bg-muted px-4 py-3">
+        <input
+          type="checkbox"
+          className="mt-1 h-4 w-4 accent-carnival-blue"
+          checked={form.orderNoteRequired}
+          onChange={(e) => setForm((f) => ({ ...f, orderNoteRequired: e.target.checked }))}
+          disabled={busy}
+        />
+        <span className="text-sm">
+          <span className="block text-foreground font-medium">Require requester note</span>
+          <span className="block text-muted-foreground mt-1">
+            Shoppers must include a note before ordering this item.
+          </span>
+        </span>
+      </label>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Approved hours needed (shown as ~x hours)"
@@ -142,4 +161,3 @@ export default function AdminShopItemFormClient({
     </div>
   );
 }
-

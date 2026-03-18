@@ -31,6 +31,7 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
       screenshots: project.screenshots,
+      submissionChecklist: project.submissionChecklist,
       status: project.status,
       approvedHours: project.approvedHours,
     })
@@ -78,6 +79,7 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
           playableDemoUrl: p.playableDemoUrl,
           codeUrl: p.codeUrl,
           screenshots: p.screenshots,
+          submissionChecklist: p.submissionChecklist ?? null,
           status: p.status,
           approvedHours: p.approvedHours ?? null,
           reviews: reviews.map((r) => ({
@@ -93,5 +95,4 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
     </AppShell>
   );
 }
-
 

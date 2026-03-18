@@ -24,6 +24,7 @@ export default async function ShopPage() {
         name: shopItem.name,
         description: shopItem.description,
         imageUrl: shopItem.imageUrl,
+        orderNoteRequired: shopItem.orderNoteRequired,
         approvedHoursNeeded: shopItem.approvedHoursNeeded,
         tokenCost: shopItem.tokenCost,
       })
@@ -35,6 +36,7 @@ export default async function ShopPage() {
         shopItemId: shopOrder.shopItemId,
         itemName: shopOrder.itemNameSnapshot,
         itemImageUrl: shopOrder.itemImageSnapshot,
+        orderNote: shopOrder.orderNote,
         tokenCost: shopOrder.tokenCostSnapshot,
         fulfillmentLink: shopOrder.fulfillmentLink,
         fulfilledAt: shopOrder.fulfilledAt,
@@ -53,6 +55,7 @@ export default async function ShopPage() {
     name: i.name,
     description: i.description ?? null,
     imageUrl: i.imageUrl,
+    orderNoteRequired: i.orderNoteRequired ?? false,
     approvedHoursNeeded: i.approvedHoursNeeded ?? 0,
     tokenCost: i.tokenCost ?? 0,
   }));
@@ -63,6 +66,7 @@ export default async function ShopPage() {
     shopItemId: o.shopItemId,
     itemName: o.itemName,
     itemImageUrl: o.itemImageUrl,
+    orderNote: o.orderNote ?? null,
     tokenCost: o.tokenCost ?? 0,
     fulfillmentLink: o.fulfillmentLink ?? null,
     fulfilledAt: o.fulfilledAt ? o.fulfilledAt.toISOString() : null,
@@ -88,4 +92,3 @@ export default async function ShopPage() {
     </AppShell>
   );
 }
-

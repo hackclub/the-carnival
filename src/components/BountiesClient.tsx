@@ -2,13 +2,32 @@
 
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Input, Textarea, Button, Card, Badge, EmptyState } from "@/components/ui";
+import { Input, Textarea, Button, Card, Badge, EmptyState, FormLabel } from "@/components/ui";
+
+export type BountyHelpfulLink = {
+  label: string;
+  url: string;
+};
+
+function parseHelpfulLinks(value: unknown): BountyHelpfulLink[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const label = typeof (item as { label?: unknown }).label === "string" ? (item as { label: string }).label.trim() : "";
+      const url = typeof (item as { url?: unknown }).url === "string" ? (item as { url: string }).url.trim() : "";
+      if (!label || !url) return null;
+      return { label, url };
+    })
+    .filter((item): item is BountyHelpfulLink => Boolean(item));
+}
 
 export type BountyListItem = {
   id: string;
   name: string;
   description: string;
-  prizeTokens: number;
+  prizeUsd: number;
+  helpfulLinks: BountyHelpfulLink[];
   claimedCount: number;
   claimedByMe: boolean;
   completed: boolean;
@@ -23,6 +42,7 @@ export default function BountiesClient({
 }) {
   const [items, setItems] = useState<BountyListItem[]>(initial);
   const [creating, setCreating] = useState(false);
+  const [helpfulLinksDraft, setHelpfulLinksDraft] = useState<BountyHelpfulLink[]>([{ label: "", url: "" }]);
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/bounties", { method: "GET" });
@@ -35,7 +55,8 @@ export default function BountiesClient({
         id: p.id!,
         name: String(p.name ?? ""),
         description: String(p.description ?? ""),
-        prizeTokens: Number(p.prizeTokens ?? 0),
+        prizeUsd: Number(p.prizeUsd ?? 0),
+        helpfulLinks: parseHelpfulLinks(p.helpfulLinks),
         claimedCount: Number(p.claimedCount ?? 0),
         claimedByMe: Boolean(p.claimedByMe),
         completed: Boolean(p.completed),
@@ -49,7 +70,28 @@ export default function BountiesClient({
       const fd = new FormData(e.currentTarget);
       const name = String(fd.get("name") ?? "").trim();
       const description = String(fd.get("description") ?? "").trim();
-      const prizeTokens = Number(fd.get("prizeTokens") ?? 0);
+      const prizeUsd = Number(fd.get("prizeUsd") ?? 0);
+      const normalizedHelpfulLinks = helpfulLinksDraft.map((link) => ({
+        label: link.label.trim(),
+        url: link.url.trim(),
+      }));
+      const partialLink = normalizedHelpfulLinks.find((link) => (link.label && !link.url) || (!link.label && link.url));
+      if (partialLink) {
+        toast.error("Each helpful link needs both a label and URL.");
+        return;
+      }
+      const helpfulLinks = normalizedHelpfulLinks.filter((link) => link.label && link.url);
+      for (const link of helpfulLinks) {
+        try {
+          const parsed = new URL(link.url);
+          if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            throw new Error("invalid protocol");
+          }
+        } catch {
+          toast.error(`Invalid URL for "${link.label}"`);
+          return;
+        }
+      }
 
       setCreating(true);
       const toastId = toast.loading("Creating bounty…");
@@ -57,7 +99,7 @@ export default function BountiesClient({
         const res = await fetch("/api/bounties", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, description, prizeTokens }),
+          body: JSON.stringify({ name, description, prizeUsd, helpfulLinks }),
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
@@ -67,6 +109,7 @@ export default function BountiesClient({
         }
         toast.success("Created.", { id: toastId });
         e.currentTarget.reset();
+        setHelpfulLinksDraft([{ label: "", url: "" }]);
         await refresh();
         setCreating(false);
       } catch {
@@ -74,7 +117,7 @@ export default function BountiesClient({
         setCreating(false);
       }
     },
-    [refresh]
+    [helpfulLinksDraft, refresh]
   );
 
   const claim = useCallback(
@@ -130,7 +173,7 @@ export default function BountiesClient({
       const aAvail = a.claimedCount < 2 ? 1 : 0;
       const bAvail = b.claimedCount < 2 ? 1 : 0;
       if (aAvail !== bAvail) return bAvail - aAvail;
-      return (b.prizeTokens ?? 0) - (a.prizeTokens ?? 0);
+      return (b.prizeUsd ?? 0) - (a.prizeUsd ?? 0);
     });
   }, [items]);
 
@@ -150,13 +193,13 @@ export default function BountiesClient({
               disabled={creating}
             />
             <Input
-              name="prizeTokens"
-              label="Prize (tokens)"
+              name="prizeUsd"
+              label="Prize (USD)"
               type="number"
               min={1}
               step={1}
               required
-              placeholder="500"
+              placeholder="250"
               disabled={creating}
             />
             <Textarea
@@ -167,6 +210,59 @@ export default function BountiesClient({
               placeholder="What should the bounty project do? What are acceptance criteria?"
               disabled={creating}
             />
+            <div>
+              <FormLabel>Helpful links (optional)</FormLabel>
+              <div className="space-y-3">
+                {helpfulLinksDraft.map((link, index) => (
+                  <div key={`helpful-link-${index}`} className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1fr_auto]">
+                    <Input
+                      placeholder="Docs"
+                      value={link.label}
+                      onChange={(e) => {
+                        const next = [...helpfulLinksDraft];
+                        next[index] = { ...next[index], label: e.target.value };
+                        setHelpfulLinksDraft(next);
+                      }}
+                      disabled={creating}
+                    />
+                    <Input
+                      placeholder="https://example.com/guide"
+                      value={link.url}
+                      onChange={(e) => {
+                        const next = [...helpfulLinksDraft];
+                        next[index] = { ...next[index], url: e.target.value };
+                        setHelpfulLinksDraft(next);
+                      }}
+                      disabled={creating}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        if (helpfulLinksDraft.length === 1) {
+                          setHelpfulLinksDraft([{ label: "", url: "" }]);
+                          return;
+                        }
+                        setHelpfulLinksDraft(helpfulLinksDraft.filter((_, i) => i !== index));
+                      }}
+                      disabled={creating}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex items-center">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setHelpfulLinksDraft((curr) => [...curr, { label: "", url: "" }])}
+                    disabled={creating}
+                  >
+                    Add link
+                  </Button>
+                </div>
+              </div>
+            </div>
             <div className="flex items-center justify-end">
               <Button type="submit" loading={creating} loadingText="Creating…">
                 Create bounty
@@ -196,11 +292,26 @@ export default function BountiesClient({
                       <div className="text-foreground font-bold text-xl truncate">{b.name}</div>
                       {isCompleted && <Badge variant="success">Completed</Badge>}
                     </div>
-                    <div className="text-muted-foreground mt-2 overflow-hidden">{b.description}</div>
+                    <div className="text-muted-foreground mt-2 whitespace-pre-wrap break-words">{b.description}</div>
+                    {b.helpfulLinks.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {b.helpfulLinks.map((link, idx) => (
+                          <a
+                            key={`${b.id}-helpful-link-${idx}`}
+                            href={link.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm text-carnival-blue hover:underline break-all"
+                          >
+                            {link.label}
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="text-sm text-muted-foreground">Prize</div>
-                    <div className="text-foreground font-bold text-lg">{b.prizeTokens} tokens</div>
+                    <div className="text-foreground font-bold text-lg">${b.prizeUsd.toLocaleString("en-US")}</div>
                   </div>
                 </div>
 

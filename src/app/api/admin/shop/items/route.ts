@@ -8,9 +8,20 @@ type CreateItemBody = {
   name?: unknown;
   description?: unknown;
   imageUrl?: unknown;
+  orderNoteRequired?: unknown;
   approvedHoursNeeded?: unknown;
   tokenCost?: unknown;
 };
+
+function toBoolean(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return null;
+}
 
 export async function GET() {
   const user = await getAuthUser();
@@ -23,6 +34,7 @@ export async function GET() {
       name: shopItem.name,
       description: shopItem.description,
       imageUrl: shopItem.imageUrl,
+      orderNoteRequired: shopItem.orderNoteRequired,
       approvedHoursNeeded: shopItem.approvedHoursNeeded,
       tokenCost: shopItem.tokenCost,
       createdAt: shopItem.createdAt,
@@ -49,11 +61,16 @@ export async function POST(req: Request) {
   const name = toCleanString(body?.name);
   const description = toCleanString(body?.description) || null;
   const imageUrl = toCleanString(body?.imageUrl);
+  const orderNoteRequiredInput = body?.orderNoteRequired;
+  const orderNoteRequired = orderNoteRequiredInput === undefined ? false : toBoolean(orderNoteRequiredInput);
   const approvedHoursNeeded = toPositiveInt(body?.approvedHoursNeeded);
   const tokenCost = toPositiveInt(body?.tokenCost);
 
   if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 });
   if (!imageUrl) return NextResponse.json({ error: "imageUrl is required" }, { status: 400 });
+  if (orderNoteRequired === null) {
+    return NextResponse.json({ error: "orderNoteRequired must be a boolean" }, { status: 400 });
+  }
   if (!Number.isFinite(approvedHoursNeeded) || approvedHoursNeeded < 0) {
     return NextResponse.json({ error: "approvedHoursNeeded must be a non-negative integer" }, { status: 400 });
   }
@@ -69,6 +86,7 @@ export async function POST(req: Request) {
     name,
     description,
     imageUrl,
+    orderNoteRequired,
     approvedHoursNeeded,
     tokenCost,
     createdAt: now,
@@ -81,6 +99,7 @@ export async function POST(req: Request) {
       name: shopItem.name,
       description: shopItem.description,
       imageUrl: shopItem.imageUrl,
+      orderNoteRequired: shopItem.orderNoteRequired,
       approvedHoursNeeded: shopItem.approvedHoursNeeded,
       tokenCost: shopItem.tokenCost,
     })
@@ -90,4 +109,3 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ item: created[0] }, { status: 201 });
 }
-

@@ -16,6 +16,7 @@ export type AdminShopOrderDTO = {
   itemName: string;
   itemImageUrl: string;
   itemDescription: string | null;
+  orderNote: string | null;
   tokenCost: number;
   fulfillmentLink: string | null;
   cancellationReason: string | null;
@@ -241,6 +242,11 @@ export default function AdminOrdersClient({
                       {o.status === "cancelled" && o.cancellationReason ? (
                         <div className="text-xs text-carnival-red mt-1">Reason: {o.cancellationReason}</div>
                       ) : null}
+                      {o.orderNote ? (
+                        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          Request note: {o.orderNote}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex-1 flex items-center justify-end">
@@ -292,6 +298,12 @@ export default function AdminOrdersClient({
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
                     Status: <span className="font-semibold">{selectedOrder.status}</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-3">
+                    Request note:
+                    <div className="text-foreground mt-1 whitespace-pre-wrap">
+                      {selectedOrder.orderNote ?? "No note provided."}
+                    </div>
                   </div>
                 </div>
               </div>

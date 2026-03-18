@@ -1,14 +1,25 @@
 import { NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { shopItem, shopOrder } from "@/db/schema";
-import { getAuthUser, parseJsonBody, toCleanString } from "@/lib/api-utils";
+import { shopItem, shopOrder, user as dbUser } from "@/db/schema";
+import { generateId, getAuthUser, parseJsonBody, toCleanString } from "@/lib/api-utils";
 import { getTokenBalance } from "@/lib/wallet";
-import { generateId } from "@/lib/api-utils";
+import { sendShopOrderCreatedEmail } from "@/lib/loops";
 
 type CreateOrderBody = {
   itemId?: unknown;
+  orderNote?: unknown;
 };
+
+function toAbsoluteAppUrl(path: string) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+  if (!appUrl) return path;
+  try {
+    return new URL(path, appUrl).toString();
+  } catch {
+    return path;
+  }
+}
 
 export async function GET() {
   const user = await getAuthUser();
@@ -22,6 +33,7 @@ export async function GET() {
       itemName: shopOrder.itemNameSnapshot,
       itemImageUrl: shopOrder.itemImageSnapshot,
       itemDescription: shopOrder.itemDescriptionSnapshot,
+      orderNote: shopOrder.orderNote,
       tokenCost: shopOrder.tokenCostSnapshot,
       fulfillmentLink: shopOrder.fulfillmentLink,
       cancellationReason: shopOrder.cancellationReason,
@@ -37,6 +49,7 @@ export async function GET() {
     orders: orders.map((o) => ({
       ...o,
       itemDescription: o.itemDescription ?? null,
+      orderNote: o.orderNote ?? null,
       cancellationReason: o.cancellationReason ?? null,
       cancelledAt: o.cancelledAt ? o.cancelledAt.toISOString() : null,
       fulfilledAt: o.fulfilledAt ? o.fulfilledAt.toISOString() : null,
@@ -52,6 +65,10 @@ export async function POST(req: Request) {
   const body = await parseJsonBody<CreateOrderBody>(req);
   const itemId = toCleanString(body?.itemId);
   if (!itemId) return NextResponse.json({ error: "itemId is required" }, { status: 400 });
+  if (body?.orderNote !== undefined && body?.orderNote !== null && typeof body.orderNote !== "string") {
+    return NextResponse.json({ error: "orderNote must be a string" }, { status: 400 });
+  }
+  const orderNote = toCleanString(body?.orderNote);
 
   const rows = await db
     .select({
@@ -59,6 +76,7 @@ export async function POST(req: Request) {
       name: shopItem.name,
       imageUrl: shopItem.imageUrl,
       description: shopItem.description,
+      orderNoteRequired: shopItem.orderNoteRequired,
       tokenCost: shopItem.tokenCost,
     })
     .from(shopItem)
@@ -67,6 +85,9 @@ export async function POST(req: Request) {
 
   const item = rows[0];
   if (!item) return NextResponse.json({ error: "Item not found" }, { status: 404 });
+  if (item.orderNoteRequired && !orderNote) {
+    return NextResponse.json({ error: "A request note is required for this item." }, { status: 400 });
+  }
 
   const balance = await getTokenBalance(db, user.id);
   if (balance <= 0) {
@@ -87,11 +108,41 @@ export async function POST(req: Request) {
     itemNameSnapshot: item.name,
     itemImageSnapshot: item.imageUrl,
     itemDescriptionSnapshot: item.description ?? null,
+    orderNote: orderNote || null,
     tokenCostSnapshot: item.tokenCost ?? 0,
     createdAt: now,
     updatedAt: now,
   });
 
+  const requesterRows = await db
+    .select({ name: dbUser.name, email: dbUser.email })
+    .from(dbUser)
+    .where(eq(dbUser.id, user.id))
+    .limit(1);
+  const requesterName = requesterRows[0]?.name ?? "User";
+  const requesterEmail = requesterRows[0]?.email ?? "";
+
+  const adminRows = await db
+    .select({ email: dbUser.email })
+    .from(dbUser)
+    .where(and(eq(dbUser.role, "admin"), ne(dbUser.email, "")));
+
+  if (adminRows.length > 0) {
+    const adminOrdersLink = toAbsoluteAppUrl("/admin/orders");
+    await Promise.allSettled(
+      adminRows.map((adminRow) =>
+        sendShopOrderCreatedEmail(adminRow.email, {
+          orderId: id,
+          itemName: item.name,
+          requesterName,
+          requesterEmail,
+          orderNote: orderNote || null,
+          tokenCost: item.tokenCost ?? 0,
+          adminOrdersLink,
+        }),
+      ),
+    );
+  }
+
   return NextResponse.json({ id }, { status: 201 });
 }
-

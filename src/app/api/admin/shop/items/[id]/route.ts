@@ -8,9 +8,20 @@ type PatchItemBody = {
   name?: unknown;
   description?: unknown;
   imageUrl?: unknown;
+  orderNoteRequired?: unknown;
   approvedHoursNeeded?: unknown;
   tokenCost?: unknown;
 };
+
+function toBoolean(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return null;
+}
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser();
@@ -24,6 +35,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       name: shopItem.name,
       description: shopItem.description,
       imageUrl: shopItem.imageUrl,
+      orderNoteRequired: shopItem.orderNoteRequired,
       approvedHoursNeeded: shopItem.approvedHoursNeeded,
       tokenCost: shopItem.tokenCost,
       createdAt: shopItem.createdAt,
@@ -58,6 +70,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     name: string;
     description: string | null;
     imageUrl: string;
+    orderNoteRequired: boolean;
     approvedHoursNeeded: number;
     tokenCost: number;
     updatedAt: Date;
@@ -77,6 +90,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   if (body.description !== undefined) {
     set.description = toCleanString(body.description) || null;
+  }
+
+  if (body.orderNoteRequired !== undefined) {
+    const v = toBoolean(body.orderNoteRequired);
+    if (v === null) {
+      return NextResponse.json({ error: "orderNoteRequired must be a boolean" }, { status: 400 });
+    }
+    set.orderNoteRequired = v;
   }
 
   if (body.approvedHoursNeeded !== undefined) {
@@ -104,6 +125,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       name: shopItem.name,
       description: shopItem.description,
       imageUrl: shopItem.imageUrl,
+      orderNoteRequired: shopItem.orderNoteRequired,
       approvedHoursNeeded: shopItem.approvedHoursNeeded,
       tokenCost: shopItem.tokenCost,
       updatedAt: shopItem.updatedAt,
@@ -131,4 +153,3 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
 
   return NextResponse.json({ ok: true });
 }
-

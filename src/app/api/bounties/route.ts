@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { desc } from "drizzle-orm";
 import { db } from "@/db";
-import { bountyClaim, bountyProject } from "@/db/schema";
+import { bountyClaim, bountyProject, type BountyHelpfulLink } from "@/db/schema";
 import {
   getAuthUser,
   parseJsonBody,
@@ -14,8 +14,38 @@ import {
 type CreateBountyBody = {
   name?: unknown;
   description?: unknown;
-  prizeTokens?: unknown;
+  prizeUsd?: unknown;
+  helpfulLinks?: unknown;
 };
+
+function toHelpfulLinks(value: unknown): BountyHelpfulLink[] | null {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) return null;
+
+  const links: BountyHelpfulLink[] = [];
+
+  for (const item of value) {
+    if (!item || typeof item !== "object") return null;
+    const label = toCleanString((item as { label?: unknown }).label);
+    const url = toCleanString((item as { url?: unknown }).url);
+
+    if (!label && !url) continue;
+    if (!label || !url) return null;
+
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        return null;
+      }
+    } catch {
+      return null;
+    }
+
+    links.push({ label, url });
+  }
+
+  return links;
+}
 
 export async function GET() {
   const user = await getAuthUser();
@@ -26,7 +56,8 @@ export async function GET() {
       id: bountyProject.id,
       name: bountyProject.name,
       description: bountyProject.description,
-      prizeTokens: bountyProject.prizeTokens,
+      prizeUsd: bountyProject.prizeUsd,
+      helpfulLinks: bountyProject.helpfulLinks,
       completed: bountyProject.completed,
       createdAt: bountyProject.createdAt,
     })
@@ -52,6 +83,7 @@ export async function GET() {
       const set = claimsByProject.get(p.id) ?? new Set<string>();
       return {
         ...p,
+        helpfulLinks: Array.isArray(p.helpfulLinks) ? p.helpfulLinks : [],
         claimedCount: set.size,
         claimedByMe: set.has(user.id),
       };
@@ -69,12 +101,16 @@ export async function POST(req: Request) {
 
   const name = toCleanString(body.name);
   const description = toCleanString(body.description);
-  const prizeTokens = toPositiveInt(body.prizeTokens);
+  const prizeUsd = toPositiveInt(body.prizeUsd);
+  const helpfulLinks = toHelpfulLinks(body.helpfulLinks);
 
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
   if (!description) return NextResponse.json({ error: "Description is required" }, { status: 400 });
-  if (!Number.isFinite(prizeTokens) || prizeTokens <= 0) {
-    return NextResponse.json({ error: "Prize must be a positive token amount" }, { status: 400 });
+  if (!Number.isFinite(prizeUsd) || prizeUsd <= 0) {
+    return NextResponse.json({ error: "Prize must be a positive USD amount" }, { status: 400 });
+  }
+  if (!helpfulLinks) {
+    return NextResponse.json({ error: "Helpful links must be valid label + URL pairs" }, { status: 400 });
   }
 
   const id = generateId();
@@ -83,7 +119,8 @@ export async function POST(req: Request) {
     id,
     name,
     description,
-    prizeTokens,
+    prizeUsd,
+    helpfulLinks,
     createdById: user.id,
     ...timestamps(),
   });

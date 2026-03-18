@@ -1,10 +1,16 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import type { ProjectEditor, ProjectStatus, ReviewDecision } from "@/db/schema";
+import type {
+  ProjectEditor,
+  ProjectStatus,
+  ProjectSubmissionChecklist,
+  ReviewDecision,
+} from "@/db/schema";
 import { buildBillyUrl } from "@/lib/constants";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
+import { PROJECT_SUBMISSION_CHECKLIST_ITEMS } from "@/lib/project-submission-checklist";
 import toast from "react-hot-toast";
 
 type ReviewItem = {
@@ -28,6 +34,7 @@ type ReviewableProject = {
   playableDemoUrl: string;
   codeUrl: string;
   screenshots: string[];
+  submissionChecklist: ProjectSubmissionChecklist | null;
   status: ProjectStatus;
   approvedHours: number | null;
   creatorName: string;
@@ -230,6 +237,46 @@ export default function ReviewProjectClient({
               {project.hackatimeStoppedAt ? new Date(project.hackatimeStoppedAt).toLocaleString() : "—"}
             </div>
           </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-muted px-4 py-4 space-y-3">
+          <div className="text-foreground font-semibold">Submission checklist</div>
+          {project.submissionChecklist ? (
+            <div className="space-y-2">
+              {PROJECT_SUBMISSION_CHECKLIST_ITEMS.map((item) => {
+                const checked = project.submissionChecklist?.[item.key] ?? false;
+                return (
+                  <div key={item.key} className="flex items-start justify-between gap-3">
+                    <div className="text-sm text-foreground">{item.label}</div>
+                    <div className="shrink-0 flex items-center gap-2">
+                      <span
+                        className={[
+                          "inline-flex rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide",
+                          item.required
+                            ? "bg-rose-500/15 text-rose-200"
+                            : "bg-emerald-500/15 text-emerald-200",
+                        ].join(" ")}
+                      >
+                        {item.required ? "Required" : "Optional"}
+                      </span>
+                      <span
+                        className={[
+                          "text-xs font-semibold uppercase tracking-wide",
+                          checked ? "text-emerald-300" : "text-muted-foreground",
+                        ].join(" ")}
+                      >
+                        {checked ? "Checked" : "Unchecked"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              No checklist state was saved for this submission.
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -448,5 +495,4 @@ export default function ReviewProjectClient({
     </div>
   );
 }
-
 

@@ -213,7 +213,7 @@ async function fetchIdentityGrantProfile(identityToken: string | null): Promise<
 }
 
 function mapReviewsForAirtable(reviews: GrantReviewRow[]) {
-  return reviews.map((r) => ({
+  return [...reviews].reverse().map((r) => ({
     reviewerName: r.reviewerName || "Unknown reviewer",
     decision: r.decision,
     message: r.reviewComment,
@@ -661,5 +661,4 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
   if (deleted.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }
-
 
