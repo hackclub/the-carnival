@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { shopOrder, tokenLedger, user as dbUser } from "@/db/schema";
+import { shopOrder, tokenLedger, user } from "@/db/schema";
 import { getAuthUser, parseJsonBody, toCleanString, toPositiveInt, generateId } from "@/lib/api-utils";
+import { getAppBaseUrl, sendShopOrderFulfilledParticipantEmail } from "@/lib/loops";
 import { getTokenBalance } from "@/lib/wallet";
-import { sendShopOrderFulfilledEmail } from "@/lib/loops";
 
 type FulfillBody = {
   fulfillmentLink?: unknown;
@@ -12,15 +12,28 @@ type FulfillBody = {
   deductTokensOverrideNote?: unknown;
 };
 
-function toAbsoluteAppUrl(path: string) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
-  if (!appUrl) return path;
-  try {
-    return new URL(path, appUrl).toString();
-  } catch {
-    return path;
-  }
-}
+type FulfillTransactionResult =
+  | {
+      kind: "error";
+      error: string;
+      status: number;
+    }
+  | {
+      kind: "already_fulfilled";
+    }
+  | {
+      kind: "fulfilled";
+      email: {
+        participantEmail: string;
+        participantName: string;
+        orderId: string;
+        itemName: string;
+        fulfillmentLink: string;
+        fulfilledAt: string;
+        tokensDeducted: number;
+        tokenCostSnapshot: number;
+      };
+    };
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getAuthUser();
@@ -62,7 +75,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const now = new Date();
 
-  const result = await db.transaction(async (tx) => {
+  const result = await db.transaction<FulfillTransactionResult>(async (tx) => {
     const rows = await tx
       .select({
         id: shopOrder.id,
@@ -70,30 +83,33 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         status: shopOrder.status,
         itemName: shopOrder.itemNameSnapshot,
         tokenCost: shopOrder.tokenCostSnapshot,
-        fulfillmentLink: shopOrder.fulfillmentLink,
-        requesterEmail: dbUser.email,
+        participantName: user.name,
+        participantEmail: user.email,
       })
       .from(shopOrder)
-      .innerJoin(dbUser, eq(dbUser.id, shopOrder.userId))
+      .leftJoin(user, eq(shopOrder.userId, user.id))
       .where(eq(shopOrder.id, id))
       .limit(1);
 
     const order = rows[0];
-    if (!order) return { error: "Not found" as const, status: 404 as const };
+    if (!order) {
+      return { kind: "error", error: "Not found", status: 404 };
+    }
 
     if (order.status === "fulfilled") {
-      return { ok: true as const, requesterEmail: null, fulfilledOrder: null };
+      return { kind: "already_fulfilled" };
     }
     if (order.status !== "pending") {
-      return { error: "Order is not pending" as const, status: 409 as const };
+      return { kind: "error", error: "Order is not pending", status: 409 };
     }
 
     const balance = await getTokenBalance(tx, order.userId);
     const cost = hasOverride ? (deductTokensOverride ?? 0) : (order.tokenCost ?? 0);
     if (balance < cost) {
       return {
+        kind: "error",
         error: `Cannot deduct ${cost} tokens because user only has ${balance} available`,
-        status: 409 as const,
+        status: 409,
       };
     }
 
@@ -132,29 +148,40 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       .returning({ id: shopOrder.id });
 
     if (!updated[0]) {
-      return { error: "Failed to fulfill order" as const, status: 409 as const };
+      return { kind: "error", error: "Failed to fulfill order", status: 409 };
     }
 
     return {
-      ok: true as const,
-      requesterEmail: order.requesterEmail,
-      fulfilledOrder: {
+      kind: "fulfilled",
+      email: {
+        participantEmail: order.participantEmail ?? "",
+        participantName: order.participantName ?? order.userId,
         orderId: order.id,
         itemName: order.itemName,
         fulfillmentLink,
+        fulfilledAt: now.toISOString(),
+        tokensDeducted: cost,
+        tokenCostSnapshot: order.tokenCost ?? 0,
       },
     };
   });
 
-  if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
-  if (result.requesterEmail && result.fulfilledOrder) {
-    const requesterOrdersLink = toAbsoluteAppUrl("/shop");
-    await sendShopOrderFulfilledEmail(result.requesterEmail, {
-      ...result.fulfilledOrder,
-      requesterOrdersLink,
-    }).catch((err) => {
-      console.warn("sendShopOrderFulfilledEmail failed", err);
+  if (result.kind === "error") {
+    return NextResponse.json({ error: result.error }, { status: result.status });
+  }
+
+  if (result.kind === "fulfilled" && result.email.participantEmail) {
+    await sendShopOrderFulfilledParticipantEmail(result.email.participantEmail, {
+      participant_name: result.email.participantName,
+      order_id: result.email.orderId,
+      item_name: result.email.itemName,
+      fulfillment_link: result.email.fulfillmentLink,
+      fulfilled_at: result.email.fulfilledAt,
+      tokens_deducted: result.email.tokensDeducted,
+      token_cost_snapshot: result.email.tokenCostSnapshot,
+      shop_url: `${getAppBaseUrl()}/shop`,
     });
   }
+
   return NextResponse.json({ ok: true });
 }
