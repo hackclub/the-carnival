@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { signIn, signOut, useSession } from "@/lib/auth-client";
+import WalletConverterPopover from "@/components/WalletConverterPopover";
 
 type HeaderProps = {
   /**
@@ -151,12 +152,7 @@ export default function Header({ showSectionLinks = true, initialWalletBalance =
             ) : null}
 
             {!showSectionLinks ? (
-              <div
-                className="bg-carnival-blue/15 border border-border text-foreground px-4 py-2 rounded-full font-semibold"
-                title="Token balance"
-              >
-                🪙 {walletBalance ?? "—"}
-              </div>
+              <WalletConverterPopover walletBalance={walletBalance} />
             ) : null}
 
           <details ref={detailsRef} className="relative z-50">
@@ -253,5 +249,4 @@ export default function Header({ showSectionLinks = true, initialWalletBalance =
     </nav>
   );
 }
-
 
