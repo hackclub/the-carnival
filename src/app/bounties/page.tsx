@@ -6,6 +6,19 @@ import { bountyClaim, bountyProject } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import BountiesClient, { type BountyListItem } from "@/components/BountiesClient";
 
+function toHelpfulLinks(value: unknown): BountyListItem["helpfulLinks"] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const label = typeof (item as { label?: unknown }).label === "string" ? (item as { label: string }).label.trim() : "";
+      const url = typeof (item as { url?: unknown }).url === "string" ? (item as { url: string }).url.trim() : "";
+      if (!label || !url) return null;
+      return { label, url };
+    })
+    .filter((item): item is BountyListItem["helpfulLinks"][number] => Boolean(item));
+}
+
 export default async function BountiesPage() {
   const session = await getServerSession();
   if (!session?.user?.id) {
@@ -20,7 +33,8 @@ export default async function BountiesPage() {
       id: bountyProject.id,
       name: bountyProject.name,
       description: bountyProject.description,
-      prizeTokens: bountyProject.prizeTokens,
+      prizeUsd: bountyProject.prizeUsd,
+      helpfulLinks: bountyProject.helpfulLinks,
       completed: bountyProject.completed,
       createdAt: bountyProject.createdAt,
     })
@@ -47,7 +61,8 @@ export default async function BountiesPage() {
       id: p.id,
       name: p.name,
       description: p.description,
-      prizeTokens: p.prizeTokens,
+      prizeUsd: p.prizeUsd,
+      helpfulLinks: toHelpfulLinks(p.helpfulLinks),
       claimedCount: set.size,
       claimedByMe: set.has(session.user.id),
       completed: p.completed,
@@ -60,5 +75,3 @@ export default async function BountiesPage() {
     </AppShell>
   );
 }
-
-

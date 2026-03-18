@@ -1,4 +1,5 @@
-import { pgTable, text, timestamp, boolean, pgEnum, integer, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { pgTable, text, timestamp, boolean, pgEnum, integer, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 
 export const userRole = pgEnum("user_role", ["user", "reviewer", "admin"]);
 export type UserRole = (typeof userRole.enumValues)[number];
@@ -104,11 +105,17 @@ export const peerReview = pgTable("peer_review", {
   updatedAt: timestamp("updated_at").notNull(),
 });
 
+export type BountyHelpfulLink = {
+  label: string;
+  url: string;
+};
+
 export const bountyProject = pgTable("bounty_project", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description").notNull(),
-  prizeTokens: integer("prize_tokens").notNull(),
+  prizeUsd: integer("prize_usd").notNull(),
+  helpfulLinks: jsonb("helpful_links").$type<BountyHelpfulLink[]>().notNull().default(sql`'[]'::jsonb`),
   completed: boolean("completed").notNull().default(false),
   createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull(),
