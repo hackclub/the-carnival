@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
-import { project, user, type ProjectEditor, type ProjectStatus } from "@/db/schema";
+import {
+  project,
+  user,
+  type ProjectEditor,
+  type ProjectStatus,
+  type ProjectSubmissionChecklist,
+} from "@/db/schema";
 import { fetchHackatimeProjectsForUser } from "@/lib/hackatime";
+import {
+  hasRequiredProjectSubmissionChecklistAnswers,
+  parseProjectSubmissionChecklist,
+} from "@/lib/project-submission-checklist";
 import { getServerSession } from "@/lib/server-session";
 import { notifyReviewDM } from "@/lib/slack";
 
@@ -19,6 +29,7 @@ type UpdateProjectBody = {
   playableDemoUrl?: unknown;
   codeUrl?: unknown;
   screenshots?: unknown;
+  submissionChecklist?: unknown;
   status?: unknown;
 };
 
@@ -109,6 +120,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
       screenshots: project.screenshots,
+      submissionChecklist: project.submissionChecklist,
       status: project.status,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
@@ -151,6 +163,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
       screenshots: project.screenshots,
+      submissionChecklist: project.submissionChecklist,
       submittedAt: project.submittedAt,
     })
     .from(project)
@@ -190,6 +203,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     playableDemoUrl: string;
     codeUrl: string;
     screenshots: string[];
+    submissionChecklist: ProjectSubmissionChecklist | null;
     status: ProjectStatus;
     approvedHours: number | null;
     submittedAt: Date;
@@ -280,6 +294,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     set.screenshots = screenshots;
   }
 
+  if (body.submissionChecklist !== undefined) {
+    const submissionChecklist = parseProjectSubmissionChecklist(body.submissionChecklist);
+    if (!submissionChecklist) {
+      return NextResponse.json({ error: "Invalid submission checklist." }, { status: 400 });
+    }
+    set.submissionChecklist = submissionChecklist;
+  }
+
   if (body.status !== undefined) {
     if (!isUserEditableStatus(body.status)) {
       return NextResponse.json(
@@ -317,6 +339,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const nextPlayableDemo = (set.playableDemoUrl ?? current.playableDemoUrl).trim();
     const nextCodeUrl = (set.codeUrl ?? current.codeUrl).trim();
     const nextScreenshots = (set.screenshots ?? current.screenshots) ?? [];
+    const nextSubmissionChecklist =
+      set.submissionChecklist !== undefined
+        ? set.submissionChecklist
+        : (current.submissionChecklist ?? null);
 
     if (!nextName) return NextResponse.json({ error: "Project name is required" }, { status: 400 });
     if (!nextDescription) {
@@ -355,6 +381,18 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     if (!Array.isArray(nextScreenshots) || nextScreenshots.length === 0) {
       return NextResponse.json(
         { error: "At least one screenshot is required to submit for review" },
+        { status: 400 },
+      );
+    }
+
+    const hasSubmittedBefore = !!current.submittedAt;
+    const shouldValidateChecklist = !hasSubmittedBefore || !!nextSubmissionChecklist;
+    if (
+      shouldValidateChecklist &&
+      !hasRequiredProjectSubmissionChecklistAnswers(nextSubmissionChecklist)
+    ) {
+      return NextResponse.json(
+        { error: "Please complete all required checklist items before submitting for review." },
         { status: 400 },
       );
     }
@@ -452,6 +490,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
       screenshots: project.screenshots,
+      submissionChecklist: project.submissionChecklist,
       status: project.status,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
@@ -537,5 +576,4 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
 
   return NextResponse.json({ ok: true });
 }
-
 

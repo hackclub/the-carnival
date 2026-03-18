@@ -38,6 +38,15 @@ export type ProjectEditor = (typeof projectEditor.enumValues)[number];
 export const reviewDecision = pgEnum("review_decision", ["approved", "rejected", "comment"]);
 export type ReviewDecision = (typeof reviewDecision.enumValues)[number];
 
+export type ProjectSubmissionChecklist = {
+  readmeInstructions: boolean;
+  testedWorking: boolean;
+  usedAi: boolean;
+  githubPublic: boolean;
+  descriptionClear: boolean;
+  screenshotsWorking: boolean;
+};
+
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -83,6 +92,7 @@ export const project = pgTable("project", {
   status: projectStatus("status").notNull().default("work-in-progress"),
   // Canonical approved hours for this project (set by a reviewer on approval).
   approvedHours: integer("approved_hours"),
+  submissionChecklist: jsonb("submission_checklist").$type<ProjectSubmissionChecklist>(),
   // Set when a creator submits their project for review (status transitions to "in-review").
   submittedAt: timestamp("submitted_at"),
   createdAt: timestamp("created_at").notNull(),

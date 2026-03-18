@@ -162,6 +162,13 @@
       "when": 1773829800000,
       "tag": "0022_upgrade_bounty_prize_usd_and_helpful_links",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1773832200000,
+      "tag": "0023_add_project_submission_checklist",
+      "breakpoints": true
     }
   ]
 }

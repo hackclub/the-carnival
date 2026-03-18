@@ -30,6 +30,7 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
       screenshots: project.screenshots,
+      submissionChecklist: project.submissionChecklist,
       status: project.status,
       approvedHours: project.approvedHours,
       createdAt: project.createdAt,
@@ -92,6 +93,7 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
             playableDemoUrl: p.playableDemoUrl,
             codeUrl: p.codeUrl,
             screenshots: p.screenshots,
+            submissionChecklist: p.submissionChecklist ?? null,
             status: p.status,
             approvedHours: p.approvedHours ?? null,
             createdAt: p.createdAt.toISOString(),
@@ -123,5 +125,4 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
     </AppShell>
   );
 }
-
 
