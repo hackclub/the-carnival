@@ -18,6 +18,7 @@ export async function GET() {
       itemName: shopOrder.itemNameSnapshot,
       itemImageUrl: shopOrder.itemImageSnapshot,
       itemDescription: shopOrder.itemDescriptionSnapshot,
+      orderNote: shopOrder.orderNote,
       tokenCost: shopOrder.tokenCostSnapshot,
       fulfillmentLink: shopOrder.fulfillmentLink,
       cancellationReason: shopOrder.cancellationReason,
@@ -35,6 +36,7 @@ export async function GET() {
     orders: orders.map((o) => ({
       ...o,
       itemDescription: o.itemDescription ?? null,
+      orderNote: o.orderNote ?? null,
       cancellationReason: o.cancellationReason ?? null,
       cancelledById: o.cancelledById ?? null,
       cancelledAt: o.cancelledAt ? o.cancelledAt.toISOString() : null,
@@ -44,4 +46,3 @@ export async function GET() {
     })),
   });
 }
-

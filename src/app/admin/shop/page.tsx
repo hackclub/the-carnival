@@ -21,6 +21,7 @@ export default async function AdminShopPage() {
       name: shopItem.name,
       description: shopItem.description,
       imageUrl: shopItem.imageUrl,
+      orderNoteRequired: shopItem.orderNoteRequired,
       approvedHoursNeeded: shopItem.approvedHoursNeeded,
       tokenCost: shopItem.tokenCost,
       createdAt: shopItem.createdAt,
@@ -39,6 +40,7 @@ export default async function AdminShopPage() {
           itemName: shopOrder.itemNameSnapshot,
           itemImageUrl: shopOrder.itemImageSnapshot,
           itemDescription: shopOrder.itemDescriptionSnapshot,
+          orderNote: shopOrder.orderNote,
           currentItemDescription: shopItem.description,
           tokenCost: shopOrder.tokenCostSnapshot,
           fulfillmentLink: shopOrder.fulfillmentLink,
@@ -71,6 +73,7 @@ export default async function AdminShopPage() {
     name: i.name,
     description: i.description ?? null,
     imageUrl: i.imageUrl,
+    orderNoteRequired: i.orderNoteRequired ?? false,
     approvedHoursNeeded: i.approvedHoursNeeded ?? 0,
     tokenCost: i.tokenCost ?? 0,
     createdAt: i.createdAt.toISOString(),
@@ -87,6 +90,7 @@ export default async function AdminShopPage() {
     itemName: o.itemName,
     itemImageUrl: o.itemImageUrl,
     itemDescription: o.itemDescription ?? o.currentItemDescription ?? null,
+    orderNote: o.orderNote ?? null,
     tokenCost: o.tokenCost ?? 0,
     fulfillmentLink: o.fulfillmentLink ?? null,
     cancellationReason: o.cancellationReason ?? null,
@@ -111,4 +115,3 @@ export default async function AdminShopPage() {
     </AppShell>
   );
 }
-

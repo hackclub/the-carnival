@@ -14,6 +14,7 @@ export async function GET() {
       name: shopItem.name,
       description: shopItem.description,
       imageUrl: shopItem.imageUrl,
+      orderNoteRequired: shopItem.orderNoteRequired,
       approvedHoursNeeded: shopItem.approvedHoursNeeded,
       tokenCost: shopItem.tokenCost,
     })
@@ -22,4 +23,3 @@ export async function GET() {
 
   return NextResponse.json({ items });
 }
-

@@ -2,13 +2,14 @@
 
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Button, Input, Modal } from "@/components/ui";
+import { Button, Input, Modal, Textarea } from "@/components/ui";
 
 export type ShopItemDTO = {
   id: string;
   name: string;
   description: string | null;
   imageUrl: string;
+  orderNoteRequired: boolean;
   approvedHoursNeeded: number;
   tokenCost: number;
 };
@@ -19,6 +20,7 @@ export type ShopOrderDTO = {
   shopItemId: string;
   itemName: string;
   itemImageUrl: string;
+  orderNote: string | null;
   tokenCost: number;
   fulfillmentLink: string | null;
   fulfilledAt: string | null;
@@ -49,6 +51,8 @@ export default function ShopClient({
   const [showOrders, setShowOrders] = useState(false);
   const [showLedger, setShowLedger] = useState(false);
   const [search, setSearch] = useState("");
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [orderNote, setOrderNote] = useState("");
 
   const items = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -60,14 +64,28 @@ export default function ShopClient({
     });
   }, [initial.items, search]);
 
-  const onOrder = useCallback(async (itemId: string) => {
-    setBusyItemId(itemId);
+  const itemsById = useMemo(() => new Map(initial.items.map((item) => [item.id, item])), [initial.items]);
+  const selectedItem = selectedItemId ? itemsById.get(selectedItemId) ?? null : null;
+
+  const openOrderModal = useCallback((itemId: string) => {
+    setSelectedItemId(itemId);
+    setOrderNote("");
+  }, []);
+
+  const onOrder = useCallback(async (item: ShopItemDTO, note: string) => {
+    const cleanedNote = note.trim();
+    if (item.orderNoteRequired && !cleanedNote) {
+      toast.error("A request note is required for this item.");
+      return;
+    }
+
+    setBusyItemId(item.id);
     const toastId = toast.loading("Placing order…");
     try {
       const res = await fetch("/api/shop/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId }),
+        body: JSON.stringify({ itemId: item.id, orderNote: cleanedNote || undefined }),
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown; id?: string } | null;
       if (!res.ok) {
@@ -77,6 +95,8 @@ export default function ShopClient({
         return;
       }
       toast.success("Order placed.", { id: toastId });
+      setSelectedItemId(null);
+      setOrderNote("");
       window.location.reload();
     } catch {
       toast.error("Failed to place order.", { id: toastId });
@@ -146,13 +166,16 @@ export default function ShopClient({
                     ~{i.approvedHoursNeeded} hours • Exact:{" "}
                     <span className="text-foreground font-semibold">{i.tokenCost}</span> tokens
                   </div>
+                  {i.orderNoteRequired ? (
+                    <div className="text-xs text-carnival-blue mt-1 font-medium">Requester note required</div>
+                  ) : null}
                 </div>
                 <div className="mt-4">
                   <Button
                     variant="secondary"
                     loading={busyItemId === i.id}
                     loadingText="Ordering…"
-                    onClick={() => onOrder(i.id)}
+                    onClick={() => openOrderModal(i.id)}
                   >
                     Order
                   </Button>
@@ -182,6 +205,11 @@ export default function ShopClient({
                     <div className="text-xs text-muted-foreground mt-1">
                       {new Date(o.createdAt).toLocaleString()} • {o.tokenCost} tokens
                     </div>
+                    {o.orderNote ? (
+                      <div className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
+                        Request note: {o.orderNote}
+                      </div>
+                    ) : null}
                     {o.fulfillmentLink ? (
                       <a
                         href={o.fulfillmentLink}
@@ -201,6 +229,57 @@ export default function ShopClient({
             ))}
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={!!selectedItem}
+        onClose={() => {
+          setSelectedItemId(null);
+          setOrderNote("");
+        }}
+        title={selectedItem ? `Order ${selectedItem.name}` : "Place order"}
+        description={
+          selectedItem?.orderNoteRequired
+            ? "This item requires a request note."
+            : "Add an optional request note for admins."
+        }
+        maxWidth="lg"
+      >
+        {selectedItem ? (
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              Cost: <span className="text-foreground font-semibold">{selectedItem.tokenCost}</span> tokens
+            </div>
+            <Textarea
+              label={selectedItem.orderNoteRequired ? "Request note (required)" : "Request note (optional)"}
+              placeholder="Add any details admins should know before fulfilling this request..."
+              value={orderNote}
+              onChange={(e) => setOrderNote(e.target.value)}
+              rows={4}
+              disabled={busyItemId === selectedItem.id}
+            />
+            <div className="flex items-center gap-3">
+              <Button
+                variant="secondary"
+                loading={busyItemId === selectedItem.id}
+                loadingText="Ordering…"
+                onClick={() => onOrder(selectedItem, orderNote)}
+              >
+                Place order
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedItemId(null);
+                  setOrderNote("");
+                }}
+                disabled={busyItemId === selectedItem.id}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </Modal>
 
       {canViewLedger ? (
@@ -240,4 +319,3 @@ export default function ShopClient({
     </div>
   );
 }
-

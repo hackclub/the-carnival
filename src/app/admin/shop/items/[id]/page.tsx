@@ -20,6 +20,7 @@ export default async function EditShopItemPage(props: { params: Promise<{ id: st
       name: shopItem.name,
       description: shopItem.description,
       imageUrl: shopItem.imageUrl,
+      orderNoteRequired: shopItem.orderNoteRequired,
       approvedHoursNeeded: shopItem.approvedHoursNeeded,
       tokenCost: shopItem.tokenCost,
     })
@@ -39,6 +40,7 @@ export default async function EditShopItemPage(props: { params: Promise<{ id: st
           name: item.name,
           description: item.description ?? null,
           imageUrl: item.imageUrl,
+          orderNoteRequired: item.orderNoteRequired ?? false,
           approvedHoursNeeded: item.approvedHoursNeeded ?? 0,
           tokenCost: item.tokenCost ?? 0,
         }}
@@ -46,4 +48,3 @@ export default async function EditShopItemPage(props: { params: Promise<{ id: st
     </AppShell>
   );
 }
-
