@@ -25,6 +25,7 @@ export default async function ExplorePage() {
       videoUrl: project.videoUrl,
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
+      screenshots: project.screenshots,
       status: project.status,
       createdAt: project.createdAt,
       creatorSlackId: user.slackId,
@@ -75,54 +76,74 @@ export default async function ExplorePage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {projects.map((p) => (
-            <div
-              key={p.id}
-              className="bg-card border border-border rounded-2xl p-6 card-glow transition-all hover:bg-muted"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="text-foreground font-bold text-xl truncate">{p.name}</div>
-                  <div className="text-muted-foreground text-sm mt-1 truncate">
-                    by
-                    {p.creatorSlackId && slackNameById.get(p.creatorSlackId)
-                      ? ` @${slackNameById.get(p.creatorSlackId)}`
-                      : " Unknown creator"}
-                  </div>
-                  <div className="text-muted-foreground mt-3 overflow-hidden">{p.description}</div>
-                </div>
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                  <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
-                  <ProjectStatusBadge status={p.status} />
-                </div>
-              </div>
+          {projects.map((p) => {
+            const firstScreenshot = p.screenshots.find((url) => url.trim().length > 0);
 
-              <div className="mt-6 flex items-center gap-3">
-                {p.playableDemoUrl || p.videoUrl ? (
+            return (
+              <div
+                key={p.id}
+                className="bg-card border border-border rounded-2xl p-6 card-glow transition-all hover:bg-muted"
+              >
+                {firstScreenshot ? (
+                  <div className="mb-4 overflow-hidden rounded-xl border border-border bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={firstScreenshot}
+                      alt={`${p.name} screenshot`}
+                      className="h-40 w-full object-cover"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                ) : (
+                  <div className="mb-4 flex h-40 w-full items-center justify-center rounded-xl border border-border bg-muted text-sm text-muted-foreground">
+                    No screenshot
+                  </div>
+                )}
+
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-foreground font-bold text-xl truncate">{p.name}</div>
+                    <div className="text-muted-foreground text-sm mt-1 truncate">
+                      by
+                      {p.creatorSlackId && slackNameById.get(p.creatorSlackId)
+                        ? ` @${slackNameById.get(p.creatorSlackId)}`
+                        : " Unknown creator"}
+                    </div>
+                    <div className="text-muted-foreground mt-3 overflow-hidden">{p.description}</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
+                    <ProjectStatusBadge status={p.status} />
+                  </div>
+                </div>
+
+                <div className="mt-6 flex items-center gap-3">
+                  {p.playableDemoUrl || p.videoUrl ? (
+                    <Link
+                      href={p.playableDemoUrl || p.videoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border text-sm"
+                    >
+                      Play
+                    </Link>
+                  ) : null}
                   <Link
-                    href={p.playableDemoUrl || p.videoUrl}
+                    href={p.codeUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border text-sm"
                   >
-                    Play
+                    Code
                   </Link>
-                ) : null}
-                <Link
-                  href={p.codeUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border text-sm"
-                >
-                  Code
-                </Link>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </AppShell>
   );
 }
-
 
