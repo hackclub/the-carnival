@@ -1,15 +1,25 @@
 import { NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { shopItem, shopOrder } from "@/db/schema";
-import { getAuthUser, parseJsonBody, toCleanString } from "@/lib/api-utils";
+import { shopItem, shopOrder, user as dbUser } from "@/db/schema";
+import { generateId, getAuthUser, parseJsonBody, toCleanString } from "@/lib/api-utils";
 import { getTokenBalance } from "@/lib/wallet";
-import { generateId } from "@/lib/api-utils";
+import { sendShopOrderCreatedEmail } from "@/lib/loops";
 
 type CreateOrderBody = {
   itemId?: unknown;
   orderNote?: unknown;
 };
+
+function toAbsoluteAppUrl(path: string) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+  if (!appUrl) return path;
+  try {
+    return new URL(path, appUrl).toString();
+  } catch {
+    return path;
+  }
+}
 
 export async function GET() {
   const user = await getAuthUser();
@@ -103,6 +113,36 @@ export async function POST(req: Request) {
     createdAt: now,
     updatedAt: now,
   });
+
+  const requesterRows = await db
+    .select({ name: dbUser.name, email: dbUser.email })
+    .from(dbUser)
+    .where(eq(dbUser.id, user.id))
+    .limit(1);
+  const requesterName = requesterRows[0]?.name ?? "User";
+  const requesterEmail = requesterRows[0]?.email ?? "";
+
+  const adminRows = await db
+    .select({ email: dbUser.email })
+    .from(dbUser)
+    .where(and(eq(dbUser.role, "admin"), ne(dbUser.email, "")));
+
+  if (adminRows.length > 0) {
+    const adminOrdersLink = toAbsoluteAppUrl("/admin/orders");
+    await Promise.allSettled(
+      adminRows.map((adminRow) =>
+        sendShopOrderCreatedEmail(adminRow.email, {
+          orderId: id,
+          itemName: item.name,
+          requesterName,
+          requesterEmail,
+          orderNote: orderNote || null,
+          tokenCost: item.tokenCost ?? 0,
+          adminOrdersLink,
+        }),
+      ),
+    );
+  }
 
   return NextResponse.json({ id }, { status: 201 });
 }
