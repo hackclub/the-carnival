@@ -1,11 +1,5 @@
 import Airtable from "airtable";
 
-const airtable = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY! });
-
-const base = airtable.base(process.env.AIRTABLE_BASE_ID!);
-
-export default base;
-
 export const AIRTABLE_GRANTS_TABLE_ENV = "AIRTABLE_GRANTS_TABLE";
 
 // -----------------------------------------------------------------------------
@@ -222,6 +216,25 @@ export function getAirtableConfigErrors(env: NodeJS.ProcessEnv = process.env): s
   return missing;
 }
 
+function getAirtableBase(env: NodeJS.ProcessEnv = process.env) {
+  const apiKey = env.AIRTABLE_API_KEY;
+  const baseId = env.AIRTABLE_BASE_ID;
+
+  if (!apiKey || !baseId) {
+    const missing: string[] = [];
+    if (!apiKey) missing.push("AIRTABLE_API_KEY");
+    if (!baseId) missing.push("AIRTABLE_BASE_ID");
+
+    throw Object.assign(new Error(`Missing Airtable env vars: ${missing.join(", ")}`), {
+      statusCode: 500,
+      error: "missing_env",
+      missing,
+    });
+  }
+
+  return new Airtable({ apiKey }).base(baseId);
+}
+
 export function toAirtableCreateErrorDetails(err: unknown): AirtableCreateErrorDetails {
   const hints: string[] = [];
 
@@ -270,12 +283,8 @@ export async function createAirtableGrantRecord(input: AirtableGrantCreateInput)
     });
   }
 
-  const apiKey = process.env.AIRTABLE_API_KEY as string;
-  const baseId = process.env.AIRTABLE_BASE_ID as string;
   const tableName = process.env[AIRTABLE_GRANTS_TABLE_ENV] as string;
-
-  const client = new Airtable({ apiKey });
-  const b = client.base(baseId);
+  const b = getAirtableBase(process.env);
 
   const ghUser = getGithubUsernameFromUrl(input.project.codeUrl);
   const { firstName, lastName } = splitFirstLastName(input.creator.name);

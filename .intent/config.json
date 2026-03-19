@@ -1,0 +1,64 @@
+{
+  "scripts": [
+    {
+      "name": "dev",
+      "command": "npm run dev",
+      "mode": "service",
+      "category": "dev"
+    },
+    {
+      "name": "dev:turbo",
+      "command": "npm run dev:turbo",
+      "mode": "service",
+      "category": "dev"
+    },
+    {
+      "name": "build",
+      "command": "npm run build",
+      "mode": "command",
+      "category": "build"
+    },
+    {
+      "name": "start",
+      "command": "npm run start",
+      "mode": "service",
+      "category": "dev"
+    },
+    {
+      "name": "lint",
+      "command": "npm run lint",
+      "mode": "command",
+      "category": "lint"
+    },
+    {
+      "name": "db:generate",
+      "command": "npm run db:generate",
+      "mode": "command",
+      "category": "other"
+    },
+    {
+      "name": "db:migrate",
+      "command": "npm run db:migrate",
+      "mode": "command",
+      "category": "other"
+    },
+    {
+      "name": "db:baseline",
+      "command": "npm run db:baseline",
+      "mode": "command",
+      "category": "other"
+    },
+    {
+      "name": "db:push",
+      "command": "npm run db:push",
+      "mode": "command",
+      "category": "other"
+    },
+    {
+      "name": "db:studio",
+      "command": "npm run db:studio",
+      "mode": "command",
+      "category": "other"
+    }
+  ]
+}
