@@ -1,29 +1,19 @@
 import { NextResponse } from "next/server";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { shopItem, shopOrder, user as dbUser } from "@/db/schema";
+import { shopItem, shopOrder, user } from "@/db/schema";
 import { generateId, getAuthUser, parseJsonBody, toCleanString } from "@/lib/api-utils";
+import { getAppBaseUrl, sendShopOrderCreatedAdminEmail } from "@/lib/loops";
 import { getTokenBalance } from "@/lib/wallet";
-import { sendShopOrderCreatedEmail } from "@/lib/loops";
 
 type CreateOrderBody = {
   itemId?: unknown;
   orderNote?: unknown;
 };
 
-function toAbsoluteAppUrl(path: string) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
-  if (!appUrl) return path;
-  try {
-    return new URL(path, appUrl).toString();
-  } catch {
-    return path;
-  }
-}
-
 export async function GET() {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authUser = await getAuthUser();
+  if (!authUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const orders = await db
     .select({
@@ -42,7 +32,7 @@ export async function GET() {
       createdAt: shopOrder.createdAt,
     })
     .from(shopOrder)
-    .where(eq(shopOrder.userId, user.id))
+    .where(eq(shopOrder.userId, authUser.id))
     .orderBy(desc(shopOrder.createdAt));
 
   return NextResponse.json({
@@ -59,8 +49,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authUser = await getAuthUser();
+  if (!authUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await parseJsonBody<CreateOrderBody>(req);
   const itemId = toCleanString(body?.itemId);
@@ -89,7 +79,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "A request note is required for this item." }, { status: 400 });
   }
 
-  const balance = await getTokenBalance(db, user.id);
+  const balance = await getTokenBalance(db, authUser.id);
   if (balance <= 0) {
     return NextResponse.json({ error: "You must have tokens to place an order" }, { status: 409 });
   }
@@ -102,7 +92,7 @@ export async function POST(req: Request) {
 
   await db.insert(shopOrder).values({
     id,
-    userId: user.id,
+    userId: authUser.id,
     status: "pending",
     shopItemId: item.id,
     itemNameSnapshot: item.name,
@@ -114,34 +104,50 @@ export async function POST(req: Request) {
     updatedAt: now,
   });
 
-  const requesterRows = await db
-    .select({ name: dbUser.name, email: dbUser.email })
-    .from(dbUser)
-    .where(eq(dbUser.id, user.id))
-    .limit(1);
-  const requesterName = requesterRows[0]?.name ?? "User";
-  const requesterEmail = requesterRows[0]?.email ?? "";
+  try {
+    const [participantRows, adminRows] = await Promise.all([
+      db
+        .select({
+          name: user.name,
+          email: user.email,
+        })
+        .from(user)
+        .where(eq(user.id, authUser.id))
+        .limit(1),
+      db
+        .select({
+          email: user.email,
+        })
+        .from(user)
+        .where(eq(user.role, "admin")),
+    ]);
 
-  const adminRows = await db
-    .select({ email: dbUser.email })
-    .from(dbUser)
-    .where(and(eq(dbUser.role, "admin"), ne(dbUser.email, "")));
+    const participant = participantRows[0];
+    const participantName = participant?.name ?? authUser.id;
+    const participantEmail = participant?.email ?? "";
+    const adminOrdersUrl = `${getAppBaseUrl()}/admin/orders?status=pending`;
 
-  if (adminRows.length > 0) {
-    const adminOrdersLink = toAbsoluteAppUrl("/admin/orders");
-    await Promise.allSettled(
-      adminRows.map((adminRow) =>
-        sendShopOrderCreatedEmail(adminRow.email, {
-          orderId: id,
-          itemName: item.name,
-          requesterName,
-          requesterEmail,
-          orderNote: orderNote || null,
-          tokenCost: item.tokenCost ?? 0,
-          adminOrdersLink,
-        }),
-      ),
+    await Promise.all(
+      adminRows
+        .map((row) => row.email.trim())
+        .filter(Boolean)
+        .map((targetEmail) =>
+          sendShopOrderCreatedAdminEmail(targetEmail, {
+            order_id: id,
+            participant_name: participantName,
+            participant_email: participantEmail,
+            item_name: item.name,
+            item_description: item.description ?? "",
+            item_image_url: item.imageUrl,
+            token_cost: item.tokenCost ?? 0,
+            created_at: now.toISOString(),
+            admin_orders_url: adminOrdersUrl,
+            order_note: orderNote || null,
+          }),
+        ),
     );
+  } catch (err) {
+    console.warn("Failed to send shop order created admin emails", err);
   }
 
   return NextResponse.json({ id }, { status: 201 });
