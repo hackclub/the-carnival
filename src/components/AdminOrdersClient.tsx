@@ -157,7 +157,7 @@ export default function AdminOrdersClient({
 
   return (
     <div className="space-y-8">
-      <div className="bg-card border border-border rounded-2xl p-6">
+      <div className="carnival-card p-6 sm:p-7">
         <div className="mb-4 flex flex-wrap gap-2">
           {ORDER_FILTERS.map((f) => {
             const isActive = f.value === activeFilter;
@@ -165,10 +165,10 @@ export default function AdminOrdersClient({
               <Link
                 key={f.value}
                 href={`/admin/orders?status=${f.value}`}
-                className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                className={`inline-flex items-center rounded-full border-[3px] px-4 py-2 text-xs font-black uppercase tracking-[0.08em] transition-[transform,box-shadow] duration-200 ${
                   isActive
-                    ? "bg-carnival-red text-white border-carnival-red"
-                    : "bg-card text-foreground border-border hover:bg-muted"
+                    ? "border-[#74210a] bg-[#f6a61c] text-[#fff7dc] shadow-[0_4px_0_#bf6216]"
+                    : "border-[#74210a]/35 bg-[#fff6df] text-[#74210a] hover:-translate-y-0.5 hover:shadow-[0_4px_0_rgba(191,98,22,0.55)]"
                 }`}
                 aria-current={isActive ? "page" : undefined}
               >
@@ -180,7 +180,7 @@ export default function AdminOrdersClient({
 
         <div className="flex items-end justify-between gap-4">
           <div>
-            <div className="text-foreground font-semibold text-lg">
+            <div className="text-foreground font-black uppercase tracking-[0.08em] text-lg">
               {activeFilter === "all"
                 ? "All orders"
                 : activeFilter === "fulfilled"
@@ -197,7 +197,7 @@ export default function AdminOrdersClient({
                   : "Fulfill pending orders or deny them with a reason."}
             </div>
           </div>
-          <div className="text-sm text-muted-foreground">{filteredOrders.length} shown</div>
+          <div className="text-sm text-muted-foreground tabular-nums">{filteredOrders.length} shown</div>
         </div>
 
         {filteredOrders.length === 0 ? (
@@ -213,14 +213,17 @@ export default function AdminOrdersClient({
         ) : (
           <div className="space-y-3 mt-4">
             {filteredOrders.map((o) => (
-              <div key={o.id} className="rounded-2xl border border-border bg-muted px-4 py-4">
+              <div
+                key={o.id}
+                className="carnival-card carnival-card-soft px-4 py-4 transition-transform duration-200 hover:-translate-y-0.5"
+              >
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div className="min-w-0 flex items-start gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={o.itemImageUrl}
                       alt={o.itemName}
-                      className="w-16 h-16 object-cover rounded-lg border border-border bg-background shrink-0"
+                      className="h-16 w-16 shrink-0 rounded-lg border border-[#74210a]/25 bg-background object-cover shadow-[0_4px_10px_rgba(120,53,15,0.1)]"
                       referrerPolicy="no-referrer"
                     />
                     <div className="min-w-0">
@@ -229,7 +232,7 @@ export default function AdminOrdersClient({
                         <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{o.itemDescription}</div>
                       ) : null}
                       <div className="text-xs text-muted-foreground mt-1">
-                        {new Date(o.createdAt).toLocaleString()} • price {o.tokenCost} tokens • {o.requesterName}
+                        {new Date(o.createdAt).toLocaleString()} • price <span className="tabular-nums">{o.tokenCost}</span> tokens • {o.requesterName}
                         {o.requesterEmail ? ` (${o.requesterEmail})` : ""} • available {o.requesterTokenBalance} tokens •{" "}
                         <span className="font-semibold">{o.status}</span>
                         {o.status === "fulfilled" && o.fulfilledAt
@@ -270,13 +273,13 @@ export default function AdminOrdersClient({
       >
         {selectedOrder ? (
           <div className="space-y-6">
-            <div className="rounded-2xl border border-border bg-muted p-4">
+            <div className="carnival-card carnival-card-soft p-4">
               <div className="flex flex-col md:flex-row gap-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={selectedOrder.itemImageUrl}
                   alt={selectedOrder.itemName}
-                  className="w-full md:w-48 h-48 object-cover rounded-xl border border-border bg-background shrink-0"
+                  className="h-48 w-full shrink-0 rounded-xl border border-[#74210a]/25 bg-background object-cover shadow-[0_6px_14px_rgba(120,53,15,0.1)] md:w-48"
                   referrerPolicy="no-referrer"
                 />
                 <div className="min-w-0">
@@ -287,11 +290,11 @@ export default function AdminOrdersClient({
                     <div className="text-sm text-muted-foreground mt-2">No item description provided.</div>
                   )}
                   <div className="text-sm text-muted-foreground mt-3">
-                    Price: <span className="text-foreground font-semibold">{selectedOrder.tokenCost}</span> tokens
+                    Price: <span className="text-foreground font-semibold tabular-nums">{selectedOrder.tokenCost}</span> tokens
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
                     Available tokens now:{" "}
-                    <span className="text-foreground font-semibold">{selectedOrder.requesterTokenBalance}</span>
+                    <span className="text-foreground font-semibold tabular-nums">{selectedOrder.requesterTokenBalance}</span>
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
                     Placed: {new Date(selectedOrder.createdAt).toLocaleString()}

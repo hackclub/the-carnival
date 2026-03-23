@@ -108,11 +108,11 @@ export default function ShopClient({
 
   return (
     <div className="space-y-8">
-      <div className="bg-card border border-border rounded-2xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="carnival-card carnival-card-soft flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between sm:p-7">
         <div>
-          <div className="text-foreground font-semibold text-lg">Your wallet</div>
+          <div className="text-foreground font-black uppercase tracking-[0.08em] text-lg">Your wallet</div>
           <div className="text-muted-foreground mt-1">
-            Balance: <span className="text-foreground font-bold">{initial.balance}</span> tokens
+            Balance: <span className="text-foreground font-bold tabular-nums">{initial.balance}</span> tokens
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -127,10 +127,10 @@ export default function ShopClient({
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-6">
+      <div className="carnival-card p-6 sm:p-7">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
-            <div className="text-foreground font-semibold text-lg">Shop items</div>
+            <div className="text-foreground font-black uppercase tracking-[0.08em] text-lg">Shop items</div>
             <div className="text-muted-foreground mt-1">Order items with your tokens. Admins fulfill orders later.</div>
           </div>
           <div className="w-full md:w-80">
@@ -149,12 +149,15 @@ export default function ShopClient({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-6">
             {items.map((i) => (
-              <div key={i.id} className="rounded-2xl border border-border bg-muted p-4">
+              <div
+                key={i.id}
+                className="carnival-card carnival-card-soft p-4 transition-transform duration-200 hover:-translate-y-1"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={i.imageUrl}
                   alt=""
-                  className="w-full h-44 object-cover rounded-xl border border-border bg-background"
+                  className="h-44 w-full rounded-xl border border-[#74210a]/25 bg-background object-cover shadow-[0_6px_16px_rgba(120,53,15,0.12)]"
                   referrerPolicy="no-referrer"
                 />
                 <div className="mt-4">
@@ -164,10 +167,12 @@ export default function ShopClient({
                   ) : null}
                   <div className="text-sm text-muted-foreground mt-1">
                     ~{i.approvedHoursNeeded} hours • Exact:{" "}
-                    <span className="text-foreground font-semibold">{i.tokenCost}</span> tokens
+                    <span className="text-foreground font-semibold tabular-nums">{i.tokenCost}</span> tokens
                   </div>
                   {i.orderNoteRequired ? (
-                    <div className="text-xs text-carnival-blue mt-1 font-medium">Requester note required</div>
+                    <div className="mt-1 text-xs font-semibold uppercase tracking-[0.08em] text-[#8f4a18]">
+                      Requester note required
+                    </div>
                   ) : null}
                 </div>
                 <div className="mt-4">
@@ -198,7 +203,7 @@ export default function ShopClient({
         ) : (
           <div className="space-y-3">
             {initial.orders.map((o) => (
-              <div key={o.id} className="rounded-2xl border border-border bg-muted px-4 py-4">
+              <div key={o.id} className="carnival-card carnival-card-soft px-4 py-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-foreground font-semibold truncate">{o.itemName}</div>
@@ -248,7 +253,7 @@ export default function ShopClient({
         {selectedItem ? (
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
-              Cost: <span className="text-foreground font-semibold">{selectedItem.tokenCost}</span> tokens
+              Cost: <span className="text-foreground font-semibold tabular-nums">{selectedItem.tokenCost}</span> tokens
             </div>
             <Textarea
               label={selectedItem.orderNoteRequired ? "Request note (required)" : "Request note (optional)"}
@@ -295,7 +300,7 @@ export default function ShopClient({
           ) : (
             <div className="space-y-3">
               {initial.ledger.map((l) => (
-                <div key={l.id} className="rounded-2xl border border-border bg-muted px-4 py-4">
+                <div key={l.id} className="carnival-card carnival-card-soft px-4 py-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="text-foreground font-semibold truncate">{l.reason}</div>

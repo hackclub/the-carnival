@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
@@ -41,8 +42,36 @@ export default async function ProjectsPage() {
 
   return (
     <AppShell title="My projects">
+      <section className="carnival-panel relative mb-8 overflow-hidden px-5 py-6 sm:px-7 sm:py-8">
+        <Image
+          src="/ferris-wheel.png"
+          alt=""
+          width={516}
+          height={525}
+          className="pointer-events-none absolute -right-6 -top-8 h-auto w-24 rotate-[8deg] opacity-45 sm:w-36 sm:opacity-75"
+        />
+        <Image
+          src="/tent.png"
+          alt=""
+          width={674}
+          height={440}
+          className="pointer-events-none absolute -bottom-10 -left-10 h-auto w-28 -rotate-[6deg] opacity-40 sm:w-44 sm:opacity-65"
+        />
+        <div className="relative z-10 max-w-3xl">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8f4a18]">
+            Project Midway
+          </p>
+          <h2 className="mt-2 text-2xl font-black uppercase tracking-[0.06em] text-[#5b1f0a] [text-wrap:balance] sm:text-3xl">
+            Track every build from first commit to final review.
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[#6d3510] sm:text-base">
+            Keep your projects tidy, review-ready, and synced with your hours.
+          </p>
+        </div>
+      </section>
+
       {myProjects.length === 0 ? (
-        <div className="bg-card border border-border rounded-2xl p-8">
+        <div className="carnival-card carnival-card-soft p-8 sm:p-10">
           <div className="text-foreground font-semibold text-lg">No projects yet</div>
           <div className="text-muted-foreground mt-1">
             Create your first project to start tracking hours and status.
@@ -50,7 +79,7 @@ export default async function ProjectsPage() {
           <div className="mt-6">
             <Link
               href="/projects?new=1"
-              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 text-white px-6 py-3 rounded-full font-bold transition-colors"
+              className="inline-flex items-center justify-center rounded-full border-[3px] border-[#74210a] bg-[#f6a61c] px-6 py-3 font-black uppercase tracking-[0.06em] text-[#fff7dc] shadow-[0_5px_0_#bf6216] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_#bf6216] active:scale-[0.96]"
             >
               Create a project
             </Link>
@@ -68,7 +97,7 @@ export default async function ProjectsPage() {
               <Link
                 key={p.id}
                 href={`/projects/${p.id}`}
-                className="bg-card border border-border rounded-2xl p-6 card-glow transition-all hover:bg-muted block"
+                className="carnival-card carnival-card-soft block p-6 transition-transform duration-200 hover:-translate-y-1"
                 aria-label={`Manage ${p.name}`}
               >
                 <div className="flex items-start justify-between gap-4">
@@ -88,7 +117,7 @@ export default async function ProjectsPage() {
 
                 <div className="mt-6 flex items-center justify-between">
                   <div className="text-sm text-muted-foreground">Hours</div>
-                  <div className="text-foreground font-semibold">
+                  <div className="text-foreground font-semibold tabular-nums">
                     {formatHoursMinutes(hm.hours, hm.minutes)}
                   </div>
                 </div>
@@ -101,7 +130,7 @@ export default async function ProjectsPage() {
       {/* FAB */}
       <Link
         href="/projects?new=1"
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-carnival-red hover:bg-carnival-red/80 text-white flex items-center justify-center shadow-xl border border-border carnival-glow transition-all hover:scale-105"
+        className="fixed bottom-6 right-6 flex h-14 w-14 items-center justify-center rounded-full border-[3px] border-[#74210a] bg-[#f6a61c] text-[#fff7dc] shadow-[0_5px_0_#bf6216,0_14px_26px_rgba(120,53,15,0.28)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_#bf6216,0_20px_30px_rgba(120,53,15,0.32)] active:scale-[0.96]"
         aria-label="Create new project"
         title="Create new project"
       >
@@ -112,5 +141,3 @@ export default async function ProjectsPage() {
     </AppShell>
   );
 }
-
-

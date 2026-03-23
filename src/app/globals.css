@@ -2,23 +2,66 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 :root {
-  /* Source of truth: hackclub/the-carnival `src/index.css` */
-  --background: #ffffff;
-  --foreground: #111827;
+  /* Landing-aligned foundation tokens */
+  --carnival-canvas: #fff7ed;
+  --carnival-paper: #fff7dc;
+  --carnival-paper-soft: #fff0cf;
+  --carnival-paper-rose: #ffe2d4;
+  --carnival-ink: #5b1f0a;
+  --carnival-ink-muted: #8f4a18;
+  --carnival-border-strong: #74210a;
+  --carnival-border-soft: #d78b22;
+  --carnival-accent: #f6a61c;
+  --carnival-accent-press: #bf6216;
+  --carnival-accent-soft: #ffd66c;
 
-  /* Semantic surfaces (aligned with the site's warm/light look) */
-  --card: rgba(255, 255, 255, 0.9);
-  --card-foreground: var(--foreground);
-  --muted: #fff7ed; /* amber-50-ish */
-  --muted-foreground: #78350f; /* amber-900 */
-  --border: #fde68a; /* amber-200 */
-  --input: #fde68a; /* amber-200 */
-  --ring: #fde68a; /* amber-200 */
+  --carnival-radius-panel: 2.25rem;
+  --carnival-radius-card: 1.75rem;
+  --carnival-radius-control: 1rem;
+  --carnival-radius-control-sm: 0.875rem;
+  --carnival-radius-pill: 9999px;
 
-  /* Carnival accents from the-carnival CSS */
+  --carnival-border-thin: 1px;
+  --carnival-border-medium: 2px;
+  --carnival-border-strong-width: 3px;
+
+  --carnival-shadow-surface:
+    0 6px 0 var(--carnival-border-soft),
+    0 14px 30px rgba(120, 53, 15, 0.16);
+  --carnival-shadow-surface-hover:
+    0 8px 0 var(--carnival-border-soft),
+    0 20px 36px rgba(120, 53, 15, 0.2);
+  --carnival-shadow-button-primary:
+    0 5px 0 var(--carnival-accent-press),
+    0 14px 24px rgba(120, 53, 15, 0.18);
+  --carnival-shadow-button-primary-hover:
+    0 8px 0 var(--carnival-accent-press),
+    0 18px 30px rgba(120, 53, 15, 0.22);
+  --carnival-shadow-button-neutral:
+    0 5px 0 var(--carnival-border-soft),
+    0 12px 22px rgba(120, 53, 15, 0.14);
+  --carnival-shadow-button-neutral-hover:
+    0 8px 0 var(--carnival-border-soft),
+    0 16px 28px rgba(120, 53, 15, 0.2);
+  --carnival-focus-ring: rgba(255, 189, 76, 0.48);
+
+  /* Semantic aliases for app-wide utility classes */
+  --background: var(--carnival-canvas);
+  --foreground: var(--carnival-ink);
+  --card: var(--carnival-paper);
+  --card-foreground: var(--carnival-ink);
+  --muted: var(--carnival-paper-soft);
+  --muted-foreground: #6d3510;
+  --border: #e8bb76;
+  --input: #e8bb76;
+  --ring: var(--carnival-accent);
+
+  /* Accent palette tokens */
   --carnival-amber: #f59e0b;
   --carnival-amber-light: #fbbf24;
   --carnival-amber-deep: #d97706;
@@ -32,7 +75,7 @@ html {
   --carnival-yellow: var(--carnival-amber);
   --carnival-purple: #8b5cf6;
   --carnival-dark: #111827;
-  --carnival-card: rgba(255, 255, 255, 0.9);
+  --carnival-card: var(--carnival-paper);
 }
 
 @theme inline {
@@ -58,6 +101,11 @@ html {
   --color-carnival-pink: var(--carnival-pink);
   --color-carnival-dark: var(--carnival-dark);
   --color-carnival-card: var(--carnival-card);
+  --color-carnival-canvas: var(--carnival-canvas);
+  --color-carnival-paper: var(--carnival-paper);
+  --color-carnival-paper-soft: var(--carnival-paper-soft);
+  --color-carnival-paper-rose: var(--carnival-paper-rose);
+  --color-carnival-ink: var(--carnival-ink);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -74,7 +122,17 @@ body {
   background-position: center;
   background-attachment: scroll;
   color: var(--foreground);
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-geist-sans), "Segoe UI", system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 @media (min-width: 768px) {
@@ -121,7 +179,7 @@ body {
 }
 
 .card-glow:hover {
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+  box-shadow: var(--carnival-shadow-surface-hover);
 }
 
 @keyframes float {
@@ -224,27 +282,163 @@ body {
   position: relative;
   overflow: hidden;
   border: 5px solid #6f260a;
-  border-radius: 2.25rem;
+  border-radius: var(--carnival-radius-panel);
   background: linear-gradient(180deg, #ffc957 0%, #f3a31c 100%);
   box-shadow: 0 10px 0 #c97015, 0 24px 48px rgba(120, 53, 15, 0.18);
 }
 
 .carnival-card {
-  border: 4px solid #74210a;
-  border-radius: 1.75rem;
-  background: #fff7dc;
-  box-shadow: 0 8px 0 #d78b22, 0 18px 32px rgba(120, 53, 15, 0.12);
+  border: 4px solid var(--carnival-border-strong);
+  border-radius: var(--carnival-radius-card);
+  background: var(--carnival-paper);
+  box-shadow: 0 8px 0 var(--carnival-border-soft), 0 18px 32px rgba(120, 53, 15, 0.12);
 }
 
 .carnival-card-soft {
-  background: #fff0cf;
+  background: var(--carnival-paper-soft);
 }
 
 .carnival-card-rose {
-  background: #ffe2d4;
+  background: var(--carnival-paper-rose);
 }
 
 .carnival-wood-strip {
   background: linear-gradient(180deg, #7b240a 0%, #5a1806 100%);
   box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* Shared app primitives for internal pages */
+.carnival-surface {
+  border: var(--carnival-border-medium) solid var(--carnival-border-strong);
+  border-radius: var(--carnival-radius-card);
+  background: var(--card);
+  box-shadow: var(--carnival-shadow-surface);
+}
+
+.carnival-surface-interactive {
+  transition-property: transform, box-shadow, background-color;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.carnival-surface-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--carnival-shadow-surface-hover);
+}
+
+.carnival-surface-interactive:active {
+  transform: translateY(1px);
+}
+
+.carnival-button-base {
+  min-height: 44px;
+  border-radius: var(--carnival-radius-pill);
+  border: var(--carnival-border-strong-width) solid var(--carnival-border-strong);
+  transition-property: transform, box-shadow, background-color, color, border-color;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.carnival-button-base:hover {
+  transform: translateY(-2px);
+}
+
+.carnival-button-base:active {
+  transform: scale(0.96);
+}
+
+.carnival-button-base:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.carnival-button-base:focus-visible,
+.carnival-field:focus-visible,
+.carnival-field-sm:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px var(--carnival-focus-ring);
+}
+
+.carnival-button-primary {
+  background: var(--carnival-accent);
+  color: var(--carnival-paper);
+  box-shadow: var(--carnival-shadow-button-primary);
+}
+
+.carnival-button-primary:hover {
+  box-shadow: var(--carnival-shadow-button-primary-hover);
+}
+
+.carnival-button-secondary {
+  background: var(--carnival-paper);
+  color: var(--carnival-border-strong);
+  box-shadow: var(--carnival-shadow-button-neutral);
+}
+
+.carnival-button-secondary:hover {
+  background: var(--carnival-paper-soft);
+  box-shadow: var(--carnival-shadow-button-neutral-hover);
+}
+
+.carnival-button-outline {
+  background: color-mix(in srgb, var(--carnival-paper) 88%, white 12%);
+  color: var(--carnival-ink);
+  box-shadow: var(--carnival-shadow-button-neutral);
+}
+
+.carnival-button-outline:hover {
+  background: var(--carnival-paper-soft);
+  box-shadow: var(--carnival-shadow-button-neutral-hover);
+}
+
+.carnival-button-ghost {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted-foreground);
+}
+
+.carnival-button-ghost:hover {
+  background: color-mix(in srgb, var(--carnival-paper-soft) 62%, transparent 38%);
+  color: var(--foreground);
+}
+
+.carnival-field,
+.carnival-field-sm {
+  width: 100%;
+  border: var(--carnival-border-medium) solid var(--border);
+  background: color-mix(in srgb, var(--background) 92%, white 8%);
+  color: var(--foreground);
+  transition-property: border-color, box-shadow, background-color;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.carnival-field {
+  border-radius: var(--carnival-radius-control);
+  padding: 0.75rem 1rem;
+}
+
+.carnival-field-sm {
+  border-radius: var(--carnival-radius-control-sm);
+  padding: 0.5rem 0.75rem;
+}
+
+.carnival-field:hover,
+.carnival-field-sm:hover {
+  border-color: color-mix(in srgb, var(--border) 55%, var(--carnival-accent) 45%);
+}
+
+.carnival-field::placeholder,
+.carnival-field-sm::placeholder {
+  color: color-mix(in srgb, var(--muted-foreground) 88%, white 12%);
+}
+
+.carnival-badge {
+  border-radius: var(--carnival-radius-pill);
+  border: var(--carnival-border-thin) solid transparent;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
