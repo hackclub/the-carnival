@@ -4,6 +4,8 @@ import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Input, Textarea, Button, Card, Badge, EmptyState, FormLabel, Modal } from "@/components/ui";
 
+const GRANT_USD_PER_HOUR = 4;
+
 export type BountyHelpfulLink = {
   label: string;
   url: string;
@@ -67,6 +69,23 @@ function prepareHelpfulLinksDraft(draft: BountyHelpfulLink[]) {
   }
 
   return { helpfulLinks, error: null as string | null };
+}
+
+function getEquivalentHours(prizeUsd: number) {
+  const normalizedPrizeUsd = Number.isFinite(prizeUsd) ? Math.max(0, prizeUsd) : 0;
+  return normalizedPrizeUsd / GRANT_USD_PER_HOUR;
+}
+
+function getMinimumHoursForBounty(prizeUsd: number) {
+  return getEquivalentHours(prizeUsd) / 2 + 1;
+}
+
+function formatHoursLabel(hours: number) {
+  const normalizedHours = Number.isFinite(hours) ? Math.max(0, hours) : 0;
+  const roundedHours = Number.isInteger(normalizedHours)
+    ? normalizedHours.toString()
+    : normalizedHours.toFixed(2).replace(/\.?0+$/, "");
+  return `${roundedHours} hour${normalizedHours === 1 ? "" : "s"}`;
 }
 
 function HelpfulLinksFields({
@@ -399,6 +418,17 @@ export default function BountiesClient({
 
   return (
     <div className="space-y-6">
+      <Card className="p-6">
+        <div className="text-foreground font-semibold text-lg">How bounty eligibility works</div>
+        <div className="text-muted-foreground mt-2 text-sm leading-6">
+          Every bounty bonus is shown as an hours equivalent using Carnival&apos;s $
+          <span className="text-foreground font-medium">{GRANT_USD_PER_HOUR}/hour</span> rate. To earn the bounty,
+          your extension still needs to meet the bounty requirements in the description, and you need to spend at
+          least{" "}
+          <span className="text-foreground font-medium">(hours needed for the extension / 2) + 1 hour</span>.
+        </div>
+      </Card>
+
       {isAdmin && (
         <Card className="p-6">
           <div className="text-foreground font-semibold text-lg">Create bounty</div>
@@ -427,7 +457,7 @@ export default function BountiesClient({
               label="Description"
               rows={4}
               required
-              placeholder="What should the bounty project do? What are acceptance criteria?"
+              placeholder="What should the bounty extension do? List the requirements and acceptance criteria."
               disabled={creating}
             />
             <HelpfulLinksFields
@@ -452,6 +482,8 @@ export default function BountiesClient({
             const isFull = b.claimedCount >= 2;
             const isCompleted = b.completed;
             const canClaim = !isFull && !b.claimedByMe && !isCompleted;
+            const equivalentHours = getEquivalentHours(b.prizeUsd);
+            const minimumHours = getMinimumHoursForBounty(b.prizeUsd);
 
             return (
               <Card
@@ -485,6 +517,25 @@ export default function BountiesClient({
                     <div className="text-sm text-muted-foreground">Prize</div>
                     <div className="text-foreground font-bold text-lg">${b.prizeUsd.toLocaleString("en-US")}</div>
                   </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3">
+                    <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                      Hours Equivalent
+                    </div>
+                    <div className="mt-1 text-base font-semibold text-foreground">{formatHoursLabel(equivalentHours)}</div>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3">
+                    <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                      Minimum Hours
+                    </div>
+                    <div className="mt-1 text-base font-semibold text-foreground">{formatHoursLabel(minimumHours)}</div>
+                  </div>
+                </div>
+
+                <div className="mt-3 text-sm text-muted-foreground">
+                  Your extension must meet every bounty requirement above to qualify for the payout.
                 </div>
 
                 <div className="mt-6 flex items-center justify-between gap-4">
@@ -526,7 +577,7 @@ export default function BountiesClient({
         open={editingId !== null}
         onClose={closeEditModal}
         title="Edit bounty"
-        description="Update the title, description, prize, and helpful links."
+        description="Update the title, description, prize, and helpful links. The prize amount drives the hours shown on the page."
         maxWidth="xl"
       >
         <form
@@ -559,6 +610,7 @@ export default function BountiesClient({
             value={editingDescription}
             onChange={(e) => setEditingDescription(e.target.value)}
             required
+            placeholder="What should the bounty extension do? List the requirements and acceptance criteria."
             disabled={editBusy}
           />
           <HelpfulLinksFields
