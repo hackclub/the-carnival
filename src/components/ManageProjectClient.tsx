@@ -609,15 +609,15 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
   }, [canDelete, initial.id]);
 
   return (
-    <div className="space-y-6">
-      <div className="bg-card border border-border rounded-2xl p-6">
+    <div className="carnival-home-bg space-y-6 rounded-[2rem] border-[4px] border-[#74210a]/80 px-4 py-6 sm:px-6">
+      <div className="carnival-card carnival-card-soft p-6 sm:p-7">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="text-foreground font-bold text-2xl truncate">{name || "Project"}</div>
             <div className="text-muted-foreground mt-1">Manage your project details and status.</div>
             {approvedHours !== null && approvedHours !== undefined ? (
               <div className="text-sm text-muted-foreground mt-2">
-                Approved hours: <span className="text-foreground font-semibold">{approvedHours}h</span>
+                Approved hours: <span className="text-foreground font-semibold tabular-nums">{approvedHours}h</span>
               </div>
             ) : null}
           </div>
@@ -625,8 +625,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-        <div className="text-foreground font-semibold text-lg">Status</div>
+      <div className="carnival-card p-6 space-y-4 sm:p-7">
+        <div className="text-foreground font-black uppercase tracking-[0.08em] text-lg">Status</div>
         {isGranted ? (
           <div className="text-sm text-muted-foreground">This project has been granted. Editing is locked.</div>
         ) : isInReview ? (
@@ -654,14 +654,14 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         )}
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-        <div className="text-foreground font-semibold text-lg">Reviewer comments</div>
+      <div className="carnival-card p-6 space-y-4 sm:p-7">
+        <div className="text-foreground font-black uppercase tracking-[0.08em] text-lg">Reviewer comments</div>
         {reviews.length === 0 ? (
           <div className="text-muted-foreground">No comments yet.</div>
         ) : (
           <div className="space-y-3">
             {reviews.map((r) => (
-              <div key={r.id} className="rounded-2xl border border-border bg-muted px-4 py-4">
+              <div key={r.id} className="carnival-card carnival-card-soft px-4 py-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-foreground font-semibold truncate">
@@ -683,8 +683,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         )}
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
-        <div className="text-foreground font-semibold text-lg">Project details</div>
+      <div className="carnival-card p-6 space-y-5 sm:p-7">
+        <div className="text-foreground font-black uppercase tracking-[0.08em] text-lg">Project details</div>
 
         <fieldset disabled={saving || isGranted} className={isGranted ? "opacity-60" : ""}>
         <label className="block">
@@ -852,7 +852,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
           </div>
           <div className="space-y-3">
             {screenshotUrls.map((value, idx) => (
-              <div key={idx} className="rounded-2xl border border-border bg-card p-4 space-y-3">
+              <div key={idx} className="carnival-card carnival-card-soft p-4 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm text-muted-foreground font-medium">Screenshot {idx + 1}</div>
                   <button
@@ -910,10 +910,10 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-6 space-y-3">
+      <div className="carnival-card p-6 space-y-3 sm:p-7">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
-            <div className="text-foreground font-semibold text-lg">Delete project</div>
+            <div className="text-foreground font-black uppercase tracking-[0.08em] text-lg">Delete project</div>
             <div className="text-sm text-muted-foreground">
               Remove this project and its review history. This is only available while the project is work-in-progress.
             </div>
