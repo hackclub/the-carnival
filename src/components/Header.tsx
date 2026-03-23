@@ -108,17 +108,17 @@ export default function Header({ showSectionLinks = true, initialWalletBalance =
 
   return (
     <nav
-      className={`relative z-50 mx-auto flex max-w-7xl justify-between gap-4 ${
+      className={`relative z-50 mx-auto flex w-full justify-between gap-3 sm:gap-4 ${
         isLandingHeader
           ? "max-w-6xl flex-col items-stretch px-4 py-4 sm:flex-row sm:items-center sm:px-6"
-          : "items-center px-8 py-6"
+          : "max-w-none items-center rounded-[1.75rem] border-[4px] border-[#74210a] bg-[#fff0cf] px-4 py-3 shadow-[0_6px_0_#d78b22,0_16px_30px_rgba(120,53,15,0.14)] sm:px-5 sm:py-3.5"
       }`}
     >
       <div
         className={
           isLandingHeader
             ? "flex items-center gap-2 self-start rounded-full border border-[#74210a]/20 bg-[#fff7dc]/80 px-4 py-2.5 shadow-[0_12px_32px_rgba(120,53,15,0.12)] backdrop-blur"
-            : "flex items-center gap-2"
+            : "flex items-center gap-2 rounded-full border-[3px] border-[#74210a] bg-[#fff7dc] px-3 py-1.5 shadow-[0_4px_0_#d78b22]"
         }
       >
         <span className="text-2xl">🎪</span>
@@ -127,7 +127,7 @@ export default function Header({ showSectionLinks = true, initialWalletBalance =
           className={
             isLandingHeader
               ? "text-xl font-black uppercase tracking-[0.08em] text-[#5b1f0a]"
-              : "text-xl font-bold text-foreground"
+              : "text-base font-black uppercase tracking-[0.08em] text-[#5b1f0a] sm:text-lg"
           }
         >
           Carnival
@@ -136,26 +136,26 @@ export default function Header({ showSectionLinks = true, initialWalletBalance =
 
       <div
         className={`flex items-center gap-3 sm:gap-6 ${
-          isLandingHeader ? "w-full justify-between sm:w-auto sm:justify-start" : ""
+          isLandingHeader ? "w-full justify-between sm:w-auto sm:justify-start" : "min-w-0"
         }`}
       >
         {showSectionLinks ? (
           <div className="hidden items-center gap-1 rounded-full border border-[#74210a]/20 bg-[#fff7dc]/80 p-1 shadow-[0_12px_32px_rgba(120,53,15,0.12)] backdrop-blur sm:flex">
             <Link
               href="#about"
-              className="rounded-full px-4 py-2 text-sm font-black uppercase tracking-[0.06em] text-[#7b240a] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc]"
+              className="rounded-full px-4 py-2 text-sm font-black uppercase tracking-[0.06em] text-[#7b240a] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#74210a] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff7dc]"
             >
               How It Works
             </Link>
             <Link
               href="#rewards"
-              className="rounded-full px-4 py-2 text-sm font-black uppercase tracking-[0.06em] text-[#7b240a] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc]"
+              className="rounded-full px-4 py-2 text-sm font-black uppercase tracking-[0.06em] text-[#7b240a] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#74210a] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff7dc]"
             >
               Rewards
             </Link>
             <Link
               href="#faq"
-              className="rounded-full px-4 py-2 text-sm font-black uppercase tracking-[0.06em] text-[#7b240a] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc]"
+              className="rounded-full px-4 py-2 text-sm font-black uppercase tracking-[0.06em] text-[#7b240a] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#74210a] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff7dc]"
             >
               FAQ
             </Link>
@@ -163,13 +163,13 @@ export default function Header({ showSectionLinks = true, initialWalletBalance =
         ) : null}
 
         {isPending ? (
-          <span className="text-muted-foreground text-sm">Checking session…</span>
+          <span className="text-sm font-semibold text-[#7b240a]">Checking session…</span>
         ) : isAuthed ? (
           <>
             {showDashboardLink ? (
               <Link
                 href="/projects"
-                className="rounded-full border border-border bg-muted px-5 py-2.5 text-base font-semibold text-foreground shadow-sm transition-colors hover:bg-muted/70"
+                className="inline-flex min-h-11 items-center justify-center rounded-full border-[3px] border-[#74210a] bg-[#fff7dc] px-4 py-2 text-sm font-black uppercase tracking-[0.06em] text-[#74210a] shadow-[0_5px_0_#d78b22] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_#d78b22] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#74210a] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff7dc]"
               >
                 Dashboard
               </Link>
@@ -179,100 +179,97 @@ export default function Header({ showSectionLinks = true, initialWalletBalance =
               <WalletConverterPopover walletBalance={walletBalance} />
             ) : null}
 
-          <details ref={detailsRef} className="relative z-50">
-            <summary className="list-none cursor-pointer select-none">
-              <span className="flex items-center gap-3">
-                {sessionUser?.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={sessionUser.image}
-                    alt=""
-                    className="h-9 w-9 rounded-full object-cover border border-border"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <span className="h-9 w-9 rounded-full bg-carnival-blue/15 border border-border flex items-center justify-center text-foreground font-bold">
-                    {avatarText}
+            <details ref={detailsRef} className="relative z-50">
+              <summary className="list-none cursor-pointer select-none rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#74210a] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff0cf]">
+                <span className="flex items-center gap-3">
+                  {sessionUser?.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={sessionUser.image}
+                      alt=""
+                      className="h-10 w-10 rounded-full object-cover border-[2px] border-[#74210a]/40"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full border-[2px] border-[#74210a]/40 bg-[#ffe2b0] font-black text-[#5b1f0a]">
+                      {avatarText}
+                    </span>
+                  )}
+                  <span className="max-w-[180px] truncate text-sm font-black uppercase tracking-[0.03em] text-[#5b1f0a] sm:max-w-[220px]">
+                    {displayName}
                   </span>
-                )}
-                <span className="text-foreground font-medium max-w-[220px] truncate">
-                  {displayName}
+                  <span className="text-[#7b240a]">▼</span>
                 </span>
-                <span className="text-carnival-blue">▼</span>
-              </span>
-            </summary>
+              </summary>
 
-            <div className="absolute right-0 mt-3 z-50 w-[min(320px,calc(100vw-2rem))] rounded-2xl bg-card/95 backdrop-blur border border-border shadow-xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-border">
-                <div className="text-foreground font-semibold truncate">
-                  {sessionUser?.name || "Signed in"}
+              <div className="absolute right-0 z-50 mt-3 w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-[1.5rem] border-[3px] border-[#74210a] bg-[#fff7dc] shadow-[0_8px_0_#d78b22,0_20px_28px_rgba(120,53,15,0.18)]">
+                <div className="border-b border-[#74210a]/20 px-5 py-4">
+                  <div className="truncate text-sm font-black uppercase tracking-[0.05em] text-[#5b1f0a]">
+                    {sessionUser?.name || "Signed in"}
+                  </div>
+                  {sessionUser?.email ? (
+                    <div className="truncate text-sm text-[#7b240a]">{sessionUser.email}</div>
+                  ) : null}
                 </div>
-                {sessionUser?.email ? (
-                  <div className="text-muted-foreground text-sm truncate">
-                    {sessionUser.email}
-                  </div>
-                ) : null}
-              </div>
 
-              <div className="px-5 py-4 space-y-2">
-                <div className="text-xs text-muted-foreground uppercase tracking-wide">
-                  Profile
+                <div className="space-y-2 px-5 py-4">
+                  <div className="text-xs font-black uppercase tracking-[0.14em] text-[#8f4a18]">
+                    Profile
+                  </div>
+                  <Link
+                    href="/account"
+                    onClick={() => closeMenu()}
+                    className="inline-flex items-center text-sm font-semibold text-[#7b240a] transition-colors hover:text-[#5b1f0a]"
+                  >
+                    Account settings →
+                  </Link>
+                  {sessionUser?.slackId ? (
+                    <div className="text-sm text-[#7b240a]">
+                      <span className="text-[#8f4a18]">Slack:</span>{" "}
+                      <span className="font-mono text-[#5b1f0a]">{sessionUser.slackId}</span>
+                    </div>
+                  ) : null}
+                  {sessionUser?.verificationStatus ? (
+                    <div className="text-sm text-[#7b240a]">
+                      <span className="text-[#8f4a18]">Verification:</span>{" "}
+                      {sessionUser.verificationStatus}
+                    </div>
+                  ) : null}
                 </div>
-                <Link
-                  href="/account"
-                  onClick={() => closeMenu()}
-                  className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Account settings →
-                </Link>
-                {sessionUser?.slackId ? (
-                  <div className="text-sm text-muted-foreground">
-                    <span className="text-muted-foreground">Slack:</span>{" "}
-                    <span className="font-mono">{sessionUser.slackId}</span>
-                  </div>
-                ) : null}
-                {sessionUser?.verificationStatus ? (
-                  <div className="text-sm text-muted-foreground">
-                    <span className="text-muted-foreground">Verification:</span>{" "}
-                    {sessionUser.verificationStatus}
-                  </div>
-                ) : null}
-              </div>
 
-              <div className="px-5 py-4 border-t border-border flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => closeMenu()}
-                  className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  onClick={onSignOut}
-                  className="rounded-full bg-carnival-red px-6 py-3 text-lg leading-none font-bold text-white shadow-md transition-colors hover:bg-carnival-red/80"
-                >
-                  Sign out
-                </button>
+                <div className="flex items-center justify-end gap-3 border-t border-[#74210a]/20 px-5 py-4">
+                  <button
+                    type="button"
+                    onClick={() => closeMenu()}
+                    className="text-sm font-semibold text-[#8f4a18] transition-colors hover:text-[#5b1f0a]"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onSignOut}
+                    className="rounded-full border-[3px] border-[#74210a] bg-[#f6a61c] px-5 py-2.5 text-sm font-black uppercase tracking-[0.06em] text-[#fff7dc] shadow-[0_5px_0_#bf6216] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_#bf6216] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#74210a] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff7dc]"
+                  >
+                    Sign out
+                  </button>
+                </div>
               </div>
-            </div>
-          </details>
+            </details>
           </>
         ) : (
           <button
             type="button"
             onClick={onJoinCarnival}
             disabled={authLoading}
-            className={`rounded-full px-5 py-3 text-base leading-none font-bold transition-[transform,background-color,box-shadow] sm:px-7 sm:py-3.5 sm:text-lg ${
+            className={`rounded-full px-5 py-3 text-base leading-none font-bold transition-[transform,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#74210a] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff7dc] sm:px-7 sm:py-3.5 sm:text-lg ${
               isLandingHeader
                 ? "border-[3px] border-[#74210a] bg-[#f6a61c] text-[#fff7dc] shadow-[0_6px_0_#bf6216,0_16px_28px_rgba(120,53,15,0.16)] hover:-translate-y-0.5 hover:shadow-[0_9px_0_#bf6216,0_18px_32px_rgba(120,53,15,0.18)] active:scale-[0.96]"
-                : "bg-carnival-red text-white shadow-md hover:bg-carnival-red/80"
-            } disabled:translate-y-0 disabled:shadow-none disabled:bg-carnival-red/50 disabled:cursor-not-allowed`}
+                : "border-[3px] border-[#74210a] bg-[#f6a61c] text-[#fff7dc] shadow-[0_6px_0_#bf6216,0_14px_24px_rgba(120,53,15,0.14)] hover:-translate-y-0.5 hover:shadow-[0_8px_0_#bf6216,0_18px_30px_rgba(120,53,15,0.2)] active:scale-[0.96]"
+            } disabled:translate-y-0 disabled:shadow-none disabled:bg-[#d89d47] disabled:cursor-not-allowed`}
           >
             {authLoading ? "Opening Identity…" : "Join Carnival"}
           </button>
         )}
-
       </div>
     </nav>
   );
