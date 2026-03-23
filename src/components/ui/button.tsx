@@ -6,46 +6,45 @@ import { forwardRef } from "react";
 
 export const buttonVariants = {
   primary: [
-    "inline-flex items-center justify-center",
-    "bg-carnival-red hover:bg-carnival-red/80",
-    "disabled:bg-carnival-red/50 disabled:cursor-not-allowed",
-    "text-white px-6 py-3 rounded-full font-bold transition-colors",
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap select-none touch-manipulation",
+    "px-6 py-3 text-sm font-black uppercase tracking-[0.08em]",
+    "carnival-button-base carnival-button-primary",
   ].join(" "),
-  
+
   secondary: [
-    "inline-flex items-center justify-center",
-    "bg-carnival-blue/20 hover:bg-carnival-blue/30",
-    "text-foreground px-5 py-2 rounded-full font-semibold transition-colors border border-border",
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap select-none touch-manipulation",
+    "px-5 py-2.5 text-sm font-black uppercase tracking-[0.08em]",
+    "carnival-button-base carnival-button-secondary",
   ].join(" "),
-  
+
   outline: [
-    "inline-flex items-center justify-center",
-    "px-5 py-2 rounded-full font-semibold transition-colors",
-    "border border-border hover:bg-muted",
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap select-none touch-manipulation",
+    "px-5 py-2.5 text-sm font-black uppercase tracking-[0.08em]",
+    "carnival-button-base carnival-button-outline",
   ].join(" "),
-  
+
   ghost: [
-    "inline-flex items-center justify-center",
-    "px-5 py-2 rounded-full font-semibold transition-colors",
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap select-none touch-manipulation",
+    "px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.06em]",
+    "carnival-button-base carnival-button-ghost",
+  ].join(" "),
+
+  disabled: [
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap select-none touch-manipulation",
+    "px-5 py-2.5 text-sm font-black uppercase tracking-[0.08em]",
+    "carnival-button-base carnival-button-outline cursor-not-allowed",
+  ].join(" "),
+
+  icon: [
+    "inline-flex h-11 w-11 items-center justify-center p-0",
+    "carnival-button-base carnival-button-ghost bg-card/70",
     "text-muted-foreground hover:text-foreground",
   ].join(" "),
-  
-  disabled: [
-    "inline-flex items-center justify-center",
-    "bg-muted text-muted-foreground",
-    "px-5 py-2 rounded-full font-semibold border border-border cursor-not-allowed",
-  ].join(" "),
-  
-  icon: [
-    "inline-flex items-center justify-center",
-    "text-muted-foreground hover:text-foreground p-2 transition-colors",
-  ].join(" "),
-  
+
   fab: [
-    "fixed bottom-6 right-6 h-14 w-14 rounded-full",
-    "bg-carnival-red hover:bg-carnival-red/80 text-white",
-    "flex items-center justify-center shadow-xl border border-border",
-    "carnival-glow transition-all hover:scale-105",
+    "fixed bottom-6 right-6 z-30 h-14 w-14 p-0",
+    "inline-flex items-center justify-center",
+    "carnival-button-base carnival-button-primary carnival-glow",
   ].join(" "),
 };
 
@@ -80,4 +79,3 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 );
 
 Button.displayName = "Button";
-

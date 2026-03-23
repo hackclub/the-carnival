@@ -3,13 +3,13 @@
 // ============================================================================
 
 export const badgeVariants = {
-  default: "bg-muted text-muted-foreground",
-  success: "bg-green-500/10 text-green-600 ring-1 ring-green-500/20",
-  warning: "bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20",
-  error: "bg-red-500/10 text-red-600 ring-1 ring-red-500/20",
-  info: "bg-blue-500/10 text-blue-600 ring-1 ring-blue-500/20",
-  purple: "bg-purple-500/10 text-purple-600 ring-1 ring-purple-500/20",
-  emerald: "bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20",
+  default: "bg-muted text-muted-foreground border-border",
+  success: "bg-emerald-500/14 text-emerald-800 border-emerald-500/28",
+  warning: "bg-amber-500/16 text-amber-800 border-amber-500/32",
+  error: "bg-rose-500/14 text-rose-800 border-rose-500/28",
+  info: "bg-sky-500/14 text-sky-800 border-sky-500/28",
+  purple: "bg-violet-500/14 text-violet-800 border-violet-500/28",
+  emerald: "bg-teal-500/14 text-teal-800 border-teal-500/28",
 };
 
 // ============================================================================
@@ -26,9 +26,10 @@ type BadgeProps = {
 
 export function Badge({ children, variant = "default", className = "" }: BadgeProps) {
   return (
-    <span className={`shrink-0 px-2 py-0.5 text-xs font-medium rounded-full ${badgeVariants[variant]} ${className}`}>
+    <span
+      className={`carnival-badge shrink-0 border px-2.5 py-1 text-xs ${badgeVariants[variant]} ${className}`}
+    >
       {children}
     </span>
   );
 }
-

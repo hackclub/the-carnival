@@ -5,16 +5,14 @@ import { forwardRef } from "react";
 // ============================================================================
 
 const baseInputStyles = [
-  "w-full bg-background border border-border rounded-2xl px-4 py-3",
-  "text-foreground placeholder:text-muted-foreground",
-  "focus:outline-none focus:ring-2 focus:ring-carnival-blue/40",
+  "w-full carnival-field",
+  "placeholder:text-muted-foreground",
   "disabled:opacity-50 disabled:cursor-not-allowed",
 ].join(" ");
 
 const smallInputStyles = [
-  "w-full bg-background border border-border rounded-xl px-3 py-2 text-sm",
-  "text-foreground placeholder:text-muted-foreground",
-  "focus:outline-none focus:ring-2 focus:ring-carnival-blue/40",
+  "w-full text-sm carnival-field-sm",
+  "placeholder:text-muted-foreground",
   "disabled:opacity-50 disabled:cursor-not-allowed",
 ].join(" ");
 
@@ -31,7 +29,7 @@ type FormLabelProps = {
 export function FormLabel({ children, className = "", size = "default" }: FormLabelProps) {
   const sizeClass = size === "small" ? "text-xs" : "text-sm";
   return (
-    <div className={`${sizeClass} text-muted-foreground font-medium mb-2 ${className}`}>
+    <div className={`${sizeClass} mb-2 font-semibold uppercase tracking-[0.06em] text-muted-foreground ${className}`}>
       {children}
     </div>
   );
@@ -127,4 +125,3 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
 );
 
 Select.displayName = "Select";
-
