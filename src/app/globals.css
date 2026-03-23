@@ -72,9 +72,15 @@ body {
     linear-gradient(180deg, #fff7ed 0%, #fff 30%, #fff7ed 100%);
   background-size: cover;
   background-position: center;
-  background-attachment: fixed;
+  background-attachment: scroll;
   color: var(--foreground);
   font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+@media (min-width: 768px) {
+  body {
+    background-attachment: fixed;
+  }
 }
 
 /* Themed scrollbars (from the-carnival) */
@@ -197,4 +203,48 @@ body {
 
 .carnival-dialog:not([open]) {
   display: none;
+}
+
+.carnival-home-bg {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 249, 214, 0.95) 0%, transparent 28%),
+    radial-gradient(circle at 86% 10%, rgba(255, 213, 117, 0.56) 0%, transparent 24%),
+    radial-gradient(circle at 50% 100%, rgba(255, 176, 59, 0.22) 0%, transparent 32%),
+    linear-gradient(180deg, #ffe896 0%, #ffd66c 35%, #ffbf4f 100%);
+}
+
+.carnival-paper-grid {
+  background-image:
+    linear-gradient(rgba(123, 36, 10, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(123, 36, 10, 0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.carnival-panel {
+  position: relative;
+  overflow: hidden;
+  border: 5px solid #6f260a;
+  border-radius: 2.25rem;
+  background: linear-gradient(180deg, #ffc957 0%, #f3a31c 100%);
+  box-shadow: 0 10px 0 #c97015, 0 24px 48px rgba(120, 53, 15, 0.18);
+}
+
+.carnival-card {
+  border: 4px solid #74210a;
+  border-radius: 1.75rem;
+  background: #fff7dc;
+  box-shadow: 0 8px 0 #d78b22, 0 18px 32px rgba(120, 53, 15, 0.12);
+}
+
+.carnival-card-soft {
+  background: #fff0cf;
+}
+
+.carnival-card-rose {
+  background: #ffe2d4;
+}
+
+.carnival-wood-strip {
+  background: linear-gradient(180deg, #7b240a 0%, #5a1806 100%);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.12);
 }

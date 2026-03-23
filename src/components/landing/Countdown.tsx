@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { carnivalCardClassName, cx } from "@/components/home/shared";
 
 type TimeLeft = {
   days: number;
@@ -31,91 +32,93 @@ export default function Countdown() {
       }).format(deadline),
     [deadline],
   );
-  const [timeLeft, setTimeLeft] = useState<TimeLeft>(() => getTimeLeft(deadline));
+  const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
 
   useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setTimeLeft(getTimeLeft(deadline));
+    }, 0);
+
     const interval = setInterval(() => {
       setTimeLeft(getTimeLeft(deadline));
     }, 1000);
-    return () => clearInterval(interval);
+
+    return () => {
+      window.clearTimeout(timeout);
+      clearInterval(interval);
+    };
   }, [deadline]);
 
+  const displayTimeLeft = timeLeft ?? {
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  };
   const isOver =
+    timeLeft !== null &&
     timeLeft.days === 0 &&
     timeLeft.hours === 0 &&
     timeLeft.minutes === 0 &&
     timeLeft.seconds === 0;
 
   return (
-    <div className="relative mx-auto max-w-4xl mt-10 px-4">
-      <div className="pointer-events-none absolute -inset-2 rounded-3xl ring-4 ring-amber-300/40" />
+    <div className="mx-auto max-w-6xl px-1">
       <div
-        className="pointer-events-none absolute -inset-4 rounded-3xl blur-xl"
-        style={{
-          background:
-            "radial-gradient(120px 40px at 8% 0%, #f59e0b20, transparent), radial-gradient(120px 40px at 92% 0%, #ef444420, transparent)",
-        }}
-      />
-
-      <div className="relative rounded-3xl bg-white/70 backdrop-blur-md ring-1 ring-amber-200/70 shadow-lg p-5 md:p-7">
-        <div className="flex items-center justify-center gap-2 mb-3">
-          <span className="text-xl md:text-2xl font-extrabold text-amber-900">
-            🎪 Countdown to the Carnival Finale
-          </span>
-        </div>
-
-        <div className="text-center text-[11px] md:text-sm text-amber-700 mb-4">
-          Deadline: <span className="font-semibold">{deadlineLabel}</span> (23:59 UTC)
-        </div>
-
-        {!isOver ? (
-          <div className="grid grid-cols-4 gap-2 md:gap-4 text-center">
-            {[
-              { label: "Days", value: timeLeft.days },
-              { label: "Hours", value: timeLeft.hours },
-              { label: "Minutes", value: timeLeft.minutes },
-              { label: "Seconds", value: timeLeft.seconds },
-            ].map(({ label, value }) => (
-              <div
-                key={label}
-                className="rounded-2xl bg-gradient-to-b from-amber-50 to-white ring-1 ring-amber-200 p-3 md:p-4 shadow-sm will-change-transform"
-              >
-                <div className="text-2xl md:text-4xl font-black text-amber-900 tabular-nums">
-                  {String(value).padStart(2, "0")}
-                </div>
-                <div className="text-[10px] md:text-xs uppercase tracking-wide text-amber-700">
-                  {label}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center text-amber-900">
-            <div className="text-3xl md:text-4xl font-extrabold">
-              🎉 The Carnival deadline has arrived! 🎉
-            </div>
-            <div className="mt-2 text-sm md:text-base text-amber-800">
-              Time to light up the midway and submit your masterpiece.
-            </div>
-          </div>
+        className={cx(
+          carnivalCardClassName,
+          "carnival-card-soft relative overflow-hidden px-5 py-6 sm:px-6 sm:py-7",
         )}
+      >
+        <div className="pointer-events-none absolute inset-x-6 top-0 h-2 rounded-b-full bg-[#7b240a]/15" />
 
-        <div className="pointer-events-none absolute -top-3 left-4 right-4 flex justify-between">
-          {Array.from({ length: 9 }).map((_, i) => (
-            <div
-              key={i}
-              className="w-0 h-0 border-l-6 border-r-6 border-l-transparent border-r-transparent"
-              style={{
-                borderBottom: `12px solid ${
-                  ["#f43f5e", "#fb923c", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7"][i % 6]
-                }`,
-              }}
-            />
-          ))}
+        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-xl">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8f4a18]">
+              Countdown
+            </p>
+            <h2 className="mt-2 text-3xl font-black uppercase tracking-[0.08em] text-[#5b1f0a] [text-wrap:balance] sm:text-[2.3rem]">
+              Countdown to the Carnival finale.
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-[#6d3510] sm:text-base sm:leading-7">
+              Deadline: <span className="font-black">{deadlineLabel}</span> at{" "}
+              <span className="font-black">23:59 UTC</span>.
+            </p>
+          </div>
+
+          {!isOver ? (
+            <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                { label: "Days", value: displayTimeLeft.days },
+                { label: "Hours", value: displayTimeLeft.hours },
+                { label: "Minutes", value: displayTimeLeft.minutes },
+                { label: "Seconds", value: displayTimeLeft.seconds },
+              ].map(({ label, value }) => (
+                <div
+                  key={label}
+                  className="min-w-0 rounded-[1.5rem] border-[3px] border-[#74210a] bg-[#f6a61c] px-3 py-3 text-center shadow-[0_6px_0_#bf6216] sm:px-4 sm:py-4"
+                >
+                  <div className="text-2xl font-black text-[#fff7dc] tabular-nums sm:text-4xl">
+                    {String(value).padStart(2, "0")}
+                  </div>
+                  <div className="mt-1 text-[11px] font-black uppercase tracking-[0.18em] text-[#ffeab3]">
+                    {label}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="max-w-md rounded-[1.5rem] border-[3px] border-[#74210a] bg-[#f6a61c] px-5 py-5 text-[#fff7dc] shadow-[0_6px_0_#bf6216]">
+              <div className="text-2xl font-black uppercase tracking-[0.08em] [text-wrap:balance] sm:text-3xl">
+                The Carnival deadline has arrived.
+              </div>
+              <div className="mt-2 text-sm font-semibold leading-6 text-[#fff0c1] sm:text-base">
+                Time to light up the midway and submit your masterpiece.
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
-
-
