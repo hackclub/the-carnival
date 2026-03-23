@@ -176,6 +176,13 @@
       "when": 1773835800000,
       "tag": "0024_add_shop_order_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1773950507000,
+      "tag": "0025_repair_bounty_project_columns",
+      "breakpoints": true
     }
   ]
 }
