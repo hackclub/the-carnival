@@ -16,6 +16,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Carnival YSWS",
   description: "Carnival YSWS - Build an extension or plugin, get a grant to upgrade your dev setup!",
+  openGraph: {
+    type: "website",
+    title: "Carnival YSWS",
+    description:
+      "Carnival YSWS - Build an extension or plugin, get a grant to upgrade your dev setup!",
+    siteName: "Carnival YSWS",
+  },
   icons: {
     icon: "/favicon.png",
   },

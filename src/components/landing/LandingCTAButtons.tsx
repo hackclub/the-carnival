@@ -27,36 +27,36 @@ export default function LandingCTAButtons() {
   }, []);
 
   return (
-    <div className="mt-6 flex flex-col items-center justify-center gap-3">
-      <div className="transform transition-transform hover:scale-105 hover:-rotate-1">
+    <div className="mt-6 flex w-full flex-col items-center justify-center gap-3 sm:mt-7">
+      <div className="w-full sm:w-auto">
         {isPending ? (
-          <span className="inline-flex items-center justify-center rounded-full px-8 py-3 text-base font-bold text-white bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 ring-2 ring-amber-300/70 shadow-[0_10px_25px_rgba(255,94,0,0.35)]">
+          <span className="inline-flex min-h-12 w-full items-center justify-center rounded-[1.4rem] border-[4px] border-[#74210a] bg-[#f6a61c] px-6 py-3 text-center text-sm font-black uppercase tracking-[0.08em] text-[#fff7dc] shadow-[0_7px_0_#bf6216,0_18px_30px_rgba(120,53,15,0.2)] sm:w-auto sm:px-8 sm:text-base">
             Checking…
           </span>
         ) : isAuthed ? (
           <Link
             aria-label="Dashboard"
             href="/projects"
-            className="inline-flex items-center justify-center rounded-full px-9 py-3.5 text-base sm:text-lg font-bold text-white bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 shadow-[0_12px_28px_rgba(255,94,0,0.4)] ring-2 ring-amber-300/70 transition-transform transition-shadow duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(255,94,0,0.48)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-[1.4rem] border-[4px] border-[#74210a] bg-[#f6a61c] px-6 py-3 text-center text-sm font-black uppercase tracking-[0.08em] text-[#fff7dc] shadow-[0_7px_0_#bf6216,0_18px_30px_rgba(120,53,15,0.2)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_0_#bf6216,0_20px_32px_rgba(120,53,15,0.22)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#74210a] active:scale-[0.96] sm:w-auto sm:px-9 sm:text-lg"
           >
-            Enter The Carnival !
+            Enter The Carnival
           </Link>
         ) : (
           <button
             type="button"
             onClick={onJoinCarnival}
             disabled={authLoading}
-            className="inline-flex items-center justify-center rounded-full px-9 py-3.5 text-base sm:text-lg font-bold text-white bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 shadow-[0_12px_28px_rgba(255,94,0,0.4)] ring-2 ring-amber-300/70 transition-transform transition-shadow duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(255,94,0,0.48)] disabled:translate-y-0 disabled:shadow-none disabled:bg-amber-500/70 disabled:cursor-not-allowed"
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-[1.4rem] border-[4px] border-[#74210a] bg-[#f6a61c] px-6 py-3 text-center text-sm font-black uppercase tracking-[0.08em] text-[#fff7dc] shadow-[0_7px_0_#bf6216,0_18px_30px_rgba(120,53,15,0.2)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_0_#bf6216,0_20px_32px_rgba(120,53,15,0.22)] active:scale-[0.96] disabled:translate-y-0 disabled:shadow-none disabled:bg-[#d69840] disabled:cursor-not-allowed sm:w-auto sm:px-9 sm:text-lg"
           >
-            {authLoading ? "Opening Identity…" : "Enter The Carnival !"}
+            {authLoading ? "Opening Identity…" : "Enter The Carnival"}
           </button>
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-        <div className="transform transition-transform hover:scale-105 hover:rotate-1">
+      <div className="flex w-full flex-col items-center justify-center gap-3 sm:flex-row">
+        <div className="w-full sm:w-auto">
           {isPending ? (
-            <span className="inline-flex items-center justify-center rounded-full px-8 py-3 text-base font-semibold text-amber-900 bg-amber-100 ring-2 ring-amber-200 shadow-[0_6px_16px_rgba(255,193,79,0.25)]">
+            <span className="inline-flex min-h-11 w-full items-center justify-center rounded-full border-[3px] border-[#74210a] bg-[#fff7dc] px-6 py-2 text-center text-sm font-black uppercase tracking-[0.08em] text-[#74210a] shadow-[0_5px_0_#d78b22] sm:w-auto">
               Checking…
             </span>
           ) : isAuthed ? (
@@ -65,7 +65,7 @@ export default function LandingCTAButtons() {
               href="https://hackclub.slack.com/archives/C091ZRTMF16"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-full px-8 py-3 text-base font-semibold text-amber-900 bg-amber-100 hover:bg-amber-200 ring-2 ring-amber-200 transition-transform transition-shadow duration-200 shadow-[0_6px_16px_rgba(255,193,79,0.25)] hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(255,193,79,0.32)]"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-full border-[3px] border-[#74210a] bg-[#fff7dc] px-6 py-2 text-center text-sm font-black uppercase tracking-[0.08em] text-[#74210a] shadow-[0_5px_0_#d78b22] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_#d78b22] active:scale-[0.96] sm:w-auto"
             >
               #Carnival Slack
             </Link>
@@ -74,25 +74,23 @@ export default function LandingCTAButtons() {
               type="button"
               onClick={onJoinCarnival}
               disabled={authLoading}
-              className="inline-flex items-center justify-center rounded-full px-8 py-3 text-base font-semibold text-amber-900 bg-amber-100 hover:bg-amber-200 disabled:bg-amber-100/60 disabled:text-amber-900/60 disabled:cursor-not-allowed ring-2 ring-amber-200 transition-transform transition-shadow duration-200 shadow-[0_6px_16px_rgba(255,193,79,0.25)] hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(255,193,79,0.32)]"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-full border-[3px] border-[#74210a] bg-[#fff7dc] px-6 py-2 text-center text-sm font-black uppercase tracking-[0.08em] text-[#74210a] shadow-[0_5px_0_#d78b22] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_#d78b22] active:scale-[0.96] disabled:translate-y-0 disabled:shadow-none disabled:bg-[#f2ddb0] disabled:text-[#74210a]/60 disabled:cursor-not-allowed sm:w-auto"
             >
               {authLoading ? "Opening Identity…" : "Join Carnival"}
             </button>
           )}
         </div>
 
-        <div className="transform transition-transform hover:scale-105 hover:-rotate-1">
+        <div className="w-full sm:w-auto">
           <Link
             aria-label="Browse editors you can build for"
             href="/editors"
-            className="inline-flex items-center justify-center rounded-full px-8 py-3 text-base font-semibold text-amber-900 bg-amber-50 hover:bg-amber-100 ring-2 ring-amber-200 transition-transform transition-shadow duration-200 shadow-[0_6px_16px_rgba(255,193,79,0.2)] hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(255,193,79,0.28)]"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-full border-[3px] border-[#74210a] bg-[#fff0cf] px-6 py-2 text-center text-sm font-black uppercase tracking-[0.08em] text-[#74210a] shadow-[0_5px_0_#d78b22] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_#d78b22] active:scale-[0.96] sm:w-auto"
           >
-            Editors you can build for
+            Editors + Apps
           </Link>
         </div>
       </div>
     </div>
   );
 }
-
-
