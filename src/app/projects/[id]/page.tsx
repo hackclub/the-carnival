@@ -58,10 +58,18 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
 
   return (
     <AppShell title="Manage project">
-      <div className="mb-6">
-        <Link href="/projects" className="text-sm text-muted-foreground hover:text-foreground">
-          ← Back to projects
-        </Link>
+      <div className="carnival-card carnival-card-soft mb-6 px-5 py-4 sm:px-6">
+        <div className="flex items-center justify-between gap-4">
+          <Link
+            href="/projects"
+            className="inline-flex items-center text-sm font-bold uppercase tracking-[0.08em] text-[#74210a] transition-colors hover:text-[#5b1f0a]"
+          >
+            ← Back to projects
+          </Link>
+          <div className="text-xs font-black uppercase tracking-[0.12em] text-[#8f4a18]">
+            Project Detail
+          </div>
+        </div>
       </div>
 
       <ManageProjectClient
@@ -95,4 +103,3 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
     </AppShell>
   );
 }
-
