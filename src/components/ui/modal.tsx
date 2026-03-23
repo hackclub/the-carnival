@@ -23,11 +23,9 @@ export function Modal({ open, onClose, title, description, children, maxWidth = 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(43,17,8,0.34)] p-4 backdrop-blur-sm">
-      <div
-        className={`carnival-surface w-full ${maxWidthClasses[maxWidth]} max-h-[85vh] overflow-auto`}
-      >
-        <div className="sticky top-0 flex items-center justify-between border-b border-border bg-card p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className={`bg-card border border-border rounded-2xl w-full ${maxWidthClasses[maxWidth]} max-h-[85vh] overflow-auto`}>
+        <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-foreground">{title}</h2>
             {description && (
@@ -36,7 +34,7 @@ export function Modal({ open, onClose, title, description, children, maxWidth = 
           </div>
           <button
             onClick={onClose}
-            className="carnival-button-base carnival-button-ghost h-11 w-11 p-0 text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground p-2"
             type="button"
           >
             <X size={24} />
@@ -47,3 +45,4 @@ export function Modal({ open, onClose, title, description, children, maxWidth = 
     </div>
   );
 }
+
