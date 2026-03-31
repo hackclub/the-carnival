@@ -7,8 +7,10 @@ type CardProps = {
 };
 
 export function Card({ children, className = "", interactive = false, muted = false, onClick }: CardProps) {
-  const baseClass = "bg-card border border-border rounded-2xl";
-  const interactiveClass = interactive ? "card-glow transition-all hover:bg-muted cursor-pointer" : "";
+  const baseClass = "platform-surface-card";
+  const interactiveClass = interactive
+    ? "card-glow cursor-pointer transition-[background-color,box-shadow,transform] hover:-translate-y-0.5 hover:bg-[var(--platform-surface-soft)]"
+    : "";
   const mutedClass = muted ? "opacity-50" : "";
   
   const Component = onClick ? "button" : "div";
@@ -39,4 +41,3 @@ export function CardContent({ children, className = "" }: CardSectionProps) {
 export function CardFooter({ children, className = "" }: CardSectionProps) {
   return <div className={`px-6 pb-6 pt-0 ${className}`}>{children}</div>;
 }
-

@@ -4,6 +4,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { getServerSession } from "@/lib/server-session";
 import { db } from "@/db";
 import { getTokenBalance } from "@/lib/wallet";
+import { PlatformContent, PlatformPageHeading, PlatformShell } from "@/components/ui/platform";
 
 export default async function AppShell({
   title,
@@ -21,28 +22,25 @@ export default async function AppShell({
   const initialWalletBalance = userId ? await getTokenBalance(db, userId) : null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <PlatformShell>
       <div className="flex flex-col md:flex-row min-h-screen">
         <AppSidebar />
 
         <main className="flex-1">
-          <Header showSectionLinks={false} initialWalletBalance={initialWalletBalance} />
-
-          <div className="px-6 md:px-10 pb-20">
-            <div className="max-w-6xl mx-auto">
-              <div className="mb-8">
-                <h1 className="text-3xl md:text-4xl font-bold text-foreground">
-                  {title}
-                </h1>
-              </div>
-
-              {children}
+          <div className="px-4 pt-4 md:px-6 md:pt-5">
+            <div className="max-w-6xl mx-auto platform-topbar-surface">
+              <Header showSectionLinks={false} initialWalletBalance={initialWalletBalance} />
             </div>
           </div>
+
+          <PlatformContent>
+            <PlatformPageHeading title={title} />
+
+            {children}
+          </PlatformContent>
         </main>
       </div>
-    </div>
+    </PlatformShell>
   );
 }
-
 

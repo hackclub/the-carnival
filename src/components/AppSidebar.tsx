@@ -4,19 +4,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import {
-  Trophy,
-  FolderKanban,
-  Compass,
-  BookOpen,
-  ShoppingBag,
-  User,
   ClipboardCheck,
-  Gift,
-  Users,
   ClipboardList,
+  Compass,
+  FolderKanban,
+  Gift,
   MessageSquare,
   LucideIcon,
+  ShoppingBag,
+  Trophy,
+  User,
+  Users,
+  BookOpen,
 } from "lucide-react";
+
+type UserRole = "user" | "reviewer" | "admin" | null;
 
 type NavItem = {
   href: string;
@@ -24,146 +26,112 @@ type NavItem = {
   icon: LucideIcon;
 };
 
-const NAV: NavItem[] = [
-  { href: "/bounties", label: "Bounties", icon: Trophy },
+type NavSection = {
+  id: string;
+  title: string;
+  items: NavItem[];
+};
+
+const WORKSPACE_NAV: NavItem[] = [
   { href: "/projects", label: "My projects", icon: FolderKanban },
+  { href: "/bounties", label: "Bounties", icon: Trophy },
   { href: "/explore", label: "Explore", icon: Compass },
   { href: "/resources", label: "Resources", icon: BookOpen },
   { href: "/shop", label: "Shop", icon: ShoppingBag },
   { href: "/account", label: "Account", icon: User },
 ];
 
+const REVIEW_NAV: NavItem[] = [
+  { href: "/review", label: "Review queue", icon: ClipboardCheck },
+  { href: "/admin/shop", label: "Shop (Staff)", icon: ShoppingBag },
+];
+
+const ADMIN_NAV: NavItem[] = [
+  { href: "/admin/grants", label: "Grants", icon: Gift },
+  { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+  { href: "/admin/review/comments", label: "Reviewer comments", icon: MessageSquare },
+  { href: "/admin/users", label: "Users", icon: Users },
+];
+
+function asUserRole(value: unknown): UserRole {
+  if (value === "user" || value === "reviewer" || value === "admin") return value;
+  return null;
+}
+
+function isActivePath(pathname: string | null, href: string) {
+  return pathname === href || pathname?.startsWith(href + "/");
+}
+
+function getNavSections(role: UserRole): NavSection[] {
+  if (role === "admin") {
+    return [
+      { id: "ops", title: "Operations", items: [...REVIEW_NAV, ...ADMIN_NAV] },
+      { id: "workspace", title: "Workspace", items: WORKSPACE_NAV },
+    ];
+  }
+
+  if (role === "reviewer") {
+    return [
+      { id: "ops", title: "Operations", items: REVIEW_NAV },
+      { id: "workspace", title: "Workspace", items: WORKSPACE_NAV },
+    ];
+  }
+
+  return [{ id: "workspace", title: "Workspace", items: WORKSPACE_NAV }];
+}
+
 export default function AppSidebar() {
   const pathname = usePathname();
   const { data } = useSession();
 
   type SessionUser = { role?: string | null };
-  const role = (data as { user?: SessionUser } | null | undefined)?.user?.role ?? null;
-  const canReview = role === "reviewer" || role === "admin";
-  const isAdmin = role === "admin";
+  const rawRole = (data as { user?: SessionUser } | null | undefined)?.user?.role ?? null;
+  const role = asUserRole(rawRole);
+  const sections = getNavSections(role);
 
   return (
-    <aside className="w-full md:w-64 md:shrink-0">
-      <div className="md:sticky md:top-0 md:h-screen md:overflow-auto border-b md:border-b-0 md:border-r border-border bg-background/80 backdrop-blur">
-        <div className="px-5 py-5">
-          <div className="text-foreground font-bold text-lg flex items-center gap-2">
-            <span className="text-xl">🎪</span>
-            <span>Carnival</span>
+    <aside className="w-full md:w-72 md:shrink-0">
+      <div className="platform-sidebar-surface border-b md:border-b-0 md:border-r md:sticky md:top-0 md:h-screen md:overflow-auto">
+        <div className="px-5 pt-5 pb-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(116,33,10,0.2)] bg-[rgba(255,247,220,0.95)] px-4 py-2 shadow-[0_10px_24px_rgba(120,53,15,0.12)]">
+            <span className="text-xl leading-none">🎪</span>
+            <span className="text-sm font-black uppercase tracking-[0.08em] text-[var(--platform-ink)]">
+              Carnival
+            </span>
           </div>
-          <div className="text-muted-foreground text-sm mt-1">Your dashboard</div>
+          <div className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--platform-ink-muted)]">
+            Dashboard
+          </div>
         </div>
 
-        <nav className="px-3 pb-6">
-          {NAV.map((item) => {
-            const isActive =
-              pathname === item.href || pathname?.startsWith(item.href + "/");
-            const Icon = item.icon;
+        <nav className="space-y-5 px-3 pb-7">
+          {sections.map((section) => (
+            <section key={section.id} className="space-y-2">
+              {sections.length > 1 || section.title !== "Workspace" ? (
+                <div className="platform-nav-section-label">{section.title}</div>
+              ) : null}
+              <div className="space-y-1">
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActivePath(pathname, item.href);
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={[
-                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-carnival-blue/15 text-foreground border border-border"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
-                ].join(" ")}
-              >
-                <Icon size={18} />
-                {item.label}
-              </Link>
-            );
-          })}
-
-          {canReview ? (
-            <Link
-              href="/review"
-              className={[
-                "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors mt-2",
-                pathname === "/review" || pathname?.startsWith("/review/")
-                  ? "bg-carnival-blue/15 text-foreground border border-border"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
-              ].join(" ")}
-            >
-              <ClipboardCheck size={18} />
-              Review
-            </Link>
-          ) : null}
-
-          {canReview ? (
-            <div className="mt-2">
-              <Link
-                href="/admin/shop"
-                className={[
-                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
-                  pathname === "/admin/shop" || pathname?.startsWith("/admin/shop/")
-                    ? "bg-carnival-blue/15 text-foreground border border-border"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
-                ].join(" ")}
-              >
-                <ShoppingBag size={18} />
-                Shop (Staff)
-              </Link>
-            </div>
-          ) : null}
-
-          {isAdmin ? (
-            <div className="mt-2 space-y-2">
-              <Link
-                href="/admin/orders"
-                className={[
-                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
-                  pathname === "/admin/orders" || pathname?.startsWith("/admin/orders/")
-                    ? "bg-carnival-blue/15 text-foreground border border-border"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
-                ].join(" ")}
-              >
-                <ClipboardList size={18} />
-                Orders
-              </Link>
-              <Link
-                href="/admin/grants"
-                className={[
-                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
-                  pathname === "/admin/grants" || pathname?.startsWith("/admin/grants/")
-                    ? "bg-carnival-blue/15 text-foreground border border-border"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
-                ].join(" ")}
-              >
-                <Gift size={18} />
-                Grants
-              </Link>
-              <Link
-                href="/admin/review/comments"
-                className={[
-                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
-                  pathname === "/admin/review/comments" ||
-                  pathname?.startsWith("/admin/review/comments/")
-                    ? "bg-carnival-blue/15 text-foreground border border-border"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
-                ].join(" ")}
-              >
-                <MessageSquare size={18} />
-                Reviewer comments
-              </Link>
-              <Link
-                href="/admin/users"
-                className={[
-                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
-                  pathname === "/admin/users" || pathname?.startsWith("/admin/users/")
-                    ? "bg-carnival-blue/15 text-foreground border border-border"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
-                ].join(" ")}
-              >
-                <Users size={18} />
-                Users
-              </Link>
-            </div>
-          ) : null}
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      data-active={active ? "true" : "false"}
+                      className="platform-nav-link"
+                    >
+                      <Icon size={17} />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </nav>
       </div>
     </aside>
   );
 }
-
