@@ -6,17 +6,17 @@ html {
 
 :root {
   /* Source of truth: hackclub/the-carnival `src/index.css` */
-  --background: #fff6dd;
-  --foreground: #5b1f0a;
+  --background: #ffffff;
+  --foreground: #111827;
 
   /* Semantic surfaces (aligned with the site's warm/light look) */
-  --card: #fff7dc;
+  --card: rgba(255, 255, 255, 0.9);
   --card-foreground: var(--foreground);
-  --muted: #fff0cf;
-  --muted-foreground: #7b240a;
-  --border: rgba(116, 33, 10, 0.22);
-  --input: rgba(116, 33, 10, 0.24);
-  --ring: #f6a61c;
+  --muted: #fff7ed;
+  --muted-foreground: #78350f;
+  --border: #fde68a;
+  --input: #fde68a;
+  --ring: #fde68a;
 
   /* Carnival accents from the-carnival CSS */
   --carnival-amber: #f59e0b;
@@ -31,8 +31,8 @@ html {
   --carnival-orange: var(--carnival-amber-light);
   --carnival-yellow: var(--carnival-amber);
   --carnival-purple: #8b5cf6;
-  --carnival-dark: #5b1f0a;
-  --carnival-card: #fff7dc;
+  --carnival-dark: #111827;
+  --carnival-card: rgba(255, 255, 255, 0.9);
 
   /* Authenticated platform tokens derived from landing page palette */
   --platform-shell-bg: #fff4ce;
@@ -276,6 +276,18 @@ body {
 }
 
 .platform-shell-bg {
+  /* Scope semantic overrides to authenticated platform shell only. */
+  --background: #fff6dd;
+  --foreground: #5b1f0a;
+  --card: #fff7dc;
+  --muted: #fff0cf;
+  --muted-foreground: #7b240a;
+  --border: rgba(116, 33, 10, 0.22);
+  --input: rgba(116, 33, 10, 0.24);
+  --ring: #f6a61c;
+  --carnival-dark: #5b1f0a;
+  --carnival-card: #fff7dc;
+
   background:
     radial-gradient(1200px 520px at -5% -12%, rgba(255, 232, 150, 0.66) 0%, transparent 63%),
     radial-gradient(1000px 500px at 110% -8%, rgba(255, 198, 98, 0.32) 0%, transparent 62%),
