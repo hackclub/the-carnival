@@ -6,6 +6,7 @@ import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import { db } from "@/db";
 import { project } from "@/db/schema";
+import { formatCategoryLabel, formatTagLabel } from "@/lib/project-taxonomy";
 import { getServerSession } from "@/lib/server-session";
 
 export const dynamic = "force-dynamic";
@@ -46,10 +47,13 @@ export default async function AdminGrantsPage({
       id: project.id,
       name: project.name,
       description: project.description,
+      category: project.category,
+      tags: project.tags,
       editor: project.editor,
       editorOther: project.editorOther,
       status: project.status,
       createdAt: project.createdAt,
+      submittedAt: project.submittedAt,
     })
     .from(project)
     .where(inArray(project.status, active.statuses))
@@ -105,16 +109,38 @@ export default async function AdminGrantsPage({
             <Link
               key={p.id}
               href={`/admin/grants/${p.id}`}
-              className="bg-card border border-border rounded-2xl p-6 card-glow transition-all hover:bg-muted block"
+              className="bg-card border border-border rounded-2xl p-6 card-glow transition-all hover:bg-muted block h-full min-h-[300px]"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="text-foreground font-bold text-xl truncate">{p.name}</div>
-                  <div className="text-muted-foreground mt-2 overflow-hidden">{p.description}</div>
+              <div className="flex h-full flex-col">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-foreground font-bold text-xl truncate">{p.name}</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {p.category ? (
+                        <span className="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+                          {formatCategoryLabel(p.category) ?? p.category}
+                        </span>
+                      ) : null}
+                      {(p.tags ?? []).slice(0, 3).map((tag) => (
+                        <span
+                          key={`${p.id}-${tag}`}
+                          className="inline-flex items-center rounded-full border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                        >
+                          #{formatTagLabel(tag) ?? tag}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="text-muted-foreground mt-3 line-clamp-4 leading-6">{p.description}</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
+                    <ProjectStatusBadge status={p.status} />
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                  <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
-                  <ProjectStatusBadge status={p.status} />
+
+                <div className="mt-auto pt-4 text-xs text-muted-foreground">
+                  Submitted: {p.submittedAt ? p.submittedAt.toLocaleString() : "—"} • Created:{" "}
+                  {p.createdAt.toLocaleString()}
                 </div>
               </div>
             </Link>
@@ -124,5 +150,4 @@ export default async function AdminGrantsPage({
     </AppShell>
   );
 }
-
 

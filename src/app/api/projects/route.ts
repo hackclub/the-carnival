@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { db } from "@/db";
 import { project, type ProjectEditor } from "@/db/schema";
+import { normalizeCategory, normalizeProjectTags } from "@/lib/project-taxonomy";
 import { getServerSession } from "@/lib/server-session";
 
 type CreateProjectBody = {
@@ -16,6 +17,8 @@ type CreateProjectBody = {
   videoUrl?: unknown;
   playableDemoUrl?: unknown;
   codeUrl?: unknown;
+  category?: unknown;
+  tags?: unknown;
   screenshots?: unknown;
   status?: unknown;
 };
@@ -100,6 +103,8 @@ export async function POST(req: Request) {
   const videoUrl = toCleanString(body.videoUrl);
   const playableDemoUrl = toCleanString(body.playableDemoUrl);
   const codeUrl = toCleanString(body.codeUrl);
+  const category = normalizeCategory(body.category);
+  const tags = normalizeProjectTags(body.tags);
 
   const screenshots = Array.isArray(body.screenshots)
     ? body.screenshots
@@ -176,6 +181,8 @@ export async function POST(req: Request) {
     videoUrl,
     playableDemoUrl,
     codeUrl,
+    category,
+    tags,
     screenshots,
     // status: default in schema
     createdAt: now,
@@ -184,5 +191,4 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ id }, { status: 201 });
 }
-
 

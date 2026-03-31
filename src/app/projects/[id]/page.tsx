@@ -5,6 +5,7 @@ import AppShell from "@/components/AppShell";
 import ManageProjectClient from "@/components/ManageProjectClient";
 import { db } from "@/db";
 import { peerReview, project, user } from "@/db/schema";
+import { buildCategorySuggestions, buildTagSuggestions } from "@/lib/project-taxonomy";
 import { getServerSession } from "@/lib/server-session";
 
 export default async function ManageProjectPage(props: { params: Promise<{ id: string }> }) {
@@ -21,6 +22,8 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
       creatorId: project.creatorId,
       name: project.name,
       description: project.description,
+      category: project.category,
+      tags: project.tags,
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
@@ -56,6 +59,15 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
     .where(eq(peerReview.projectId, id))
     .orderBy(asc(peerReview.createdAt), asc(peerReview.id));
 
+  const taxonomyRows = await db
+    .select({
+      category: project.category,
+      tags: project.tags,
+    })
+    .from(project);
+  const categorySuggestions = buildCategorySuggestions(taxonomyRows.map((row) => row.category));
+  const tagSuggestions = buildTagSuggestions(taxonomyRows.map((row) => row.tags));
+
   return (
     <AppShell title="Manage project">
       <div className="mb-6">
@@ -69,6 +81,8 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
           id: p.id,
           name: p.name,
           description: p.description,
+          category: p.category,
+          tags: p.tags ?? [],
           editor: p.editor,
           editorOther: p.editorOther ?? "",
           hackatimeProjectName: p.hackatimeProjectName,
@@ -91,6 +105,8 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
             reviewerEmail: r.reviewerEmail || "",
           })),
         }}
+        categorySuggestions={categorySuggestions}
+        tagSuggestions={tagSuggestions}
       />
     </AppShell>
   );

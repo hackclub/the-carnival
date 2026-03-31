@@ -79,6 +79,8 @@ export const project = pgTable("project", {
   creatorId: text("creator_id").references(() => user.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   description: text("description").notNull(),
+  category: text("category"),
+  tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
   editor: projectEditor("editor").notNull().default("vscode"),
   editorOther: text("editor_other"),
   hackatimeProjectName: text("hackatime_project_name").notNull(),

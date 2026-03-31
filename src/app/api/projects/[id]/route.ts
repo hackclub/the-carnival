@@ -13,6 +13,7 @@ import {
   hasRequiredProjectSubmissionChecklistAnswers,
   parseProjectSubmissionChecklist,
 } from "@/lib/project-submission-checklist";
+import { normalizeCategory, normalizeProjectTags } from "@/lib/project-taxonomy";
 import { getServerSession } from "@/lib/server-session";
 import { notifyReviewDM } from "@/lib/slack";
 
@@ -28,6 +29,8 @@ type UpdateProjectBody = {
   videoUrl?: unknown;
   playableDemoUrl?: unknown;
   codeUrl?: unknown;
+  category?: unknown;
+  tags?: unknown;
   screenshots?: unknown;
   submissionChecklist?: unknown;
   status?: unknown;
@@ -110,6 +113,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       creatorId: project.creatorId,
       name: project.name,
       description: project.description,
+      category: project.category,
+      tags: project.tags,
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
@@ -153,6 +158,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       approvedHours: project.approvedHours,
       name: project.name,
       description: project.description,
+      category: project.category,
+      tags: project.tags,
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
@@ -193,6 +200,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const set: Partial<{
     name: string;
     description: string;
+    category: string | null;
+    tags: string[];
     editor: ProjectEditor;
     editorOther: string | null;
     hackatimeProjectName: string;
@@ -228,6 +237,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const description = toCleanString(body.description);
     if (!description) return NextResponse.json({ error: "Description is required" }, { status: 400 });
     set.description = description;
+  }
+
+  if (body.category !== undefined) {
+    set.category = normalizeCategory(body.category);
+  }
+
+  if (body.tags !== undefined) {
+    set.tags = normalizeProjectTags(body.tags);
   }
 
   if (editorRaw !== undefined) {
@@ -480,6 +497,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       creatorId: project.creatorId,
       name: project.name,
       description: project.description,
+      category: project.category,
+      tags: project.tags,
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
@@ -576,4 +595,3 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
 
   return NextResponse.json({ ok: true });
 }
-

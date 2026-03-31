@@ -30,6 +30,8 @@ type CreateProjectPayload = {
   description: string;
   editor: string;
   editorOther: string;
+  category: string;
+  tags: string;
   hackatimeProjectName: string;
   hackatimeStartedAt: string | null;
   hackatimeStoppedAt: string | null;
@@ -51,13 +53,33 @@ function cleanString(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function appendCsvToken(csv: string, token: string) {
+  const normalized = token.trim();
+  if (!normalized) return csv;
+  const parts = csv
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const seen = new Set(parts.map((part) => part.toLowerCase()));
+  if (!seen.has(normalized.toLowerCase())) {
+    parts.push(normalized);
+  }
+  return parts.join(", ");
+}
+
 function toLocalDateTime(value: string | null) {
   if (!value) return "—";
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
 }
 
-export default function CreateProjectModal() {
+export default function CreateProjectModal({
+  categorySuggestions = [],
+  tagSuggestions = [],
+}: {
+  categorySuggestions?: string[];
+  tagSuggestions?: string[];
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -72,6 +94,8 @@ export default function CreateProjectModal() {
   const [hackatimeConnectUrl, setHackatimeConnectUrl] = useState<string | null>(null);
   const [selectedHackatime, setSelectedHackatime] = useState<HackatimeProjectOption | null>(null);
   const [editor, setEditor] = useState<(typeof EDITOR_OPTIONS)[number]["value"]>("vscode");
+  const [category, setCategory] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>(
     Array.from({ length: MIN_SCREENSHOTS }, () => ""),
   );
@@ -112,6 +136,8 @@ export default function CreateProjectModal() {
     const onClose = () => {
       setIsSubmitting(false);
       setError(null);
+      setCategory("");
+      setTagsInput("");
       setScreenshotUrls(Array.from({ length: MIN_SCREENSHOTS }, () => ""));
       clearNewParam();
     };
@@ -137,6 +163,8 @@ export default function CreateProjectModal() {
       const description = cleanString(fd.get("description"));
       const editorValue = cleanString(fd.get("editor"));
       const editorOther = cleanString(fd.get("editorOther"));
+      const categoryValue = cleanString(fd.get("category"));
+      const tagsValue = cleanString(fd.get("tags"));
       const hackatimeProjectName = cleanString(fd.get("hackatimeProjectName"));
       const selectedHackatimeByName =
         hackatimeProjects?.find((p) => p.name === hackatimeProjectName) ?? selectedHackatime;
@@ -156,6 +184,8 @@ export default function CreateProjectModal() {
         description,
         editor: editorValue,
         editorOther,
+        category: categoryValue,
+        tags: tagsValue,
         hackatimeProjectName,
         hackatimeStartedAt: selectedHackatimeByName?.startedAt ?? null,
         hackatimeStoppedAt: selectedHackatimeByName?.stoppedAt ?? null,
@@ -487,6 +517,57 @@ export default function CreateProjectModal() {
           </label>
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="block">
+            <div className="text-sm text-muted-foreground font-medium mb-2">
+              Category
+            </div>
+            <input
+              name="category"
+              list="create-project-category-suggestions"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              placeholder="e.g. Productivity, Game Dev"
+            />
+            <datalist id="create-project-category-suggestions">
+              {categorySuggestions.map((value) => (
+                <option key={value} value={value} />
+              ))}
+            </datalist>
+            <div className="mt-2 text-xs text-muted-foreground">
+              Pick an existing category or create a new one.
+            </div>
+          </label>
+
+          <label className="block">
+            <div className="text-sm text-muted-foreground font-medium mb-2">
+              Tags <span className="font-normal">(comma-separated)</span>
+            </div>
+            <input
+              name="tags"
+              value={tagsInput}
+              onChange={(e) => setTagsInput(e.target.value)}
+              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              placeholder="e.g. ai, web, multiplayer"
+            />
+            {tagSuggestions.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {tagSuggestions.slice(0, 8).map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setTagsInput((prev) => appendCsvToken(prev, tag))}
+                    className="rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-muted/70 transition-colors"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </label>
+        </div>
+
         <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">
             Description
@@ -600,5 +681,3 @@ export default function CreateProjectModal() {
     </dialog>
   );
 }
-
-

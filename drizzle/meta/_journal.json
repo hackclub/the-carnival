@@ -190,6 +190,13 @@
       "when": 1773955200000,
       "tag": "0026_review_workflow_persistence",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1773961200000,
+      "tag": "0027_add_project_taxonomy",
+      "breakpoints": true
     }
   ]
 }

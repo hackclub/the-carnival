@@ -25,10 +25,13 @@ export default function ReviewFiltersClient({
     <div className="mb-6 flex flex-wrap gap-2">
       {filters.map((f) => {
         const isActive = f.value === active;
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("status", f.value);
+        const href = `/review?${params.toString()}`;
         return (
           <Link
             key={f.value}
-            href={`/review?status=${f.value}`}
+            href={href}
             className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
               isActive
                 ? "bg-carnival-red text-white border-carnival-red"

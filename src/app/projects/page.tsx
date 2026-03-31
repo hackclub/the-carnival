@@ -7,6 +7,7 @@ import CreateProjectModal from "@/components/CreateProjectModal";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import { db } from "@/db";
 import { project } from "@/db/schema";
+import { buildCategorySuggestions, buildTagSuggestions } from "@/lib/project-taxonomy";
 import { getServerSession } from "@/lib/server-session";
 import { fetchHackatimeProjectHoursByName } from "@/lib/hackatime";
 
@@ -38,6 +39,16 @@ export default async function ProjectsPage() {
     .from(project)
     .where(eq(project.creatorId, session.user.id))
     .orderBy(desc(project.createdAt));
+
+  const taxonomyRows = await db
+    .select({
+      category: project.category,
+      tags: project.tags,
+    })
+    .from(project);
+
+  const categorySuggestions = buildCategorySuggestions(taxonomyRows.map((row) => row.category));
+  const tagSuggestions = buildTagSuggestions(taxonomyRows.map((row) => row.tags));
 
   return (
     <AppShell title="My projects">
@@ -108,9 +119,11 @@ export default async function ProjectsPage() {
         <span className="text-3xl leading-none">+</span>
       </Link>
 
-      <CreateProjectModal />
+      <CreateProjectModal
+        categorySuggestions={categorySuggestions}
+        tagSuggestions={tagSuggestions}
+      />
     </AppShell>
   );
 }
-
 
