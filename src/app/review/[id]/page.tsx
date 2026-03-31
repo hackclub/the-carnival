@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { desc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import ReviewProjectClient from "@/components/ReviewProjectClient";
 import { db } from "@/db";
-import { peerReview, project, user, type ReviewDecision, type UserRole } from "@/db/schema";
+import {
+  peerReview,
+  project,
+  projectReviewerAssignment,
+  user,
+  type ReviewDecision,
+  type UserRole,
+} from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
@@ -71,6 +78,7 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
       decision: peerReview.decision,
       reviewComment: peerReview.reviewComment,
       approvedHours: peerReview.approvedHours,
+      hackatimeSnapshotSeconds: peerReview.hackatimeSnapshotSeconds,
       createdAt: peerReview.createdAt,
       reviewerName: user.name,
       reviewerEmail: user.email,
@@ -78,7 +86,19 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
     .from(peerReview)
     .leftJoin(user, eq(peerReview.reviewerId, user.id))
     .where(eq(peerReview.projectId, id))
-    .orderBy(desc(peerReview.createdAt));
+    .orderBy(asc(peerReview.createdAt), asc(peerReview.id));
+
+  const assignments = await db
+    .select({
+      reviewerId: projectReviewerAssignment.reviewerId,
+      reviewerName: user.name,
+      reviewerEmail: user.email,
+      createdAt: projectReviewerAssignment.createdAt,
+    })
+    .from(projectReviewerAssignment)
+    .leftJoin(user, eq(projectReviewerAssignment.reviewerId, user.id))
+    .where(eq(projectReviewerAssignment.projectId, id))
+    .orderBy(asc(projectReviewerAssignment.createdAt), asc(projectReviewerAssignment.reviewerId));
 
   return (
     <AppShell title="Review project">
@@ -94,6 +114,7 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
       <ReviewProjectClient
         initial={{
           isAdmin,
+          viewerUserId: session.user.id,
           project: {
             id: p.id,
             name: p.name,
@@ -123,13 +144,19 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
             decision: r.decision as ReviewDecision,
             reviewComment: r.reviewComment,
             approvedHours: r.approvedHours ?? null,
+            hackatimeSnapshotSeconds: r.hackatimeSnapshotSeconds ?? 0,
             createdAt: r.createdAt.toISOString(),
             reviewerName: r.reviewerName || "Unknown reviewer",
             reviewerEmail: r.reviewerEmail || "",
+          })),
+          assignments: assignments.map((a) => ({
+            reviewerId: a.reviewerId,
+            reviewerName: a.reviewerName || "Unknown reviewer",
+            reviewerEmail: a.reviewerEmail || "",
+            createdAt: a.createdAt.toISOString(),
           })),
         }}
       />
     </AppShell>
   );
 }
-

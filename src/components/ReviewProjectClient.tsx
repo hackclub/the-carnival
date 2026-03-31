@@ -18,9 +18,17 @@ type ReviewItem = {
   decision: ReviewDecision;
   reviewComment: string;
   approvedHours: number | null;
+  hackatimeSnapshotSeconds: number;
   createdAt: string; // ISO
   reviewerName: string;
   reviewerEmail: string;
+};
+
+type AssignmentItem = {
+  reviewerId: string;
+  reviewerName: string;
+  reviewerEmail: string;
+  createdAt: string; // ISO
 };
 
 type ReviewableProject = {
@@ -57,11 +65,18 @@ function formatYmd(iso: string | null) {
 export default function ReviewProjectClient({
   initial,
 }: {
-  initial: { isAdmin: boolean; project: ReviewableProject; reviews: ReviewItem[] };
+  initial: {
+    isAdmin: boolean;
+    viewerUserId: string;
+    project: ReviewableProject;
+    reviews: ReviewItem[];
+    assignments: AssignmentItem[];
+  };
 }) {
   const isAdmin = initial.isAdmin;
   const [project, setProject] = useState(initial.project);
   const [reviews, setReviews] = useState<ReviewItem[]>(initial.reviews);
+  const [assignments, setAssignments] = useState<AssignmentItem[]>(initial.assignments);
   const [decision, setDecision] = useState<ReviewDecision>("comment");
   const [comment, setComment] = useState("");
   const [approvedHours, setApprovedHours] = useState<string>(() => {
@@ -72,6 +87,7 @@ export default function ReviewProjectClient({
     return "";
   });
   const [submitting, setSubmitting] = useState(false);
+  const [assignmentBusy, setAssignmentBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successAt, setSuccessAt] = useState<number | null>(null);
 
@@ -79,8 +95,10 @@ export default function ReviewProjectClient({
     const v = approvedHours.trim();
     if (!v) return null;
     const n = Number(v);
-    if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) return null;
-    return n;
+    if (!Number.isFinite(n) || n <= 0) return null;
+    const doubled = n * 2;
+    if (Math.abs(doubled - Math.round(doubled)) > 1e-9) return null;
+    return Math.round(doubled) / 2;
   }, [approvedHours]);
 
   const canSubmit = useMemo(() => {
@@ -89,6 +107,11 @@ export default function ReviewProjectClient({
     if (decision === "approved") return approvedHoursValue !== null;
     return true;
   }, [approvedHoursValue, comment, decision, submitting]);
+
+  const isAssignedToMe = useMemo(
+    () => assignments.some((a) => a.reviewerId === initial.viewerUserId),
+    [assignments, initial.viewerUserId],
+  );
 
   const billyLink = useMemo(() => {
     const hackatimeId = project.hackatimeUserId?.trim();
@@ -153,7 +176,7 @@ export default function ReviewProjectClient({
       }
 
       if (data?.review) {
-        setReviews((prev) => [data.review!, ...prev]);
+        setReviews((prev) => [...prev, data.review!]);
       }
 
       setComment("");
@@ -190,6 +213,34 @@ export default function ReviewProjectClient({
     },
     [isAdmin],
   );
+
+  const onToggleAssignment = useCallback(async () => {
+    if (assignmentBusy) return;
+    setAssignmentBusy(true);
+    const assigning = !isAssignedToMe;
+    const toastId = toast.loading(assigning ? "Assigning to you…" : "Removing your assignment…");
+    try {
+      const res = await fetch(`/api/review/${encodeURIComponent(project.id)}/assignment`, {
+        method: assigning ? "POST" : "DELETE",
+      });
+      const data = (await res.json().catch(() => null)) as
+        | { assignments?: AssignmentItem[]; error?: unknown }
+        | null;
+      if (!res.ok) {
+        const message = typeof data?.error === "string" ? data.error : "Failed to update assignment.";
+        toast.error(message, { id: toastId });
+        setAssignmentBusy(false);
+        return;
+      }
+
+      setAssignments(data?.assignments ?? []);
+      toast.success(assigning ? "Assigned to you." : "Unassigned.", { id: toastId });
+      setAssignmentBusy(false);
+    } catch {
+      toast.error("Failed to update assignment.", { id: toastId });
+      setAssignmentBusy(false);
+    }
+  }, [assignmentBusy, isAssignedToMe, project.id]);
 
   return (
     <div className="space-y-6">
@@ -336,6 +387,39 @@ export default function ReviewProjectClient({
             </div>
           )}
         </div>
+
+        <div className="rounded-2xl border border-border bg-muted px-4 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm text-muted-foreground">Reviewer assignments</div>
+              <div className="text-foreground font-semibold">
+                {assignments.length === 0
+                  ? "No reviewers assigned"
+                  : `${assignments.length} reviewer${assignments.length === 1 ? "" : "s"} assigned`}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onToggleAssignment}
+              disabled={assignmentBusy}
+              className="inline-flex items-center justify-center bg-background hover:bg-background/80 disabled:bg-background/50 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border"
+            >
+              {assignmentBusy ? "Updating…" : isAssignedToMe ? "Unassign me" : "Assign to me"}
+            </button>
+          </div>
+          {assignments.length > 0 ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {assignments.map((a) => (
+                <div key={`${a.reviewerId}-${a.createdAt}`} className="rounded-full border border-border bg-card px-3 py-1">
+                  <span className="text-xs text-foreground font-semibold">
+                    {a.reviewerName}
+                    {a.reviewerId === initial.viewerUserId ? " (You)" : ""}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {project.screenshots?.length ? (
@@ -405,16 +489,16 @@ export default function ReviewProjectClient({
           <div className="text-sm text-muted-foreground font-medium mb-2">Approved hours</div>
           <input
             type="number"
-            min={0}
-            step={1}
+            min={0.5}
+            step={0.5}
             value={approvedHours}
             onChange={(e) => setApprovedHours(e.target.value)}
             disabled={decision !== "approved"}
             className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40 disabled:opacity-60"
-            placeholder="e.g. 10"
+            placeholder="e.g. 10.5"
           />
           <div className="text-xs text-muted-foreground mt-2">
-            Only required for <span className="text-foreground">Approve</span>.
+            Required for <span className="text-foreground">Approve</span>. Use 0.5-hour increments.
           </div>
         </label>
 
@@ -495,4 +579,3 @@ export default function ReviewProjectClient({
     </div>
   );
 }
-

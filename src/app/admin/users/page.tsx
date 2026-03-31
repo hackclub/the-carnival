@@ -21,7 +21,11 @@ export default async function AdminUsersPage() {
       email: user.email,
       slackId: user.slackId,
       verificationStatus: user.verificationStatus,
+      hackatimeUserId: user.hackatimeUserId,
       role: user.role,
+      isFrozen: user.isFrozen,
+      frozenReason: user.frozenReason,
+      frozenAt: user.frozenAt,
     })
     .from(user)
     .orderBy(asc(user.name));
@@ -32,7 +36,11 @@ export default async function AdminUsersPage() {
     email: r.email,
     slackId: r.slackId,
     verificationStatus: r.verificationStatus,
+    hackatimeUserId: r.hackatimeUserId,
     role: r.role,
+    isFrozen: !!r.isFrozen,
+    frozenReason: r.frozenReason,
+    frozenAt: r.frozenAt ? r.frozenAt.toISOString() : null,
   }));
 
   return (

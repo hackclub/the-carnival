@@ -41,6 +41,8 @@ export type ManageProjectInitial = {
   id: string;
   name: string;
   description: string;
+  category: string | null;
+  tags: string[];
   editor: ProjectEditor;
   editorOther: string;
   hackatimeProjectName: string;
@@ -76,13 +78,35 @@ function cleanList(values: string[]) {
   return values.map((v) => v.trim()).filter(Boolean);
 }
 
+function appendCsvToken(csv: string, token: string) {
+  const normalized = token.trim();
+  if (!normalized) return csv;
+  const parts = csv
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const seen = new Set(parts.map((part) => part.toLowerCase()));
+  if (!seen.has(normalized.toLowerCase())) {
+    parts.push(normalized);
+  }
+  return parts.join(", ");
+}
+
 function toLocalDateTime(value: string | null) {
   if (!value) return "—";
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
 }
 
-export default function ManageProjectClient({ initial }: { initial: ManageProjectInitial }) {
+export default function ManageProjectClient({
+  initial,
+  categorySuggestions = [],
+  tagSuggestions = [],
+}: {
+  initial: ManageProjectInitial;
+  categorySuggestions?: string[];
+  tagSuggestions?: string[];
+}) {
   const initialSubmissionChecklist = normalizeProjectSubmissionChecklist(initial.submissionChecklist);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +140,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
 
   const [name, setName] = useState(initial.name);
   const [description, setDescription] = useState(initial.description);
+  const [category, setCategory] = useState(initial.category ?? "");
+  const [tagsInput, setTagsInput] = useState((initial.tags ?? []).join(", "));
   const [editor, setEditor] = useState<ProjectEditor>(initial.editor);
   const [editorOther, setEditorOther] = useState(initial.editorOther);
   const [hackatimeProjectName, setHackatimeProjectName] = useState(initial.hackatimeProjectName);
@@ -309,7 +335,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     });
   }, []);
 
-  const onSave = useCallback(async () => {
+  const onSave = async () => {
     if (isGranted) {
       toast.error("This project has been granted and can no longer be edited.");
       return;
@@ -321,6 +347,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     const payload: Record<string, unknown> = {
       name: name.trim(),
       description: description.trim(),
+      category: category.trim(),
+      tags: tagsInput,
       editor,
       editorOther: editor === "other" ? editorOther.trim() : "",
       hackatimeProjectName: hackatimeProjectName.trim(),
@@ -357,6 +385,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
       if (p) {
         setName(p.name);
         setDescription(p.description);
+        setCategory(p.category ?? "");
+        setTagsInput((p.tags ?? []).join(", "));
         setEditor(p.editor);
         setEditorOther(p.editorOther ?? "");
         setHackatimeProjectName(p.hackatimeProjectName);
@@ -381,24 +411,9 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
       toast.error("Failed to save changes.", { id: toastId });
       setSaving(false);
     }
-  }, [
-    codeUrl,
-    description,
-    editor,
-    editorOther,
-    hackatimeProjectName,
-    hackatimeStartedAt,
-    hackatimeStoppedAt,
-    hackatimeTotalSeconds,
-    initial.id,
-    isGranted,
-    name,
-    playableDemoUrl,
-    videoUrl,
-    screenshotUrls,
-  ]);
+  };
 
-  const openSubmit = useCallback(() => {
+  const openSubmit = () => {
     if (isGranted) return;
     if (isInReview) {
       toast("This project is already in review.");
@@ -419,14 +434,14 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     setCheckAddressedRejection(false);
     setSubmitStep(0);
     setSubmitOpen(true);
-  }, [isGranted, isInReview, isShipped, savedSubmissionChecklist]);
+  };
 
-  const closeSubmit = useCallback(() => {
+  const closeSubmit = () => {
     setSubmitOpen(false);
     setSubmitStep(0);
     setSubmitting(false);
     setCheckAddressedRejection(false);
-  }, []);
+  };
 
   const openDeleteConfirm = useCallback(() => {
     if (!canDelete) {
@@ -441,7 +456,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     setDeleteOpen(false);
   }, [deleting]);
 
-  const onSubmitForReview = useCallback(async () => {
+  const onSubmitForReview = async () => {
     if (isGranted) return;
     if (!submitRequirements.allOk) {
       toast.error("Please complete all required fields before submitting.");
@@ -466,6 +481,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
     const payload: Record<string, unknown> = {
       name: name.trim(),
       description: description.trim(),
+      category: category.trim(),
+      tags: tagsInput,
       editor,
       editorOther: editor === "other" ? editorOther.trim() : "",
       hackatimeProjectName: hackatimeProjectName.trim(),
@@ -537,6 +554,8 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
       if (p) {
         setName(p.name);
         setDescription(p.description);
+        setCategory(p.category ?? "");
+        setTagsInput((p.tags ?? []).join(", "));
         setEditor(p.editor);
         setEditorOther(p.editorOther ?? "");
         setHackatimeProjectName(p.hackatimeProjectName);
@@ -560,28 +579,7 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
       toast.error("Failed to submit for review.", { id: toastId });
       setSubmitting(false);
     }
-  }, [
-    checkAddressedRejection,
-    checklistOk,
-    isReReview,
-    closeSubmit,
-    codeUrl,
-    description,
-    editor,
-    editorOther,
-    hackatimeProjectName,
-    hackatimeStartedAt,
-    hackatimeStoppedAt,
-    hackatimeTotalSeconds,
-    initial.id,
-    isGranted,
-    name,
-    playableDemoUrl,
-    videoUrl,
-    submissionChecklist,
-    screenshotUrls,
-    submitRequirements.allOk,
-  ]);
+  };
 
   const onDeleteProject = useCallback(async () => {
     if (!canDelete) return;
@@ -800,6 +798,53 @@ export default function ManageProjectClient({ initial }: { initial: ManageProjec
             ) : null}
           </div>
         </label>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="block">
+            <div className="text-sm text-muted-foreground font-medium mb-2">Category</div>
+            <input
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              list="manage-project-category-suggestions"
+              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              placeholder="e.g. Productivity, Game Dev"
+            />
+            <datalist id="manage-project-category-suggestions">
+              {categorySuggestions.map((value) => (
+                <option key={value} value={value} />
+              ))}
+            </datalist>
+            <div className="mt-2 text-xs text-muted-foreground">
+              Pick an existing category or create a new one.
+            </div>
+          </label>
+
+          <label className="block">
+            <div className="text-sm text-muted-foreground font-medium mb-2">
+              Tags <span className="font-normal">(comma-separated)</span>
+            </div>
+            <input
+              value={tagsInput}
+              onChange={(e) => setTagsInput(e.target.value)}
+              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              placeholder="e.g. ai, web, multiplayer"
+            />
+            {tagSuggestions.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {tagSuggestions.slice(0, 8).map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setTagsInput((prev) => appendCsvToken(prev, tag))}
+                    className="rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-muted/70 transition-colors"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </label>
+        </div>
 
         <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">Description</div>
