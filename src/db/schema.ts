@@ -64,6 +64,10 @@ export const user = pgTable("user", {
   country: text("country"),
   zipPostalCode: text("zip_postal_code"),
   role: userRole("role").notNull().default("user"),
+  isFrozen: boolean("is_frozen").notNull().default(false),
+  frozenReason: text("frozen_reason"),
+  frozenAt: timestamp("frozen_at"),
+  frozenByUserId: text("frozen_by_user_id"),
   identityToken: text("identity_token"),
   refreshToken: text("refresh_token"),
   hackatimeUserId: text("hackatime_user_id"),
@@ -160,6 +164,24 @@ export const reviewAuditLog = pgTable(
   (t) => ({
     projectCreatedAtIdx: index("review_audit_log_project_created_at_idx").on(t.projectId, t.createdAt),
     actorCreatedAtIdx: index("review_audit_log_actor_created_at_idx").on(t.actorId, t.createdAt),
+  }),
+);
+
+export const adminAuditLog = pgTable(
+  "admin_audit_log",
+  {
+    id: text("id").primaryKey(),
+    actorId: text("actor_id").references(() => user.id, { onDelete: "set null" }),
+    actorRole: userRole("actor_role").notNull(),
+    action: text("action").notNull(),
+    targetUserId: text("target_user_id").references(() => user.id, { onDelete: "set null" }),
+    details: jsonb("details").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (t) => ({
+    actorCreatedAtIdx: index("admin_audit_log_actor_created_at_idx").on(t.actorId, t.createdAt),
+    targetCreatedAtIdx: index("admin_audit_log_target_created_at_idx").on(t.targetUserId, t.createdAt),
+    actionCreatedAtIdx: index("admin_audit_log_action_created_at_idx").on(t.action, t.createdAt),
   }),
 );
 

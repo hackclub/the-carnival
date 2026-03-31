@@ -3,6 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { shopItem, shopOrder, user } from "@/db/schema";
 import { generateId, getAuthUser, parseJsonBody, toCleanString } from "@/lib/api-utils";
+import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
 import { getAppBaseUrl, sendShopOrderCreatedAdminEmail } from "@/lib/loops";
 import { getTokenBalance } from "@/lib/wallet";
 
@@ -51,6 +52,17 @@ export async function GET() {
 export async function POST(req: Request) {
   const authUser = await getAuthUser();
   if (!authUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const freezeState = await getFrozenAccountState(authUser.id);
+  if (freezeState.isFrozen) {
+    return NextResponse.json(
+      {
+        error: getFrozenAccountMessage(freezeState.frozenReason),
+        code: "account_frozen",
+      },
+      { status: 403 },
+    );
+  }
 
   const body = await parseJsonBody<CreateOrderBody>(req);
   const itemId = toCleanString(body?.itemId);

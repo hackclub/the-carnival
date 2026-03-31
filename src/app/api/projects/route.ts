@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { db } from "@/db";
 import { project, type ProjectEditor } from "@/db/schema";
+import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
 import { normalizeCategory, normalizeProjectTags } from "@/lib/project-taxonomy";
 import { getServerSession } from "@/lib/server-session";
 
@@ -83,6 +84,17 @@ export async function POST(req: Request) {
   const userId = (session?.user as { id?: string } | undefined)?.id;
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const freezeState = await getFrozenAccountState(userId);
+  if (freezeState.isFrozen) {
+    return NextResponse.json(
+      {
+        error: getFrozenAccountMessage(freezeState.frozenReason),
+        code: "account_frozen",
+      },
+      { status: 403 },
+    );
   }
 
   let body: CreateProjectBody;
@@ -191,4 +203,3 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ id }, { status: 201 });
 }
-

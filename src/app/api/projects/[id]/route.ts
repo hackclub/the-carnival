@@ -14,6 +14,7 @@ import {
   parseProjectSubmissionChecklist,
 } from "@/lib/project-submission-checklist";
 import { normalizeCategory, normalizeProjectTags } from "@/lib/project-taxonomy";
+import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
 import { getServerSession } from "@/lib/server-session";
 import { notifyReviewDM } from "@/lib/slack";
 
@@ -148,6 +149,17 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const role = (session?.user as { role?: unknown } | undefined)?.role;
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const freezeState = await getFrozenAccountState(userId);
+  if (freezeState.isFrozen) {
+    return NextResponse.json(
+      {
+        error: getFrozenAccountMessage(freezeState.frozenReason),
+        code: "account_frozen",
+      },
+      { status: 403 },
+    );
   }
 
   const { id } = await ctx.params;
@@ -562,6 +574,17 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
   const userId = (session?.user as { id?: string } | undefined)?.id;
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const freezeState = await getFrozenAccountState(userId);
+  if (freezeState.isFrozen) {
+    return NextResponse.json(
+      {
+        error: getFrozenAccountMessage(freezeState.frozenReason),
+        code: "account_frozen",
+      },
+      { status: 403 },
+    );
   }
 
   const { id } = await ctx.params;

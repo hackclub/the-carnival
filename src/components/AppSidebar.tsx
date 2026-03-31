@@ -16,6 +16,7 @@ import {
   User,
   Users,
   BookOpen,
+  Shield,
 } from "lucide-react";
 
 type UserRole = "user" | "reviewer" | "admin" | null;
@@ -51,6 +52,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
   { href: "/admin/review/comments", label: "Reviewer comments", icon: MessageSquare },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/audit", label: "Audit log", icon: Shield },
 ];
 
 function asUserRole(value: unknown): UserRole {
