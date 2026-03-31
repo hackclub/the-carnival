@@ -14,6 +14,7 @@ import {
   Gift,
   Users,
   ClipboardList,
+  MessageSquare,
   LucideIcon,
 } from "lucide-react";
 
@@ -134,6 +135,19 @@ export default function AppSidebar() {
                 Grants
               </Link>
               <Link
+                href="/admin/review/comments"
+                className={[
+                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
+                  pathname === "/admin/review/comments" ||
+                  pathname?.startsWith("/admin/review/comments/")
+                    ? "bg-carnival-blue/15 text-foreground border border-border"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                ].join(" ")}
+              >
+                <MessageSquare size={18} />
+                Reviewer comments
+              </Link>
+              <Link
                 href="/admin/users"
                 className={[
                   "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
@@ -152,5 +166,4 @@ export default function AppSidebar() {
     </aside>
   );
 }
-
 

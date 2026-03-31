@@ -15,7 +15,7 @@ export default async function AdminReviewCommentsPage() {
   if (role !== "admin") redirect("/projects");
 
   return (
-    <AppShell title="Review comments">
+    <AppShell title="Reviewer comments">
       <AdminReviewCommentsClient />
     </AppShell>
   );

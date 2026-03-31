@@ -72,9 +72,7 @@ export default function AdminReviewCommentsClient() {
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setError(null);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFlatComments(null);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setGroupedReviewers(null);
 
     const url = `/api/admin/review/comments?mode=${encodeURIComponent(activeMode)}`;
@@ -83,7 +81,7 @@ export default function AdminReviewCommentsClient() {
       .then(async (res) => {
         const data = (await res.json().catch(() => null)) as FlatResponse | GroupedResponse | null;
         if (!res.ok) {
-          throw new Error(data?.error || "Failed to load review comments.");
+          throw new Error(data?.error || "Failed to load reviewer comments.");
         }
 
         if (cancelled) return;
@@ -99,7 +97,7 @@ export default function AdminReviewCommentsClient() {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Failed to load review comments.");
+        setError(err instanceof Error ? err.message : "Failed to load reviewer comments.");
         setFlatComments([]);
         setGroupedReviewers([]);
       });
@@ -135,12 +133,12 @@ export default function AdminReviewCommentsClient() {
 
       {loading ? (
         <div className="bg-card border border-border rounded-2xl p-8">
-          <div className="text-foreground font-semibold text-lg">Loading review comments…</div>
+          <div className="text-foreground font-semibold text-lg">Loading reviewer comments…</div>
           <div className="text-muted-foreground mt-1">Fetching the latest reviewer feedback.</div>
         </div>
       ) : error ? (
         <div className="bg-card border border-border rounded-2xl p-8">
-          <div className="text-foreground font-semibold text-lg">Could not load review comments</div>
+          <div className="text-foreground font-semibold text-lg">Could not load reviewer comments</div>
           <div className="text-muted-foreground mt-1">{error}</div>
         </div>
       ) : activeMode === "flat" ? (
@@ -185,7 +183,7 @@ export default function AdminReviewCommentsClient() {
           </>
         ) : (
           <div className="bg-card border border-border rounded-2xl p-8">
-            <div className="text-foreground font-semibold text-lg">No review comments yet</div>
+            <div className="text-foreground font-semibold text-lg">No reviewer comments yet</div>
             <div className="text-muted-foreground mt-1">
               Comments appear here after reviewers submit project feedback.
             </div>
