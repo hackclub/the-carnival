@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import ManageProjectClient from "@/components/ManageProjectClient";
 import { db } from "@/db";
@@ -54,7 +54,7 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
     .from(peerReview)
     .leftJoin(user, eq(peerReview.reviewerId, user.id))
     .where(eq(peerReview.projectId, id))
-    .orderBy(desc(peerReview.createdAt));
+    .orderBy(asc(peerReview.createdAt), asc(peerReview.id));
 
   return (
     <AppShell title="Manage project">
@@ -95,4 +95,3 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
     </AppShell>
   );
 }
-

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { desc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import AdminGrantClient from "@/components/AdminGrantClient";
 import { db } from "@/db";
@@ -64,7 +64,7 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
     .from(peerReview)
     .leftJoin(user, eq(peerReview.reviewerId, user.id))
     .where(eq(peerReview.projectId, p.id))
-    .orderBy(desc(peerReview.createdAt));
+    .orderBy(asc(peerReview.createdAt), asc(peerReview.id));
 
   const totalSeconds =
     typeof p.hackatimeTotalSeconds === "number" && Number.isFinite(p.hackatimeTotalSeconds)
@@ -125,4 +125,3 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
     </AppShell>
   );
 }
-

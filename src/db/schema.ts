@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, pgEnum, integer, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, pgEnum, integer, uniqueIndex, jsonb, numeric, index } from "drizzle-orm/pg-core";
 
 export const userRole = pgEnum("user_role", ["user", "reviewer", "admin"]);
 export type UserRole = (typeof userRole.enumValues)[number];
@@ -91,7 +91,7 @@ export const project = pgTable("project", {
   screenshots: text("screenshots").array().notNull(),
   status: projectStatus("status").notNull().default("work-in-progress"),
   // Canonical approved hours for this project (set by a reviewer on approval).
-  approvedHours: integer("approved_hours"),
+  approvedHours: numeric("approved_hours", { precision: 6, scale: 1, mode: "number" }),
   submissionChecklist: jsonb("submission_checklist").$type<ProjectSubmissionChecklist>(),
   // Set when a creator submits their project for review (status transitions to "in-review").
   submittedAt: timestamp("submitted_at"),
@@ -110,10 +110,56 @@ export const peerReview = pgTable("peer_review", {
   decision: reviewDecision("decision").notNull().default("comment"),
   reviewComment: text("review_comment").notNull(),
   // Optional: reviewer-approved hours for a project (mainly used on approvals).
-  approvedHours: integer("approved_hours"),
+  approvedHours: numeric("approved_hours", { precision: 6, scale: 1, mode: "number" }),
+  // Captured from project.hackatime_total_seconds at review-submit time.
+  hackatimeSnapshotSeconds: integer("hackatime_snapshot_seconds").notNull().default(0),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
+
+export const projectReviewerAssignment = pgTable(
+  "project_reviewer_assignment",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    reviewerId: text("reviewer_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (t) => ({
+    uniqProjectReviewer: uniqueIndex("project_reviewer_assignment_project_reviewer_uniq").on(
+      t.projectId,
+      t.reviewerId,
+    ),
+    projectCreatedAtIdx: index("project_reviewer_assignment_project_created_at_idx").on(
+      t.projectId,
+      t.createdAt,
+    ),
+  }),
+);
+
+export const reviewAuditLog = pgTable(
+  "review_audit_log",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    reviewId: text("review_id").references(() => peerReview.id, { onDelete: "set null" }),
+    actorId: text("actor_id").references(() => user.id, { onDelete: "set null" }),
+    actorRole: userRole("actor_role").notNull(),
+    action: text("action").notNull(),
+    details: jsonb("details").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (t) => ({
+    projectCreatedAtIdx: index("review_audit_log_project_created_at_idx").on(t.projectId, t.createdAt),
+    actorCreatedAtIdx: index("review_audit_log_actor_created_at_idx").on(t.actorId, t.createdAt),
+  }),
+);
 
 export type BountyHelpfulLink = {
   label: string;

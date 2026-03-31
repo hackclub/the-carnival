@@ -183,6 +183,13 @@
       "when": 1773950507000,
       "tag": "0025_repair_bounty_project_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1773955200000,
+      "tag": "0026_review_workflow_persistence",
+      "breakpoints": true
     }
   ]
 }
