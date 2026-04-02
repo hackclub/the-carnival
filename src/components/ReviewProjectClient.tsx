@@ -10,7 +10,19 @@ import type {
 import { buildBillyUrl } from "@/lib/constants";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
+import { Modal } from "@/components/ui";
 import { PROJECT_SUBMISSION_CHECKLIST_ITEMS } from "@/lib/project-submission-checklist";
+import {
+  buildDefaultReviewJustificationDraft,
+  calculateHoursReduction,
+  requiresDeflationReason,
+  REVIEW_DEFLATION_REASON_OPTIONS,
+  REVIEW_EVIDENCE_ITEMS,
+  validateRequiredReviewJustification,
+  type ReviewDeflationReason,
+  type ReviewJustificationDraft,
+  type ReviewJustificationPayload,
+} from "@/lib/review-rules";
 import toast from "react-hot-toast";
 
 type ReviewItem = {
@@ -19,6 +31,7 @@ type ReviewItem = {
   reviewComment: string;
   approvedHours: number | null;
   hackatimeSnapshotSeconds: number;
+  reviewJustification: ReviewJustificationPayload | null;
   createdAt: string; // ISO
   reviewerName: string;
   reviewerEmail: string;
@@ -90,6 +103,39 @@ export default function ReviewProjectClient({
   const [assignmentBusy, setAssignmentBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successAt, setSuccessAt] = useState<number | null>(null);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const defaultReviewStartDate = useMemo(
+    () =>
+      formatYmd(project.hackatimeStartedAt) ??
+      formatYmd(project.submittedAt ?? project.createdAt) ??
+      formatYmd(project.createdAt) ??
+      "",
+    [project.createdAt, project.hackatimeStartedAt, project.submittedAt],
+  );
+  const defaultReviewEndDate = useMemo(
+    () =>
+      formatYmd(project.hackatimeStoppedAt) ??
+      formatYmd(project.submittedAt) ??
+      formatYmd(project.createdAt) ??
+      "",
+    [project.createdAt, project.hackatimeStoppedAt, project.submittedAt],
+  );
+  const [reviewJustificationDraft, setReviewJustificationDraft] = useState<ReviewJustificationDraft>(() =>
+    buildDefaultReviewJustificationDraft({
+      hackatimeProjectName: initial.project.hackatimeProjectName,
+      startDate:
+        formatYmd(initial.project.hackatimeStartedAt) ??
+        formatYmd(initial.project.submittedAt ?? initial.project.createdAt) ??
+        formatYmd(initial.project.createdAt) ??
+        "",
+      endDate:
+        formatYmd(initial.project.hackatimeStoppedAt) ??
+        formatYmd(initial.project.submittedAt) ??
+        formatYmd(initial.project.createdAt) ??
+        "",
+    }),
+  );
+  const [modalError, setModalError] = useState<string | null>(null);
 
   const approvedHoursValue = useMemo(() => {
     const v = approvedHours.trim();
@@ -107,6 +153,23 @@ export default function ReviewProjectClient({
     if (decision === "approved") return approvedHoursValue !== null;
     return true;
   }, [approvedHoursValue, comment, decision, submitting]);
+
+  const hackatimeLoggedHoursValue = useMemo(() => {
+    if (!project.hackatimeHours) return null;
+    return project.hackatimeHours.hours + project.hackatimeHours.minutes / 60;
+  }, [project.hackatimeHours]);
+
+  const approvedHoursReduction = useMemo(() => {
+    if (decision !== "approved") return 0;
+    return calculateHoursReduction(hackatimeLoggedHoursValue, approvedHoursValue);
+  }, [approvedHoursValue, decision, hackatimeLoggedHoursValue]);
+
+  const deflationReasonRequired = useMemo(() => {
+    if (decision !== "approved") return false;
+    return requiresDeflationReason(hackatimeLoggedHoursValue, approvedHoursValue);
+  }, [approvedHoursValue, decision, hackatimeLoggedHoursValue]);
+
+  const isApprovedHoursReduced = approvedHoursReduction > 0;
 
   const isAssignedToMe = useMemo(
     () => assignments.some((a) => a.reviewerId === initial.viewerUserId),
@@ -141,8 +204,18 @@ export default function ReviewProjectClient({
     return `${h}h${String(m).padStart(2, "0")}m`;
   }, [project.hackatimeHours]);
 
-  const onSubmit = useCallback(async () => {
-    if (!canSubmit) return;
+  const resetReviewJustificationDraft = useCallback(() => {
+    setReviewJustificationDraft(
+      buildDefaultReviewJustificationDraft({
+        hackatimeProjectName: project.hackatimeProjectName,
+        startDate: defaultReviewStartDate,
+        endDate: defaultReviewEndDate,
+      }),
+    );
+    setModalError(null);
+  }, [defaultReviewEndDate, defaultReviewStartDate, project.hackatimeProjectName]);
+
+  const submitReview = useCallback(async (reviewJustification: ReviewJustificationPayload | null) => {
     setSubmitting(true);
     setError(null);
     setSuccessAt(null);
@@ -156,10 +229,17 @@ export default function ReviewProjectClient({
           decision,
           comment: comment.trim(),
           approvedHours: decision === "approved" ? approvedHoursValue : null,
+          reviewJustification,
         }),
       });
       const data = (await res.json().catch(() => null)) as
-        | { project?: { status?: ProjectStatus }; review?: ReviewItem; error?: unknown }
+        | {
+            project?: { status?: ProjectStatus };
+            review?: Omit<ReviewItem, "reviewJustification"> & {
+              reviewJustification?: ReviewJustificationPayload | null;
+            };
+            error?: unknown;
+          }
         | null;
 
       if (!res.ok) {
@@ -176,11 +256,17 @@ export default function ReviewProjectClient({
       }
 
       if (data?.review) {
-        setReviews((prev) => [...prev, data.review!]);
+        const nextReview: ReviewItem = {
+          ...data.review,
+          reviewJustification: data.review.reviewJustification ?? reviewJustification ?? null,
+        };
+        setReviews((prev) => [...prev, nextReview]);
       }
 
       setComment("");
       setDecision("comment");
+      setShowConfirmationModal(false);
+      resetReviewJustificationDraft();
       setSuccessAt(Date.now());
       toast.success("Review submitted.", { id: toastId });
       setSubmitting(false);
@@ -189,7 +275,88 @@ export default function ReviewProjectClient({
       toast.error("Failed to submit review.", { id: toastId });
       setSubmitting(false);
     }
-  }, [approvedHoursValue, canSubmit, comment, decision, project.id]);
+  }, [
+    approvedHoursValue,
+    comment,
+    decision,
+    project.id,
+    resetReviewJustificationDraft,
+  ]);
+
+  const onSubmit = useCallback(() => {
+    if (!canSubmit) return;
+    if (decision === "comment") {
+      void submitReview(null);
+      return;
+    }
+    setModalError(null);
+    setShowConfirmationModal(true);
+  }, [canSubmit, decision, submitReview]);
+
+  const onConfirmSubmission = useCallback(() => {
+    if (decision === "comment") return;
+
+    const validated = validateRequiredReviewJustification({
+      value: reviewJustificationDraft,
+      decision,
+      expectedHackatimeProjectName: project.hackatimeProjectName,
+      approvedHours: approvedHoursValue,
+      loggedHackatimeHours: hackatimeLoggedHoursValue,
+    });
+
+    if (!validated.ok) {
+      setModalError(validated.error);
+      return;
+    }
+
+    setModalError(null);
+    setShowConfirmationModal(false);
+    void submitReview(validated.value);
+  }, [
+    approvedHoursValue,
+    decision,
+    hackatimeLoggedHoursValue,
+    project.hackatimeProjectName,
+    reviewJustificationDraft,
+    submitReview,
+  ]);
+
+  const onCloseConfirmationModal = useCallback(() => {
+    if (submitting) return;
+    setShowConfirmationModal(false);
+    setModalError(null);
+  }, [submitting]);
+
+  const onToggleEvidence = useCallback((key: keyof ReviewJustificationDraft["evidence"]) => {
+    setReviewJustificationDraft((prev) => ({
+      ...prev,
+      evidence: {
+        ...prev.evidence,
+        [key]: !prev.evidence[key],
+      },
+    }));
+    setModalError(null);
+  }, []);
+
+  const onToggleDeflationReason = useCallback((reason: ReviewDeflationReason) => {
+    setReviewJustificationDraft((prev) => {
+      const exists = prev.deflationReasons.includes(reason);
+      const nextReasons = exists
+        ? prev.deflationReasons.filter((item) => item !== reason)
+        : [...prev.deflationReasons, reason];
+      return { ...prev, deflationReasons: nextReasons };
+    });
+    setModalError(null);
+  }, []);
+
+  const onDecisionChange = useCallback((nextDecision: ReviewDecision) => {
+    setDecision(nextDecision);
+    setError(null);
+    setModalError(null);
+    if (nextDecision === "comment") {
+      setShowConfirmationModal(false);
+    }
+  }, []);
 
   const onDeleteReview = useCallback(
     async (reviewId: string) => {
@@ -446,7 +613,7 @@ export default function ReviewProjectClient({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <button
             type="button"
-            onClick={() => setDecision("approved")}
+            onClick={() => onDecisionChange("approved")}
             className={[
               "rounded-2xl border px-4 py-3 text-left transition-colors",
               decision === "approved"
@@ -459,7 +626,7 @@ export default function ReviewProjectClient({
           </button>
           <button
             type="button"
-            onClick={() => setDecision("rejected")}
+            onClick={() => onDecisionChange("rejected")}
             className={[
               "rounded-2xl border px-4 py-3 text-left transition-colors",
               decision === "rejected"
@@ -472,7 +639,7 @@ export default function ReviewProjectClient({
           </button>
           <button
             type="button"
-            onClick={() => setDecision("comment")}
+            onClick={() => onDecisionChange("comment")}
             className={[
               "rounded-2xl border px-4 py-3 text-left transition-colors",
               decision === "comment"
@@ -519,6 +686,12 @@ export default function ReviewProjectClient({
           </div>
         ) : null}
 
+        {decision !== "comment" ? (
+          <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+            Submitting {decision} requires confirmation with evidence checks and review date range.
+          </div>
+        ) : null}
+
         <div className="flex items-center justify-between gap-4 pt-2">
           <div className="text-sm text-muted-foreground">{successAt ? "Submitted." : null}</div>
           <button
@@ -531,6 +704,180 @@ export default function ReviewProjectClient({
           </button>
         </div>
       </div>
+
+      <Modal
+        open={showConfirmationModal && decision !== "comment"}
+        onClose={onCloseConfirmationModal}
+        title={`Confirm ${decision === "approved" ? "approval" : "rejection"}`}
+        description="Before submitting, confirm review evidence and project review range."
+        maxWidth="lg"
+      >
+        <div className="space-y-5">
+          <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+            <div>
+              Logged Hackatime for this project:{" "}
+              <span className="text-foreground font-semibold">{hackatimeLoggedLabel}</span>
+            </div>
+            {decision === "approved" && approvedHoursValue !== null ? (
+              <div className="mt-1">
+                Approved hours: <span className="text-foreground font-semibold">{approvedHoursValue}h</span>
+                {isApprovedHoursReduced ? (
+                  <span className="text-foreground">
+                    {" "}
+                    ({approvedHoursReduction.toFixed(2)}h lower than logged)
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="space-y-4">
+            <div className="text-sm font-semibold text-foreground">Evidence checklist</div>
+
+            <label className="block">
+              <div className="text-xs text-muted-foreground mb-2">Hackatime project name reviewed</div>
+              <input
+                type="text"
+                value={reviewJustificationDraft.hackatimeProjectName}
+                onChange={(e) => {
+                  setReviewJustificationDraft((prev) => ({
+                    ...prev,
+                    hackatimeProjectName: e.target.value,
+                  }));
+                  setModalError(null);
+                }}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                placeholder="Hackatime project name"
+              />
+            </label>
+
+            <div className="space-y-2">
+              {REVIEW_EVIDENCE_ITEMS.map((item) => (
+                <label
+                  key={item.key}
+                  className="flex items-start gap-3 rounded-xl border border-border bg-background px-3 py-2"
+                >
+                  <input
+                    type="checkbox"
+                    checked={reviewJustificationDraft.evidence[item.key]}
+                    onChange={() => onToggleEvidence(item.key)}
+                    className="mt-0.5 h-4 w-4 rounded border-border accent-carnival-blue"
+                  />
+                  <span className="text-sm text-foreground">{item.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-sm font-semibold text-foreground">Review date range</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="block">
+                <div className="text-xs text-muted-foreground mb-1">Start date</div>
+                <input
+                  type="date"
+                  value={reviewJustificationDraft.reviewDateRange.startDate}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    setReviewJustificationDraft((prev) => ({
+                      ...prev,
+                      reviewDateRange: { ...prev.reviewDateRange, startDate: nextValue },
+                    }));
+                    setModalError(null);
+                  }}
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                />
+              </label>
+              <label className="block">
+                <div className="text-xs text-muted-foreground mb-1">End date</div>
+                <input
+                  type="date"
+                  value={reviewJustificationDraft.reviewDateRange.endDate}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    setReviewJustificationDraft((prev) => ({
+                      ...prev,
+                      reviewDateRange: { ...prev.reviewDateRange, endDate: nextValue },
+                    }));
+                    setModalError(null);
+                  }}
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                />
+              </label>
+            </div>
+          </div>
+
+          {decision === "approved" && isApprovedHoursReduced ? (
+            <div className="space-y-3">
+              <div className="text-sm font-semibold text-foreground">
+                Hours deflation rationale
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {deflationReasonRequired
+                  ? "At least one reason is required because approved hours are 0.5h or more below logged Hackatime."
+                  : "Reason is optional for reductions under 0.5h, but still recommended."}
+              </div>
+              <div className="space-y-2">
+                {REVIEW_DEFLATION_REASON_OPTIONS.map((option) => (
+                  <label
+                    key={option.key}
+                    className="flex items-start gap-3 rounded-xl border border-border bg-background px-3 py-2"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={reviewJustificationDraft.deflationReasons.includes(option.key)}
+                      onChange={() => onToggleDeflationReason(option.key)}
+                      className="mt-0.5 h-4 w-4 rounded border-border accent-carnival-blue"
+                    />
+                    <span className="text-sm text-foreground">{option.label}</span>
+                  </label>
+                ))}
+              </div>
+              <label className="block">
+                <div className="text-xs text-muted-foreground mb-1">Optional note</div>
+                <textarea
+                  value={reviewJustificationDraft.deflationNote}
+                  onChange={(e) => {
+                    setReviewJustificationDraft((prev) => ({
+                      ...prev,
+                      deflationNote: e.target.value,
+                    }));
+                    setModalError(null);
+                  }}
+                  rows={3}
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  placeholder="Explain context for the reduced approved hours."
+                />
+              </label>
+            </div>
+          ) : null}
+
+          {modalError ? (
+            <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
+              {modalError}
+            </div>
+          ) : null}
+
+          <div className="flex items-center justify-end gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onCloseConfirmationModal}
+              disabled={submitting}
+              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onConfirmSubmission}
+              disabled={submitting}
+              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-5 py-2 rounded-full font-bold transition-colors"
+            >
+              {submitting ? "Submitting…" : "Confirm and submit"}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Review history</div>

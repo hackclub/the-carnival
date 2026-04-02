@@ -12,6 +12,7 @@ import {
   type ReviewDecision,
   type UserRole,
 } from "@/db/schema";
+import type { ReviewJustificationPayload } from "@/lib/review-rules";
 import { getServerSession } from "@/lib/server-session";
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
@@ -71,22 +72,37 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
       ? Math.max(0, Math.floor(p.hackatimeTotalSeconds))
       : 0;
   const hackatimeHours = { hours: Math.floor(totalSeconds / 3600), minutes: Math.floor(totalSeconds / 60) % 60 };
+  const reviewJustificationColumn = (
+    peerReview as unknown as { reviewJustification?: typeof peerReview.id }
+  ).reviewJustification;
+  type ReviewRow = {
+    id: string;
+    decision: ReviewDecision;
+    reviewComment: string;
+    approvedHours: number | null;
+    hackatimeSnapshotSeconds: number;
+    reviewJustification?: unknown;
+    createdAt: Date;
+    reviewerName: string | null;
+    reviewerEmail: string | null;
+  };
 
-  const reviews = await db
+  const reviews = (await db
     .select({
       id: peerReview.id,
       decision: peerReview.decision,
       reviewComment: peerReview.reviewComment,
       approvedHours: peerReview.approvedHours,
       hackatimeSnapshotSeconds: peerReview.hackatimeSnapshotSeconds,
+      ...(reviewJustificationColumn ? { reviewJustification: reviewJustificationColumn } : {}),
       createdAt: peerReview.createdAt,
       reviewerName: user.name,
       reviewerEmail: user.email,
-    })
+    } as any)
     .from(peerReview)
     .leftJoin(user, eq(peerReview.reviewerId, user.id))
     .where(eq(peerReview.projectId, id))
-    .orderBy(asc(peerReview.createdAt), asc(peerReview.id));
+    .orderBy(asc(peerReview.createdAt), asc(peerReview.id))) as unknown as ReviewRow[];
 
   const assignments = await db
     .select({
@@ -145,6 +161,11 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
             reviewComment: r.reviewComment,
             approvedHours: r.approvedHours ?? null,
             hackatimeSnapshotSeconds: r.hackatimeSnapshotSeconds ?? 0,
+            reviewJustification:
+              ((r as { reviewJustification?: unknown }).reviewJustification as
+                | ReviewJustificationPayload
+                | null
+                | undefined) ?? null,
             createdAt: r.createdAt.toISOString(),
             reviewerName: r.reviewerName || "Unknown reviewer",
             reviewerEmail: r.reviewerEmail || "",
