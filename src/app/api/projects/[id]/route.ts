@@ -13,6 +13,7 @@ import {
   hasRequiredProjectSubmissionChecklistAnswers,
   parseProjectSubmissionChecklist,
 } from "@/lib/project-submission-checklist";
+import { validateCreatorOriginalityDeclaration } from "@/lib/project-originality";
 import { normalizeCategory, normalizeProjectTags } from "@/lib/project-taxonomy";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
 import { getServerSession } from "@/lib/server-session";
@@ -34,6 +35,9 @@ type UpdateProjectBody = {
   tags?: unknown;
   screenshots?: unknown;
   submissionChecklist?: unknown;
+  creatorDeclaredOriginality?: unknown;
+  creatorDuplicateExplanation?: unknown;
+  creatorOriginalityRationale?: unknown;
   status?: unknown;
 };
 
@@ -67,6 +71,12 @@ function toOptionalNonNegativeInt(value: unknown): number | null {
     if (Number.isFinite(n) && Number.isInteger(n) && n >= 0) return n;
   }
   return null;
+}
+
+function toOptionalTrimmedString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function isProjectEditor(value: unknown): value is ProjectEditor {
@@ -127,6 +137,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       codeUrl: project.codeUrl,
       screenshots: project.screenshots,
       submissionChecklist: project.submissionChecklist,
+      creatorDeclaredOriginality: project.creatorDeclaredOriginality,
+      creatorDuplicateExplanation: project.creatorDuplicateExplanation,
+      creatorOriginalityRationale: project.creatorOriginalityRationale,
       status: project.status,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
@@ -183,6 +196,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       codeUrl: project.codeUrl,
       screenshots: project.screenshots,
       submissionChecklist: project.submissionChecklist,
+      creatorDeclaredOriginality: project.creatorDeclaredOriginality,
+      creatorDuplicateExplanation: project.creatorDuplicateExplanation,
+      creatorOriginalityRationale: project.creatorOriginalityRationale,
       submittedAt: project.submittedAt,
     })
     .from(project)
@@ -225,6 +241,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     codeUrl: string;
     screenshots: string[];
     submissionChecklist: ProjectSubmissionChecklist | null;
+    creatorDeclaredOriginality: boolean;
+    creatorDuplicateExplanation: string | null;
+    creatorOriginalityRationale: string | null;
     status: ProjectStatus;
     approvedHours: number | null;
     submittedAt: Date;
@@ -339,6 +358,80 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       );
     }
     set.status = body.status;
+  }
+
+  const originalityDeclarationRequested =
+    body.creatorDeclaredOriginality !== undefined ||
+    body.creatorDuplicateExplanation !== undefined ||
+    body.creatorOriginalityRationale !== undefined;
+
+  if (originalityDeclarationRequested) {
+    if (
+      body.creatorDeclaredOriginality !== undefined &&
+      typeof body.creatorDeclaredOriginality !== "boolean"
+    ) {
+      return NextResponse.json(
+        { error: "Creator originality declaration must be true or false." },
+        { status: 400 },
+      );
+    }
+    if (
+      body.creatorDuplicateExplanation !== undefined &&
+      body.creatorDuplicateExplanation !== null &&
+      typeof body.creatorDuplicateExplanation !== "string"
+    ) {
+      return NextResponse.json(
+        { error: "Duplicate overlap explanation must be text." },
+        { status: 400 },
+      );
+    }
+    if (
+      body.creatorOriginalityRationale !== undefined &&
+      body.creatorOriginalityRationale !== null &&
+      typeof body.creatorOriginalityRationale !== "string"
+    ) {
+      return NextResponse.json(
+        { error: "Originality rationale must be text." },
+        { status: 400 },
+      );
+    }
+
+    const nextCreatorDeclaredOriginality =
+      body.creatorDeclaredOriginality !== undefined
+        ? body.creatorDeclaredOriginality
+        : current.creatorDeclaredOriginality;
+    let nextCreatorDuplicateExplanation =
+      body.creatorDuplicateExplanation !== undefined
+        ? toOptionalTrimmedString(body.creatorDuplicateExplanation)
+        : current.creatorDuplicateExplanation;
+    let nextCreatorOriginalityRationale =
+      body.creatorOriginalityRationale !== undefined
+        ? toOptionalTrimmedString(body.creatorOriginalityRationale)
+        : current.creatorOriginalityRationale;
+
+    // Explicitly switching to "fully original" clears overlap fields unless explicitly re-sent.
+    if (body.creatorDeclaredOriginality === true) {
+      if (body.creatorDuplicateExplanation === undefined) {
+        nextCreatorDuplicateExplanation = null;
+      }
+      if (body.creatorOriginalityRationale === undefined) {
+        nextCreatorOriginalityRationale = null;
+      }
+    }
+
+    const originalityDeclaration = validateCreatorOriginalityDeclaration({
+      creatorDeclaredOriginality: nextCreatorDeclaredOriginality,
+      creatorDuplicateExplanation: nextCreatorDuplicateExplanation,
+      creatorOriginalityRationale: nextCreatorOriginalityRationale,
+    });
+
+    if (!originalityDeclaration.ok) {
+      return NextResponse.json({ error: originalityDeclaration.error }, { status: 400 });
+    }
+
+    set.creatorDeclaredOriginality = originalityDeclaration.value.creatorDeclaredOriginality;
+    set.creatorDuplicateExplanation = originalityDeclaration.value.creatorDuplicateExplanation;
+    set.creatorOriginalityRationale = originalityDeclaration.value.creatorOriginalityRationale;
   }
 
   // Validate final editor/editorOther combination (using current values + pending updates).
@@ -522,6 +615,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       codeUrl: project.codeUrl,
       screenshots: project.screenshots,
       submissionChecklist: project.submissionChecklist,
+      creatorDeclaredOriginality: project.creatorDeclaredOriginality,
+      creatorDuplicateExplanation: project.creatorDuplicateExplanation,
+      creatorOriginalityRationale: project.creatorOriginalityRationale,
       status: project.status,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,

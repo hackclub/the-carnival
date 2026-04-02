@@ -54,6 +54,9 @@ export type ManageProjectInitial = {
   codeUrl: string;
   screenshots: string[];
   submissionChecklist: ProjectSubmissionChecklist | null;
+  creatorDeclaredOriginality: boolean;
+  creatorDuplicateExplanation: string | null;
+  creatorOriginalityRationale: string | null;
   status: ProjectStatus;
   approvedHours: number | null;
   reviews: Array<{
@@ -157,6 +160,15 @@ export default function ManageProjectClient({
     (initial.screenshots?.length ?? 0) > 0 ? initial.screenshots : [""],
   );
   const [status, setStatus] = useState<ProjectStatus>(initial.status);
+  const [creatorDeclaredOriginality, setCreatorDeclaredOriginality] = useState<boolean>(
+    initial.creatorDeclaredOriginality,
+  );
+  const [creatorDuplicateExplanation, setCreatorDuplicateExplanation] = useState<string | null>(
+    initial.creatorDuplicateExplanation,
+  );
+  const [creatorOriginalityRationale, setCreatorOriginalityRationale] = useState<string | null>(
+    initial.creatorOriginalityRationale,
+  );
   const approvedHours = initial.approvedHours;
   const reviews = initial.reviews;
 
@@ -400,6 +412,9 @@ export default function ManageProjectClient({
         setCodeUrl(p.codeUrl);
         setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
         setSavedSubmissionChecklist(p.submissionChecklist ?? null);
+        setCreatorDeclaredOriginality(p.creatorDeclaredOriginality);
+        setCreatorDuplicateExplanation(p.creatorDuplicateExplanation ?? null);
+        setCreatorOriginalityRationale(p.creatorOriginalityRationale ?? null);
         setStatus(p.status);
       }
 
@@ -569,6 +584,9 @@ export default function ManageProjectClient({
         setCodeUrl(p.codeUrl);
         setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
         setSavedSubmissionChecklist(p.submissionChecklist ?? null);
+        setCreatorDeclaredOriginality(p.creatorDeclaredOriginality);
+        setCreatorDuplicateExplanation(p.creatorDuplicateExplanation ?? null);
+        setCreatorOriginalityRationale(p.creatorOriginalityRationale ?? null);
         setStatus(p.status);
       }
 
@@ -650,6 +668,34 @@ export default function ManageProjectClient({
             </button>
           </div>
         )}
+      </div>
+
+      <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+        <div className="text-foreground font-semibold text-lg">Originality declaration</div>
+        <div className="rounded-2xl border border-border bg-muted px-4 py-4 space-y-3">
+          <div className="text-sm text-muted-foreground">Creator statement</div>
+          <div className="text-foreground font-semibold">
+            {creatorDeclaredOriginality
+              ? "Declared as fully original (no overlap with existing submissions)."
+              : "Declared overlap with existing submissions."}
+          </div>
+          {!creatorDeclaredOriginality ? (
+            <div className="space-y-2 text-sm">
+              {creatorDuplicateExplanation ? (
+                <div>
+                  <div className="text-muted-foreground">Overlap details</div>
+                  <div className="text-foreground whitespace-pre-wrap">{creatorDuplicateExplanation}</div>
+                </div>
+              ) : null}
+              <div>
+                <div className="text-muted-foreground">Uniqueness rationale</div>
+                <div className="text-foreground whitespace-pre-wrap">
+                  {creatorOriginalityRationale || "No rationale was saved."}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="bg-card border border-border rounded-2xl p-6 space-y-4">

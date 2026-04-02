@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { db } from "@/db";
 import { project, type ProjectEditor } from "@/db/schema";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
+import { validateCreatorOriginalityDeclaration } from "@/lib/project-originality";
 import { normalizeCategory, normalizeProjectTags } from "@/lib/project-taxonomy";
 import { getServerSession } from "@/lib/server-session";
 
@@ -21,6 +22,9 @@ type CreateProjectBody = {
   category?: unknown;
   tags?: unknown;
   screenshots?: unknown;
+  creatorDeclaredOriginality?: unknown;
+  creatorDuplicateExplanation?: unknown;
+  creatorOriginalityRationale?: unknown;
   status?: unknown;
 };
 const MIN_SCREENSHOTS = 3;
@@ -55,6 +59,12 @@ function toOptionalNonNegativeInt(value: unknown): number | null {
     if (Number.isFinite(n) && Number.isInteger(n) && n >= 0) return n;
   }
   return null;
+}
+
+function toOptionalTrimmedString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function isProjectEditor(value: unknown): value is ProjectEditor {
@@ -117,6 +127,7 @@ export async function POST(req: Request) {
   const codeUrl = toCleanString(body.codeUrl);
   const category = normalizeCategory(body.category);
   const tags = normalizeProjectTags(body.tags);
+  const creatorDeclaredOriginality = body.creatorDeclaredOriginality;
 
   const screenshots = Array.isArray(body.screenshots)
     ? body.screenshots
@@ -175,6 +186,41 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
+  if (typeof creatorDeclaredOriginality !== "boolean") {
+    return NextResponse.json(
+      { error: "Please declare whether your project overlaps with existing submissions." },
+      { status: 400 },
+    );
+  }
+  if (
+    body.creatorDuplicateExplanation !== undefined &&
+    body.creatorDuplicateExplanation !== null &&
+    typeof body.creatorDuplicateExplanation !== "string"
+  ) {
+    return NextResponse.json(
+      { error: "Duplicate overlap explanation must be text." },
+      { status: 400 },
+    );
+  }
+  if (
+    body.creatorOriginalityRationale !== undefined &&
+    body.creatorOriginalityRationale !== null &&
+    typeof body.creatorOriginalityRationale !== "string"
+  ) {
+    return NextResponse.json(
+      { error: "Originality rationale must be text." },
+      { status: 400 },
+    );
+  }
+
+  const originalityDeclaration = validateCreatorOriginalityDeclaration({
+    creatorDeclaredOriginality,
+    creatorDuplicateExplanation: toOptionalTrimmedString(body.creatorDuplicateExplanation),
+    creatorOriginalityRationale: toOptionalTrimmedString(body.creatorOriginalityRationale),
+  });
+  if (!originalityDeclaration.ok) {
+    return NextResponse.json({ error: originalityDeclaration.error }, { status: 400 });
+  }
 
   const now = new Date();
   const id = randomUUID();
@@ -196,6 +242,9 @@ export async function POST(req: Request) {
     category,
     tags,
     screenshots,
+    creatorDeclaredOriginality: originalityDeclaration.value.creatorDeclaredOriginality,
+    creatorDuplicateExplanation: originalityDeclaration.value.creatorDuplicateExplanation,
+    creatorOriginalityRationale: originalityDeclaration.value.creatorOriginalityRationale,
     // status: default in schema
     createdAt: now,
     updatedAt: now,
