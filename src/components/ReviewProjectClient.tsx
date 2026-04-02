@@ -10,6 +10,7 @@ import type {
 import { buildBillyUrl } from "@/lib/constants";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
+import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
 import { Modal } from "@/components/ui";
 import { PROJECT_SUBMISSION_CHECKLIST_ITEMS } from "@/lib/project-submission-checklist";
 import {
@@ -56,6 +57,9 @@ type ReviewableProject = {
   codeUrl: string;
   screenshots: string[];
   submissionChecklist: ProjectSubmissionChecklist | null;
+  creatorDeclaredOriginality: boolean;
+  creatorDuplicateExplanation: string | null;
+  creatorOriginalityRationale: string | null;
   status: ProjectStatus;
   approvedHours: number | null;
   creatorName: string;
@@ -918,6 +922,9 @@ export default function ReviewProjectClient({
                   </div>
                 </div>
                 <div className="text-foreground mt-3 whitespace-pre-wrap">{r.reviewComment}</div>
+                {r.reviewJustification ? (
+                  <ReviewJustificationSummary justification={r.reviewJustification} />
+                ) : null}
               </div>
             ))}
           </div>

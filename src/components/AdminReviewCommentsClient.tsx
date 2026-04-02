@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { ReviewDecision } from "@/db/schema";
+import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
+import type { ReviewJustificationPayload } from "@/lib/review-rules";
 
 type ViewMode = "flat" | "grouped";
 
@@ -15,6 +17,7 @@ type FlatComment = {
   projectName: string;
   decision: ReviewDecision;
   reviewComment: string;
+  reviewJustification: ReviewJustificationPayload | null;
   createdAt: string;
 };
 
@@ -163,6 +166,9 @@ export default function AdminReviewCommentsClient() {
                     </span>
                   </div>
                   <div className="text-foreground mt-3 whitespace-pre-wrap">{comment.reviewComment}</div>
+                  {comment.reviewJustification ? (
+                    <ReviewJustificationSummary justification={comment.reviewJustification} />
+                  ) : null}
                   <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
                     <Link
                       href={`/review/${comment.projectId}`}

@@ -12,7 +12,7 @@ import {
   type ReviewDecision,
   type UserRole,
 } from "@/db/schema";
-import type { ReviewJustificationPayload } from "@/lib/review-rules";
+import { hydrateReviewJustification } from "@/lib/review-justification";
 import { getServerSession } from "@/lib/server-session";
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
@@ -49,6 +49,9 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
       codeUrl: project.codeUrl,
       screenshots: project.screenshots,
       submissionChecklist: project.submissionChecklist,
+      creatorDeclaredOriginality: project.creatorDeclaredOriginality,
+      creatorDuplicateExplanation: project.creatorDuplicateExplanation,
+      creatorOriginalityRationale: project.creatorOriginalityRationale,
       status: project.status,
       approvedHours: project.approvedHours,
       createdAt: project.createdAt,
@@ -81,6 +84,10 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
     reviewComment: string;
     approvedHours: number | null;
     hackatimeSnapshotSeconds: number;
+    reviewEvidenceChecklist: unknown;
+    reviewedHackatimeRangeStart: Date | null;
+    reviewedHackatimeRangeEnd: Date | null;
+    hourAdjustmentReasonMetadata: unknown;
     reviewJustification?: unknown;
     createdAt: Date;
     reviewerName: string | null;
@@ -94,11 +101,15 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
       reviewComment: peerReview.reviewComment,
       approvedHours: peerReview.approvedHours,
       hackatimeSnapshotSeconds: peerReview.hackatimeSnapshotSeconds,
+      reviewEvidenceChecklist: peerReview.reviewEvidenceChecklist,
+      reviewedHackatimeRangeStart: peerReview.reviewedHackatimeRangeStart,
+      reviewedHackatimeRangeEnd: peerReview.reviewedHackatimeRangeEnd,
+      hourAdjustmentReasonMetadata: peerReview.hourAdjustmentReasonMetadata,
       ...(reviewJustificationColumn ? { reviewJustification: reviewJustificationColumn } : {}),
       createdAt: peerReview.createdAt,
       reviewerName: user.name,
       reviewerEmail: user.email,
-    } as any)
+    })
     .from(peerReview)
     .leftJoin(user, eq(peerReview.reviewerId, user.id))
     .where(eq(peerReview.projectId, id))
@@ -143,6 +154,9 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
             codeUrl: p.codeUrl,
             screenshots: p.screenshots,
             submissionChecklist: p.submissionChecklist ?? null,
+            creatorDeclaredOriginality: p.creatorDeclaredOriginality,
+            creatorDuplicateExplanation: p.creatorDuplicateExplanation ?? null,
+            creatorOriginalityRationale: p.creatorOriginalityRationale ?? null,
             status: p.status,
             approvedHours: p.approvedHours ?? null,
             creatorName: p.creatorName || "Unknown creator",
@@ -161,11 +175,15 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
             reviewComment: r.reviewComment,
             approvedHours: r.approvedHours ?? null,
             hackatimeSnapshotSeconds: r.hackatimeSnapshotSeconds ?? 0,
-            reviewJustification:
-              ((r as { reviewJustification?: unknown }).reviewJustification as
-                | ReviewJustificationPayload
-                | null
-                | undefined) ?? null,
+            reviewJustification: hydrateReviewJustification({
+              decision: r.decision as ReviewDecision,
+              fallbackHackatimeProjectName: p.hackatimeProjectName,
+              reviewEvidenceChecklist: r.reviewEvidenceChecklist,
+              reviewedHackatimeRangeStart: r.reviewedHackatimeRangeStart,
+              reviewedHackatimeRangeEnd: r.reviewedHackatimeRangeEnd,
+              hourAdjustmentReasonMetadata: r.hourAdjustmentReasonMetadata,
+              reviewJustification: (r as { reviewJustification?: unknown }).reviewJustification,
+            }),
             createdAt: r.createdAt.toISOString(),
             reviewerName: r.reviewerName || "Unknown reviewer",
             reviewerEmail: r.reviewerEmail || "",
