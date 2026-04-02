@@ -31,6 +31,14 @@ const state = {
   assignmentDeleteCalls: 0,
 };
 
+const VALID_REVIEW_EVIDENCE = {
+  hackatimeProjectReviewed: true,
+  githubReviewed: true,
+  sourceCodeReviewed: true,
+  demoReviewed: true,
+  manualTestPerformed: true,
+};
+
 function resetState() {
   state.session = {
     user: {
@@ -195,13 +203,7 @@ async function postReview(body) {
 function buildValidReviewJustification(overrides = {}) {
   return {
     hackatimeProjectName: state.projectRow.hackatimeProjectName,
-    evidence: {
-      hackatimeProjectReviewed: true,
-      githubReviewed: true,
-      sourceCodeReviewed: true,
-      demoReviewed: true,
-      manualTestPerformed: true,
-    },
+    evidence: { ...VALID_REVIEW_EVIDENCE },
     reviewDateRange: {
       startDate: "2026-03-01",
       endDate: "2026-03-31",
@@ -278,7 +280,64 @@ describe("POST /api/review/[id]", () => {
     });
     expect(state.insertedReviews.length).toBe(1);
     expect(state.insertedReviews[0].approvedHours).toBeNull();
+    expect(state.insertedReviews[0].reviewEvidenceChecklist).toEqual(VALID_REVIEW_EVIDENCE);
+    expect(state.insertedReviews[0].reviewedHackatimeRangeStart.toISOString()).toBe(
+      "2026-03-01T00:00:00.000Z",
+    );
+    expect(state.insertedReviews[0].reviewedHackatimeRangeEnd.toISOString()).toBe(
+      "2026-03-31T23:59:59.999Z",
+    );
+    expect(state.insertedReviews[0].hourAdjustmentReasonMetadata).toMatchObject({
+      decision: "rejected",
+      hackatimeProjectName: "project-one",
+      reduced: false,
+      hoursReducedBy: 0,
+      reasons: [],
+      note: null,
+      reasonRequired: false,
+    });
     expect(state.updateSets[0].approvedHours).toBeNull();
+  });
+
+  test("persists structured peer_review justification fields for approvals", async () => {
+    const { res, json } = await postReview({
+      decision: "approved",
+      comment: "approved with reduction",
+      approvedHours: 3,
+      reviewJustification: buildValidReviewJustification({
+        deflationReasons: ["scopeCouldNotBeVerified"],
+        deflationNote: "Scope verification was incomplete.",
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(state.insertedReviews.length).toBe(1);
+    expect(state.insertedReviews[0].approvedHours).toBe(3);
+    expect(state.insertedReviews[0].reviewEvidenceChecklist).toEqual(VALID_REVIEW_EVIDENCE);
+    expect(state.insertedReviews[0].reviewedHackatimeRangeStart.toISOString()).toBe(
+      "2026-03-01T00:00:00.000Z",
+    );
+    expect(state.insertedReviews[0].reviewedHackatimeRangeEnd.toISOString()).toBe(
+      "2026-03-31T23:59:59.999Z",
+    );
+    expect(state.insertedReviews[0].hourAdjustmentReasonMetadata).toMatchObject({
+      decision: "approved",
+      hackatimeProjectName: "project-one",
+      reduced: true,
+      hoursReducedBy: 1,
+      reasons: ["scopeCouldNotBeVerified"],
+      note: "Scope verification was incomplete.",
+      reasonRequired: true,
+    });
+    expect(json.review.reviewJustification).toMatchObject({
+      decision: "approved",
+      deflation: {
+        reduced: true,
+        hoursReducedBy: 1,
+        reasons: ["scopeCouldNotBeVerified"],
+        reasonRequired: true,
+      },
+    });
   });
 
   test("requires reviewer confirmation payload for approvals", async () => {
@@ -290,6 +349,59 @@ describe("POST /api/review/[id]", () => {
 
     expect(res.status).toBe(400);
     expect(json.error).toContain("reviewer confirmation checklist");
+    expect(state.insertedReviews.length).toBe(0);
+  });
+
+  test("requires reviewer confirmation payload for rejections", async () => {
+    const { res, json } = await postReview({
+      decision: "rejected",
+      comment: "needs revision",
+    });
+
+    expect(res.status).toBe(400);
+    expect(json.error).toContain("reviewer confirmation checklist");
+    expect(state.insertedReviews.length).toBe(0);
+  });
+
+  test("rejects rejection payloads with incomplete evidence checklist", async () => {
+    const { res, json } = await postReview({
+      decision: "rejected",
+      comment: "needs revision",
+      reviewJustification: buildValidReviewJustification({
+        evidence: { ...VALID_REVIEW_EVIDENCE, demoReviewed: false },
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(json.error).toContain("Missing: Demo/video reviewed");
+    expect(state.insertedReviews.length).toBe(0);
+  });
+
+  test("rejects rejection payloads with invalid date ranges", async () => {
+    const { res, json } = await postReview({
+      decision: "rejected",
+      comment: "needs revision",
+      reviewJustification: buildValidReviewJustification({
+        reviewDateRange: { startDate: "2026-03-31", endDate: "2026-03-01" },
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(json.error).toContain("start date must be before or equal to end date");
+    expect(state.insertedReviews.length).toBe(0);
+  });
+
+  test("rejects rejection payloads with mismatched project names", async () => {
+    const { res, json } = await postReview({
+      decision: "rejected",
+      comment: "needs revision",
+      reviewJustification: buildValidReviewJustification({
+        hackatimeProjectName: "different-project",
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(json.error).toContain("exact project name reviewed");
     expect(state.insertedReviews.length).toBe(0);
   });
 
