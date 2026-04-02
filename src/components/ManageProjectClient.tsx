@@ -8,8 +8,10 @@ import type {
   ReviewDecision,
 } from "@/db/schema";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
+import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
 import { Modal } from "@/components/ui";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
+import type { ReviewJustificationPayload } from "@/lib/review-rules";
 import {
   hasRequiredProjectSubmissionChecklistAnswers,
   normalizeProjectSubmissionChecklist,
@@ -63,6 +65,7 @@ export type ManageProjectInitial = {
     id: string;
     decision: ReviewDecision;
     reviewComment: string;
+    reviewJustification: ReviewJustificationPayload | null;
     createdAt: string; // ISO
     reviewerName: string;
     reviewerEmail: string;
@@ -721,6 +724,9 @@ export default function ManageProjectClient({
                   </span>
                 </div>
                 <div className="text-foreground mt-3 whitespace-pre-wrap">{r.reviewComment}</div>
+                {r.reviewJustification ? (
+                  <ReviewJustificationSummary justification={r.reviewJustification} />
+                ) : null}
               </div>
             ))}
           </div>

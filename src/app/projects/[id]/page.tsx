@@ -4,7 +4,8 @@ import { and, asc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import ManageProjectClient from "@/components/ManageProjectClient";
 import { db } from "@/db";
-import { peerReview, project, user } from "@/db/schema";
+import { peerReview, project, user, type ReviewDecision } from "@/db/schema";
+import { hydrateReviewJustification } from "@/lib/review-justification";
 import { buildCategorySuggestions, buildTagSuggestions } from "@/lib/project-taxonomy";
 import { getServerSession } from "@/lib/server-session";
 
@@ -47,12 +48,20 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
 
   const p = rows[0];
   if (!p) notFound();
+  const reviewJustificationColumn = (
+    peerReview as unknown as { reviewJustification?: typeof peerReview.id }
+  ).reviewJustification;
 
   const reviews = await db
     .select({
       id: peerReview.id,
       decision: peerReview.decision,
       reviewComment: peerReview.reviewComment,
+      reviewEvidenceChecklist: peerReview.reviewEvidenceChecklist,
+      reviewedHackatimeRangeStart: peerReview.reviewedHackatimeRangeStart,
+      reviewedHackatimeRangeEnd: peerReview.reviewedHackatimeRangeEnd,
+      hourAdjustmentReasonMetadata: peerReview.hourAdjustmentReasonMetadata,
+      ...(reviewJustificationColumn ? { reviewJustification: reviewJustificationColumn } : {}),
       createdAt: peerReview.createdAt,
       reviewerName: user.name,
       reviewerEmail: user.email,
@@ -106,6 +115,15 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
             id: r.id,
             decision: r.decision,
             reviewComment: r.reviewComment,
+            reviewJustification: hydrateReviewJustification({
+              decision: r.decision as ReviewDecision,
+              fallbackHackatimeProjectName: p.hackatimeProjectName,
+              reviewEvidenceChecklist: r.reviewEvidenceChecklist,
+              reviewedHackatimeRangeStart: r.reviewedHackatimeRangeStart,
+              reviewedHackatimeRangeEnd: r.reviewedHackatimeRangeEnd,
+              hourAdjustmentReasonMetadata: r.hourAdjustmentReasonMetadata,
+              reviewJustification: (r as { reviewJustification?: unknown }).reviewJustification,
+            }),
             createdAt: r.createdAt.toISOString(),
             reviewerName: r.reviewerName || "Unknown reviewer",
             reviewerEmail: r.reviewerEmail || "",
