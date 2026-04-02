@@ -47,6 +47,10 @@ export type ProjectSubmissionChecklist = {
   screenshotsWorking: boolean;
 };
 
+export type ReviewEvidenceChecklist = Record<string, boolean>;
+
+export type HourAdjustmentReasonMetadata = Record<string, unknown>;
+
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -99,6 +103,9 @@ export const project = pgTable("project", {
   // Canonical approved hours for this project (set by a reviewer on approval).
   approvedHours: numeric("approved_hours", { precision: 6, scale: 1, mode: "number" }),
   submissionChecklist: jsonb("submission_checklist").$type<ProjectSubmissionChecklist>(),
+  creatorDeclaredOriginality: boolean("creator_declared_originality").notNull().default(false),
+  creatorDuplicateExplanation: text("creator_duplicate_explanation"),
+  creatorOriginalityRationale: text("creator_originality_rationale"),
   // Set when a creator submits their project for review (status transitions to "in-review").
   submittedAt: timestamp("submitted_at"),
   createdAt: timestamp("created_at").notNull(),
@@ -119,6 +126,16 @@ export const peerReview = pgTable("peer_review", {
   approvedHours: numeric("approved_hours", { precision: 6, scale: 1, mode: "number" }),
   // Captured from project.hackatime_total_seconds at review-submit time.
   hackatimeSnapshotSeconds: integer("hackatime_snapshot_seconds").notNull().default(0),
+  reviewEvidenceChecklist: jsonb("review_evidence_checklist")
+    .$type<ReviewEvidenceChecklist>()
+    .notNull()
+    .default(sql`'{}'::jsonb`),
+  reviewedHackatimeRangeStart: timestamp("reviewed_hackatime_range_start"),
+  reviewedHackatimeRangeEnd: timestamp("reviewed_hackatime_range_end"),
+  hourAdjustmentReasonMetadata: jsonb("hour_adjustment_reason_metadata")
+    .$type<HourAdjustmentReasonMetadata>()
+    .notNull()
+    .default(sql`'{}'::jsonb`),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
