@@ -12,6 +12,8 @@ import { Modal } from "@/components/ui";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import { PROJECT_SUBMISSION_CHECKLIST_ITEMS } from "@/lib/project-submission-checklist";
+import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
+import type { ReviewJustificationPayload } from "@/lib/review-rules";
 import toast from "react-hot-toast";
 
 type GrantProject = {
@@ -49,6 +51,7 @@ type GrantReviewItem = {
   decision: ReviewDecision;
   reviewComment: string;
   approvedHours: number | null;
+  reviewJustification: ReviewJustificationPayload | null;
   createdAt: string; // ISO
   reviewerName: string;
   reviewerEmail: string;
@@ -601,6 +604,9 @@ export default function AdminGrantClient({
                   </div>
                 </div>
                 <div className="text-foreground mt-3 whitespace-pre-wrap">{r.reviewComment}</div>
+                {r.reviewJustification ? (
+                  <ReviewJustificationSummary justification={r.reviewJustification} />
+                ) : null}
               </div>
             ))}
           </div>
@@ -658,4 +664,3 @@ export default function AdminGrantClient({
     </div>
   );
 }
-

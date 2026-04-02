@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
+import { MIN_CREATOR_ORIGINALITY_RATIONALE_LENGTH } from "@/lib/project-originality";
 
 const EDITOR_OPTIONS = [
   { value: "vscode", label: "VS Code" },
@@ -40,6 +41,9 @@ type CreateProjectPayload = {
   playableDemoUrl: string;
   codeUrl: string;
   screenshots: string[];
+  creatorDeclaredOriginality: boolean;
+  creatorDuplicateExplanation: string;
+  creatorOriginalityRationale: string;
 };
 
 type HackatimeProjectOption = {
@@ -99,6 +103,9 @@ export default function CreateProjectModal({
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>(
     Array.from({ length: MIN_SCREENSHOTS }, () => ""),
   );
+  const [originalityDeclaration, setOriginalityDeclaration] = useState<"" | "original" | "overlap">("");
+  const [duplicateExplanation, setDuplicateExplanation] = useState("");
+  const [originalityRationale, setOriginalityRationale] = useState("");
 
   const shouldBeOpen = useMemo(() => {
     const v = searchParams.get("new");
@@ -139,6 +146,9 @@ export default function CreateProjectModal({
       setCategory("");
       setTagsInput("");
       setScreenshotUrls(Array.from({ length: MIN_SCREENSHOTS }, () => ""));
+      setOriginalityDeclaration("");
+      setDuplicateExplanation("");
+      setOriginalityRationale("");
       clearNewParam();
     };
 
@@ -172,9 +182,38 @@ export default function CreateProjectModal({
       const playableDemoUrl = cleanString(fd.get("playableDemoUrl"));
       const codeUrl = cleanString(fd.get("codeUrl"));
       const screenshots = screenshotUrls.map((s) => s.trim()).filter(Boolean);
+      const originalityDeclarationValue = cleanString(fd.get("originalityDeclaration"));
+      const creatorDuplicateExplanation = cleanString(fd.get("creatorDuplicateExplanation"));
+      const creatorOriginalityRationale = cleanString(fd.get("creatorOriginalityRationale"));
 
       if (screenshots.length < MIN_SCREENSHOTS) {
         setError(`Please upload at least ${MIN_SCREENSHOTS} screenshots.`);
+        setIsSubmitting(false);
+        return;
+      }
+      if (
+        originalityDeclarationValue !== "original" &&
+        originalityDeclarationValue !== "overlap"
+      ) {
+        setError("Please declare whether your project overlaps with existing submissions.");
+        setIsSubmitting(false);
+        return;
+      }
+      if (
+        originalityDeclarationValue === "original" &&
+        (creatorDuplicateExplanation || creatorOriginalityRationale)
+      ) {
+        setError("Clear overlap details when declaring your project as fully original.");
+        setIsSubmitting(false);
+        return;
+      }
+      if (
+        originalityDeclarationValue === "overlap" &&
+        creatorOriginalityRationale.length < MIN_CREATOR_ORIGINALITY_RATIONALE_LENGTH
+      ) {
+        setError(
+          `Please explain what makes your project different in at least ${MIN_CREATOR_ORIGINALITY_RATIONALE_LENGTH} characters.`,
+        );
         setIsSubmitting(false);
         return;
       }
@@ -194,6 +233,11 @@ export default function CreateProjectModal({
         playableDemoUrl,
         codeUrl,
         screenshots,
+        creatorDeclaredOriginality: originalityDeclarationValue === "original",
+        creatorDuplicateExplanation:
+          originalityDeclarationValue === "overlap" ? creatorDuplicateExplanation : "",
+        creatorOriginalityRationale:
+          originalityDeclarationValue === "overlap" ? creatorOriginalityRationale : "",
       };
 
       try {
@@ -385,6 +429,86 @@ export default function CreateProjectModal({
                 in a ban from participating in a YSWS.
               </li>
             </ul>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card px-4 py-4 space-y-3">
+            <div className="text-sm font-semibold text-foreground">Originality declaration</div>
+            <div className="text-xs text-muted-foreground">
+              Confirm whether your project overlaps with prior submissions. If it does, explain what
+              makes this one meaningfully different.
+            </div>
+            <div className="space-y-2">
+              <label className="flex items-start gap-3 rounded-xl border border-border bg-background px-3 py-2">
+                <input
+                  type="radio"
+                  name="originalityDeclaration"
+                  value="original"
+                  checked={originalityDeclaration === "original"}
+                  onChange={() => {
+                    setOriginalityDeclaration("original");
+                    setDuplicateExplanation("");
+                    setOriginalityRationale("");
+                  }}
+                  className="mt-0.5 h-4 w-4 accent-carnival-blue"
+                />
+                <span className="text-sm text-foreground">
+                  I checked existing submissions and this project does not overlap.
+                </span>
+              </label>
+              <label className="flex items-start gap-3 rounded-xl border border-border bg-background px-3 py-2">
+                <input
+                  type="radio"
+                  name="originalityDeclaration"
+                  value="overlap"
+                  checked={originalityDeclaration === "overlap"}
+                  onChange={() => setOriginalityDeclaration("overlap")}
+                  className="mt-0.5 h-4 w-4 accent-carnival-blue"
+                />
+                <span className="text-sm text-foreground">
+                  I found overlap with existing work and I’ll explain the differences.
+                </span>
+              </label>
+            </div>
+
+            {originalityDeclaration === "overlap" ? (
+              <div className="space-y-3">
+                <label className="block">
+                  <div className="text-sm text-muted-foreground font-medium mb-2">
+                    Overlap details <span className="font-normal">(optional)</span>
+                  </div>
+                  <textarea
+                    name="creatorDuplicateExplanation"
+                    value={duplicateExplanation}
+                    onChange={(e) => setDuplicateExplanation(e.target.value)}
+                    rows={2}
+                    className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                    placeholder="What existing project(s) are similar?"
+                  />
+                </label>
+                <label className="block">
+                  <div className="text-sm text-muted-foreground font-medium mb-2">
+                    Uniqueness rationale
+                  </div>
+                  <textarea
+                    name="creatorOriginalityRationale"
+                    value={originalityRationale}
+                    onChange={(e) => setOriginalityRationale(e.target.value)}
+                    rows={3}
+                    className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                    placeholder="Describe what is new/different in your implementation."
+                  />
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    Minimum {MIN_CREATOR_ORIGINALITY_RATIONALE_LENGTH} characters. Current:{" "}
+                    {originalityRationale.trim().length}
+                  </div>
+                </label>
+              </div>
+            ) : (
+              <>
+                <input type="hidden" name="creatorDuplicateExplanation" value="" />
+                <input type="hidden" name="creatorOriginalityRationale" value="" />
+              </>
+            )}
           </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

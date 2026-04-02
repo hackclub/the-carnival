@@ -3,6 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { peerReview, project, user, type ReviewDecision } from "@/db/schema";
 import { getAuthUser } from "@/lib/api-utils";
+import { hydrateReviewJustification } from "@/lib/review-justification";
 
 type CommentViewMode = "flat" | "grouped";
 
@@ -12,8 +13,14 @@ type ReviewerCommentRow = {
   reviewerName: string | null;
   projectId: string;
   projectName: string | null;
+  hackatimeProjectName: string | null;
   decision: ReviewDecision;
   reviewComment: string;
+  reviewEvidenceChecklist: unknown;
+  reviewedHackatimeRangeStart: Date | null;
+  reviewedHackatimeRangeEnd: Date | null;
+  hourAdjustmentReasonMetadata: unknown;
+  reviewJustification?: unknown;
   createdAt: Date;
 };
 
@@ -47,6 +54,15 @@ function mapFlatComment(row: ReviewerCommentRow) {
     projectName: toDisplayName(row.projectName, "Unknown project"),
     decision: row.decision,
     reviewComment: row.reviewComment,
+    reviewJustification: hydrateReviewJustification({
+      decision: row.decision,
+      fallbackHackatimeProjectName: row.hackatimeProjectName,
+      reviewEvidenceChecklist: row.reviewEvidenceChecklist,
+      reviewedHackatimeRangeStart: row.reviewedHackatimeRangeStart,
+      reviewedHackatimeRangeEnd: row.reviewedHackatimeRangeEnd,
+      hourAdjustmentReasonMetadata: row.hourAdjustmentReasonMetadata,
+      reviewJustification: row.reviewJustification,
+    }),
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -93,6 +109,9 @@ export async function GET(req: Request) {
   if (!currentUser.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const mode = parseViewMode(req);
+  const reviewJustificationColumn = (
+    peerReview as unknown as { reviewJustification?: typeof peerReview.id }
+  ).reviewJustification;
 
   const rows: ReviewerCommentRow[] = await db
     .select({
@@ -101,8 +120,14 @@ export async function GET(req: Request) {
       reviewerName: user.name,
       projectId: peerReview.projectId,
       projectName: project.name,
+      hackatimeProjectName: project.hackatimeProjectName,
       decision: peerReview.decision,
       reviewComment: peerReview.reviewComment,
+      reviewEvidenceChecklist: peerReview.reviewEvidenceChecklist,
+      reviewedHackatimeRangeStart: peerReview.reviewedHackatimeRangeStart,
+      reviewedHackatimeRangeEnd: peerReview.reviewedHackatimeRangeEnd,
+      hourAdjustmentReasonMetadata: peerReview.hourAdjustmentReasonMetadata,
+      ...(reviewJustificationColumn ? { reviewJustification: reviewJustificationColumn } : {}),
       createdAt: peerReview.createdAt,
     })
     .from(peerReview)

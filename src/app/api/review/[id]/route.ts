@@ -14,13 +14,20 @@ import {
 import { getServerSession } from "@/lib/server-session";
 import { sendReviewEmail } from "@/lib/loops";
 import { appendReviewAudit } from "@/lib/review-audit";
-import { approvedHoursWithinSnapshot, isHalfHourIncrement, normalizeSnapshotSeconds } from "@/lib/review-rules";
+import {
+  approvedHoursWithinSnapshot,
+  isHalfHourIncrement,
+  normalizeSnapshotSeconds,
+  validateRequiredReviewJustification,
+  type ReviewJustificationPayload,
+} from "@/lib/review-rules";
 import { notifyReviewDM } from "@/lib/slack";
 
 type ReviewBody = {
   decision?: unknown;
   comment?: unknown;
   approvedHours?: unknown;
+  reviewJustification?: unknown;
 };
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
@@ -39,6 +46,37 @@ function nextStatusForDecision(decision: ReviewDecision): ProjectStatus | null {
   if (decision === "approved") return "shipped";
   if (decision === "rejected") return "work-in-progress";
   return null; // comment: keep current status
+}
+
+function toUtcBoundaryDate(dateOnly: string, boundary: "start" | "end") {
+  const boundaryTime = boundary === "start" ? "T00:00:00.000Z" : "T23:59:59.999Z";
+  const parsed = new Date(`${dateOnly}${boundaryTime}`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function mapReviewJustificationToStructuredColumns(
+  justification: ReviewJustificationPayload | null,
+) {
+  return {
+    reviewEvidenceChecklist: justification?.evidence ?? {},
+    reviewedHackatimeRangeStart: justification
+      ? toUtcBoundaryDate(justification.reviewDateRange.startDate, "start")
+      : null,
+    reviewedHackatimeRangeEnd: justification
+      ? toUtcBoundaryDate(justification.reviewDateRange.endDate, "end")
+      : null,
+    hourAdjustmentReasonMetadata: justification
+      ? {
+          decision: justification.decision,
+          hackatimeProjectName: justification.hackatimeProjectName,
+          reduced: justification.deflation.reduced,
+          hoursReducedBy: justification.deflation.hoursReducedBy,
+          reasons: justification.deflation.reasons,
+          note: justification.deflation.note,
+          reasonRequired: justification.deflation.reasonRequired,
+        }
+      : {},
+  };
 }
 
 class ReviewSubmitError extends Error {
@@ -127,6 +165,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         .select({
           id: project.id,
           name: project.name,
+          hackatimeProjectName: project.hackatimeProjectName,
           status: project.status,
           creatorId: project.creatorId,
           hackatimeTotalSeconds: project.hackatimeTotalSeconds,
@@ -154,19 +193,45 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         }
       }
 
-      const inserted = await tx
+      const normalizedReviewJustification =
+        decision === "comment"
+          ? null
+          : (() => {
+              const validated = validateRequiredReviewJustification({
+                value: body.reviewJustification,
+                decision,
+                expectedHackatimeProjectName: current.hackatimeProjectName,
+                approvedHours: decision === "approved" ? (approvedHours as number) : null,
+                loggedHackatimeHours: hackatimeSnapshotSeconds / 3600,
+              });
+              if (!validated.ok) {
+                throw new ReviewSubmitError("validation", validated.error, 400);
+              }
+              return validated.value;
+            })();
+
+      const structuredReviewColumns =
+        mapReviewJustificationToStructuredColumns(normalizedReviewJustification);
+
+      const reviewInsertValues: typeof peerReview.$inferInsert = {
+        id: reviewId,
+        projectId,
+        reviewerId: userId,
+        decision,
+        reviewComment: comment,
+        approvedHours: decision === "approved" ? (approvedHours as number) : null,
+        hackatimeSnapshotSeconds,
+        createdAt: now,
+        updatedAt: now,
+        reviewEvidenceChecklist: structuredReviewColumns.reviewEvidenceChecklist,
+        reviewedHackatimeRangeStart: structuredReviewColumns.reviewedHackatimeRangeStart,
+        reviewedHackatimeRangeEnd: structuredReviewColumns.reviewedHackatimeRangeEnd,
+        hourAdjustmentReasonMetadata: structuredReviewColumns.hourAdjustmentReasonMetadata,
+      };
+
+      const inserted = (await tx
         .insert(peerReview)
-        .values({
-          id: reviewId,
-          projectId,
-          reviewerId: userId,
-          decision,
-          reviewComment: comment,
-          approvedHours: decision === "approved" ? (approvedHours as number) : null,
-          hackatimeSnapshotSeconds,
-          createdAt: now,
-          updatedAt: now,
-        })
+        .values(reviewInsertValues)
         .returning({
           id: peerReview.id,
           decision: peerReview.decision,
@@ -174,7 +239,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           approvedHours: peerReview.approvedHours,
           hackatimeSnapshotSeconds: peerReview.hackatimeSnapshotSeconds,
           createdAt: peerReview.createdAt,
-        });
+        })) as Array<{
+        id: string;
+        decision: ReviewDecision;
+        reviewComment: string;
+        approvedHours: number | null;
+        hackatimeSnapshotSeconds: number;
+        createdAt: Date;
+      }>;
 
       const updateSet =
         decision === "approved"
@@ -218,6 +290,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             approvedHours: decision === "approved" ? (approvedHours as number) : null,
             statusAfter: updated[0]?.status ?? "in-review",
             hackatimeSnapshotSeconds,
+            reviewJustification: normalizedReviewJustification,
           },
           at: now,
         },
@@ -227,6 +300,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return {
         project: updated[0]!,
         review: inserted[0]!,
+        reviewJustification: normalizedReviewJustification,
       };
     })
     .catch((error: unknown) => {
@@ -315,6 +389,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       approvedHours:
         txResult.review.approvedHours ?? (decision === "approved" ? (approvedHours as number) : null),
       hackatimeSnapshotSeconds: txResult.review.hackatimeSnapshotSeconds,
+      reviewJustification: txResult.reviewJustification ?? null,
       createdAt: (txResult.review.createdAt ?? now).toISOString(),
       reviewerName: (session?.user as { name?: string | null } | undefined)?.name ?? "Reviewer",
       reviewerEmail: (session?.user as { email?: string | null } | undefined)?.email ?? "",
