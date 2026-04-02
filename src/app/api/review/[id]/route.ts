@@ -48,6 +48,37 @@ function nextStatusForDecision(decision: ReviewDecision): ProjectStatus | null {
   return null; // comment: keep current status
 }
 
+function toUtcBoundaryDate(dateOnly: string, boundary: "start" | "end") {
+  const boundaryTime = boundary === "start" ? "T00:00:00.000Z" : "T23:59:59.999Z";
+  const parsed = new Date(`${dateOnly}${boundaryTime}`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function mapReviewJustificationToStructuredColumns(
+  justification: ReviewJustificationPayload | null,
+) {
+  return {
+    reviewEvidenceChecklist: justification?.evidence ?? {},
+    reviewedHackatimeRangeStart: justification
+      ? toUtcBoundaryDate(justification.reviewDateRange.startDate, "start")
+      : null,
+    reviewedHackatimeRangeEnd: justification
+      ? toUtcBoundaryDate(justification.reviewDateRange.endDate, "end")
+      : null,
+    hourAdjustmentReasonMetadata: justification
+      ? {
+          decision: justification.decision,
+          hackatimeProjectName: justification.hackatimeProjectName,
+          reduced: justification.deflation.reduced,
+          hoursReducedBy: justification.deflation.hoursReducedBy,
+          reasons: justification.deflation.reasons,
+          note: justification.deflation.note,
+          reasonRequired: justification.deflation.reasonRequired,
+        }
+      : {},
+  };
+}
+
 class ReviewSubmitError extends Error {
   code: "not_found" | "stale" | "validation";
   status: number;
@@ -127,10 +158,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const now = new Date();
   const reviewId = randomUUID();
   const statusUpdate = nextStatusForDecision(decision);
-  const reviewJustificationColumn = (
-    peerReview as unknown as { reviewJustification?: typeof peerReview.id }
-  ).reviewJustification;
-  const hasReviewJustificationColumn = Boolean(reviewJustificationColumn);
 
   const txResult = await db
     .transaction(async (tx) => {
@@ -183,7 +210,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
               return validated.value;
             })();
 
-      const reviewInsertValues: Record<string, unknown> = {
+      const structuredReviewColumns =
+        mapReviewJustificationToStructuredColumns(normalizedReviewJustification);
+
+      const reviewInsertValues: typeof peerReview.$inferInsert = {
         id: reviewId,
         projectId,
         reviewerId: userId,
@@ -193,14 +223,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         hackatimeSnapshotSeconds,
         createdAt: now,
         updatedAt: now,
+        reviewEvidenceChecklist: structuredReviewColumns.reviewEvidenceChecklist,
+        reviewedHackatimeRangeStart: structuredReviewColumns.reviewedHackatimeRangeStart,
+        reviewedHackatimeRangeEnd: structuredReviewColumns.reviewedHackatimeRangeEnd,
+        hourAdjustmentReasonMetadata: structuredReviewColumns.hourAdjustmentReasonMetadata,
       };
-      if (hasReviewJustificationColumn) {
-        reviewInsertValues.reviewJustification = normalizedReviewJustification;
-      }
 
       const inserted = (await tx
         .insert(peerReview)
-        .values(reviewInsertValues as typeof peerReview.$inferInsert)
+        .values(reviewInsertValues)
         .returning({
           id: peerReview.id,
           decision: peerReview.decision,
@@ -208,17 +239,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           approvedHours: peerReview.approvedHours,
           hackatimeSnapshotSeconds: peerReview.hackatimeSnapshotSeconds,
           createdAt: peerReview.createdAt,
-          ...(hasReviewJustificationColumn && reviewJustificationColumn
-            ? { reviewJustification: reviewJustificationColumn }
-            : {}),
-        } as any)) as Array<{
+        })) as Array<{
         id: string;
         decision: ReviewDecision;
         reviewComment: string;
         approvedHours: number | null;
         hackatimeSnapshotSeconds: number;
         createdAt: Date;
-        reviewJustification?: ReviewJustificationPayload | null;
       }>;
 
       const updateSet =
@@ -362,8 +389,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       approvedHours:
         txResult.review.approvedHours ?? (decision === "approved" ? (approvedHours as number) : null),
       hackatimeSnapshotSeconds: txResult.review.hackatimeSnapshotSeconds,
-      reviewJustification:
-        txResult.review.reviewJustification ?? txResult.reviewJustification ?? null,
+      reviewJustification: txResult.reviewJustification ?? null,
       createdAt: (txResult.review.createdAt ?? now).toISOString(),
       reviewerName: (session?.user as { name?: string | null } | undefined)?.name ?? "Reviewer",
       reviewerEmail: (session?.user as { email?: string | null } | undefined)?.email ?? "",
