@@ -145,14 +145,14 @@ export default function ReviewProjectClient({
 
   const setReviewJustificationDraft = useCallback(
     (next: SetStateAction<ReviewJustificationDraft>) => {
-      setReviewJustificationDraftState((prev) => {
-        const resolved =
-          typeof next === "function"
-            ? (next as (value: ReviewJustificationDraft) => ReviewJustificationDraft)(prev)
-            : next;
-        reviewJustificationDraftRef.current = resolved;
-        return resolved;
-      });
+      const resolved =
+        typeof next === "function"
+          ? (next as (value: ReviewJustificationDraft) => ReviewJustificationDraft)(
+              reviewJustificationDraftRef.current,
+            )
+          : next;
+      reviewJustificationDraftRef.current = resolved;
+      setReviewJustificationDraftState(resolved);
     },
     [],
   );
