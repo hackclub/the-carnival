@@ -322,7 +322,10 @@ export default function ReviewProjectClient({
   const onConfirmSubmission = useCallback(() => {
     if (decision === "comment") return;
 
-    const draft = reviewJustificationDraftRef.current;
+    const draft = {
+      ...reviewJustificationDraftRef.current,
+      hackatimeProjectName: project.hackatimeProjectName,
+    };
 
     const validated = validateRequiredReviewJustification({
       value: draft,
@@ -340,7 +343,9 @@ export default function ReviewProjectClient({
     setModalError(null);
     setShowConfirmationModal(false);
     void submitReview({
-      requestReviewJustification: buildReviewJustificationRequest(draft),
+      requestReviewJustification: buildReviewJustificationRequest(draft, {
+        hackatimeProjectName: project.hackatimeProjectName,
+      }),
       optimisticReviewJustification: validated.value,
     });
   }, [
@@ -764,22 +769,12 @@ export default function ReviewProjectClient({
           <div className="space-y-4">
             <div className="text-sm font-semibold text-foreground">Evidence checklist</div>
 
-            <label className="block">
+            <div className="block">
               <div className="text-xs text-muted-foreground mb-2">Hackatime project name reviewed</div>
-              <input
-                type="text"
-                value={reviewJustificationDraft.hackatimeProjectName}
-                onChange={(e) => {
-                  setReviewJustificationDraft((prev) => ({
-                    ...prev,
-                    hackatimeProjectName: e.target.value,
-                  }));
-                  setModalError(null);
-                }}
-                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                placeholder="Hackatime project name"
-              />
-            </label>
+              <div className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground font-mono">
+                {project.hackatimeProjectName || "—"}
+              </div>
+            </div>
 
             <div className="space-y-2">
               {REVIEW_EVIDENCE_ITEMS.map((item) => (

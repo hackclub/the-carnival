@@ -116,9 +116,13 @@ export function buildDefaultReviewJustificationDraft(input: {
 
 export function buildReviewJustificationRequest(
   draft: ReviewJustificationDraft,
+  input?: { hackatimeProjectName?: string },
 ): ReviewJustificationDraft {
+  const hackatimeProjectName =
+    toCleanString(input?.hackatimeProjectName) || draft.hackatimeProjectName;
+
   return {
-    hackatimeProjectName: draft.hackatimeProjectName,
+    hackatimeProjectName,
     evidence: { ...draft.evidence },
     reviewDateRange: { ...draft.reviewDateRange },
     deflationReasons: [...draft.deflationReasons],

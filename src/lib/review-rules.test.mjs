@@ -49,6 +49,30 @@ describe("review-rules", () => {
     });
   });
 
+  test("uses the canonical Hackatime project name when provided", () => {
+    const request = buildReviewJustificationRequest(
+      {
+        hackatimeProjectName: "edited-name",
+        evidence: {
+          hackatimeProjectReviewed: true,
+          githubReviewed: true,
+          sourceCodeReviewed: true,
+          demoReviewed: true,
+          manualTestPerformed: true,
+        },
+        reviewDateRange: {
+          startDate: "2026-03-01",
+          endDate: "2026-03-31",
+        },
+        deflationReasons: ["scopeCouldNotBeVerified"],
+        deflationNote: "Scope verification was incomplete.",
+      },
+      { hackatimeProjectName: "project-one" },
+    );
+
+    expect(request.hackatimeProjectName).toBe("project-one");
+  });
+
   test("accepts normalized deflation payloads for compatibility", () => {
     const result = validateRequiredReviewJustification({
       value: {
