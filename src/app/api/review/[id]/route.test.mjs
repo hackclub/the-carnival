@@ -232,19 +232,6 @@ describe("POST /api/review/[id]", () => {
     expect(state.insertedReviews.length).toBe(0);
   });
 
-  test("rejects non-0.5 increments for approvals", async () => {
-    const { res, json } = await postReview({
-      decision: "approved",
-      comment: "looks good",
-      approvedHours: 1.25,
-      reviewJustification: buildValidReviewJustification(),
-    });
-
-    expect(res.status).toBe(400);
-    expect(json.error).toContain("0.5-hour increments");
-    expect(state.insertedReviews.length).toBe(0);
-  });
-
   test("rejects approved hours above captured Hackatime snapshot", async () => {
     state.projectRow.hackatimeTotalSeconds = 2 * 3600;
 

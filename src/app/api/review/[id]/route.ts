@@ -16,8 +16,9 @@ import { sendReviewEmail } from "@/lib/loops";
 import { appendReviewAudit } from "@/lib/review-audit";
 import {
   approvedHoursWithinSnapshot,
-  isHalfHourIncrement,
+  isApprovedHourIncrement,
   normalizeSnapshotSeconds,
+  normalizeApprovedHours,
   validateRequiredReviewJustification,
   type ReviewJustificationPayload,
 } from "@/lib/review-rules";
@@ -125,7 +126,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const approvedHoursRaw = body.approvedHours;
-  const approvedHours =
+  let approvedHours =
     approvedHoursRaw === null || approvedHoursRaw === undefined
       ? null
       : typeof approvedHoursRaw === "number"
@@ -147,12 +148,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         { status: 400 },
       );
     }
-    if (!isHalfHourIncrement(approvedHours!)) {
+    if (!isApprovedHourIncrement(approvedHours!)) {
       return NextResponse.json(
-        { error: "Approved hours must be in 0.5-hour increments" },
+        { error: "Approved hours must be in 0.1-hour increments" },
         { status: 400 },
       );
     }
+    approvedHours = normalizeApprovedHours(approvedHours);
   }
 
   const now = new Date();
