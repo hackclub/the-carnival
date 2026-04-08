@@ -6,11 +6,13 @@ import { getServerSession } from "@/lib/server-session";
 import { tokensForApprovedHours } from "@/lib/tokens";
 import { generateId, isUniqueConstraintError } from "@/lib/api-utils";
 import {
+  type AirtableGrantCreateInput,
   createAirtableGrantRecord,
   toAirtableCreateErrorDetails,
   getAirtableConfigErrors,
   AIRTABLE_GRANTS_TABLE_ENV,
 } from "@/lib/airtable";
+import { hydrateReviewJustification } from "@/lib/review-justification";
 
 type AdminProjectPatchBody = {
   status?: unknown;
@@ -58,6 +60,7 @@ const EMPTY_IDENTITY_GRANT_PROFILE: IdentityGrantProfile = {
 type GrantProjectRow = {
   name: string;
   description: string;
+  hackatimeProjectName: string;
   codeUrl: string;
   playableDemoUrl: string;
   videoUrl: string;
@@ -80,7 +83,18 @@ type GrantReviewRow = {
   reviewerName: string | null;
   decision: ReviewDecision;
   reviewComment: string;
+  reviewEvidenceChecklist: unknown;
+  reviewedHackatimeRangeStart: Date | null;
+  reviewedHackatimeRangeEnd: Date | null;
+  hourAdjustmentReasonMetadata: unknown;
+  reviewJustification?: unknown;
 };
+
+type AirtableGrantReview = NonNullable<AirtableGrantCreateInput["reviews"]>[number];
+
+const reviewJustificationColumn = (
+  peerReview as unknown as { reviewJustification?: typeof peerReview.id }
+).reviewJustification;
 
 function toNullableString(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -212,23 +226,61 @@ async function fetchIdentityGrantProfile(identityToken: string | null): Promise<
   }
 }
 
-function mapReviewsForAirtable(reviews: GrantReviewRow[]) {
-  return [...reviews].reverse().map((r) => ({
-    reviewerName: r.reviewerName || "Unknown reviewer",
-    decision: r.decision,
-    message: r.reviewComment,
-  }));
+function mapReviewsForAirtable(
+  reviews: GrantReviewRow[],
+  fallbackHackatimeProjectName: string,
+): AirtableGrantReview[] {
+  return reviews
+    .filter((r) => r.decision !== "comment")
+    .map((r) => ({
+      reviewerName: r.reviewerName || "Unknown reviewer",
+      decision: r.decision,
+      message: r.reviewComment,
+      reviewJustification: hydrateReviewJustification({
+        decision: r.decision,
+        fallbackHackatimeProjectName,
+        reviewEvidenceChecklist: r.reviewEvidenceChecklist,
+        reviewedHackatimeRangeStart: r.reviewedHackatimeRangeStart,
+        reviewedHackatimeRangeEnd: r.reviewedHackatimeRangeEnd,
+        hourAdjustmentReasonMetadata: r.hourAdjustmentReasonMetadata,
+        reviewJustification: r.reviewJustification,
+      }),
+    }));
+}
+
+async function loadGrantReviewsForAirtable(
+  projectId: string,
+  fallbackHackatimeProjectName: string,
+) {
+  const rows = (await db
+    .select({
+      decision: peerReview.decision,
+      reviewComment: peerReview.reviewComment,
+      reviewerName: user.name,
+      reviewEvidenceChecklist: peerReview.reviewEvidenceChecklist,
+      reviewedHackatimeRangeStart: peerReview.reviewedHackatimeRangeStart,
+      reviewedHackatimeRangeEnd: peerReview.reviewedHackatimeRangeEnd,
+      hourAdjustmentReasonMetadata: peerReview.hourAdjustmentReasonMetadata,
+      ...(reviewJustificationColumn ? { reviewJustification: reviewJustificationColumn } : {}),
+    })
+    .from(peerReview)
+    .leftJoin(user, eq(peerReview.reviewerId, user.id))
+    .where(eq(peerReview.projectId, projectId))
+    .orderBy(peerReview.createdAt)) as GrantReviewRow[];
+
+  return mapReviewsForAirtable(rows, fallbackHackatimeProjectName);
 }
 
 function buildAirtableGrantInput(
   current: GrantProjectRow,
   identityProfile: IdentityGrantProfile,
-  reviews: GrantReviewRow[],
+  reviews: AirtableGrantReview[],
 ) {
   return {
     project: {
       name: current.name,
       description: current.description,
+      hackatimeProjectName: current.hackatimeProjectName,
       codeUrl: current.codeUrl,
       playableDemoUrl: current.playableDemoUrl,
       videoUrl: current.videoUrl,
@@ -251,7 +303,7 @@ function buildAirtableGrantInput(
       zipPostalCode: identityProfile.zipPostalCode ?? current.zipPostalCode ?? null,
     },
     reviewStatus: "Approved" as const,
-    reviews: mapReviewsForAirtable(reviews),
+    reviews,
   };
 }
 
@@ -292,6 +344,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           creatorId: project.creatorId,
           approvedHours: project.approvedHours,
           name: project.name,
+          hackatimeProjectName: project.hackatimeProjectName,
           description: project.description,
           codeUrl: project.codeUrl,
           videoUrl: project.videoUrl,
@@ -358,18 +411,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
         try {
           const identityProfile = await fetchIdentityGrantProfile(current.creatorIdentityToken ?? null);
-
-          const reviews = await db
-            .select({
-              decision: peerReview.decision,
-              reviewComment: peerReview.reviewComment,
-              createdAt: peerReview.createdAt,
-              reviewerName: user.name,
-            })
-            .from(peerReview)
-            .leftJoin(user, eq(peerReview.reviewerId, user.id))
-            .where(eq(peerReview.projectId, id))
-            .orderBy(peerReview.createdAt);
+          const reviews = await loadGrantReviewsForAirtable(id, current.hackatimeProjectName);
 
           await createAirtableGrantRecord(
             buildAirtableGrantInput(current, identityProfile, reviews),
@@ -531,6 +573,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       creatorId: project.creatorId,
       approvedHours: project.approvedHours,
       name: project.name,
+      hackatimeProjectName: project.hackatimeProjectName,
       description: project.description,
       codeUrl: project.codeUrl,
       videoUrl: project.videoUrl,
@@ -612,18 +655,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
 
   try {
     const identityProfile = await fetchIdentityGrantProfile(current.creatorIdentityToken ?? null);
-
-    const reviews = await db
-      .select({
-        decision: peerReview.decision,
-        reviewComment: peerReview.reviewComment,
-        createdAt: peerReview.createdAt,
-        reviewerName: user.name,
-      })
-      .from(peerReview)
-      .leftJoin(user, eq(peerReview.reviewerId, user.id))
-      .where(eq(peerReview.projectId, id))
-      .orderBy(peerReview.createdAt);
+    const reviews = await loadGrantReviewsForAirtable(id, current.hackatimeProjectName);
 
     const record = await createAirtableGrantRecord(
       buildAirtableGrantInput(current, identityProfile, reviews),
@@ -661,4 +693,3 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
   if (deleted.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }
-

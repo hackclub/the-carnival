@@ -1,4 +1,9 @@
 import Airtable from "airtable";
+import {
+  REVIEW_DEFLATION_REASON_OPTIONS,
+  REVIEW_EVIDENCE_ITEMS,
+  type ReviewJustificationPayload,
+} from "@/lib/review-rules";
 
 export const AIRTABLE_GRANTS_TABLE_ENV = "AIRTABLE_GRANTS_TABLE";
 
@@ -96,6 +101,7 @@ export type AirtableGrantCreateInput = {
   project: {
     name: string;
     description: string;
+    hackatimeProjectName: string;
     codeUrl: string;
     videoUrl: string;
     playableDemoUrl: string;
@@ -113,11 +119,14 @@ export type AirtableGrantCreateInput = {
   hackatimeReviewLink?: string | null;
   reviewStatus?: string | null; // e.g. "Approved"
   reviewer?: string | null;
-  reviews?: Array<{
-    reviewerName: string;
-    decision: "approved" | "rejected" | "comment";
-    message: string;
-  }>;
+  reviews?: AirtableGrantReview[];
+};
+
+export type AirtableGrantReview = {
+  reviewerName: string;
+  decision: "approved" | "rejected" | "comment";
+  message: string;
+  reviewJustification?: ReviewJustificationPayload | null;
 };
 
 export type AirtableCreateResult = { id: string };
@@ -132,6 +141,10 @@ export type AirtableCreateErrorDetails = {
 export type ValidationResult<T> =
   | { success: true; data: T }
   | { success: false; errors: string[] };
+
+const DEFLATION_REASON_LABELS = new Map(
+  REVIEW_DEFLATION_REASON_OPTIONS.map((option) => [option.key, option.label]),
+);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -206,6 +219,52 @@ function splitFirstLastName(fullName: string): { firstName: string | null; lastN
   const parts = cleaned.split(" ");
   if (parts.length === 1) return { firstName: parts[0] ?? null, lastName: null };
   return { firstName: parts[0] ?? null, lastName: parts.slice(1).join(" ") || null };
+}
+
+function decisionLabel(decision: AirtableGrantReview["decision"]) {
+  return decision === "approved" ? "Approved" : decision === "rejected" ? "Rejected" : "Comment";
+}
+
+function formatStructuredReviewBlock(review: AirtableGrantReview, index: number) {
+  const lines = [`Review ${index + 1}`, `Reviewer: ${review.reviewerName}`, `Decision: ${decisionLabel(review.decision)}`];
+
+  if (review.reviewJustification) {
+    const justification = review.reviewJustification;
+    const reasons = justification.deflation.reasons
+      .map((reason) => DEFLATION_REASON_LABELS.get(reason) ?? reason)
+      .join(", ");
+
+    lines.push(`Hackatime project: ${justification.hackatimeProjectName}`);
+    lines.push(
+      `Reviewed range: ${justification.reviewDateRange.startDate} to ${justification.reviewDateRange.endDate}`,
+    );
+    lines.push("Evidence checks:");
+    for (const item of REVIEW_EVIDENCE_ITEMS) {
+      lines.push(`- ${item.label}: ${justification.evidence[item.key] ? "Yes" : "No"}`);
+    }
+    lines.push("Hour deflation:");
+    lines.push(`- Hours reduced: ${justification.deflation.reduced ? "Yes" : "No"}`);
+    lines.push(`- Hours reduced by: ${justification.deflation.hoursReducedBy.toFixed(2)}h`);
+    lines.push(`- Deflation reasons: ${reasons || "—"}`);
+    lines.push(`- Deflation note: ${justification.deflation.note ?? "—"}`);
+  } else {
+    lines.push("Structured review confirmation: unavailable");
+  }
+
+  lines.push("Review comment:");
+  lines.push(review.message.trim() || "—");
+
+  return lines.join("\n");
+}
+
+export function formatAirtableHoursJustification(reviews?: AirtableGrantReview[]) {
+  const nonCommentReviews = (reviews ?? []).filter((review) => review.decision !== "comment");
+  if (nonCommentReviews.length === 0) {
+    return "No non-comment reviews available.";
+  }
+  return nonCommentReviews
+    .map((review, index) => formatStructuredReviewBlock(review, index))
+    .join("\n\n---\n\n");
 }
 
 export function getAirtableConfigErrors(env: NodeJS.ProcessEnv = process.env): string[] {
@@ -341,20 +400,7 @@ export async function createAirtableGrantRecord(input: AirtableGrantCreateInput)
   }
 
   // Hours justification (structured text)
-  const decisionLabel = (d: "approved" | "rejected" | "comment") =>
-    d === "approved" ? "Approved" : d === "rejected" ? "Rejected" : "Comment";
-  const reviewBlocks =
-    input.reviews?.length
-      ? input.reviews
-          .map((r) => {
-            const who = (r.reviewerName || "Unknown").trim() || "Unknown";
-            const msg = (r.message || "").trim();
-            return `Review by ${who} (${decisionLabel(r.decision)})\n${msg || "—"}`;
-          })
-          .join("\n\n")
-      : "—";
-
-  const hoursJustification = [`Hackatime reviewed: ✅`, ``, `Review comments`, ``, reviewBlocks].join("\n");
+  const hoursJustification = formatAirtableHoursJustification(input.reviews);
   setIf(YSWS_AIRTABLE_FIELDS.overrideHoursSpentJustification, hoursJustification);
 
   // Airtable's FieldSet types are intentionally loose, but TS treats `unknown` as too strict.
