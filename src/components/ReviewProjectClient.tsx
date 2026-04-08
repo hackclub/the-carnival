@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type SetStateAction } from "react";
 import type {
   ProjectEditor,
   ProjectStatus,
@@ -125,7 +125,7 @@ export default function ReviewProjectClient({
       "",
     [project.createdAt, project.hackatimeStoppedAt, project.submittedAt],
   );
-  const [reviewJustificationDraft, setReviewJustificationDraft] = useState<ReviewJustificationDraft>(() =>
+  const [reviewJustificationDraft, setReviewJustificationDraftState] = useState<ReviewJustificationDraft>(() =>
     buildDefaultReviewJustificationDraft({
       hackatimeProjectName: initial.project.hackatimeProjectName,
       startDate:
@@ -140,7 +140,22 @@ export default function ReviewProjectClient({
         "",
     }),
   );
+  const reviewJustificationDraftRef = useRef(reviewJustificationDraft);
   const [modalError, setModalError] = useState<string | null>(null);
+
+  const setReviewJustificationDraft = useCallback(
+    (next: SetStateAction<ReviewJustificationDraft>) => {
+      setReviewJustificationDraftState((prev) => {
+        const resolved =
+          typeof next === "function"
+            ? (next as (value: ReviewJustificationDraft) => ReviewJustificationDraft)(prev)
+            : next;
+        reviewJustificationDraftRef.current = resolved;
+        return resolved;
+      });
+    },
+    [],
+  );
 
   const approvedHoursValue = useMemo(() => {
     const v = approvedHours.trim();
@@ -299,8 +314,10 @@ export default function ReviewProjectClient({
   const onConfirmSubmission = useCallback(() => {
     if (decision === "comment") return;
 
+    const draft = reviewJustificationDraftRef.current;
+
     const validated = validateRequiredReviewJustification({
-      value: reviewJustificationDraft,
+      value: draft,
       decision,
       expectedHackatimeProjectName: project.hackatimeProjectName,
       approvedHours: approvedHoursValue,
@@ -320,7 +337,6 @@ export default function ReviewProjectClient({
     decision,
     hackatimeLoggedHoursValue,
     project.hackatimeProjectName,
-    reviewJustificationDraft,
     submitReview,
   ]);
 
