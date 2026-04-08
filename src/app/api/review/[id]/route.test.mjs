@@ -292,7 +292,7 @@ describe("POST /api/review/[id]", () => {
       comment: "approved with reduction",
       approvedHours: 3,
       reviewJustification: buildValidReviewJustification({
-        deflationReasons: ["scopeCouldNotBeVerified"],
+        deflationReasons: ["scopeCouldNotBeVerified", "other"],
         deflationNote: "Scope verification was incomplete.",
       }),
     });
@@ -312,7 +312,7 @@ describe("POST /api/review/[id]", () => {
       hackatimeProjectName: "project-one",
       reduced: true,
       hoursReducedBy: 1,
-      reasons: ["scopeCouldNotBeVerified"],
+      reasons: ["scopeCouldNotBeVerified", "other"],
       note: "Scope verification was incomplete.",
       reasonRequired: true,
     });
@@ -321,7 +321,53 @@ describe("POST /api/review/[id]", () => {
       deflation: {
         reduced: true,
         hoursReducedBy: 1,
-        reasons: ["scopeCouldNotBeVerified"],
+        reasons: ["scopeCouldNotBeVerified", "other"],
+        reasonRequired: true,
+      },
+    });
+  });
+
+  test("accepts normalized deflation payloads for compatibility", async () => {
+    const { res, json } = await postReview({
+      decision: "approved",
+      comment: "approved with reduction",
+      approvedHours: 3,
+      reviewJustification: {
+        decision: "approved",
+        hackatimeProjectName: state.projectRow.hackatimeProjectName,
+        evidence: { ...VALID_REVIEW_EVIDENCE },
+        reviewDateRange: {
+          startDate: "2026-03-01",
+          endDate: "2026-03-31",
+        },
+        deflation: {
+          reduced: true,
+          hoursReducedBy: 1,
+          reasons: ["scopeCouldNotBeVerified", "other"],
+          note: "Scope verification was incomplete.",
+          reasonRequired: true,
+        },
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(state.insertedReviews.length).toBe(1);
+    expect(state.insertedReviews[0].hourAdjustmentReasonMetadata).toMatchObject({
+      decision: "approved",
+      hackatimeProjectName: "project-one",
+      reduced: true,
+      hoursReducedBy: 1,
+      reasons: ["scopeCouldNotBeVerified", "other"],
+      note: "Scope verification was incomplete.",
+      reasonRequired: true,
+    });
+    expect(json.review.reviewJustification).toMatchObject({
+      decision: "approved",
+      deflation: {
+        reduced: true,
+        hoursReducedBy: 1,
+        reasons: ["scopeCouldNotBeVerified", "other"],
+        note: "Scope verification was incomplete.",
         reasonRequired: true,
       },
     });

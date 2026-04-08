@@ -14,6 +14,7 @@ import ReviewJustificationSummary from "@/components/ReviewJustificationSummary"
 import { Modal } from "@/components/ui";
 import { PROJECT_SUBMISSION_CHECKLIST_ITEMS } from "@/lib/project-submission-checklist";
 import {
+  buildReviewJustificationRequest,
   buildDefaultReviewJustificationDraft,
   calculateHoursReduction,
   normalizeApprovedHours,
@@ -233,7 +234,10 @@ export default function ReviewProjectClient({
     setModalError(null);
   }, [defaultReviewEndDate, defaultReviewStartDate, project.hackatimeProjectName]);
 
-  const submitReview = useCallback(async (reviewJustification: ReviewJustificationPayload | null) => {
+  const submitReview = useCallback(async (input: {
+    requestReviewJustification: ReviewJustificationDraft | null;
+    optimisticReviewJustification: ReviewJustificationPayload | null;
+  }) => {
     setSubmitting(true);
     setError(null);
     setSuccessAt(null);
@@ -247,7 +251,7 @@ export default function ReviewProjectClient({
           decision,
           comment: comment.trim(),
           approvedHours: decision === "approved" ? approvedHoursValue : null,
-          reviewJustification,
+          reviewJustification: input.requestReviewJustification,
         }),
       });
       const data = (await res.json().catch(() => null)) as
@@ -276,7 +280,8 @@ export default function ReviewProjectClient({
       if (data?.review) {
         const nextReview: ReviewItem = {
           ...data.review,
-          reviewJustification: data.review.reviewJustification ?? reviewJustification ?? null,
+          reviewJustification:
+            data.review.reviewJustification ?? input.optimisticReviewJustification ?? null,
         };
         setReviews((prev) => [...prev, nextReview]);
       }
@@ -304,7 +309,10 @@ export default function ReviewProjectClient({
   const onSubmit = useCallback(() => {
     if (!canSubmit) return;
     if (decision === "comment") {
-      void submitReview(null);
+      void submitReview({
+        requestReviewJustification: null,
+        optimisticReviewJustification: null,
+      });
       return;
     }
     setModalError(null);
@@ -331,7 +339,10 @@ export default function ReviewProjectClient({
 
     setModalError(null);
     setShowConfirmationModal(false);
-    void submitReview(validated.value);
+    void submitReview({
+      requestReviewJustification: buildReviewJustificationRequest(draft),
+      optimisticReviewJustification: validated.value,
+    });
   }, [
     approvedHoursValue,
     decision,

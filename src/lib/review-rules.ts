@@ -114,6 +114,18 @@ export function buildDefaultReviewJustificationDraft(input: {
   };
 }
 
+export function buildReviewJustificationRequest(
+  draft: ReviewJustificationDraft,
+): ReviewJustificationDraft {
+  return {
+    hackatimeProjectName: draft.hackatimeProjectName,
+    evidence: { ...draft.evidence },
+    reviewDateRange: { ...draft.reviewDateRange },
+    deflationReasons: [...draft.deflationReasons],
+    deflationNote: draft.deflationNote,
+  };
+}
+
 export function calculateHoursReduction(loggedHackatimeHours: number | null, approvedHours: number | null) {
   if (!Number.isFinite(loggedHackatimeHours) || !Number.isFinite(approvedHours)) return 0;
   const reduction = (loggedHackatimeHours as number) - (approvedHours as number);
@@ -196,8 +208,7 @@ export function validateRequiredReviewJustification(input: {
     };
   }
 
-  const reasons = normalizeDeflationReasons(root.deflationReasons);
-  const note = toCleanString(root.deflationNote) || null;
+  const { reasons, note } = resolveDeflationInput(root);
 
   const reduction =
     input.decision === "approved"
@@ -250,6 +261,22 @@ function normalizeDeflationReasons(value: unknown): ReviewDeflationReason[] {
   return Array.from(unique);
 }
 
+function resolveDeflationInput(root: Record<string, unknown>) {
+  const deflationRoot = asRecord(root.deflation);
+  const hasDraftReasons = hasOwn(root, "deflationReasons");
+  const hasDraftNote = hasOwn(root, "deflationNote");
+
+  const reasons = hasDraftReasons
+    ? normalizeDeflationReasons(root.deflationReasons)
+    : normalizeDeflationReasons(deflationRoot?.reasons);
+  const noteValue = hasDraftNote ? root.deflationNote : deflationRoot?.note;
+
+  return {
+    reasons,
+    note: toCleanString(noteValue) || null,
+  };
+}
+
 function toCleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -257,6 +284,10 @@ function toCleanString(value: unknown) {
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
+}
+
+function hasOwn(value: Record<string, unknown>, key: string) {
+  return Object.prototype.hasOwnProperty.call(value, key);
 }
 
 function isIsoDateOnly(value: string) {
