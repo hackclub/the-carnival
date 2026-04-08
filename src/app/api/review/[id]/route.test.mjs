@@ -232,7 +232,7 @@ describe("POST /api/review/[id]", () => {
     expect(state.insertedReviews.length).toBe(0);
   });
 
-  test("rejects non-0.5 increments for approvals", async () => {
+  test("rejects non-0.1 increments for approvals", async () => {
     const { res, json } = await postReview({
       decision: "approved",
       comment: "looks good",
@@ -241,7 +241,7 @@ describe("POST /api/review/[id]", () => {
     });
 
     expect(res.status).toBe(400);
-    expect(json.error).toContain("0.5-hour increments");
+    expect(json.error).toContain("0.1-hour increments");
     expect(state.insertedReviews.length).toBe(0);
   });
 
@@ -340,6 +340,39 @@ describe("POST /api/review/[id]", () => {
     });
   });
 
+  test("accepts a 1.7-hour reduction when approved hours and rationale are valid", async () => {
+    state.projectRow.hackatimeTotalSeconds = 4.7 * 3600;
+
+    const { res, json } = await postReview({
+      decision: "approved",
+      comment: "approved with precise reduction",
+      approvedHours: 3,
+      reviewJustification: buildValidReviewJustification({
+        deflationReasons: ["scopeCouldNotBeVerified", "other"],
+        deflationNote: "Verified output did not match the full logged time.",
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(state.insertedReviews.length).toBe(1);
+    expect(state.insertedReviews[0].hourAdjustmentReasonMetadata).toMatchObject({
+      reduced: true,
+      hoursReducedBy: 1.7,
+      reasons: ["scopeCouldNotBeVerified", "other"],
+      note: "Verified output did not match the full logged time.",
+      reasonRequired: true,
+    });
+    expect(json.review.reviewJustification).toMatchObject({
+      deflation: {
+        reduced: true,
+        hoursReducedBy: 1.7,
+        reasons: ["scopeCouldNotBeVerified", "other"],
+        note: "Verified output did not match the full logged time.",
+        reasonRequired: true,
+      },
+    });
+  });
+
   test("requires reviewer confirmation payload for approvals", async () => {
     const { res, json } = await postReview({
       decision: "approved",
@@ -415,6 +448,24 @@ describe("POST /api/review/[id]", () => {
 
     expect(res.status).toBe(400);
     expect(json.error).toContain("Select at least one deflation reason");
+    expect(state.insertedReviews.length).toBe(0);
+  });
+
+  test("requires a note when the other deflation reason is selected", async () => {
+    state.projectRow.hackatimeTotalSeconds = 4.7 * 3600;
+
+    const { res, json } = await postReview({
+      decision: "approved",
+      comment: "approved with reduction",
+      approvedHours: 3,
+      reviewJustification: buildValidReviewJustification({
+        deflationReasons: ["other"],
+        deflationNote: "",
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(json.error).toContain("Add a deflation note when selecting Other");
     expect(state.insertedReviews.length).toBe(0);
   });
 

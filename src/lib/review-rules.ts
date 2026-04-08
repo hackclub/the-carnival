@@ -1,7 +1,9 @@
 import type { ReviewDecision } from "@/db/schema";
 
 const HALF_HOUR_EPSILON = 1e-9;
-const HALF_HOUR_SECONDS = 30 * 60;
+const APPROVED_HOUR_INCREMENT = 0.1;
+const APPROVED_HOUR_MULTIPLIER = 1 / APPROVED_HOUR_INCREMENT;
+const APPROVED_HOUR_SECONDS = 60 * 60 * APPROVED_HOUR_INCREMENT;
 const DEFALTION_REASON_THRESHOLD_HOURS = 0.5;
 const ISO_DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -69,9 +71,17 @@ type ValidationResult =
   | { ok: true; value: ReviewJustificationPayload }
   | { ok: false; error: string };
 
-export function isHalfHourIncrement(value: number) {
-  const doubled = value * 2;
-  return Math.abs(doubled - Math.round(doubled)) < HALF_HOUR_EPSILON;
+export function isApprovedHourIncrement(value: number) {
+  const scaled = value * APPROVED_HOUR_MULTIPLIER;
+  return Math.abs(scaled - Math.round(scaled)) < HALF_HOUR_EPSILON;
+}
+
+export function normalizeApprovedHours(value: number | null) {
+  if (!Number.isFinite(value)) return null;
+  const raw = value as number;
+  if (raw <= 0) return null;
+  if (!isApprovedHourIncrement(raw)) return null;
+  return Math.round(raw * APPROVED_HOUR_MULTIPLIER) / APPROVED_HOUR_MULTIPLIER;
 }
 
 export function normalizeSnapshotSeconds(value: number | null) {
@@ -80,7 +90,7 @@ export function normalizeSnapshotSeconds(value: number | null) {
 }
 
 export function maxApprovedHoursForSnapshot(snapshotSeconds: number) {
-  return Math.floor(snapshotSeconds / HALF_HOUR_SECONDS) / 2;
+  return Math.floor(snapshotSeconds / APPROVED_HOUR_SECONDS) / APPROVED_HOUR_MULTIPLIER;
 }
 
 export function approvedHoursWithinSnapshot(approvedHours: number, snapshotSeconds: number) {
@@ -202,6 +212,12 @@ export function validateRequiredReviewJustification(input: {
       ok: false,
       error:
         "Approved hours are at least 0.5 lower than Hackatime hours. Select at least one deflation reason.",
+    };
+  }
+  if (reduction > HALF_HOUR_EPSILON && reasons.includes("other") && !note) {
+    return {
+      ok: false,
+      error: "Add a deflation note when selecting Other.",
     };
   }
 

@@ -16,6 +16,7 @@ import { PROJECT_SUBMISSION_CHECKLIST_ITEMS } from "@/lib/project-submission-che
 import {
   buildDefaultReviewJustificationDraft,
   calculateHoursReduction,
+  normalizeApprovedHours,
   requiresDeflationReason,
   REVIEW_DEFLATION_REASON_OPTIONS,
   REVIEW_EVIDENCE_ITEMS,
@@ -145,10 +146,7 @@ export default function ReviewProjectClient({
     const v = approvedHours.trim();
     if (!v) return null;
     const n = Number(v);
-    if (!Number.isFinite(n) || n <= 0) return null;
-    const doubled = n * 2;
-    if (Math.abs(doubled - Math.round(doubled)) > 1e-9) return null;
-    return Math.round(doubled) / 2;
+    return normalizeApprovedHours(Number.isFinite(n) ? n : null);
   }, [approvedHours]);
 
   const canSubmit = useMemo(() => {
@@ -174,6 +172,7 @@ export default function ReviewProjectClient({
   }, [approvedHoursValue, decision, hackatimeLoggedHoursValue]);
 
   const isApprovedHoursReduced = approvedHoursReduction > 0;
+  const otherDeflationReasonSelected = reviewJustificationDraft.deflationReasons.includes("other");
 
   const isAssignedToMe = useMemo(
     () => assignments.some((a) => a.reviewerId === initial.viewerUserId),
@@ -660,16 +659,16 @@ export default function ReviewProjectClient({
           <div className="text-sm text-muted-foreground font-medium mb-2">Approved hours</div>
           <input
             type="number"
-            min={0.5}
-            step={0.5}
+            min={0.1}
+            step={0.1}
             value={approvedHours}
             onChange={(e) => setApprovedHours(e.target.value)}
             disabled={decision !== "approved"}
             className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40 disabled:opacity-60"
-            placeholder="e.g. 10.5"
+            placeholder="e.g. 10.8"
           />
           <div className="text-xs text-muted-foreground mt-2">
-            Required for <span className="text-foreground">Approve</span>. Use 0.5-hour increments.
+            Required for <span className="text-foreground">Approve</span>. Use 0.1-hour increments for the final approved total.
           </div>
         </label>
 
@@ -819,7 +818,8 @@ export default function ReviewProjectClient({
               <div className="text-xs text-muted-foreground">
                 {deflationReasonRequired
                   ? "At least one reason is required because approved hours are 0.5h or more below logged Hackatime."
-                  : "Reason is optional for reductions under 0.5h, but still recommended."}
+                  : "Reason is optional for reductions under 0.5h, but still recommended."}{" "}
+                The reduction itself can be any amount based on logged Hackatime.
               </div>
               <div className="space-y-2">
                 {REVIEW_DEFLATION_REASON_OPTIONS.map((option) => (
@@ -838,7 +838,9 @@ export default function ReviewProjectClient({
                 ))}
               </div>
               <label className="block">
-                <div className="text-xs text-muted-foreground mb-1">Optional note</div>
+                <div className="text-xs text-muted-foreground mb-1">
+                  {otherDeflationReasonSelected ? "Note (required when selecting Other)" : "Optional note"}
+                </div>
                 <textarea
                   value={reviewJustificationDraft.deflationNote}
                   onChange={(e) => {
