@@ -14,6 +14,10 @@ import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import { PROJECT_SUBMISSION_CHECKLIST_ITEMS } from "@/lib/project-submission-checklist";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
 import type { ReviewJustificationPayload } from "@/lib/review-rules";
+import {
+  formatConsideredHackatimeRangeLabel,
+  getProjectConsideredHackatimeRange,
+} from "@/lib/hackatime-range";
 import toast from "react-hot-toast";
 
 type GrantProject = {
@@ -57,13 +61,6 @@ type GrantReviewItem = {
   reviewerEmail: string;
 };
 
-function formatYmd(iso: string | null) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
-}
-
 function formatHoursMinutes(hours: number, minutes: number) {
   const h = Number.isFinite(hours) ? Math.max(0, Math.floor(hours)) : 0;
   const m = Number.isFinite(minutes) ? Math.max(0, Math.floor(minutes)) : 0;
@@ -84,27 +81,26 @@ export default function AdminGrantClient({
   const canGrant = useMemo(() => project.status === "shipped", [project.status]);
   const canUngrant = useMemo(() => project.status === "granted", [project.status]);
   const canSendBackToReview = useMemo(() => project.status === "shipped", [project.status]);
+  const canonicalProjectRange = useMemo(
+    () =>
+      getProjectConsideredHackatimeRange({
+        hackatimeStartedAt: project.hackatimeStartedAt,
+        hackatimeStoppedAt: project.hackatimeStoppedAt,
+        submittedAt: project.submittedAt,
+        createdAt: project.createdAt,
+      }),
+    [project.createdAt, project.hackatimeStartedAt, project.hackatimeStoppedAt, project.submittedAt],
+  );
+  const canonicalProjectRangeLabel = useMemo(
+    () => formatConsideredHackatimeRangeLabel(canonicalProjectRange),
+    [canonicalProjectRange],
+  );
 
   const billyLink = useMemo(() => {
     const hackatimeId = project.hackatimeUserId?.trim();
-    if (!hackatimeId) return null;
-    const start =
-      formatYmd(project.hackatimeStartedAt) ??
-      formatYmd(project.createdAt) ??
-      formatYmd(project.submittedAt ?? project.createdAt);
-    const end =
-      formatYmd(project.hackatimeStoppedAt) ??
-      formatYmd(project.submittedAt) ??
-      formatYmd(project.createdAt);
-    if (!start || !end) return null;
-    return buildBillyUrl(hackatimeId, start, end);
-  }, [
-    project.createdAt,
-    project.hackatimeStartedAt,
-    project.hackatimeStoppedAt,
-    project.hackatimeUserId,
-    project.submittedAt,
-  ]);
+    if (!hackatimeId || !canonicalProjectRange) return null;
+    return buildBillyUrl(hackatimeId, canonicalProjectRange.startDate, canonicalProjectRange.endDate);
+  }, [canonicalProjectRange, project.hackatimeUserId]);
 
   const screenshots = project.screenshots ?? [];
   const activeScreenshot = screenshots[screenshotIndex] ?? null;
@@ -367,6 +363,10 @@ export default function AdminGrantClient({
                 {project.approvedHours !== null && project.approvedHours !== undefined ? `${project.approvedHours}h` : "—"}
               </div>
             </div>
+            <div className="rounded-2xl border border-border bg-muted px-4 py-3 md:col-span-2">
+              <div className="text-sm text-muted-foreground">Considered Hackatime range</div>
+              <div className="text-foreground font-semibold">{canonicalProjectRangeLabel}</div>
+            </div>
           </div>
 
           <div className="rounded-2xl border border-border bg-muted px-4 py-4 space-y-3">
@@ -442,10 +442,8 @@ export default function AdminGrantClient({
           <div className="flex items-center justify-between gap-3">
             <div className="text-xs text-muted-foreground">
               Created: {new Date(project.createdAt).toLocaleString()} • Submitted:{" "}
-              {project.submittedAt ? new Date(project.submittedAt).toLocaleString() : "—"} • Started:{" "}
-              {project.hackatimeStartedAt ? new Date(project.hackatimeStartedAt).toLocaleString() : "—"} •
-              Stopped:{" "}
-              {project.hackatimeStoppedAt ? new Date(project.hackatimeStoppedAt).toLocaleString() : "—"}
+              {project.submittedAt ? new Date(project.submittedAt).toLocaleString() : "—"} • Considered range:{" "}
+              {canonicalProjectRangeLabel}
             </div>
             {billyLink ? (
               <a

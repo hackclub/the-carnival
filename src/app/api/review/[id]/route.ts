@@ -22,6 +22,12 @@ import {
   validateRequiredReviewJustification,
   type ReviewJustificationPayload,
 } from "@/lib/review-rules";
+import {
+  parseConsideredHackatimeRange,
+  toUtcBoundaryDate,
+  type ConsideredHackatimeRange,
+} from "@/lib/hackatime-range";
+import { fetchHackatimeProjectTotalSecondsForRange } from "@/lib/hackatime";
 import { notifyReviewDM } from "@/lib/slack";
 
 type ReviewBody = {
@@ -29,6 +35,7 @@ type ReviewBody = {
   comment?: unknown;
   approvedHours?: unknown;
   reviewJustification?: unknown;
+  consideredHackatimeRange?: unknown;
 };
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
@@ -47,12 +54,6 @@ function nextStatusForDecision(decision: ReviewDecision): ProjectStatus | null {
   if (decision === "approved") return "shipped";
   if (decision === "rejected") return "work-in-progress";
   return null; // comment: keep current status
-}
-
-function toUtcBoundaryDate(dateOnly: string, boundary: "start" | "end") {
-  const boundaryTime = boundary === "start" ? "T00:00:00.000Z" : "T23:59:59.999Z";
-  const parsed = new Date(`${dateOnly}${boundaryTime}`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function mapReviewJustificationToStructuredColumns(
@@ -160,6 +161,28 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const now = new Date();
   const reviewId = randomUUID();
   const statusUpdate = nextStatusForDecision(decision);
+  const requestedRangeOverride = body.consideredHackatimeRange;
+
+  let consideredHackatimeRange: ConsideredHackatimeRange | null = null;
+  if (requestedRangeOverride !== undefined) {
+    if (role !== "admin") {
+      return NextResponse.json(
+        { error: "Only admins can override the considered Hackatime range on approval." },
+        { status: 403 },
+      );
+    }
+    if (decision !== "approved") {
+      return NextResponse.json(
+        { error: "Considered Hackatime range overrides are only supported on approvals." },
+        { status: 400 },
+      );
+    }
+    const parsedRange = parseConsideredHackatimeRange(requestedRangeOverride);
+    if (!parsedRange.ok) {
+      return NextResponse.json({ error: parsedRange.error }, { status: 400 });
+    }
+    consideredHackatimeRange = parsedRange.value;
+  }
 
   const txResult = await db
     .transaction(async (tx) => {
@@ -170,6 +193,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           hackatimeProjectName: project.hackatimeProjectName,
           status: project.status,
           creatorId: project.creatorId,
+          hackatimeStartedAt: project.hackatimeStartedAt,
+          hackatimeStoppedAt: project.hackatimeStoppedAt,
           hackatimeTotalSeconds: project.hackatimeTotalSeconds,
         })
         .from(project)
@@ -184,7 +209,50 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         throw new ReviewSubmitError("stale", "Project is no longer in review", 409);
       }
 
-      const hackatimeSnapshotSeconds = normalizeSnapshotSeconds(current.hackatimeTotalSeconds ?? null);
+      let hackatimeSnapshotSeconds = normalizeSnapshotSeconds(current.hackatimeTotalSeconds ?? null);
+      const projectRangeUpdate: Partial<{
+        hackatimeStartedAt: Date | null;
+        hackatimeStoppedAt: Date | null;
+        hackatimeTotalSeconds: number | null;
+      }> = {};
+
+      if (decision === "approved" && consideredHackatimeRange) {
+        if (!current.creatorId) {
+          throw new ReviewSubmitError(
+            "validation",
+            "Project has no creator; cannot refresh the considered Hackatime range.",
+            409,
+          );
+        }
+
+        try {
+          const refreshed = await fetchHackatimeProjectTotalSecondsForRange(current.creatorId, {
+            projectName: current.hackatimeProjectName,
+            range: consideredHackatimeRange,
+          });
+          hackatimeSnapshotSeconds = normalizeSnapshotSeconds(refreshed.totalSeconds);
+          projectRangeUpdate.hackatimeStartedAt = toUtcBoundaryDate(
+            consideredHackatimeRange.startDate,
+            "start",
+          );
+          projectRangeUpdate.hackatimeStoppedAt = toUtcBoundaryDate(
+            consideredHackatimeRange.endDate,
+            "end",
+          );
+          projectRangeUpdate.hackatimeTotalSeconds = hackatimeSnapshotSeconds;
+        } catch (error) {
+          const message =
+            error instanceof Error && error.message.trim()
+              ? error.message.trim()
+              : "Failed to refresh Hackatime for the selected range.";
+          throw new ReviewSubmitError(
+            "validation",
+            `Could not refresh the considered Hackatime range. ${message}`,
+            400,
+          );
+        }
+      }
+
       if (decision === "approved") {
         if (!approvedHoursWithinSnapshot(approvedHours as number, hackatimeSnapshotSeconds)) {
           throw new ReviewSubmitError(
@@ -198,7 +266,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       const normalizedReviewJustification =
         decision === "comment"
           ? null
-          : (() => {
+          : decision === "rejected" && (body.reviewJustification === null || body.reviewJustification === undefined)
+            ? null
+            : (() => {
               const validated = validateRequiredReviewJustification({
                 value: body.reviewJustification,
                 decision,
@@ -252,7 +322,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
       const updateSet =
         decision === "approved"
-          ? ({ status: "shipped", approvedHours: approvedHours as number, updatedAt: now } as const)
+          ? ({
+              status: "shipped",
+              approvedHours: approvedHours as number,
+              updatedAt: now,
+              ...projectRangeUpdate,
+            } as const)
           : decision === "rejected"
             ? ({ status: "work-in-progress", approvedHours: null, updatedAt: now } as const)
             : ({ updatedAt: now } as const);
@@ -266,6 +341,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           name: project.name,
           creatorId: project.creatorId,
           status: project.status,
+          approvedHours: project.approvedHours,
+          hackatimeStartedAt: project.hackatimeStartedAt,
+          hackatimeStoppedAt: project.hackatimeStoppedAt,
+          hackatimeTotalSeconds: project.hackatimeTotalSeconds,
         });
 
       if (updated.length === 0) {
@@ -292,6 +371,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             approvedHours: decision === "approved" ? (approvedHours as number) : null,
             statusAfter: updated[0]?.status ?? "in-review",
             hackatimeSnapshotSeconds,
+            consideredHackatimeRange,
             reviewJustification: normalizedReviewJustification,
           },
           at: now,

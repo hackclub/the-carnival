@@ -17,6 +17,11 @@ import {
   normalizeProjectSubmissionChecklist,
   PROJECT_SUBMISSION_CHECKLIST_ITEMS,
 } from "@/lib/project-submission-checklist";
+import {
+  formatConsideredHackatimeRangeLabel,
+  getProjectConsideredHackatimeRange,
+  parseConsideredHackatimeRange,
+} from "@/lib/hackatime-range";
 import toast from "react-hot-toast";
 
 const EDITOR_OPTIONS = [
@@ -98,12 +103,6 @@ function appendCsvToken(csv: string, token: string) {
   return parts.join(", ");
 }
 
-function toLocalDateTime(value: string | null) {
-  if (!value) return "—";
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
-}
-
 export default function ManageProjectClient({
   initial,
   categorySuggestions = [],
@@ -120,6 +119,8 @@ export default function ManageProjectClient({
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitStep, setSubmitStep] = useState<0 | 1>(0);
   const [submitting, setSubmitting] = useState(false);
+  const [submitRangeStartDate, setSubmitRangeStartDate] = useState("");
+  const [submitRangeEndDate, setSubmitRangeEndDate] = useState("");
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -197,6 +198,18 @@ export default function ManageProjectClient({
     !isGranted && !isInReview && !isShipped && status === "work-in-progress" && !!latestRejectedReview;
 
   const screenshots = useMemo(() => cleanList(screenshotUrls), [screenshotUrls]);
+  const currentConsideredRange = useMemo(
+    () =>
+      getProjectConsideredHackatimeRange({
+        hackatimeStartedAt,
+        hackatimeStoppedAt,
+      }),
+    [hackatimeStartedAt, hackatimeStoppedAt],
+  );
+  const currentConsideredRangeLabel = useMemo(
+    () => formatConsideredHackatimeRangeLabel(currentConsideredRange),
+    [currentConsideredRange],
+  );
 
   function isValidUrlString(value: string) {
     try {
@@ -248,6 +261,14 @@ export default function ManageProjectClient({
   const checklistOk = useMemo(
     () => hasRequiredProjectSubmissionChecklistAnswers(submissionChecklist),
     [submissionChecklist],
+  );
+  const submitConsideredRange = useMemo(
+    () =>
+      parseConsideredHackatimeRange({
+        startDate: submitRangeStartDate,
+        endDate: submitRangeEndDate,
+      }),
+    [submitRangeEndDate, submitRangeStartDate],
   );
 
   const setChecklistValue = useCallback(
@@ -450,6 +471,8 @@ export default function ManageProjectClient({
     setCheckDescriptionClear(checklist.descriptionClear);
     setCheckScreenshotsWorking(checklist.screenshotsWorking);
     setCheckAddressedRejection(false);
+    setSubmitRangeStartDate(currentConsideredRange?.startDate ?? "");
+    setSubmitRangeEndDate(currentConsideredRange?.endDate ?? "");
     setSubmitStep(0);
     setSubmitOpen(true);
   };
@@ -478,6 +501,11 @@ export default function ManageProjectClient({
     if (isGranted) return;
     if (!submitRequirements.allOk) {
       toast.error("Please complete all required fields before submitting.");
+      setSubmitStep(0);
+      return;
+    }
+    if (!submitConsideredRange.ok) {
+      toast.error(submitConsideredRange.error);
       setSubmitStep(0);
       return;
     }
@@ -512,6 +540,7 @@ export default function ManageProjectClient({
       codeUrl: codeUrl.trim(),
       screenshots: cleanList(screenshotUrls),
       status: "in-review",
+      consideredHackatimeRange: submitConsideredRange.value,
     };
     if (!isReReview) {
       payload.submissionChecklist = submissionChecklist;
@@ -828,8 +857,7 @@ export default function ManageProjectClient({
             </div>
             {hackatimeProjectName ? (
               <div className="text-xs text-muted-foreground rounded-xl border border-border bg-muted px-3 py-2">
-                Started: {toLocalDateTime(hackatimeStartedAt)} • Stopped:{" "}
-                {toLocalDateTime(hackatimeStoppedAt)}
+                Considered Hackatime range: {currentConsideredRangeLabel}
               </div>
             ) : null}
             {hackatimeConnectUrl ? (
@@ -1049,7 +1077,7 @@ export default function ManageProjectClient({
         {submitStep === 0 ? (
           <div className="space-y-4">
             <div className="rounded-2xl border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
-              You can’t submit until these are set: GitHub URL, video link, playable demo link, Hackatime project name, and at least one screenshot.
+              You can’t submit until these are set: GitHub URL, video link, playable demo link, Hackatime project name, considered Hackatime range, and at least one screenshot.
             </div>
 
             <div className="space-y-2 text-sm">
@@ -1106,6 +1134,19 @@ export default function ManageProjectClient({
                 </div>
               </div>
               <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
+                <div className="text-foreground">Considered Hackatime range</div>
+                <div
+                  className={[
+                    "px-2 py-0.5 rounded-md font-bold",
+                    submitConsideredRange.ok
+                      ? "text-emerald-300 bg-emerald-500/15"
+                      : "text-rose-300 bg-rose-500/15",
+                  ].join(" ")}
+                >
+                  {submitConsideredRange.ok ? "Set" : "Missing/invalid"}
+                </div>
+              </div>
+              <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
                 <div className="text-foreground">Screenshots</div>
                 <div
                   className={[
@@ -1135,6 +1176,38 @@ export default function ManageProjectClient({
               ) : null}
             </div>
 
+            <div className="rounded-2xl border border-border bg-background px-4 py-4 space-y-3">
+              <div>
+                <div className="text-foreground font-semibold">Considered Hackatime range</div>
+                <div className="text-sm text-muted-foreground mt-1">
+                  Reviewers will use this window when checking the project’s tracked time.
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="block">
+                  <div className="text-xs text-muted-foreground mb-1">Start date</div>
+                  <input
+                    type="date"
+                    value={submitRangeStartDate}
+                    onChange={(e) => setSubmitRangeStartDate(e.target.value)}
+                    className="w-full bg-card border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  />
+                </label>
+                <label className="block">
+                  <div className="text-xs text-muted-foreground mb-1">End date</div>
+                  <input
+                    type="date"
+                    value={submitRangeEndDate}
+                    onChange={(e) => setSubmitRangeEndDate(e.target.value)}
+                    className="w-full bg-card border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  />
+                </label>
+              </div>
+              {!submitConsideredRange.ok ? (
+                <div className="text-xs text-red-200">{submitConsideredRange.error}</div>
+              ) : null}
+            </div>
+
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
@@ -1148,7 +1221,7 @@ export default function ManageProjectClient({
                 type="button"
                 onClick={() => setSubmitStep(1)}
                 className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-full font-bold transition-colors"
-                disabled={!submitRequirements.allOk || submitting}
+                disabled={!submitRequirements.allOk || !submitConsideredRange.ok || submitting}
               >
                 Continue
               </button>

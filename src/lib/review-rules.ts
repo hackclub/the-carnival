@@ -1,12 +1,11 @@
 import type { ReviewDecision } from "@/db/schema";
+import { isIsoDateOnly } from "@/lib/hackatime-range";
 
 const HALF_HOUR_EPSILON = 1e-9;
 const APPROVED_HOUR_INCREMENT = 0.1;
 const APPROVED_HOUR_MULTIPLIER = 1 / APPROVED_HOUR_INCREMENT;
 const APPROVED_HOUR_SECONDS = 60 * 60 * APPROVED_HOUR_INCREMENT;
 const DEFALTION_REASON_THRESHOLD_HOURS = 0.5;
-const ISO_DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
-
 export const REVIEW_EVIDENCE_ITEMS = [
   { key: "hackatimeProjectReviewed", label: "Hackatime project reviewed" },
   { key: "githubReviewed", label: "GitHub project and commit messages reviewed" },
@@ -292,10 +291,4 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 function hasOwn(value: Record<string, unknown>, key: string) {
   return Object.prototype.hasOwnProperty.call(value, key);
-}
-
-function isIsoDateOnly(value: string) {
-  if (!ISO_DATE_ONLY_RE.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return parsed.toISOString().slice(0, 10) === value;
 }

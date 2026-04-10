@@ -26,6 +26,12 @@ import {
   type ReviewJustificationDraft,
   type ReviewJustificationPayload,
 } from "@/lib/review-rules";
+import {
+  formatConsideredHackatimeRangeLabel,
+  getProjectConsideredHackatimeRange,
+  parseConsideredHackatimeRange,
+  type ConsideredHackatimeRange,
+} from "@/lib/hackatime-range";
 import toast from "react-hot-toast";
 
 type ReviewItem = {
@@ -74,11 +80,15 @@ type ReviewableProject = {
   submittedAt: string | null; // ISO
 };
 
-function formatYmd(iso: string | null) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
+function toHackatimeHours(totalSeconds: number | null | undefined) {
+  const safeTotalSeconds =
+    typeof totalSeconds === "number" && Number.isFinite(totalSeconds)
+      ? Math.max(0, Math.floor(totalSeconds))
+      : 0;
+  return {
+    hours: Math.floor(safeTotalSeconds / 3600),
+    minutes: Math.floor(safeTotalSeconds / 60) % 60,
+  };
 }
 
 export default function ReviewProjectClient({
@@ -110,39 +120,63 @@ export default function ReviewProjectClient({
   const [error, setError] = useState<string | null>(null);
   const [successAt, setSuccessAt] = useState<number | null>(null);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-  const defaultReviewStartDate = useMemo(
+  const canonicalProjectRange = useMemo(
     () =>
-      formatYmd(project.hackatimeStartedAt) ??
-      formatYmd(project.submittedAt ?? project.createdAt) ??
-      formatYmd(project.createdAt) ??
-      "",
-    [project.createdAt, project.hackatimeStartedAt, project.submittedAt],
+      getProjectConsideredHackatimeRange({
+        hackatimeStartedAt: project.hackatimeStartedAt,
+        hackatimeStoppedAt: project.hackatimeStoppedAt,
+        submittedAt: project.submittedAt,
+        createdAt: project.createdAt,
+      }),
+    [project.createdAt, project.hackatimeStartedAt, project.hackatimeStoppedAt, project.submittedAt],
   );
-  const defaultReviewEndDate = useMemo(
-    () =>
-      formatYmd(project.hackatimeStoppedAt) ??
-      formatYmd(project.submittedAt) ??
-      formatYmd(project.createdAt) ??
-      "",
-    [project.createdAt, project.hackatimeStoppedAt, project.submittedAt],
+  const canonicalProjectRangeLabel = useMemo(
+    () => formatConsideredHackatimeRangeLabel(canonicalProjectRange),
+    [canonicalProjectRange],
   );
+  const defaultReviewStartDate = canonicalProjectRange?.startDate ?? "";
+  const defaultReviewEndDate = canonicalProjectRange?.endDate ?? "";
   const [reviewJustificationDraft, setReviewJustificationDraftState] = useState<ReviewJustificationDraft>(() =>
     buildDefaultReviewJustificationDraft({
       hackatimeProjectName: initial.project.hackatimeProjectName,
       startDate:
-        formatYmd(initial.project.hackatimeStartedAt) ??
-        formatYmd(initial.project.submittedAt ?? initial.project.createdAt) ??
-        formatYmd(initial.project.createdAt) ??
-        "",
+        getProjectConsideredHackatimeRange({
+          hackatimeStartedAt: initial.project.hackatimeStartedAt,
+          hackatimeStoppedAt: initial.project.hackatimeStoppedAt,
+          submittedAt: initial.project.submittedAt,
+          createdAt: initial.project.createdAt,
+        })?.startDate ?? "",
       endDate:
-        formatYmd(initial.project.hackatimeStoppedAt) ??
-        formatYmd(initial.project.submittedAt) ??
-        formatYmd(initial.project.createdAt) ??
-        "",
+        getProjectConsideredHackatimeRange({
+          hackatimeStartedAt: initial.project.hackatimeStartedAt,
+          hackatimeStoppedAt: initial.project.hackatimeStoppedAt,
+          submittedAt: initial.project.submittedAt,
+          createdAt: initial.project.createdAt,
+        })?.endDate ?? "",
     }),
   );
+  const [approvalProjectRange, setApprovalProjectRange] = useState<ConsideredHackatimeRange>({
+    startDate:
+      getProjectConsideredHackatimeRange({
+        hackatimeStartedAt: initial.project.hackatimeStartedAt,
+        hackatimeStoppedAt: initial.project.hackatimeStoppedAt,
+        submittedAt: initial.project.submittedAt,
+        createdAt: initial.project.createdAt,
+      })?.startDate ?? "",
+    endDate:
+      getProjectConsideredHackatimeRange({
+        hackatimeStartedAt: initial.project.hackatimeStartedAt,
+        hackatimeStoppedAt: initial.project.hackatimeStoppedAt,
+        submittedAt: initial.project.submittedAt,
+        createdAt: initial.project.createdAt,
+      })?.endDate ?? "",
+  });
   const reviewJustificationDraftRef = useRef(reviewJustificationDraft);
   const [modalError, setModalError] = useState<string | null>(null);
+  const adminApprovalRange = useMemo(
+    () => parseConsideredHackatimeRange(approvalProjectRange),
+    [approvalProjectRange],
+  );
 
   const setReviewJustificationDraft = useCallback(
     (next: SetStateAction<ReviewJustificationDraft>) => {
@@ -197,24 +231,9 @@ export default function ReviewProjectClient({
 
   const billyLink = useMemo(() => {
     const hackatimeId = project.hackatimeUserId?.trim();
-    if (!hackatimeId) return null;
-    const start =
-      formatYmd(project.hackatimeStartedAt) ??
-      formatYmd(project.createdAt) ??
-      formatYmd(project.submittedAt ?? project.createdAt);
-    const end =
-      formatYmd(project.hackatimeStoppedAt) ??
-      formatYmd(project.submittedAt) ??
-      formatYmd(project.createdAt);
-    if (!start || !end) return null;
-    return buildBillyUrl(hackatimeId, start, end);
-  }, [
-    project.createdAt,
-    project.hackatimeStartedAt,
-    project.hackatimeStoppedAt,
-    project.hackatimeUserId,
-    project.submittedAt,
-  ]);
+    if (!hackatimeId || !canonicalProjectRange) return null;
+    return buildBillyUrl(hackatimeId, canonicalProjectRange.startDate, canonicalProjectRange.endDate);
+  }, [canonicalProjectRange, project.hackatimeUserId]);
 
   const hackatimeLoggedLabel = useMemo(() => {
     if (!project.hackatimeHours) return "Unavailable";
@@ -231,12 +250,17 @@ export default function ReviewProjectClient({
         endDate: defaultReviewEndDate,
       }),
     );
+    setApprovalProjectRange({
+      startDate: defaultReviewStartDate,
+      endDate: defaultReviewEndDate,
+    });
     setModalError(null);
   }, [defaultReviewEndDate, defaultReviewStartDate, project.hackatimeProjectName]);
 
   const submitReview = useCallback(async (input: {
     requestReviewJustification: ReviewJustificationDraft | null;
     optimisticReviewJustification: ReviewJustificationPayload | null;
+    consideredHackatimeRange: ConsideredHackatimeRange | null;
   }) => {
     setSubmitting(true);
     setError(null);
@@ -252,11 +276,18 @@ export default function ReviewProjectClient({
           comment: comment.trim(),
           approvedHours: decision === "approved" ? approvedHoursValue : null,
           reviewJustification: input.requestReviewJustification,
+          consideredHackatimeRange: input.consideredHackatimeRange,
         }),
       });
       const data = (await res.json().catch(() => null)) as
         | {
-            project?: { status?: ProjectStatus };
+            project?: {
+              status?: ProjectStatus;
+              approvedHours?: number | null;
+              hackatimeStartedAt?: string | null;
+              hackatimeStoppedAt?: string | null;
+              hackatimeTotalSeconds?: number | null;
+            };
             review?: Omit<ReviewItem, "reviewJustification"> & {
               reviewJustification?: ReviewJustificationPayload | null;
             };
@@ -274,7 +305,24 @@ export default function ReviewProjectClient({
       }
 
       if (data?.project?.status) {
-        setProject((p) => ({ ...p, status: data.project!.status! }));
+        setProject((p) => ({
+          ...p,
+          status: data.project!.status!,
+          approvedHours:
+            data.project?.approvedHours !== undefined ? data.project.approvedHours : p.approvedHours,
+          hackatimeStartedAt:
+            data.project?.hackatimeStartedAt !== undefined
+              ? data.project.hackatimeStartedAt
+              : p.hackatimeStartedAt,
+          hackatimeStoppedAt:
+            data.project?.hackatimeStoppedAt !== undefined
+              ? data.project.hackatimeStoppedAt
+              : p.hackatimeStoppedAt,
+          hackatimeHours:
+            typeof data.project?.hackatimeTotalSeconds === "number"
+              ? toHackatimeHours(data.project.hackatimeTotalSeconds)
+              : p.hackatimeHours,
+        }));
       }
 
       if (data?.review) {
@@ -308,10 +356,11 @@ export default function ReviewProjectClient({
 
   const onSubmit = useCallback(() => {
     if (!canSubmit) return;
-    if (decision === "comment") {
+    if (decision !== "approved") {
       void submitReview({
         requestReviewJustification: null,
         optimisticReviewJustification: null,
+        consideredHackatimeRange: null,
       });
       return;
     }
@@ -320,11 +369,23 @@ export default function ReviewProjectClient({
   }, [canSubmit, decision, submitReview]);
 
   const onConfirmSubmission = useCallback(() => {
-    if (decision === "comment") return;
+    if (decision !== "approved") return;
+
+    let consideredHackatimeRange: ConsideredHackatimeRange | null = null;
+    if (isAdmin) {
+      if (!adminApprovalRange.ok) {
+        setModalError(adminApprovalRange.error);
+        return;
+      }
+      consideredHackatimeRange = adminApprovalRange.value;
+    }
 
     const draft = {
       ...reviewJustificationDraftRef.current,
       hackatimeProjectName: project.hackatimeProjectName,
+      reviewDateRange: isAdmin
+        ? (consideredHackatimeRange ?? reviewJustificationDraftRef.current.reviewDateRange)
+        : reviewJustificationDraftRef.current.reviewDateRange,
     };
 
     const validated = validateRequiredReviewJustification({
@@ -347,11 +408,14 @@ export default function ReviewProjectClient({
         hackatimeProjectName: project.hackatimeProjectName,
       }),
       optimisticReviewJustification: validated.value,
+      consideredHackatimeRange,
     });
   }, [
+    adminApprovalRange,
     approvedHoursValue,
     decision,
     hackatimeLoggedHoursValue,
+    isAdmin,
     project.hackatimeProjectName,
     submitReview,
   ]);
@@ -388,10 +452,15 @@ export default function ReviewProjectClient({
     setDecision(nextDecision);
     setError(null);
     setModalError(null);
-    if (nextDecision === "comment") {
+    if (nextDecision !== "approved") {
       setShowConfirmationModal(false);
+      return;
     }
-  }, []);
+    setApprovalProjectRange({
+      startDate: defaultReviewStartDate,
+      endDate: defaultReviewEndDate,
+    });
+  }, [defaultReviewEndDate, defaultReviewStartDate]);
 
   const onDeleteReview = useCallback(
     async (reviewId: string) => {
@@ -465,7 +534,7 @@ export default function ReviewProjectClient({
 
       <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Review info</div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
           <div className="rounded-2xl border border-border bg-muted px-4 py-3">
             <div className="text-muted-foreground">Created</div>
             <div className="text-foreground font-semibold">
@@ -478,17 +547,9 @@ export default function ReviewProjectClient({
               {project.submittedAt ? new Date(project.submittedAt).toLocaleString() : "—"}
             </div>
           </div>
-          <div className="rounded-2xl border border-border bg-muted px-4 py-3">
-            <div className="text-muted-foreground">Hackatime started</div>
-            <div className="text-foreground font-semibold">
-              {project.hackatimeStartedAt ? new Date(project.hackatimeStartedAt).toLocaleString() : "—"}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-border bg-muted px-4 py-3">
-            <div className="text-muted-foreground">Hackatime stopped</div>
-            <div className="text-foreground font-semibold">
-              {project.hackatimeStoppedAt ? new Date(project.hackatimeStoppedAt).toLocaleString() : "—"}
-            </div>
+          <div className="rounded-2xl border border-border bg-muted px-4 py-3 md:col-span-1">
+            <div className="text-muted-foreground">Considered Hackatime range</div>
+            <div className="text-foreground font-semibold">{canonicalProjectRangeLabel}</div>
           </div>
         </div>
 
@@ -721,9 +782,9 @@ export default function ReviewProjectClient({
           </div>
         ) : null}
 
-        {decision !== "comment" ? (
+        {decision === "approved" ? (
           <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-            Submitting {decision} requires confirmation with evidence checks and review date range.
+            Approvals require confirmation with evidence checks and a review range.
           </div>
         ) : null}
 
@@ -741,10 +802,10 @@ export default function ReviewProjectClient({
       </div>
 
       <Modal
-        open={showConfirmationModal && decision !== "comment"}
+        open={showConfirmationModal && decision === "approved"}
         onClose={onCloseConfirmationModal}
-        title={`Confirm ${decision === "approved" ? "approval" : "rejection"}`}
-        description="Before submitting, confirm review evidence and project review range."
+        title="Confirm approval"
+        description="Before submitting, confirm review evidence and the approval review range."
         maxWidth="lg"
       >
         <div className="space-y-5">
@@ -794,43 +855,81 @@ export default function ReviewProjectClient({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="text-sm font-semibold text-foreground">Review date range</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className="block">
-                <div className="text-xs text-muted-foreground mb-1">Start date</div>
-                <input
-                  type="date"
-                  value={reviewJustificationDraft.reviewDateRange.startDate}
-                  onChange={(e) => {
-                    const nextValue = e.target.value;
-                    setReviewJustificationDraft((prev) => ({
-                      ...prev,
-                      reviewDateRange: { ...prev.reviewDateRange, startDate: nextValue },
-                    }));
-                    setModalError(null);
-                  }}
-                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                />
-              </label>
-              <label className="block">
-                <div className="text-xs text-muted-foreground mb-1">End date</div>
-                <input
-                  type="date"
-                  value={reviewJustificationDraft.reviewDateRange.endDate}
-                  onChange={(e) => {
-                    const nextValue = e.target.value;
-                    setReviewJustificationDraft((prev) => ({
-                      ...prev,
-                      reviewDateRange: { ...prev.reviewDateRange, endDate: nextValue },
-                    }));
-                    setModalError(null);
-                  }}
-                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                />
-              </label>
+          {isAdmin ? (
+            <div className="space-y-2">
+              <div className="text-sm font-semibold text-foreground">Project considered range</div>
+              <div className="text-xs text-muted-foreground">
+                This updates the project’s canonical Hackatime window before approval and is also used for this approval note.
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="block">
+                  <div className="text-xs text-muted-foreground mb-1">Start date</div>
+                  <input
+                    type="date"
+                    value={approvalProjectRange.startDate}
+                    onChange={(e) => {
+                      setApprovalProjectRange((prev) => ({ ...prev, startDate: e.target.value }));
+                      setModalError(null);
+                    }}
+                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  />
+                </label>
+                <label className="block">
+                  <div className="text-xs text-muted-foreground mb-1">End date</div>
+                  <input
+                    type="date"
+                    value={approvalProjectRange.endDate}
+                    onChange={(e) => {
+                      setApprovalProjectRange((prev) => ({ ...prev, endDate: e.target.value }));
+                      setModalError(null);
+                    }}
+                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  />
+                </label>
+              </div>
+              {!adminApprovalRange.ok ? (
+                <div className="text-xs text-red-200">{adminApprovalRange.error}</div>
+              ) : null}
             </div>
-          </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="text-sm font-semibold text-foreground">Review date range</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="block">
+                  <div className="text-xs text-muted-foreground mb-1">Start date</div>
+                  <input
+                    type="date"
+                    value={reviewJustificationDraft.reviewDateRange.startDate}
+                    onChange={(e) => {
+                      const nextValue = e.target.value;
+                      setReviewJustificationDraft((prev) => ({
+                        ...prev,
+                        reviewDateRange: { ...prev.reviewDateRange, startDate: nextValue },
+                      }));
+                      setModalError(null);
+                    }}
+                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  />
+                </label>
+                <label className="block">
+                  <div className="text-xs text-muted-foreground mb-1">End date</div>
+                  <input
+                    type="date"
+                    value={reviewJustificationDraft.reviewDateRange.endDate}
+                    onChange={(e) => {
+                      const nextValue = e.target.value;
+                      setReviewJustificationDraft((prev) => ({
+                        ...prev,
+                        reviewDateRange: { ...prev.reviewDateRange, endDate: nextValue },
+                      }));
+                      setModalError(null);
+                    }}
+                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  />
+                </label>
+              </div>
+            </div>
+          )}
 
           {decision === "approved" && isApprovedHoursReduced ? (
             <div className="space-y-3">
