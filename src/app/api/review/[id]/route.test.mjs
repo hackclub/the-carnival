@@ -29,6 +29,8 @@ const state = {
   auditEntries: [],
   updateSets: [],
   assignmentDeleteCalls: 0,
+  hackatimeRangeFetchCalls: [],
+  rangeFetchTotalSeconds: 4 * 3600,
 };
 
 const VALID_REVIEW_EVIDENCE = {
@@ -67,6 +69,8 @@ function resetState() {
   state.auditEntries = [];
   state.updateSets = [];
   state.assignmentDeleteCalls = 0;
+  state.hackatimeRangeFetchCalls = [];
+  state.rangeFetchTotalSeconds = 4 * 3600;
 }
 
 function buildTx() {
@@ -185,6 +189,12 @@ mock.module("@/lib/loops", () => ({
 }));
 mock.module("@/lib/slack", () => ({
   notifyReviewDM: async () => undefined,
+}));
+mock.module("@/lib/hackatime", () => ({
+  fetchHackatimeProjectTotalSecondsForRange: async (...args) => {
+    state.hackatimeRangeFetchCalls.push(args);
+    return { totalSeconds: state.rangeFetchTotalSeconds };
+  },
 }));
 
 const { POST } = await import("./route.ts");
@@ -385,15 +395,21 @@ describe("POST /api/review/[id]", () => {
     expect(state.insertedReviews.length).toBe(0);
   });
 
-  test("requires reviewer confirmation payload for rejections", async () => {
+  test("allows rejections without reviewer confirmation payload", async () => {
+    state.updatedProjectRow.status = "work-in-progress";
+
     const { res, json } = await postReview({
       decision: "rejected",
       comment: "needs revision",
     });
 
-    expect(res.status).toBe(400);
-    expect(json.error).toContain("reviewer confirmation checklist");
-    expect(state.insertedReviews.length).toBe(0);
+    expect(res.status).toBe(200);
+    expect(json.review.reviewJustification).toBeNull();
+    expect(state.insertedReviews.length).toBe(1);
+    expect(state.insertedReviews[0].reviewEvidenceChecklist).toEqual({});
+    expect(state.insertedReviews[0].reviewedHackatimeRangeStart).toBeNull();
+    expect(state.insertedReviews[0].reviewedHackatimeRangeEnd).toBeNull();
+    expect(state.insertedReviews[0].hourAdjustmentReasonMetadata).toEqual({});
   });
 
   test("rejects rejection payloads with incomplete evidence checklist", async () => {
@@ -449,6 +465,72 @@ describe("POST /api/review/[id]", () => {
     expect(res.status).toBe(400);
     expect(json.error).toContain("Select at least one deflation reason");
     expect(state.insertedReviews.length).toBe(0);
+  });
+
+  test("rejects non-admin attempts to override the considered Hackatime range", async () => {
+    const { res, json } = await postReview({
+      decision: "approved",
+      comment: "approved",
+      approvedHours: 3,
+      consideredHackatimeRange: {
+        startDate: "2026-03-10",
+        endDate: "2026-03-20",
+      },
+      reviewJustification: buildValidReviewJustification({
+        deflationReasons: ["scopeCouldNotBeVerified"],
+      }),
+    });
+
+    expect(res.status).toBe(403);
+    expect(json.error).toContain("Only admins");
+    expect(state.hackatimeRangeFetchCalls).toEqual([]);
+    expect(state.insertedReviews.length).toBe(0);
+  });
+
+  test("admin approvals can override and refresh the considered Hackatime range", async () => {
+    state.session.user.role = "admin";
+    state.projectRow.creatorId = "project-creator-1";
+    state.updatedProjectRow.creatorId = "project-creator-1";
+    state.updatedProjectRow.approvedHours = 3;
+    state.updatedProjectRow.hackatimeStartedAt = new Date("2026-03-10T00:00:00.000Z");
+    state.updatedProjectRow.hackatimeStoppedAt = new Date("2026-03-20T23:59:59.999Z");
+    state.updatedProjectRow.hackatimeTotalSeconds = 3 * 3600;
+    state.rangeFetchTotalSeconds = 3 * 3600;
+
+    const { res, json } = await postReview({
+      decision: "approved",
+      comment: "approved after range adjustment",
+      approvedHours: 3,
+      consideredHackatimeRange: {
+        startDate: "2026-03-10",
+        endDate: "2026-03-20",
+      },
+      reviewJustification: buildValidReviewJustification({
+        reviewDateRange: {
+          startDate: "2026-03-10",
+          endDate: "2026-03-20",
+        },
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(state.hackatimeRangeFetchCalls.length).toBe(1);
+    expect(state.hackatimeRangeFetchCalls[0][0]).toBe("project-creator-1");
+    expect(state.hackatimeRangeFetchCalls[0][1]).toEqual({
+      projectName: "project-one",
+      range: {
+        startDate: "2026-03-10",
+        endDate: "2026-03-20",
+      },
+    });
+    expect(state.insertedReviews[0].hackatimeSnapshotSeconds).toBe(3 * 3600);
+    expect(state.updateSets[0]).toMatchObject({
+      approvedHours: 3,
+      hackatimeTotalSeconds: 3 * 3600,
+    });
+    expect(state.updateSets[0].hackatimeStartedAt.toISOString()).toBe("2026-03-10T00:00:00.000Z");
+    expect(state.updateSets[0].hackatimeStoppedAt.toISOString()).toBe("2026-03-20T23:59:59.999Z");
+    expect(json.project.status).toBe("shipped");
   });
 
   test("returns 409 on stale submit when status changes before update", async () => {

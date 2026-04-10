@@ -1,4 +1,5 @@
 import type { ReviewDecision } from "@/db/schema";
+import { toIsoDateOnly as toIsoDateOnlyShared } from "@/lib/hackatime-range";
 import {
   REVIEW_DEFLATION_REASON_OPTIONS,
   REVIEW_EVIDENCE_ITEMS,
@@ -17,7 +18,6 @@ type StructuredReviewJustificationInput = {
   hourAdjustmentReasonMetadata?: unknown;
 };
 
-const ISO_DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DEFALTION_REASON_SET = new Set<ReviewDeflationReason>(
   REVIEW_DEFLATION_REASON_OPTIONS.map((option) => option.key),
 );
@@ -35,17 +35,11 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
-function toIsoDateOnly(value: unknown) {
-  if (value instanceof Date) {
-    if (Number.isNaN(value.getTime())) return null;
-    return value.toISOString().slice(0, 10);
+function toReviewDateOnly(value: unknown) {
+  if (value instanceof Date || typeof value === "string") {
+    return toIsoDateOnlyShared(value);
   }
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (ISO_DATE_ONLY_RE.test(trimmed)) return trimmed;
-  const parsed = new Date(trimmed);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toISOString().slice(0, 10);
+  return null;
 }
 
 function toNonNegativeNumber(value: unknown) {
@@ -76,8 +70,8 @@ function normalizeDeflationReasons(value: unknown): ReviewDeflationReason[] {
 function hasStructuredJustificationValue(input: StructuredReviewJustificationInput) {
   const evidence = normalizeEvidence(input.reviewEvidenceChecklist);
   const hasAnyEvidence = REVIEW_EVIDENCE_ITEMS.some((item) => evidence[item.key]);
-  const hasStart = Boolean(toIsoDateOnly(input.reviewedHackatimeRangeStart));
-  const hasEnd = Boolean(toIsoDateOnly(input.reviewedHackatimeRangeEnd));
+  const hasStart = Boolean(toReviewDateOnly(input.reviewedHackatimeRangeStart));
+  const hasEnd = Boolean(toReviewDateOnly(input.reviewedHackatimeRangeEnd));
   const metadata = asRecord(input.hourAdjustmentReasonMetadata);
   const hasMetadata = Boolean(metadata && Object.keys(metadata).length > 0);
   return hasAnyEvidence || hasStart || hasEnd || hasMetadata;
@@ -94,8 +88,8 @@ export function coerceReviewJustificationPayload(value: unknown): ReviewJustific
   if (!hackatimeProjectName) return null;
 
   const reviewDateRange = asRecord(root.reviewDateRange);
-  const startDate = toIsoDateOnly(reviewDateRange?.startDate);
-  const endDate = toIsoDateOnly(reviewDateRange?.endDate);
+  const startDate = toReviewDateOnly(reviewDateRange?.startDate);
+  const endDate = toReviewDateOnly(reviewDateRange?.endDate);
   if (!startDate || !endDate) return null;
 
   const deflationRoot = asRecord(root.deflation);
@@ -131,8 +125,8 @@ export function hydrateReviewJustification(input: StructuredReviewJustificationI
   const decision = isReviewDecision(metadata?.decision) ? metadata.decision : input.decision;
   const hackatimeProjectName =
     toCleanString(metadata?.hackatimeProjectName) || toCleanString(input.fallbackHackatimeProjectName);
-  const startDate = toIsoDateOnly(input.reviewedHackatimeRangeStart);
-  const endDate = toIsoDateOnly(input.reviewedHackatimeRangeEnd);
+  const startDate = toReviewDateOnly(input.reviewedHackatimeRangeStart);
+  const endDate = toReviewDateOnly(input.reviewedHackatimeRangeEnd);
   if (!hackatimeProjectName || !startDate || !endDate) return null;
 
   const hoursReducedBy = toNonNegativeNumber(metadata?.hoursReducedBy);

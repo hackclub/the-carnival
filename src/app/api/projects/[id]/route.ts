@@ -8,7 +8,13 @@ import {
   type ProjectStatus,
   type ProjectSubmissionChecklist,
 } from "@/db/schema";
-import { fetchHackatimeProjectsForUser } from "@/lib/hackatime";
+import { fetchHackatimeProjectTotalSecondsForRange } from "@/lib/hackatime";
+import {
+  getProjectConsideredHackatimeRange,
+  parseConsideredHackatimeRange,
+  toUtcBoundaryDate,
+  type ConsideredHackatimeRange,
+} from "@/lib/hackatime-range";
 import {
   hasRequiredProjectSubmissionChecklistAnswers,
   parseProjectSubmissionChecklist,
@@ -38,6 +44,7 @@ type UpdateProjectBody = {
   creatorDeclaredOriginality?: unknown;
   creatorDuplicateExplanation?: unknown;
   creatorOriginalityRationale?: unknown;
+  consideredHackatimeRange?: unknown;
   status?: unknown;
 };
 
@@ -200,6 +207,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       creatorDuplicateExplanation: project.creatorDuplicateExplanation,
       creatorOriginalityRationale: project.creatorOriginalityRationale,
       submittedAt: project.submittedAt,
+      createdAt: project.createdAt,
     })
     .from(project)
     .where(and(eq(project.id, id), eq(project.creatorId, userId)))
@@ -249,6 +257,16 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     submittedAt: Date;
     updatedAt: Date;
   }> = {};
+
+  let consideredHackatimeRange: ConsideredHackatimeRange | null | undefined;
+
+  if (body.consideredHackatimeRange !== undefined) {
+    const parsedRange = parseConsideredHackatimeRange(body.consideredHackatimeRange);
+    if (!parsedRange.ok) {
+      return NextResponse.json({ error: parsedRange.error }, { status: 400 });
+    }
+    consideredHackatimeRange = parsedRange.value;
+  }
 
   const editorRaw =
     body.editor !== undefined
@@ -563,21 +581,39 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         }
       }
 
-      // Auto-sync Hackatime timing metadata at submit time so users who connected
-      // Hackatime after selecting a project name still get accurate timestamps/hours.
-      if (nextHackatime) {
-        try {
-          const hackatimeProjects = await fetchHackatimeProjectsForUser(userId);
-          const wanted = nextHackatime.trim().toLowerCase();
-          const matched = hackatimeProjects.find((p) => p.name.trim().toLowerCase() === wanted);
-          if (matched) {
-            set.hackatimeStartedAt = matched.startedAt ? new Date(matched.startedAt) : null;
-            set.hackatimeStoppedAt = matched.stoppedAt ? new Date(matched.stoppedAt) : null;
-            set.hackatimeTotalSeconds = matched.totalSeconds;
-          }
-        } catch {
-          // Best-effort only; do not block submissions if Hackatime is unavailable.
-        }
+      const rangeForSubmission =
+        consideredHackatimeRange ??
+        getProjectConsideredHackatimeRange({
+          hackatimeStartedAt: set.hackatimeStartedAt ?? current.hackatimeStartedAt,
+          hackatimeStoppedAt: set.hackatimeStoppedAt ?? current.hackatimeStoppedAt,
+          submittedAt: current.submittedAt,
+          createdAt: current.createdAt,
+        });
+
+      if (!rangeForSubmission) {
+        return NextResponse.json(
+          { error: "Choose the considered Hackatime range before submitting for review." },
+          { status: 400 },
+        );
+      }
+
+      try {
+        const refreshed = await fetchHackatimeProjectTotalSecondsForRange(userId, {
+          projectName: nextHackatime,
+          range: rangeForSubmission,
+        });
+        set.hackatimeStartedAt = toUtcBoundaryDate(rangeForSubmission.startDate, "start");
+        set.hackatimeStoppedAt = toUtcBoundaryDate(rangeForSubmission.endDate, "end");
+        set.hackatimeTotalSeconds = refreshed.totalSeconds;
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message.trim()
+            ? error.message.trim()
+            : "Failed to refresh Hackatime for the selected project range.";
+        return NextResponse.json(
+          { error: `Could not refresh the considered Hackatime range. ${message}` },
+          { status: 400 },
+        );
       }
     }
 

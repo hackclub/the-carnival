@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { user } from "@/db/schema";
+import type { ConsideredHackatimeRange } from "@/lib/hackatime-range";
 
 type HackatimeProjectsResponse = {
   projects?: {
@@ -27,6 +28,15 @@ export type HackatimeProjectSummary = {
   stoppedAt: string | null;
 };
 
+type AuthenticatedProjectsQuery = {
+  includeArchived?: boolean;
+  projects?: string[];
+  since?: string;
+  until?: string;
+  start?: string;
+  end?: string;
+};
+
 async function makeHackatimeAuthedRequest(uri: string, accessToken: string) {
   return fetch(uri, {
     headers: {
@@ -34,6 +44,33 @@ async function makeHackatimeAuthedRequest(uri: string, accessToken: string) {
     },
     cache: "no-store",
   });
+}
+
+export function buildHackatimeAuthenticatedProjectsUrl(query: AuthenticatedProjectsQuery = {}) {
+  const url = new URL("https://hackatime.hackclub.com/api/v1/authenticated/projects");
+
+  url.searchParams.set("include_archived", query.includeArchived ? "true" : "false");
+
+  if (query.projects && query.projects.length > 0) {
+    url.searchParams.set("projects", query.projects.join(","));
+  }
+  if (query.since) {
+    url.searchParams.set("since", query.since);
+  }
+  if (query.until) {
+    url.searchParams.set("until", query.until);
+    url.searchParams.set("until_date", query.until);
+  }
+  if (query.start) {
+    url.searchParams.set("start", query.start);
+    url.searchParams.set("start_date", query.start);
+  }
+  if (query.end) {
+    url.searchParams.set("end", query.end);
+    url.searchParams.set("end_date", query.end);
+  }
+
+  return url.toString();
 }
 
 function toSafeSeconds(value: unknown) {
@@ -103,9 +140,10 @@ export async function fetchHackatimeIdentityFromToken(accessToken: string): Prom
 
 export async function fetchHackatimeProjectsByAccessToken(
   accessToken: string,
+  query: AuthenticatedProjectsQuery = {},
 ): Promise<HackatimeProjectSummary[]> {
   const response = await makeHackatimeAuthedRequest(
-    "https://hackatime.hackclub.com/api/v1/authenticated/projects?include_archived=false",
+    buildHackatimeAuthenticatedProjectsUrl(query),
     accessToken,
   );
 
@@ -152,6 +190,32 @@ export async function fetchHackatimeProjectsForUser(userId: string): Promise<Hac
   } catch {
     return [];
   }
+}
+
+export async function fetchHackatimeProjectTotalSecondsForRange(
+  userId: string,
+  input: { projectName: string; range: ConsideredHackatimeRange },
+) {
+  const token = await getHackatimeAccessTokenForUser(userId);
+  if (!token) {
+    throw new Error("Connect your Hackatime account to refresh the considered range.");
+  }
+
+  const start = `${input.range.startDate}T00:00:00.000Z`;
+  const end = `${input.range.endDate}T23:59:59.999Z`;
+  const projects = await fetchHackatimeProjectsByAccessToken(token, {
+    includeArchived: false,
+    projects: [input.projectName],
+    start,
+    end,
+  });
+
+  const wanted = input.projectName.trim().toLowerCase();
+  const matched = projects.find((project) => project.name.trim().toLowerCase() === wanted);
+
+  return {
+    totalSeconds: matched?.totalSeconds ?? 0,
+  };
 }
 
 export async function fetchHackatimeProjectHoursByName(

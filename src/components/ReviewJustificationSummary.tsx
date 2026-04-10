@@ -3,23 +3,20 @@ import {
   REVIEW_EVIDENCE_ITEMS,
   type ReviewJustificationPayload,
 } from "@/lib/review-rules";
+import { formatDateOnlyForDisplay } from "@/lib/hackatime-range";
 
 const DEFLATION_REASON_LABELS = new Map(
   REVIEW_DEFLATION_REASON_OPTIONS.map((option) => [option.key, option.label]),
 );
-
-function formatDate(value: string) {
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString();
-}
 
 export default function ReviewJustificationSummary({
   justification,
 }: {
   justification: ReviewJustificationPayload;
 }) {
-  const reviewRangeLabel = `${formatDate(justification.reviewDateRange.startDate)} - ${formatDate(
+  const reviewRangeLabel = `${formatDateOnlyForDisplay(
+    justification.reviewDateRange.startDate,
+  )} - ${formatDateOnlyForDisplay(
     justification.reviewDateRange.endDate,
   )}`;
   const reduced =
