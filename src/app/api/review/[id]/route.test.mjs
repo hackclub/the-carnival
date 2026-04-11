@@ -191,9 +191,17 @@ mock.module("@/lib/slack", () => ({
   notifyReviewDM: async () => undefined,
 }));
 mock.module("@/lib/hackatime", () => ({
-  fetchHackatimeProjectTotalSecondsForRange: async (...args) => {
+  refreshHackatimeProjectSnapshotForRange: async (...args) => {
     state.hackatimeRangeFetchCalls.push(args);
-    return { totalSeconds: state.rangeFetchTotalSeconds };
+    return {
+      hackatimeStartedAt: new Date(`${args[1].range.startDate}T00:00:00.000Z`),
+      hackatimeStoppedAt: new Date(`${args[1].range.endDate}T23:59:59.999Z`),
+      hackatimeTotalSeconds: state.rangeFetchTotalSeconds,
+      hours: {
+        hours: Math.floor(state.rangeFetchTotalSeconds / 3600),
+        minutes: Math.floor(state.rangeFetchTotalSeconds / 60) % 60,
+      },
+    };
   },
 }));
 

@@ -27,7 +27,7 @@ import {
   toUtcBoundaryDate,
   type ConsideredHackatimeRange,
 } from "@/lib/hackatime-range";
-import { fetchHackatimeProjectTotalSecondsForRange } from "@/lib/hackatime";
+import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
 import { notifyReviewDM } from "@/lib/slack";
 
 type ReviewBody = {
@@ -226,19 +226,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         }
 
         try {
-          const refreshed = await fetchHackatimeProjectTotalSecondsForRange(current.creatorId, {
+          const refreshed = await refreshHackatimeProjectSnapshotForRange(current.creatorId, {
             projectName: current.hackatimeProjectName,
             range: consideredHackatimeRange,
           });
-          hackatimeSnapshotSeconds = normalizeSnapshotSeconds(refreshed.totalSeconds);
-          projectRangeUpdate.hackatimeStartedAt = toUtcBoundaryDate(
-            consideredHackatimeRange.startDate,
-            "start",
-          );
-          projectRangeUpdate.hackatimeStoppedAt = toUtcBoundaryDate(
-            consideredHackatimeRange.endDate,
-            "end",
-          );
+          hackatimeSnapshotSeconds = normalizeSnapshotSeconds(refreshed.hackatimeTotalSeconds);
+          projectRangeUpdate.hackatimeStartedAt = refreshed.hackatimeStartedAt;
+          projectRangeUpdate.hackatimeStoppedAt = refreshed.hackatimeStoppedAt;
           projectRangeUpdate.hackatimeTotalSeconds = hackatimeSnapshotSeconds;
         } catch (error) {
           const message =
@@ -463,7 +457,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   return NextResponse.json({
-    project: { status: txResult.project.status },
+    project: {
+      status: txResult.project.status,
+      approvedHours: txResult.project.approvedHours ?? null,
+      hackatimeStartedAt: txResult.project.hackatimeStartedAt
+        ? txResult.project.hackatimeStartedAt.toISOString()
+        : null,
+      hackatimeStoppedAt: txResult.project.hackatimeStoppedAt
+        ? txResult.project.hackatimeStoppedAt.toISOString()
+        : null,
+      hackatimeTotalSeconds: txResult.project.hackatimeTotalSeconds ?? null,
+    },
     review: {
       id: txResult.review.id ?? reviewId,
       decision: txResult.review.decision ?? decision,
