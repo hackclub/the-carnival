@@ -3,6 +3,8 @@ import { randomUUID } from "crypto";
 import { db } from "@/db";
 import { project, type ProjectEditor } from "@/db/schema";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
+import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
+import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
 import { validateCreatorOriginalityDeclaration } from "@/lib/project-originality";
 import { normalizeCategory, normalizeProjectTags } from "@/lib/project-taxonomy";
 import { getServerSession } from "@/lib/server-session";
@@ -25,6 +27,7 @@ type CreateProjectBody = {
   creatorDeclaredOriginality?: unknown;
   creatorDuplicateExplanation?: unknown;
   creatorOriginalityRationale?: unknown;
+  consideredHackatimeRange?: unknown;
   status?: unknown;
 };
 const MIN_SCREENSHOTS = 3;
@@ -40,25 +43,6 @@ function isValidUrlString(value: string) {
   } catch {
     return false;
   }
-}
-
-function toOptionalIsoDate(value: unknown): Date | null {
-  if (value === null || value === undefined || value === "") return null;
-  if (typeof value !== "string") return null;
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function toOptionalNonNegativeInt(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") return null;
-  if (typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value >= 0) {
-    return value;
-  }
-  if (typeof value === "string") {
-    const n = Number(value.trim());
-    if (Number.isFinite(n) && Number.isInteger(n) && n >= 0) return n;
-  }
-  return null;
 }
 
 function toOptionalTrimmedString(value: unknown): string | null {
@@ -119,15 +103,17 @@ export async function POST(req: Request) {
   const editorRaw = typeof body.editor === "string" ? body.editor.trim() : body.editor;
   const editorOther = toCleanString(body.editorOther);
   const hackatimeProjectName = toCleanString(body.hackatimeProjectName);
-  const hackatimeStartedAt = toOptionalIsoDate(body.hackatimeStartedAt);
-  const hackatimeStoppedAt = toOptionalIsoDate(body.hackatimeStoppedAt);
-  const hackatimeTotalSeconds = toOptionalNonNegativeInt(body.hackatimeTotalSeconds);
   const videoUrl = toCleanString(body.videoUrl);
   const playableDemoUrl = toCleanString(body.playableDemoUrl);
   const codeUrl = toCleanString(body.codeUrl);
   const category = normalizeCategory(body.category);
   const tags = normalizeProjectTags(body.tags);
   const creatorDeclaredOriginality = body.creatorDeclaredOriginality;
+  const parsedRange =
+    body.consideredHackatimeRange === undefined
+      ? null
+      : parseConsideredHackatimeRange(body.consideredHackatimeRange);
+  const consideredHackatimeRange = parsedRange && parsedRange.ok ? parsedRange.value : null;
 
   const screenshots = Array.isArray(body.screenshots)
     ? body.screenshots
@@ -141,6 +127,9 @@ export async function POST(req: Request) {
   }
   if (!description) {
     return NextResponse.json({ error: "Description is required" }, { status: 400 });
+  }
+  if (parsedRange && !parsedRange.ok) {
+    return NextResponse.json({ error: parsedRange.error }, { status: 400 });
   }
 
   const editor =
@@ -222,6 +211,44 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: originalityDeclaration.error }, { status: 400 });
   }
 
+  if (hackatimeProjectName && !consideredHackatimeRange) {
+    return NextResponse.json(
+      { error: "Choose the considered Hackatime range before creating this project." },
+      { status: 400 },
+    );
+  }
+  if (!hackatimeProjectName && consideredHackatimeRange) {
+    return NextResponse.json(
+      { error: "Select a Hackatime project before choosing the considered range." },
+      { status: 400 },
+    );
+  }
+
+  let resolvedHackatimeStartedAt: Date | null = null;
+  let resolvedHackatimeStoppedAt: Date | null = null;
+  let resolvedHackatimeTotalSeconds: number | null = null;
+
+  if (hackatimeProjectName && consideredHackatimeRange) {
+    try {
+      const refreshed = await refreshHackatimeProjectSnapshotForRange(userId, {
+        projectName: hackatimeProjectName,
+        range: consideredHackatimeRange,
+      });
+      resolvedHackatimeStartedAt = refreshed.hackatimeStartedAt;
+      resolvedHackatimeStoppedAt = refreshed.hackatimeStoppedAt;
+      resolvedHackatimeTotalSeconds = refreshed.hackatimeTotalSeconds;
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : "Failed to refresh Hackatime for the selected project range.";
+      return NextResponse.json(
+        { error: `Could not refresh the considered Hackatime range. ${message}` },
+        { status: 400 },
+      );
+    }
+  }
+
   const now = new Date();
   const id = randomUUID();
 
@@ -233,9 +260,9 @@ export async function POST(req: Request) {
     editor,
     editorOther: editorOther || null,
     hackatimeProjectName,
-    hackatimeStartedAt,
-    hackatimeStoppedAt,
-    hackatimeTotalSeconds,
+    hackatimeStartedAt: resolvedHackatimeStartedAt,
+    hackatimeStoppedAt: resolvedHackatimeStoppedAt,
+    hackatimeTotalSeconds: resolvedHackatimeTotalSeconds,
     videoUrl,
     playableDemoUrl,
     codeUrl,

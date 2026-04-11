@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   ProjectEditor,
   ProjectStatus,
@@ -17,6 +17,7 @@ import type { ReviewJustificationPayload } from "@/lib/review-rules";
 import {
   formatConsideredHackatimeRangeLabel,
   getProjectConsideredHackatimeRange,
+  parseConsideredHackatimeRange,
 } from "@/lib/hackatime-range";
 import toast from "react-hot-toast";
 
@@ -67,6 +68,12 @@ function formatHoursMinutes(hours: number, minutes: number) {
   return `${h}h${String(m).padStart(2, "0")}m`;
 }
 
+function toDateInputValue(value: string | null) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
+}
+
 export default function AdminGrantClient({
   initial,
 }: {
@@ -95,6 +102,115 @@ export default function AdminGrantClient({
     () => formatConsideredHackatimeRangeLabel(canonicalProjectRange),
     [canonicalProjectRange],
   );
+  const [rangeStartDate, setRangeStartDate] = useState(canonicalProjectRange?.startDate ?? "");
+  const [rangeEndDate, setRangeEndDate] = useState(canonicalProjectRange?.endDate ?? "");
+  const [rangePreview, setRangePreview] = useState<{
+    hackatimeTotalSeconds: number | null;
+    hackatimeHours: { hours: number; minutes: number } | null;
+  } | null>(null);
+  const [rangePreviewLoading, setRangePreviewLoading] = useState(false);
+  const [rangePreviewError, setRangePreviewError] = useState<string | null>(null);
+  const [rangeSaving, setRangeSaving] = useState(false);
+
+  const editableRange = useMemo(
+    () =>
+      parseConsideredHackatimeRange({
+        startDate: rangeStartDate,
+        endDate: rangeEndDate,
+      }),
+    [rangeEndDate, rangeStartDate],
+  );
+
+  useEffect(() => {
+    if (project.status === "granted" || !project.hackatimeProjectName.trim()) {
+      setRangePreview(null);
+      setRangePreviewLoading(false);
+      setRangePreviewError(null);
+      return;
+    }
+
+    if (!editableRange.ok) {
+      setRangePreviewLoading(false);
+      setRangePreviewError(rangeStartDate || rangeEndDate ? editableRange.error : null);
+      return;
+    }
+
+    if (
+      canonicalProjectRange &&
+      canonicalProjectRange.startDate === editableRange.value.startDate &&
+      canonicalProjectRange.endDate === editableRange.value.endDate
+    ) {
+      setRangePreview({
+        hackatimeTotalSeconds: project.hackatimeHours
+          ? project.hackatimeHours.hours * 3600 + project.hackatimeHours.minutes * 60
+          : null,
+        hackatimeHours: project.hackatimeHours,
+      });
+      setRangePreviewLoading(false);
+      setRangePreviewError(null);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setRangePreviewLoading(true);
+      setRangePreviewError(null);
+      try {
+        const res = await fetch(`/api/admin/projects/${encodeURIComponent(project.id)}/hackatime-preview`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            consideredHackatimeRange: editableRange.value,
+          }),
+        });
+        const data = (await res.json().catch(() => null)) as
+          | {
+              project?: {
+                hackatimeTotalSeconds?: number | null;
+                hackatimeHours?: { hours?: number; minutes?: number } | null;
+              };
+              error?: unknown;
+            }
+          | null;
+        if (cancelled) return;
+        if (!res.ok) {
+          const message =
+            typeof data?.error === "string" ? data.error : "Failed to refresh Hackatime hours.";
+          setRangePreviewError(message);
+          setRangePreviewLoading(false);
+          return;
+        }
+        const hours = data?.project?.hackatimeHours;
+        setRangePreview({
+          hackatimeTotalSeconds:
+            typeof data?.project?.hackatimeTotalSeconds === "number"
+              ? data.project.hackatimeTotalSeconds
+              : null,
+          hackatimeHours:
+            hours && typeof hours.hours === "number" && typeof hours.minutes === "number"
+              ? { hours: hours.hours, minutes: hours.minutes }
+              : null,
+        });
+        setRangePreviewLoading(false);
+      } catch {
+        if (cancelled) return;
+        setRangePreviewError("Failed to refresh Hackatime hours.");
+        setRangePreviewLoading(false);
+      }
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [canonicalProjectRange, editableRange, project.hackatimeHours, project.hackatimeProjectName, project.id, project.status, rangeEndDate, rangeStartDate]);
+
+  const previewHoursLabel = useMemo(() => {
+    if (rangePreview?.hackatimeHours) {
+      return formatHoursMinutes(rangePreview.hackatimeHours.hours, rangePreview.hackatimeHours.minutes);
+    }
+    return project.hackatimeHours ? formatHoursMinutes(project.hackatimeHours.hours, project.hackatimeHours.minutes) : "—";
+  }, [project.hackatimeHours, rangePreview]);
 
   const billyLink = useMemo(() => {
     const hackatimeId = project.hackatimeUserId?.trim();
@@ -104,6 +220,79 @@ export default function AdminGrantClient({
 
   const screenshots = project.screenshots ?? [];
   const activeScreenshot = screenshots[screenshotIndex] ?? null;
+
+  const onSaveRange = useCallback(async () => {
+    if (project.status === "granted") {
+      toast.error("Granted projects cannot change their considered Hackatime range.");
+      return;
+    }
+    if (!editableRange.ok) {
+      toast.error(editableRange.error);
+      return;
+    }
+
+    setRangeSaving(true);
+    const toastId = toast.loading("Saving considered range…");
+    try {
+      const res = await fetch(`/api/admin/projects/${encodeURIComponent(project.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ consideredHackatimeRange: editableRange.value }),
+      });
+      const data = (await res.json().catch(() => null)) as
+        | {
+            project?: {
+              status?: ProjectStatus;
+              approvedHours?: number | null;
+              hackatimeStartedAt?: string | null;
+              hackatimeStoppedAt?: string | null;
+              hackatimeTotalSeconds?: number | null;
+              submittedAt?: string | null;
+            };
+            notice?: unknown;
+            error?: unknown;
+          }
+        | null;
+      if (!res.ok) {
+        const message = typeof data?.error === "string" ? data.error : "Failed to save considered range.";
+        toast.error(message, { id: toastId });
+        setRangeSaving(false);
+        return;
+      }
+
+      setProject((prev) => ({
+        ...prev,
+        status: (data?.project?.status ?? prev.status) as ProjectStatus,
+        approvedHours:
+          data?.project?.approvedHours !== undefined ? data.project.approvedHours ?? null : prev.approvedHours,
+        hackatimeStartedAt:
+          data?.project?.hackatimeStartedAt !== undefined
+            ? data.project.hackatimeStartedAt
+            : prev.hackatimeStartedAt,
+        hackatimeStoppedAt:
+          data?.project?.hackatimeStoppedAt !== undefined
+            ? data.project.hackatimeStoppedAt
+            : prev.hackatimeStoppedAt,
+        hackatimeHours:
+          typeof data?.project?.hackatimeTotalSeconds === "number"
+            ? {
+                hours: Math.floor(data.project.hackatimeTotalSeconds / 3600),
+                minutes: Math.floor(data.project.hackatimeTotalSeconds / 60) % 60,
+              }
+            : prev.hackatimeHours,
+        submittedAt:
+          data?.project?.submittedAt !== undefined ? data.project.submittedAt ?? null : prev.submittedAt,
+      }));
+      setRangeStartDate(toDateInputValue(data?.project?.hackatimeStartedAt ?? null));
+      setRangeEndDate(toDateInputValue(data?.project?.hackatimeStoppedAt ?? null));
+      const notice = typeof data?.notice === "string" ? data.notice : null;
+      toast.success(notice ?? "Updated.", { id: toastId });
+      setRangeSaving(false);
+    } catch {
+      toast.error("Failed to save considered range.", { id: toastId });
+      setRangeSaving(false);
+    }
+  }, [editableRange, project.id, project.status]);
 
   const setStatus = useCallback(
     async (status: Extract<ProjectStatus, "shipped" | "granted" | "in-review">) => {
@@ -367,6 +556,64 @@ export default function AdminGrantClient({
               <div className="text-sm text-muted-foreground">Considered Hackatime range</div>
               <div className="text-foreground font-semibold">{canonicalProjectRangeLabel}</div>
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-muted px-4 py-4 space-y-3">
+            <div>
+              <div className="text-foreground font-semibold">Edit considered Hackatime range</div>
+              <div className="text-sm text-muted-foreground mt-1">
+                Adjust the project’s canonical Hackatime window and refresh the stored hours.
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="block">
+                <div className="text-xs text-muted-foreground mb-1">Start date</div>
+                <input
+                  type="date"
+                  value={rangeStartDate}
+                  onChange={(e) => setRangeStartDate(e.target.value)}
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  disabled={rangeSaving || project.status === "granted"}
+                />
+              </label>
+              <label className="block">
+                <div className="text-xs text-muted-foreground mb-1">End date</div>
+                <input
+                  type="date"
+                  value={rangeEndDate}
+                  onChange={(e) => setRangeEndDate(e.target.value)}
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  disabled={rangeSaving || project.status === "granted"}
+                />
+              </label>
+            </div>
+            {!editableRange.ok ? (
+              <div className="text-xs text-red-200">{editableRange.error}</div>
+            ) : null}
+            {rangePreviewLoading ? (
+              <div className="text-xs text-muted-foreground">Refreshing Hackatime hours…</div>
+            ) : null}
+            {rangePreviewError ? (
+              <div className="text-xs text-red-200">{rangePreviewError}</div>
+            ) : null}
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+              <div className="text-muted-foreground">
+                Previewed Hackatime hours: <span className="text-foreground font-semibold">{previewHoursLabel}</span>
+              </div>
+              <button
+                type="button"
+                onClick={onSaveRange}
+                disabled={rangeSaving || project.status === "granted" || !editableRange.ok}
+                className="inline-flex items-center justify-center bg-background hover:bg-background/80 disabled:bg-background/50 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border"
+              >
+                {rangeSaving ? "Saving…" : "Save range"}
+              </button>
+            </div>
+            {project.status === "granted" ? (
+              <div className="text-xs text-muted-foreground">
+                Granted projects keep their final Hackatime range locked.
+              </div>
+            ) : null}
           </div>
 
           <div className="rounded-2xl border border-border bg-muted px-4 py-4 space-y-3">

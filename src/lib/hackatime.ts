@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { user } from "@/db/schema";
-import type { ConsideredHackatimeRange } from "@/lib/hackatime-range";
+import { toUtcBoundaryDate, type ConsideredHackatimeRange } from "@/lib/hackatime-range";
 
 type HackatimeProjectsResponse = {
   projects?: {
@@ -26,6 +26,18 @@ export type HackatimeProjectSummary = {
   totalSeconds: number;
   startedAt: string | null;
   stoppedAt: string | null;
+};
+
+export type HackatimeHoursBreakdown = {
+  hours: number;
+  minutes: number;
+};
+
+export type RefreshedHackatimeSnapshot = {
+  hackatimeStartedAt: Date;
+  hackatimeStoppedAt: Date;
+  hackatimeTotalSeconds: number;
+  hours: HackatimeHoursBreakdown;
 };
 
 type AuthenticatedProjectsQuery = {
@@ -109,6 +121,17 @@ function toEpochMsOrZero(value: string | null) {
   if (!value) return 0;
   const ms = new Date(value).getTime();
   return Number.isFinite(ms) ? ms : 0;
+}
+
+export function toHackatimeHoursBreakdown(totalSeconds: number): HackatimeHoursBreakdown {
+  const safeTotalSeconds =
+    typeof totalSeconds === "number" && Number.isFinite(totalSeconds)
+      ? Math.max(0, Math.floor(totalSeconds))
+      : 0;
+  return {
+    hours: Math.floor(safeTotalSeconds / 3600),
+    minutes: Math.floor(safeTotalSeconds / 60) % 60,
+  };
 }
 
 export async function getHackatimeAccessTokenForUser(userId: string): Promise<string | null> {
@@ -215,6 +238,34 @@ export async function fetchHackatimeProjectTotalSecondsForRange(
 
   return {
     totalSeconds: matched?.totalSeconds ?? 0,
+  };
+}
+
+export async function refreshHackatimeProjectSnapshotForRange(
+  userId: string,
+  input: { projectName: string; range: ConsideredHackatimeRange },
+): Promise<RefreshedHackatimeSnapshot> {
+  const projectName = input.projectName.trim();
+  if (!projectName) {
+    throw new Error("Select a Hackatime project before refreshing the considered range.");
+  }
+
+  const hackatimeStartedAt = toUtcBoundaryDate(input.range.startDate, "start");
+  const hackatimeStoppedAt = toUtcBoundaryDate(input.range.endDate, "end");
+  if (!hackatimeStartedAt || !hackatimeStoppedAt) {
+    throw new Error("Choose a valid considered Hackatime range before refreshing.");
+  }
+
+  const refreshed = await fetchHackatimeProjectTotalSecondsForRange(userId, {
+    projectName,
+    range: input.range,
+  });
+
+  return {
+    hackatimeStartedAt,
+    hackatimeStoppedAt,
+    hackatimeTotalSeconds: refreshed.totalSeconds,
+    hours: toHackatimeHoursBreakdown(refreshed.totalSeconds),
   };
 }
 

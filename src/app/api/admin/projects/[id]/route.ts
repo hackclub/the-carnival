@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { peerReview, project, tokenLedger, user, type ProjectStatus, type ReviewDecision } from "@/db/schema";
+import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
+import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
 import { getServerSession } from "@/lib/server-session";
+import { approvedHoursWithinSnapshot } from "@/lib/review-rules";
 import { tokensForApprovedHours } from "@/lib/tokens";
 import { generateId, isUniqueConstraintError } from "@/lib/api-utils";
 import {
@@ -16,6 +19,7 @@ import { hydrateReviewJustification } from "@/lib/review-justification";
 
 type AdminProjectPatchBody = {
   status?: unknown;
+  consideredHackatimeRange?: unknown;
 };
 
 function isAdmin(role: unknown): role is "admin" {
@@ -29,6 +33,10 @@ function isAdminEditableStatus(value: unknown): value is ProjectStatus {
     value === "shipped" ||
     value === "granted"
   );
+}
+
+function hasOwnProperty<T extends object>(value: T, key: PropertyKey) {
+  return Object.prototype.hasOwnProperty.call(value, key);
 }
 
 type IdentityGrantProfile = {
@@ -323,7 +331,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  if (!isAdminEditableStatus(body.status)) {
+  const hasStatusUpdate = hasOwnProperty(body, "status");
+  const hasRangeUpdate = hasOwnProperty(body, "consideredHackatimeRange");
+  if (!hasStatusUpdate && !hasRangeUpdate) {
+    return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+  }
+  if (hasStatusUpdate && !isAdminEditableStatus(body.status)) {
     return NextResponse.json(
       { error: "Invalid status. Allowed: work-in-progress, in-review, shipped, granted" },
       { status: 400 },
@@ -331,7 +344,127 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   const now = new Date();
-  const nextStatus = body.status;
+  const nextStatus = hasStatusUpdate ? (body.status as ProjectStatus) : undefined;
+
+  if (hasRangeUpdate) {
+    const parsedRange = parseConsideredHackatimeRange(body.consideredHackatimeRange);
+    if (!parsedRange.ok) {
+      return NextResponse.json({ error: parsedRange.error }, { status: 400 });
+    }
+
+    const rows = await db
+      .select({
+        id: project.id,
+        status: project.status,
+        creatorId: project.creatorId,
+        approvedHours: project.approvedHours,
+        hackatimeProjectName: project.hackatimeProjectName,
+        hackatimeStartedAt: project.hackatimeStartedAt,
+        hackatimeStoppedAt: project.hackatimeStoppedAt,
+        hackatimeTotalSeconds: project.hackatimeTotalSeconds,
+        submittedAt: project.submittedAt,
+      })
+      .from(project)
+      .where(eq(project.id, id))
+      .limit(1);
+
+    const current = rows[0];
+    if (!current) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    if (current.status === "granted") {
+      return NextResponse.json(
+        { error: "Granted projects cannot change their considered Hackatime range." },
+        { status: 409 },
+      );
+    }
+    if (!current.creatorId) {
+      return NextResponse.json(
+        { error: "Project has no creator; cannot refresh the considered Hackatime range." },
+        { status: 409 },
+      );
+    }
+    if (!current.hackatimeProjectName.trim()) {
+      return NextResponse.json(
+        { error: "Project has no Hackatime project name to refresh." },
+        { status: 400 },
+      );
+    }
+
+    try {
+      const refreshed = await refreshHackatimeProjectSnapshotForRange(current.creatorId, {
+        projectName: current.hackatimeProjectName,
+        range: parsedRange.value,
+      });
+
+      let statusAfter = current.status;
+      let approvedHoursAfter = current.approvedHours;
+      let notice: string | null = null;
+
+      if (
+        current.status === "shipped" &&
+        current.approvedHours !== null &&
+        !approvedHoursWithinSnapshot(current.approvedHours, refreshed.hackatimeTotalSeconds)
+      ) {
+        statusAfter = "in-review";
+        approvedHoursAfter = null;
+        notice =
+          "Saved changes and returned the project to review because the refreshed Hackatime range is now below the previously approved hours.";
+      }
+
+      const updated = await db
+        .update(project)
+        .set({
+          hackatimeStartedAt: refreshed.hackatimeStartedAt,
+          hackatimeStoppedAt: refreshed.hackatimeStoppedAt,
+          hackatimeTotalSeconds: refreshed.hackatimeTotalSeconds,
+          status: statusAfter,
+          approvedHours: approvedHoursAfter,
+          submittedAt: statusAfter === "in-review" ? now : current.submittedAt,
+          updatedAt: now,
+        })
+        .where(eq(project.id, id))
+        .returning({
+          id: project.id,
+          status: project.status,
+          approvedHours: project.approvedHours,
+          hackatimeStartedAt: project.hackatimeStartedAt,
+          hackatimeStoppedAt: project.hackatimeStoppedAt,
+          hackatimeTotalSeconds: project.hackatimeTotalSeconds,
+          submittedAt: project.submittedAt,
+          updatedAt: project.updatedAt,
+        });
+
+      const updatedProject = updated[0];
+      if (!updatedProject) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+
+      return NextResponse.json({
+        project: {
+          ...updatedProject,
+          hackatimeStartedAt: updatedProject.hackatimeStartedAt
+            ? updatedProject.hackatimeStartedAt.toISOString()
+            : null,
+          hackatimeStoppedAt: updatedProject.hackatimeStoppedAt
+            ? updatedProject.hackatimeStoppedAt.toISOString()
+            : null,
+          submittedAt: updatedProject.submittedAt ? updatedProject.submittedAt.toISOString() : null,
+          updatedAt: updatedProject.updatedAt.toISOString(),
+        },
+        notice,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : "Failed to refresh Hackatime for the selected range.";
+      return NextResponse.json(
+        { error: `Could not refresh the considered Hackatime range. ${message}` },
+        { status: 400 },
+      );
+    }
+  }
 
   try {
     // If granting, create the Airtable record first. If Airtable fails, we abort the grant
