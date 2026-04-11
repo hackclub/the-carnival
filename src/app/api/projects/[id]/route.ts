@@ -8,11 +8,10 @@ import {
   type ProjectStatus,
   type ProjectSubmissionChecklist,
 } from "@/db/schema";
-import { fetchHackatimeProjectTotalSecondsForRange } from "@/lib/hackatime";
+import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
 import {
   getProjectConsideredHackatimeRange,
   parseConsideredHackatimeRange,
-  toUtcBoundaryDate,
   type ConsideredHackatimeRange,
 } from "@/lib/hackatime-range";
 import {
@@ -22,6 +21,7 @@ import {
 import { validateCreatorOriginalityDeclaration } from "@/lib/project-originality";
 import { normalizeCategory, normalizeProjectTags } from "@/lib/project-taxonomy";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
+import { approvedHoursWithinSnapshot } from "@/lib/review-rules";
 import { getServerSession } from "@/lib/server-session";
 import { notifyReviewDM } from "@/lib/slack";
 
@@ -268,6 +268,30 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     consideredHackatimeRange = parsedRange.value;
   }
 
+  let refreshedHackatimeSnapshot: {
+    hackatimeStartedAt: Date;
+    hackatimeStoppedAt: Date;
+    hackatimeTotalSeconds: number;
+  } | null = null;
+  let refreshedHackatimeTotalSeconds: number | null = null;
+
+  async function refreshHackatimeSnapshot(range: ConsideredHackatimeRange, projectName: string) {
+    const refreshed = await refreshHackatimeProjectSnapshotForRange(userId!, {
+      projectName,
+      range,
+    });
+    refreshedHackatimeSnapshot = {
+      hackatimeStartedAt: refreshed.hackatimeStartedAt,
+      hackatimeStoppedAt: refreshed.hackatimeStoppedAt,
+      hackatimeTotalSeconds: refreshed.hackatimeTotalSeconds,
+    };
+    refreshedHackatimeTotalSeconds = refreshed.hackatimeTotalSeconds;
+    set.hackatimeStartedAt = refreshed.hackatimeStartedAt;
+    set.hackatimeStoppedAt = refreshed.hackatimeStoppedAt;
+    set.hackatimeTotalSeconds = refreshed.hackatimeTotalSeconds;
+    return refreshed;
+  }
+
   const editorRaw =
     body.editor !== undefined
       ? typeof body.editor === "string"
@@ -323,6 +347,32 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
   if (body.hackatimeTotalSeconds !== undefined) {
     set.hackatimeTotalSeconds = toOptionalNonNegativeInt(body.hackatimeTotalSeconds);
+  }
+
+  const nextHackatimeProjectName = (set.hackatimeProjectName ?? current.hackatimeProjectName).trim();
+  if (consideredHackatimeRange) {
+    if (!nextHackatimeProjectName) {
+      return NextResponse.json(
+        { error: "Select a Hackatime project before choosing the considered range." },
+        { status: 400 },
+      );
+    }
+    try {
+      await refreshHackatimeSnapshot(consideredHackatimeRange, nextHackatimeProjectName);
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : "Failed to refresh Hackatime for the selected project range.";
+      return NextResponse.json(
+        { error: `Could not refresh the considered Hackatime range. ${message}` },
+        { status: 400 },
+      );
+    }
+  } else if (body.hackatimeProjectName !== undefined && !nextHackatimeProjectName) {
+    set.hackatimeStartedAt = null;
+    set.hackatimeStoppedAt = null;
+    set.hackatimeTotalSeconds = null;
   }
 
   if (body.videoUrl !== undefined) {
@@ -474,7 +524,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (nextStatus === "in-review") {
     const nextName = (set.name ?? current.name).trim();
     const nextDescription = (set.description ?? current.description).trim();
-    const nextHackatime = (set.hackatimeProjectName ?? current.hackatimeProjectName).trim();
+    const nextHackatime = nextHackatimeProjectName;
     const nextVideo = (set.videoUrl ?? current.videoUrl).trim();
     const nextPlayableDemo = (set.playableDemoUrl ?? current.playableDemoUrl).trim();
     const nextCodeUrl = (set.codeUrl ?? current.codeUrl).trim();
@@ -598,13 +648,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       }
 
       try {
-        const refreshed = await fetchHackatimeProjectTotalSecondsForRange(userId, {
-          projectName: nextHackatime,
-          range: rangeForSubmission,
-        });
-        set.hackatimeStartedAt = toUtcBoundaryDate(rangeForSubmission.startDate, "start");
-        set.hackatimeStoppedAt = toUtcBoundaryDate(rangeForSubmission.endDate, "end");
-        set.hackatimeTotalSeconds = refreshed.totalSeconds;
+        if (!refreshedHackatimeSnapshot) {
+          await refreshHackatimeSnapshot(rangeForSubmission, nextHackatime);
+        }
       } catch (error) {
         const message =
           error instanceof Error && error.message.trim()
@@ -621,6 +667,23 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     if (current.status !== "in-review") {
       set.submittedAt = new Date();
     }
+  }
+
+  const nextResolvedStatus = (set.status ?? current.status) as ProjectStatus;
+  let notice: string | null = null;
+  if (
+    refreshedHackatimeSnapshot &&
+    current.status === "shipped" &&
+    nextResolvedStatus === "shipped" &&
+    current.approvedHours !== null &&
+    refreshedHackatimeTotalSeconds !== null &&
+    !approvedHoursWithinSnapshot(current.approvedHours, refreshedHackatimeTotalSeconds)
+  ) {
+    set.status = "in-review";
+    set.approvedHours = null;
+    set.submittedAt = new Date();
+    notice =
+      "Saved changes and returned the project to review because the refreshed Hackatime range is now below the previously approved hours.";
   }
 
   if (Object.keys(set).length === 0) {
@@ -698,7 +761,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     }
   }
 
-  return NextResponse.json({ project: p });
+  return NextResponse.json({ project: p, notice });
 }
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {

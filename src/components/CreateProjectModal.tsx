@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
+import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
 import { MIN_CREATOR_ORIGINALITY_RATIONALE_LENGTH } from "@/lib/project-originality";
 
 const EDITOR_OPTIONS = [
@@ -44,6 +45,10 @@ type CreateProjectPayload = {
   creatorDeclaredOriginality: boolean;
   creatorDuplicateExplanation: string;
   creatorOriginalityRationale: string;
+  consideredHackatimeRange?: {
+    startDate: string;
+    endDate: string;
+  };
 };
 
 type HackatimeProjectOption = {
@@ -51,6 +56,13 @@ type HackatimeProjectOption = {
   startedAt: string | null;
   stoppedAt: string | null;
   totalSeconds: number;
+};
+
+type HackatimePreview = {
+  hackatimeStartedAt: string | null;
+  hackatimeStoppedAt: string | null;
+  hackatimeTotalSeconds: number | null;
+  hackatimeHours: { hours: number; minutes: number } | null;
 };
 
 function cleanString(value: FormDataEntryValue | null) {
@@ -77,6 +89,29 @@ function toLocalDateTime(value: string | null) {
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
 }
 
+function toDateInputValue(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+}
+
+function toHoursMinutes(totalSeconds: number | null) {
+  const safeTotalSeconds =
+    typeof totalSeconds === "number" && Number.isFinite(totalSeconds)
+      ? Math.max(0, Math.floor(totalSeconds))
+      : 0;
+  return {
+    hours: Math.floor(safeTotalSeconds / 3600),
+    minutes: Math.floor(safeTotalSeconds / 60) % 60,
+  };
+}
+
+function formatHoursMinutes(hours: number, minutes: number) {
+  const safeHours = Number.isFinite(hours) ? Math.max(0, Math.floor(hours)) : 0;
+  const safeMinutes = Number.isFinite(minutes) ? Math.max(0, Math.floor(minutes)) : 0;
+  return `${safeHours}h${String(safeMinutes).padStart(2, "0")}m`;
+}
+
 export default function CreateProjectModal({
   categorySuggestions = [],
   tagSuggestions = [],
@@ -97,6 +132,12 @@ export default function CreateProjectModal({
   const [hackatimeError, setHackatimeError] = useState<string | null>(null);
   const [hackatimeConnectUrl, setHackatimeConnectUrl] = useState<string | null>(null);
   const [selectedHackatime, setSelectedHackatime] = useState<HackatimeProjectOption | null>(null);
+  const [hackatimeProjectName, setHackatimeProjectName] = useState("");
+  const [consideredRangeStartDate, setConsideredRangeStartDate] = useState("");
+  const [consideredRangeEndDate, setConsideredRangeEndDate] = useState("");
+  const [hackatimePreview, setHackatimePreview] = useState<HackatimePreview | null>(null);
+  const [hackatimePreviewLoading, setHackatimePreviewLoading] = useState(false);
+  const [hackatimePreviewError, setHackatimePreviewError] = useState<string | null>(null);
   const [editor, setEditor] = useState<(typeof EDITOR_OPTIONS)[number]["value"]>("vscode");
   const [category, setCategory] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -149,6 +190,13 @@ export default function CreateProjectModal({
       setOriginalityDeclaration("");
       setDuplicateExplanation("");
       setOriginalityRationale("");
+      setSelectedHackatime(null);
+      setHackatimeProjectName("");
+      setConsideredRangeStartDate("");
+      setConsideredRangeEndDate("");
+      setHackatimePreview(null);
+      setHackatimePreviewLoading(false);
+      setHackatimePreviewError(null);
       clearNewParam();
     };
 
@@ -161,6 +209,120 @@ export default function CreateProjectModal({
       e.currentTarget.close();
     }
   }, []);
+
+  const consideredHackatimeRange = useMemo(
+    () =>
+      parseConsideredHackatimeRange({
+        startDate: consideredRangeStartDate,
+        endDate: consideredRangeEndDate,
+      }),
+    [consideredRangeEndDate, consideredRangeStartDate],
+  );
+
+  const hackatimeHoursLabel = useMemo(() => {
+    if (!hackatimePreview?.hackatimeHours) return "—";
+    return formatHoursMinutes(hackatimePreview.hackatimeHours.hours, hackatimePreview.hackatimeHours.minutes);
+  }, [hackatimePreview]);
+
+  useEffect(() => {
+    if (!hackatimeProjectName) {
+      setHackatimePreview(null);
+      setHackatimePreviewLoading(false);
+      setHackatimePreviewError(null);
+      return;
+    }
+
+    if (!consideredHackatimeRange.ok) {
+      setHackatimePreviewLoading(false);
+      setHackatimePreviewError(
+        consideredRangeStartDate || consideredRangeEndDate ? consideredHackatimeRange.error : null,
+      );
+      return;
+    }
+
+    const selectedDefaultStartDate = toDateInputValue(selectedHackatime?.startedAt ?? null);
+    const selectedDefaultEndDate = toDateInputValue(selectedHackatime?.stoppedAt ?? null);
+    if (
+      selectedHackatime &&
+      selectedHackatime.name === hackatimeProjectName &&
+      selectedDefaultStartDate === consideredHackatimeRange.value.startDate &&
+      selectedDefaultEndDate === consideredHackatimeRange.value.endDate
+    ) {
+      setHackatimePreview({
+        hackatimeStartedAt: selectedHackatime.startedAt,
+        hackatimeStoppedAt: selectedHackatime.stoppedAt,
+        hackatimeTotalSeconds: selectedHackatime.totalSeconds,
+        hackatimeHours: toHoursMinutes(selectedHackatime.totalSeconds),
+      });
+      setHackatimePreviewLoading(false);
+      setHackatimePreviewError(null);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setHackatimePreviewLoading(true);
+      setHackatimePreviewError(null);
+      try {
+        const res = await fetch("/api/hackatime/projects/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            hackatimeProjectName,
+            consideredHackatimeRange: consideredHackatimeRange.value,
+          }),
+        });
+        const data = (await res.json().catch(() => null)) as
+          | {
+              project?: {
+                hackatimeStartedAt?: string | null;
+                hackatimeStoppedAt?: string | null;
+                hackatimeTotalSeconds?: number | null;
+                hackatimeHours?: { hours?: number; minutes?: number } | null;
+              };
+              error?: unknown;
+            }
+          | null;
+        if (cancelled) return;
+        if (!res.ok) {
+          const message =
+            typeof data?.error === "string" ? data.error : "Failed to refresh Hackatime hours.";
+          setHackatimePreviewError(message);
+          setHackatimePreviewLoading(false);
+          return;
+        }
+        const hours = data?.project?.hackatimeHours;
+        setHackatimePreview({
+          hackatimeStartedAt: data?.project?.hackatimeStartedAt ?? null,
+          hackatimeStoppedAt: data?.project?.hackatimeStoppedAt ?? null,
+          hackatimeTotalSeconds:
+            typeof data?.project?.hackatimeTotalSeconds === "number"
+              ? data.project.hackatimeTotalSeconds
+              : null,
+          hackatimeHours:
+            hours && typeof hours.hours === "number" && typeof hours.minutes === "number"
+              ? { hours: hours.hours, minutes: hours.minutes }
+              : null,
+        });
+        setHackatimePreviewLoading(false);
+      } catch {
+        if (cancelled) return;
+        setHackatimePreviewError("Failed to refresh Hackatime hours.");
+        setHackatimePreviewLoading(false);
+      }
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [
+    consideredHackatimeRange,
+    consideredRangeEndDate,
+    consideredRangeStartDate,
+    hackatimeProjectName,
+    selectedHackatime,
+  ]);
 
   const onSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -175,9 +337,6 @@ export default function CreateProjectModal({
       const editorOther = cleanString(fd.get("editorOther"));
       const categoryValue = cleanString(fd.get("category"));
       const tagsValue = cleanString(fd.get("tags"));
-      const hackatimeProjectName = cleanString(fd.get("hackatimeProjectName"));
-      const selectedHackatimeByName =
-        hackatimeProjects?.find((p) => p.name === hackatimeProjectName) ?? selectedHackatime;
       const videoUrl = cleanString(fd.get("videoUrl"));
       const playableDemoUrl = cleanString(fd.get("playableDemoUrl"));
       const codeUrl = cleanString(fd.get("codeUrl"));
@@ -217,6 +376,11 @@ export default function CreateProjectModal({
         setIsSubmitting(false);
         return;
       }
+      if (hackatimeProjectName && !consideredHackatimeRange.ok) {
+        setError(consideredHackatimeRange.error);
+        setIsSubmitting(false);
+        return;
+      }
 
       const payload: CreateProjectPayload = {
         name,
@@ -226,9 +390,9 @@ export default function CreateProjectModal({
         category: categoryValue,
         tags: tagsValue,
         hackatimeProjectName,
-        hackatimeStartedAt: selectedHackatimeByName?.startedAt ?? null,
-        hackatimeStoppedAt: selectedHackatimeByName?.stoppedAt ?? null,
-        hackatimeTotalSeconds: selectedHackatimeByName?.totalSeconds ?? null,
+        hackatimeStartedAt: hackatimePreview?.hackatimeStartedAt ?? null,
+        hackatimeStoppedAt: hackatimePreview?.hackatimeStoppedAt ?? null,
+        hackatimeTotalSeconds: hackatimePreview?.hackatimeTotalSeconds ?? null,
         videoUrl,
         playableDemoUrl,
         codeUrl,
@@ -238,6 +402,10 @@ export default function CreateProjectModal({
           originalityDeclarationValue === "overlap" ? creatorDuplicateExplanation : "",
         creatorOriginalityRationale:
           originalityDeclarationValue === "overlap" ? creatorOriginalityRationale : "",
+        consideredHackatimeRange:
+          hackatimeProjectName && consideredHackatimeRange.ok
+            ? consideredHackatimeRange.value
+            : undefined,
       };
 
       try {
@@ -265,7 +433,13 @@ export default function CreateProjectModal({
         setIsSubmitting(false);
       }
     },
-    [hackatimeProjects, router, screenshotUrls, selectedHackatime],
+    [
+      consideredHackatimeRange,
+      hackatimePreview,
+      hackatimeProjectName,
+      router,
+      screenshotUrls,
+    ],
   );
 
   const addScreenshotField = useCallback(() => {
@@ -364,11 +538,17 @@ export default function CreateProjectModal({
   );
 
   const pickHackatimeProject = useCallback((project: HackatimeProjectOption) => {
-    const input = document.querySelector(
-      'input[name="hackatimeProjectName"]',
-    ) as HTMLInputElement | null;
-    if (input) input.value = project.name;
     setSelectedHackatime(project);
+    setHackatimeProjectName(project.name);
+    setConsideredRangeStartDate(toDateInputValue(project.startedAt));
+    setConsideredRangeEndDate(toDateInputValue(project.stoppedAt));
+    setHackatimePreview({
+      hackatimeStartedAt: project.startedAt,
+      hackatimeStoppedAt: project.stoppedAt,
+      hackatimeTotalSeconds: project.totalSeconds,
+      hackatimeHours: toHoursMinutes(project.totalSeconds),
+    });
+    setHackatimePreviewError(null);
     hackatimeDetailsRef.current?.removeAttribute("open");
   }, []);
 
@@ -568,23 +748,65 @@ export default function CreateProjectModal({
               <input
                 name="hackatimeProjectName"
                 readOnly
+                value={hackatimeProjectName}
                 className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
                 placeholder="Pick from the list below (or add later)"
               />
-              <input type="hidden" name="hackatimeStartedAt" value={selectedHackatime?.startedAt ?? ""} />
-              <input type="hidden" name="hackatimeStoppedAt" value={selectedHackatime?.stoppedAt ?? ""} />
+              <input type="hidden" name="hackatimeStartedAt" value={hackatimePreview?.hackatimeStartedAt ?? ""} />
+              <input type="hidden" name="hackatimeStoppedAt" value={hackatimePreview?.hackatimeStoppedAt ?? ""} />
               <input
                 type="hidden"
                 name="hackatimeTotalSeconds"
-                value={selectedHackatime ? String(selectedHackatime.totalSeconds) : ""}
+                value={
+                  typeof hackatimePreview?.hackatimeTotalSeconds === "number"
+                    ? String(hackatimePreview.hackatimeTotalSeconds)
+                    : ""
+                }
               />
               <div className="text-xs text-muted-foreground">
                 You can’t type here — choose a project from the dropdown below.
               </div>
-              {selectedHackatime ? (
-                <div className="text-xs text-muted-foreground rounded-xl border border-border bg-muted px-3 py-2">
-                  Started: {toLocalDateTime(selectedHackatime.startedAt)} • Stopped:{" "}
-                  {toLocalDateTime(selectedHackatime.stoppedAt)}
+              {hackatimeProjectName ? (
+                <div className="rounded-xl border border-border bg-muted px-3 py-3 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="block">
+                      <div className="text-xs text-muted-foreground mb-1">Considered start date</div>
+                      <input
+                        type="date"
+                        value={consideredRangeStartDate}
+                        onChange={(e) => setConsideredRangeStartDate(e.target.value)}
+                        className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                      />
+                    </label>
+                    <label className="block">
+                      <div className="text-xs text-muted-foreground mb-1">Considered end date</div>
+                      <input
+                        type="date"
+                        value={consideredRangeEndDate}
+                        onChange={(e) => setConsideredRangeEndDate(e.target.value)}
+                        className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                      />
+                    </label>
+                  </div>
+                  {!consideredHackatimeRange.ok ? (
+                    <div className="text-xs text-red-200">{consideredHackatimeRange.error}</div>
+                  ) : null}
+                  <div className="text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-2">
+                    <span>
+                      Considered Hackatime hours:{" "}
+                      <span className="text-foreground font-semibold">{hackatimeHoursLabel}</span>
+                    </span>
+                    {hackatimePreviewLoading ? (
+                      <span>Refreshing…</span>
+                    ) : null}
+                  </div>
+                  {hackatimePreviewError ? (
+                    <div className="text-xs text-red-200">{hackatimePreviewError}</div>
+                  ) : null}
+                  <div className="text-xs text-muted-foreground">
+                    Started: {toLocalDateTime(hackatimePreview?.hackatimeStartedAt ?? null)} • Stopped:{" "}
+                    {toLocalDateTime(hackatimePreview?.hackatimeStoppedAt ?? null)}
+                  </div>
                 </div>
               ) : null}
 
@@ -795,7 +1017,7 @@ export default function CreateProjectModal({
             <button
               type="submit"
               className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-full font-bold transition-colors"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !!hackatimeProjectName && !consideredHackatimeRange.ok}
             >
               {isSubmitting ? "Creating…" : "Create project"}
             </button>

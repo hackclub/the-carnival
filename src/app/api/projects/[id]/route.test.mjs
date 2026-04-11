@@ -157,9 +157,17 @@ mock.module("@/lib/frozen-account", () => ({
   getFrozenAccountMessage: () => "Frozen",
 }));
 mock.module("@/lib/hackatime", () => ({
-  fetchHackatimeProjectTotalSecondsForRange: async (...args) => {
+  refreshHackatimeProjectSnapshotForRange: async (...args) => {
     state.rangeFetchCalls.push(args);
-    return { totalSeconds: state.rangeFetchTotalSeconds };
+    return {
+      hackatimeStartedAt: new Date(`${args[1].range.startDate}T00:00:00.000Z`),
+      hackatimeStoppedAt: new Date(`${args[1].range.endDate}T23:59:59.999Z`),
+      hackatimeTotalSeconds: state.rangeFetchTotalSeconds,
+      hours: {
+        hours: Math.floor(state.rangeFetchTotalSeconds / 3600),
+        minutes: Math.floor(state.rangeFetchTotalSeconds / 60) % 60,
+      },
+    };
   },
 }));
 mock.module("@/lib/slack", () => ({
@@ -215,5 +223,57 @@ describe("PATCH /api/projects/[id]", () => {
     expect(state.updateSets[0].submittedAt).toBeInstanceOf(Date);
     expect(json.project.hackatimeTotalSeconds).toBe(5400);
     expect(json.project.status).toBe("in-review");
+  });
+
+  test("refreshes Hackatime when the considered range changes on an ordinary save", async () => {
+    state.updatedProjectRow.status = "work-in-progress";
+
+    const { res, json } = await patchProject({
+      consideredHackatimeRange: {
+        startDate: "2026-03-12",
+        endDate: "2026-03-18",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(state.rangeFetchCalls).toEqual([
+      [
+        "creator-1",
+        {
+          projectName: "project-one",
+          range: {
+            startDate: "2026-03-12",
+            endDate: "2026-03-18",
+          },
+        },
+      ],
+    ]);
+    expect(state.updateSets[0].hackatimeStartedAt.toISOString()).toBe("2026-03-12T00:00:00.000Z");
+    expect(state.updateSets[0].hackatimeStoppedAt.toISOString()).toBe("2026-03-18T23:59:59.999Z");
+    expect(state.updateSets[0].hackatimeTotalSeconds).toBe(5400);
+    expect(json.project.status).toBe("work-in-progress");
+  });
+
+  test("returns shipped projects to review when refreshed Hackatime drops below approved hours", async () => {
+    state.currentProjectRow.status = "shipped";
+    state.currentProjectRow.approvedHours = 3;
+    state.currentProjectRow.submittedAt = new Date("2026-03-03T10:00:00.000Z");
+    state.updatedProjectRow.status = "in-review";
+    state.updatedProjectRow.approvedHours = null;
+    state.rangeFetchTotalSeconds = 2 * 3600;
+
+    const { res, json } = await patchProject({
+      consideredHackatimeRange: {
+        startDate: "2026-03-14",
+        endDate: "2026-03-15",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(state.updateSets[0].status).toBe("in-review");
+    expect(state.updateSets[0].approvedHours).toBeNull();
+    expect(state.updateSets[0].submittedAt).toBeInstanceOf(Date);
+    expect(json.project.status).toBe("in-review");
+    expect(json.notice).toContain("returned the project to review");
   });
 });
