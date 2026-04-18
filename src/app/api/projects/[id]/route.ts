@@ -148,6 +148,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       creatorDuplicateExplanation: project.creatorDuplicateExplanation,
       creatorOriginalityRationale: project.creatorOriginalityRationale,
       status: project.status,
+      startedOnCarnivalAt: project.startedOnCarnivalAt,
+      submittedAt: project.submittedAt,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
     })
@@ -729,6 +731,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       creatorDuplicateExplanation: project.creatorDuplicateExplanation,
       creatorOriginalityRationale: project.creatorOriginalityRationale,
       status: project.status,
+      startedOnCarnivalAt: project.startedOnCarnivalAt,
+      submittedAt: project.submittedAt,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
     });
