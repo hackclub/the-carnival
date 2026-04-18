@@ -117,9 +117,33 @@ export const project = pgTable("project", {
   }),
   // Admin-provided explanation surfaced to the creator in the dismissal banner.
   resubmissionBlockedReason: text("resubmission_blocked_reason"),
+  // Official project start as recorded on Carnival. Used as the lower bound of the
+  // Hackatime window considered during review. Set when the project is created.
+  startedOnCarnivalAt: timestamp("started_on_carnival_at"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
+
+export const devlog = pgTable(
+  "devlog",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (t) => ({
+    projectCreatedAtIdx: index("devlog_project_created_at_idx").on(t.projectId, t.createdAt),
+    userCreatedAtIdx: index("devlog_user_created_at_idx").on(t.userId, t.createdAt),
+  }),
+);
 
 export const peerReview = pgTable("peer_review", {
   id: text("id").primaryKey(),
