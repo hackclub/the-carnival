@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import ManageProjectClient from "@/components/ManageProjectClient";
+import ProjectDevlogsSummary, {
+  type DevlogSummary,
+} from "@/components/ProjectDevlogsSummary";
 import { db } from "@/db";
-import { peerReview, project, user, type ReviewDecision } from "@/db/schema";
+import { devlog, peerReview, project, user, type ReviewDecision } from "@/db/schema";
 import { hydrateReviewJustification } from "@/lib/review-justification";
 import { buildCategorySuggestions, buildTagSuggestions } from "@/lib/project-taxonomy";
 import { getServerSession } from "@/lib/server-session";
@@ -43,6 +46,9 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
       approvedHours: project.approvedHours,
       resubmissionBlocked: project.resubmissionBlocked,
       resubmissionBlockedReason: project.resubmissionBlockedReason,
+      startedOnCarnivalAt: project.startedOnCarnivalAt,
+      submittedAt: project.submittedAt,
+      createdAt: project.createdAt,
     })
     .from(project)
     .where(and(eq(project.id, id), eq(project.creatorId, session.user.id)))
@@ -82,12 +88,57 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
   const categorySuggestions = buildCategorySuggestions(taxonomyRows.map((row) => row.category));
   const tagSuggestions = buildTagSuggestions(taxonomyRows.map((row) => row.tags));
 
+  const recentDevlogs = await db
+    .select({
+      id: devlog.id,
+      title: devlog.title,
+      content: devlog.content,
+      createdAt: devlog.createdAt,
+      authorName: user.name,
+    })
+    .from(devlog)
+    .leftJoin(user, eq(devlog.userId, user.id))
+    .where(eq(devlog.projectId, id))
+    .orderBy(desc(devlog.createdAt), asc(devlog.id))
+    .limit(3);
+
+  const devlogCountRows = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(devlog)
+    .where(eq(devlog.projectId, id));
+  const devlogTotalCount = devlogCountRows[0]?.count ?? 0;
+
+  const devlogSummaries: DevlogSummary[] = recentDevlogs.map((row) => {
+    const text = row.content ?? "";
+    const excerpt = text.length > 240 ? `${text.slice(0, 240).trimEnd()}…` : text;
+    return {
+      id: row.id,
+      title: row.title,
+      createdAt: row.createdAt.toISOString(),
+      authorName: row.authorName || "Unknown",
+      excerpt,
+    };
+  });
+
+  const canWriteDevlog = p.status !== "granted";
+
   return (
     <AppShell title="Manage project">
       <div className="mb-6">
         <Link href="/projects" className="text-sm text-muted-foreground hover:text-foreground">
           ← Back to projects
         </Link>
+      </div>
+
+      <div className="mb-6">
+        <ProjectDevlogsSummary
+          projectId={p.id}
+          devlogs={devlogSummaries}
+          totalCount={devlogTotalCount}
+          canWrite={canWriteDevlog}
+          projectStartedAtIso={(p.startedOnCarnivalAt ?? p.createdAt).toISOString()}
+          submittedAtIso={p.submittedAt ? p.submittedAt.toISOString() : null}
+        />
       </div>
 
       <ManageProjectClient
