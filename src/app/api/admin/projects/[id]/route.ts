@@ -379,6 +379,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         resubmissionBlocked: nextBlocked,
         resubmissionBlockedAt: nextBlocked ? now : null,
         resubmissionBlockedBy: nextBlocked ? adminUserId : null,
+        ...(nextBlocked ? {} : { resubmissionBlockedReason: null }),
         updatedAt: now,
       })
       .where(eq(project.id, id))
