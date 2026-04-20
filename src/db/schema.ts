@@ -108,6 +108,13 @@ export const project = pgTable("project", {
   creatorOriginalityRationale: text("creator_originality_rationale"),
   // Set when a creator submits their project for review (status transitions to "in-review").
   submittedAt: timestamp("submitted_at"),
+  // When true, the creator cannot move this project back to "in-review". Set by an admin via
+  // "Reject and dismiss"; cleared by an admin from the dismissed-projects admin page.
+  resubmissionBlocked: boolean("resubmission_blocked").notNull().default(false),
+  resubmissionBlockedAt: timestamp("resubmission_blocked_at"),
+  resubmissionBlockedBy: text("resubmission_blocked_by").references(() => user.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
