@@ -126,6 +126,7 @@ export default function ReviewProjectClient({
   const [error, setError] = useState<string | null>(null);
   const [successAt, setSuccessAt] = useState<number | null>(null);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [showDismissConfirmationModal, setShowDismissConfirmationModal] = useState(false);
   const canonicalProjectRange = useMemo(
     () =>
       getProjectConsideredHackatimeRange({
@@ -394,12 +395,14 @@ export default function ReviewProjectClient({
     requestReviewJustification: ReviewJustificationDraft | null;
     optimisticReviewJustification: ReviewJustificationPayload | null;
     consideredHackatimeRange: ConsideredHackatimeRange | null;
+    dismiss?: boolean;
   }) => {
     setSubmitting(true);
     setError(null);
     setSuccessAt(null);
 
-    const toastId = toast.loading("Submitting review…");
+    const dismiss = input.dismiss === true;
+    const toastId = toast.loading(dismiss ? "Rejecting and dismissing…" : "Submitting review…");
     try {
       const res = await fetch(`/api/review/${encodeURIComponent(project.id)}`, {
         method: "POST",
@@ -410,6 +413,7 @@ export default function ReviewProjectClient({
           approvedHours: decision === "approved" ? approvedHoursValue : null,
           reviewJustification: input.requestReviewJustification,
           consideredHackatimeRange: input.consideredHackatimeRange,
+          ...(dismiss ? { dismiss: true } : {}),
         }),
       });
       const data = (await res.json().catch(() => null)) as
@@ -470,13 +474,17 @@ export default function ReviewProjectClient({
       setComment("");
       setDecision("comment");
       setShowConfirmationModal(false);
+      setShowDismissConfirmationModal(false);
       resetReviewJustificationDraft();
       setSuccessAt(Date.now());
-      toast.success("Review submitted.", { id: toastId });
+      toast.success(dismiss ? "Project rejected and dismissed." : "Review submitted.", {
+        id: toastId,
+      });
       setSubmitting(false);
     } catch {
-      setError("Failed to submit review.");
-      toast.error("Failed to submit review.", { id: toastId });
+      const failureMessage = dismiss ? "Failed to dismiss project." : "Failed to submit review.";
+      setError(failureMessage);
+      toast.error(failureMessage, { id: toastId });
       setSubmitting(false);
     }
   }, [
@@ -921,18 +929,102 @@ export default function ReviewProjectClient({
           </div>
         ) : null}
 
-        <div className="flex items-center justify-between gap-4 pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
           <div className="text-sm text-muted-foreground">{successAt ? "Submitted." : null}</div>
-          <button
-            type="button"
-            onClick={onSubmit}
-            disabled={!canSubmit}
-            className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-full font-bold transition-colors"
-          >
-            {submitting ? "Submitting…" : "Submit review"}
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            {isAdmin && decision === "rejected" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!canSubmit) return;
+                  setShowDismissConfirmationModal(true);
+                }}
+                disabled={!canSubmit}
+                className="inline-flex items-center justify-center border border-carnival-red/60 bg-carnival-red/10 hover:bg-carnival-red/20 disabled:opacity-50 disabled:cursor-not-allowed text-carnival-red px-6 py-3 rounded-full font-bold transition-colors"
+                title="Reject and prevent resubmission"
+              >
+                Reject and dismiss
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={!canSubmit}
+              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-full font-bold transition-colors"
+            >
+              {submitting ? "Submitting…" : "Submit review"}
+            </button>
+          </div>
         </div>
+        {isAdmin && decision === "rejected" ? (
+          <div className="text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">Reject and dismiss</span> rejects the
+            project and prevents the creator from resubmitting it. You can re-enable resubmission
+            later from the <span className="font-semibold text-foreground">Dismissed projects</span>{" "}
+            admin page.
+          </div>
+        ) : null}
       </div>
+
+      <Modal
+        open={showDismissConfirmationModal}
+        onClose={() => {
+          if (submitting) return;
+          setShowDismissConfirmationModal(false);
+        }}
+        title="Reject and dismiss project?"
+        description="The project will be moved to work-in-progress, and the creator will not be able to resubmit it for review."
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-foreground">
+            <div className="font-semibold mb-1">Heads up</div>
+            <div className="text-muted-foreground">
+              The creator will receive a rejection notice noting that the project was dismissed. An
+              admin can later re-enable resubmission from the{" "}
+              <span className="font-semibold text-foreground">Dismissed projects</span> admin page.
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+            <div className="font-semibold text-foreground mb-1">Reviewer comment</div>
+            <div className="whitespace-pre-wrap">{comment.trim() || "(empty — please add a comment before dismissing)"}</div>
+          </div>
+          {error ? (
+            <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
+              {error}
+            </div>
+          ) : null}
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                if (submitting) return;
+                setShowDismissConfirmationModal(false);
+              }}
+              disabled={submitting}
+              className="inline-flex items-center justify-center rounded-full border border-border bg-background px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!canSubmit) return;
+                void submitReview({
+                  requestReviewJustification: null,
+                  optimisticReviewJustification: null,
+                  consideredHackatimeRange: null,
+                  dismiss: true,
+                });
+              }}
+              disabled={!canSubmit}
+              className="inline-flex items-center justify-center rounded-full bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-5 py-2.5 text-sm font-bold transition-colors"
+            >
+              {submitting ? "Dismissing…" : "Reject and dismiss"}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={showConfirmationModal && decision === "approved"}
