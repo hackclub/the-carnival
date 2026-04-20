@@ -127,6 +127,7 @@ export default function ReviewProjectClient({
   const [successAt, setSuccessAt] = useState<number | null>(null);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showDismissConfirmationModal, setShowDismissConfirmationModal] = useState(false);
+  const [dismissReason, setDismissReason] = useState("");
   const canonicalProjectRange = useMemo(
     () =>
       getProjectConsideredHackatimeRange({
@@ -396,12 +397,14 @@ export default function ReviewProjectClient({
     optimisticReviewJustification: ReviewJustificationPayload | null;
     consideredHackatimeRange: ConsideredHackatimeRange | null;
     dismiss?: boolean;
+    dismissReason?: string;
   }) => {
     setSubmitting(true);
     setError(null);
     setSuccessAt(null);
 
     const dismiss = input.dismiss === true;
+    const trimmedDismissReason = dismiss ? (input.dismissReason ?? "").trim() : "";
     const toastId = toast.loading(dismiss ? "Rejecting and dismissing…" : "Submitting review…");
     try {
       const res = await fetch(`/api/review/${encodeURIComponent(project.id)}`, {
@@ -413,7 +416,7 @@ export default function ReviewProjectClient({
           approvedHours: decision === "approved" ? approvedHoursValue : null,
           reviewJustification: input.requestReviewJustification,
           consideredHackatimeRange: input.consideredHackatimeRange,
-          ...(dismiss ? { dismiss: true } : {}),
+          ...(dismiss ? { dismiss: true, dismissReason: trimmedDismissReason } : {}),
         }),
       });
       const data = (await res.json().catch(() => null)) as
@@ -475,6 +478,7 @@ export default function ReviewProjectClient({
       setDecision("comment");
       setShowConfirmationModal(false);
       setShowDismissConfirmationModal(false);
+      setDismissReason("");
       resetReviewJustificationDraft();
       setSuccessAt(Date.now());
       toast.success(dismiss ? "Project rejected and dismissed." : "Review submitted.", {
@@ -971,6 +975,7 @@ export default function ReviewProjectClient({
         onClose={() => {
           if (submitting) return;
           setShowDismissConfirmationModal(false);
+          setDismissReason("");
         }}
         title="Reject and dismiss project?"
         description="The project will be moved to work-in-progress, and the creator will not be able to resubmit it for review."
@@ -989,6 +994,25 @@ export default function ReviewProjectClient({
             <div className="font-semibold text-foreground mb-1">Reviewer comment</div>
             <div className="whitespace-pre-wrap">{comment.trim() || "(empty — please add a comment before dismissing)"}</div>
           </div>
+          <div className="space-y-2">
+            <label htmlFor="dismiss-reason" className="block text-sm font-semibold text-foreground">
+              Reason shown to the creator
+            </label>
+            <textarea
+              id="dismiss-reason"
+              value={dismissReason}
+              onChange={(event) => setDismissReason(event.target.value)}
+              rows={4}
+              maxLength={2000}
+              placeholder="Explain why this project is being dismissed. The creator will see this in the banner on their project page."
+              disabled={submitting}
+              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-carnival-red disabled:opacity-60"
+            />
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>The creator will see this on their project page.</span>
+              <span>{dismissReason.trim().length}/2000</span>
+            </div>
+          </div>
           {error ? (
             <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
               {error}
@@ -1000,6 +1024,7 @@ export default function ReviewProjectClient({
               onClick={() => {
                 if (submitting) return;
                 setShowDismissConfirmationModal(false);
+                setDismissReason("");
               }}
               disabled={submitting}
               className="inline-flex items-center justify-center rounded-full border border-border bg-background px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
@@ -1010,14 +1035,16 @@ export default function ReviewProjectClient({
               type="button"
               onClick={() => {
                 if (!canSubmit) return;
+                if (!dismissReason.trim()) return;
                 void submitReview({
                   requestReviewJustification: null,
                   optimisticReviewJustification: null,
                   consideredHackatimeRange: null,
                   dismiss: true,
+                  dismissReason,
                 });
               }}
-              disabled={!canSubmit}
+              disabled={!canSubmit || !dismissReason.trim()}
               className="inline-flex items-center justify-center rounded-full bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-5 py-2.5 text-sm font-bold transition-colors"
             >
               {submitting ? "Dismissing…" : "Reject and dismiss"}
