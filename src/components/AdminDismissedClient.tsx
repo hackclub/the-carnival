@@ -15,6 +15,7 @@ type DismissedProject = {
   status: ProjectStatus;
   resubmissionBlocked: boolean;
   resubmissionBlockedAt: string | null;
+  resubmissionBlockedReason: string | null;
   submittedAt: string | null;
   createdAt: string;
 };
@@ -74,7 +75,12 @@ export default function AdminDismissedClient({
         return;
       }
       toast.success("Resubmission re-enabled.", { id: toastId });
-      setProject((p) => ({ ...p, resubmissionBlocked: false, resubmissionBlockedAt: null }));
+      setProject((p) => ({
+        ...p,
+        resubmissionBlocked: false,
+        resubmissionBlockedAt: null,
+        resubmissionBlockedReason: null,
+      }));
       setConfirmOpen(false);
       setSaving(false);
       router.refresh();
@@ -111,6 +117,12 @@ export default function AdminDismissedClient({
               <div className="text-muted-foreground">
                 The creator cannot submit this project for review until an admin re-enables
                 resubmission.
+              </div>
+            </div>
+            <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm">
+              <div className="text-muted-foreground mb-1">Reason shown to the creator</div>
+              <div className="text-foreground whitespace-pre-wrap">
+                {project.resubmissionBlockedReason?.trim() || "(no reason provided)"}
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">

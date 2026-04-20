@@ -31,6 +31,7 @@ export default async function AdminDismissedDetailPage(props: { params: Promise<
       resubmissionBlocked: project.resubmissionBlocked,
       resubmissionBlockedAt: project.resubmissionBlockedAt,
       resubmissionBlockedBy: project.resubmissionBlockedBy,
+      resubmissionBlockedReason: project.resubmissionBlockedReason,
       submittedAt: project.submittedAt,
       createdAt: project.createdAt,
       creatorId: project.creatorId,
@@ -86,6 +87,7 @@ export default async function AdminDismissedDetailPage(props: { params: Promise<
             resubmissionBlockedAt: p.resubmissionBlockedAt
               ? p.resubmissionBlockedAt.toISOString()
               : null,
+            resubmissionBlockedReason: p.resubmissionBlockedReason ?? null,
             submittedAt: p.submittedAt ? p.submittedAt.toISOString() : null,
             createdAt: p.createdAt.toISOString(),
           },
