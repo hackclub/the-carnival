@@ -41,6 +41,7 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
       creatorOriginalityRationale: project.creatorOriginalityRationale,
       status: project.status,
       approvedHours: project.approvedHours,
+      resubmissionBlocked: project.resubmissionBlocked,
     })
     .from(project)
     .where(and(eq(project.id, id), eq(project.creatorId, session.user.id)))
@@ -111,6 +112,7 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
           creatorOriginalityRationale: p.creatorOriginalityRationale ?? null,
           status: p.status,
           approvedHours: p.approvedHours ?? null,
+          resubmissionBlocked: p.resubmissionBlocked,
           reviews: reviews.map((r) => ({
             id: r.id,
             decision: r.decision,
