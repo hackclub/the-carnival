@@ -115,6 +115,8 @@ export const project = pgTable("project", {
   resubmissionBlockedBy: text("resubmission_blocked_by").references(() => user.id, {
     onDelete: "set null",
   }),
+  // Admin-provided explanation surfaced to the creator in the dismissal banner.
+  resubmissionBlockedReason: text("resubmission_blocked_reason"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });

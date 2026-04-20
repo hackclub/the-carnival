@@ -218,6 +218,13 @@
       "when": 1776000000000,
       "tag": "0030_add_project_resubmission_block",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1776086400000,
+      "tag": "0031_add_project_resubmission_reason",
+      "breakpoints": true
     }
   ]
 }
