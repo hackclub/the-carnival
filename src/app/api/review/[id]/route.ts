@@ -36,7 +36,11 @@ type ReviewBody = {
   approvedHours?: unknown;
   reviewJustification?: unknown;
   consideredHackatimeRange?: unknown;
+  dismiss?: unknown;
+  dismissReason?: unknown;
 };
+
+const DISMISS_REASON_MAX_LENGTH = 2000;
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
   return role === "reviewer" || role === "admin";
@@ -156,6 +160,43 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       );
     }
     approvedHours = normalizeApprovedHours(approvedHours);
+  }
+
+  const dismiss = body.dismiss === true;
+  let dismissReason: string | null = null;
+  if (dismiss) {
+    if (decision !== "rejected") {
+      return NextResponse.json(
+        { error: "Dismiss is only available when rejecting a project.", code: "dismiss_requires_rejection" },
+        { status: 400 },
+      );
+    }
+    if (role !== "admin") {
+      return NextResponse.json(
+        { error: "Only admins can dismiss a project.", code: "dismiss_requires_admin" },
+        { status: 403 },
+      );
+    }
+    const rawReason = toCleanString(body.dismissReason);
+    if (!rawReason) {
+      return NextResponse.json(
+        {
+          error: "Please provide a reason that will be shown to the creator.",
+          code: "dismiss_requires_reason",
+        },
+        { status: 400 },
+      );
+    }
+    if (rawReason.length > DISMISS_REASON_MAX_LENGTH) {
+      return NextResponse.json(
+        {
+          error: `Dismissal reason is too long (max ${DISMISS_REASON_MAX_LENGTH} characters).`,
+          code: "dismiss_reason_too_long",
+        },
+        { status: 400 },
+      );
+    }
+    dismissReason = rawReason;
   }
 
   const now = new Date();
@@ -323,7 +364,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
               ...projectRangeUpdate,
             } as const)
           : decision === "rejected"
-            ? ({ status: "work-in-progress", approvedHours: null, updatedAt: now } as const)
+            ? ({
+                status: "work-in-progress",
+                approvedHours: null,
+                updatedAt: now,
+                ...(dismiss
+                  ? {
+                      resubmissionBlocked: true,
+                      resubmissionBlockedAt: now,
+                      resubmissionBlockedBy: userId,
+                      resubmissionBlockedReason: dismissReason,
+                    }
+                  : {}),
+              } as const)
             : ({ updatedAt: now } as const);
 
       const updated = await tx
@@ -367,6 +420,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             hackatimeSnapshotSeconds,
             consideredHackatimeRange,
             reviewJustification: normalizedReviewJustification,
+            dismissed: dismiss,
+            ...(dismiss ? { dismissReason } : {}),
           },
           at: now,
         },
@@ -410,9 +465,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             ? ""
             : decision === "approved"
               ? `Approved${Number.isFinite(approvedHours) ? ` (${approvedHours} hours)` : ""}: `
-              : "Rejected: ";
+              : dismiss
+                ? "Rejected and dismissed: "
+                : "Rejected: ";
 
-        const updates = `${decisionPrefix}${comment}`;
+        const dismissNote = dismiss
+          ? `\n\nAn admin has dismissed this project, so it cannot be resubmitted for review.${
+              dismissReason ? `\n\nReason from admin: ${dismissReason}` : ""
+            }\n\nIf you believe this was a mistake, contact an organizer.`
+          : "";
+        const updates = `${decisionPrefix}${comment}${dismissNote}`;
 
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "";
         let project_link = `/projects/${projectId}`;
@@ -437,12 +499,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             .limit(1);
 
           const reviewerSlackId = reviewerSlack[0]?.slackId ?? undefined;
-          const statusLabel = decision === "comment" ? "comment" : decision;
+          const statusLabel: "submitted" | "approved" | "rejected" | "comment" | "shipped" =
+            decision === "comment" ? "comment" : decision;
+          const slackComment = dismiss
+            ? `${comment}\n\nAn admin has dismissed this project, so it cannot be resubmitted for review.${
+                dismissReason ? `\n\nReason from admin: ${dismissReason}` : ""
+              }`
+            : comment;
           await notifyReviewDM({
             slackId: creatorSlackId,
             projectName: txResult.project.name,
             status: statusLabel,
-            comment,
+            comment: slackComment,
             projectUrl: project_link,
             reviewerSlackId,
             reviewerName: reviewerName,

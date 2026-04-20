@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import {
+  Ban,
   ClipboardCheck,
   ClipboardList,
   Compass,
@@ -49,6 +50,7 @@ const REVIEW_NAV: NavItem[] = [
 
 const ADMIN_NAV: NavItem[] = [
   { href: "/admin/grants", label: "Grants", icon: Gift },
+  { href: "/admin/dismissed", label: "Dismissed projects", icon: Ban },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
   { href: "/admin/review/comments", label: "Reviewer comments", icon: MessageSquare },
   { href: "/admin/users", label: "Users", icon: Users },

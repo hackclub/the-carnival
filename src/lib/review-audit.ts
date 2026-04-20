@@ -7,6 +7,7 @@ export const REVIEW_AUDIT_ACTIONS = [
   "review_assignment_added",
   "review_assignment_removed",
   "review_comment_deleted",
+  "resubmission_reenabled",
 ] as const;
 
 export type ReviewAuditAction = (typeof REVIEW_AUDIT_ACTIONS)[number];

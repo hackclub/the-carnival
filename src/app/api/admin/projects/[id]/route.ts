@@ -8,6 +8,7 @@ import { getServerSession } from "@/lib/server-session";
 import { approvedHoursWithinSnapshot } from "@/lib/review-rules";
 import { tokensForApprovedHours } from "@/lib/tokens";
 import { generateId, isUniqueConstraintError } from "@/lib/api-utils";
+import { appendReviewAudit } from "@/lib/review-audit";
 import {
   type AirtableGrantCreateInput,
   createAirtableGrantRecord,
@@ -20,6 +21,7 @@ import { hydrateReviewJustification } from "@/lib/review-justification";
 type AdminProjectPatchBody = {
   status?: unknown;
   consideredHackatimeRange?: unknown;
+  resubmissionBlocked?: unknown;
 };
 
 function isAdmin(role: unknown): role is "admin" {
@@ -333,7 +335,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   const hasStatusUpdate = hasOwnProperty(body, "status");
   const hasRangeUpdate = hasOwnProperty(body, "consideredHackatimeRange");
-  if (!hasStatusUpdate && !hasRangeUpdate) {
+  const hasResubmissionBlockUpdate = hasOwnProperty(body, "resubmissionBlocked");
+  if (!hasStatusUpdate && !hasRangeUpdate && !hasResubmissionBlockUpdate) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });
   }
   if (hasStatusUpdate && !isAdminEditableStatus(body.status)) {
@@ -342,9 +345,90 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       { status: 400 },
     );
   }
+  if (hasResubmissionBlockUpdate && typeof body.resubmissionBlocked !== "boolean") {
+    return NextResponse.json(
+      { error: "resubmissionBlocked must be a boolean" },
+      { status: 400 },
+    );
+  }
 
   const now = new Date();
   const nextStatus = hasStatusUpdate ? (body.status as ProjectStatus) : undefined;
+
+  if (hasResubmissionBlockUpdate && !hasStatusUpdate && !hasRangeUpdate) {
+    const nextBlocked = body.resubmissionBlocked as boolean;
+    const rows = await db
+      .select({
+        id: project.id,
+        resubmissionBlocked: project.resubmissionBlocked,
+        resubmissionBlockedAt: project.resubmissionBlockedAt,
+        resubmissionBlockedBy: project.resubmissionBlockedBy,
+      })
+      .from(project)
+      .where(eq(project.id, id))
+      .limit(1);
+
+    const current = rows[0];
+    if (!current) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const updated = await db
+      .update(project)
+      .set({
+        resubmissionBlocked: nextBlocked,
+        resubmissionBlockedAt: nextBlocked ? now : null,
+        resubmissionBlockedBy: nextBlocked ? adminUserId : null,
+        ...(nextBlocked ? {} : { resubmissionBlockedReason: null }),
+        updatedAt: now,
+      })
+      .where(eq(project.id, id))
+      .returning({
+        id: project.id,
+        status: project.status,
+        resubmissionBlocked: project.resubmissionBlocked,
+        resubmissionBlockedAt: project.resubmissionBlockedAt,
+        resubmissionBlockedBy: project.resubmissionBlockedBy,
+        updatedAt: project.updatedAt,
+      });
+
+    const updatedProject = updated[0];
+    if (!updatedProject) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    if (current.resubmissionBlocked !== nextBlocked) {
+      try {
+        await appendReviewAudit({
+          projectId: id,
+          actorId: adminUserId,
+          actorRole: "admin",
+          action: "resubmission_reenabled",
+          details: {
+            nextBlocked,
+            previouslyBlocked: current.resubmissionBlocked,
+            previouslyBlockedAt: current.resubmissionBlockedAt
+              ? current.resubmissionBlockedAt.toISOString()
+              : null,
+            previouslyBlockedBy: current.resubmissionBlockedBy,
+          },
+          at: now,
+        });
+      } catch (err) {
+        console.warn("Failed to append resubmission audit log", err);
+      }
+    }
+
+    return NextResponse.json({
+      project: {
+        ...updatedProject,
+        resubmissionBlockedAt: updatedProject.resubmissionBlockedAt
+          ? updatedProject.resubmissionBlockedAt.toISOString()
+          : null,
+        updatedAt: updatedProject.updatedAt.toISOString(),
+      },
+    });
+  }
 
   if (hasRangeUpdate) {
     const parsedRange = parseConsideredHackatimeRange(body.consideredHackatimeRange);
