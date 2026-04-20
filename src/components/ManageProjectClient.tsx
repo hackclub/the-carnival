@@ -67,6 +67,7 @@ export type ManageProjectInitial = {
   status: ProjectStatus;
   approvedHours: number | null;
   resubmissionBlocked: boolean;
+  resubmissionBlockedReason: string | null;
   reviews: Array<{
     id: string;
     decision: ReviewDecision;
@@ -204,6 +205,7 @@ export default function ManageProjectClient({
   const isInReview = status === "in-review";
   const isShipped = status === "shipped";
   const isResubmissionBlocked = initial.resubmissionBlocked;
+  const resubmissionBlockedReason = initial.resubmissionBlockedReason?.trim() || null;
   const canDelete = status === "work-in-progress";
   const deleteDisabledReason = isGranted
     ? "Granted projects cannot be deleted."
@@ -826,7 +828,17 @@ export default function ManageProjectClient({
         ) : isResubmissionBlocked ? (
           <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-foreground">
             <div className="font-semibold mb-1">This project has been dismissed by an admin.</div>
-            <div className="text-muted-foreground">
+            {resubmissionBlockedReason ? (
+              <div className="mt-2 rounded-xl border border-carnival-red/30 bg-background/40 px-3 py-2">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                  Reason from admin
+                </div>
+                <div className="whitespace-pre-wrap text-foreground">
+                  {resubmissionBlockedReason}
+                </div>
+              </div>
+            ) : null}
+            <div className="text-muted-foreground mt-2">
               It cannot be submitted for review. If you believe this was a mistake, contact an
               organizer to have it re-enabled.
             </div>
