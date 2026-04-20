@@ -36,6 +36,7 @@ type ReviewBody = {
   approvedHours?: unknown;
   reviewJustification?: unknown;
   consideredHackatimeRange?: unknown;
+  dismiss?: unknown;
 };
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
@@ -156,6 +157,22 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       );
     }
     approvedHours = normalizeApprovedHours(approvedHours);
+  }
+
+  const dismiss = body.dismiss === true;
+  if (dismiss) {
+    if (decision !== "rejected") {
+      return NextResponse.json(
+        { error: "Dismiss is only available when rejecting a project.", code: "dismiss_requires_rejection" },
+        { status: 400 },
+      );
+    }
+    if (role !== "admin") {
+      return NextResponse.json(
+        { error: "Only admins can dismiss a project.", code: "dismiss_requires_admin" },
+        { status: 403 },
+      );
+    }
   }
 
   const now = new Date();
@@ -323,7 +340,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
               ...projectRangeUpdate,
             } as const)
           : decision === "rejected"
-            ? ({ status: "work-in-progress", approvedHours: null, updatedAt: now } as const)
+            ? ({
+                status: "work-in-progress",
+                approvedHours: null,
+                updatedAt: now,
+                ...(dismiss
+                  ? {
+                      resubmissionBlocked: true,
+                      resubmissionBlockedAt: now,
+                      resubmissionBlockedBy: userId,
+                    }
+                  : {}),
+              } as const)
             : ({ updatedAt: now } as const);
 
       const updated = await tx
@@ -367,6 +395,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             hackatimeSnapshotSeconds,
             consideredHackatimeRange,
             reviewJustification: normalizedReviewJustification,
+            dismissed: dismiss,
           },
           at: now,
         },
@@ -410,9 +439,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             ? ""
             : decision === "approved"
               ? `Approved${Number.isFinite(approvedHours) ? ` (${approvedHours} hours)` : ""}: `
-              : "Rejected: ";
+              : dismiss
+                ? "Rejected and dismissed: "
+                : "Rejected: ";
 
-        const updates = `${decisionPrefix}${comment}`;
+        const dismissNote = dismiss
+          ? "\n\nAn admin has dismissed this project, so it cannot be resubmitted for review. If you believe this was a mistake, contact an organizer."
+          : "";
+        const updates = `${decisionPrefix}${comment}${dismissNote}`;
 
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "";
         let project_link = `/projects/${projectId}`;
@@ -437,12 +471,20 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             .limit(1);
 
           const reviewerSlackId = reviewerSlack[0]?.slackId ?? undefined;
-          const statusLabel = decision === "comment" ? "comment" : decision;
+          const statusLabel =
+            decision === "comment"
+              ? "comment"
+              : dismiss
+                ? "rejected and dismissed"
+                : decision;
+          const slackComment = dismiss
+            ? `${comment}\n\nAn admin has dismissed this project, so it cannot be resubmitted for review.`
+            : comment;
           await notifyReviewDM({
             slackId: creatorSlackId,
             projectName: txResult.project.name,
             status: statusLabel,
-            comment,
+            comment: slackComment,
             projectUrl: project_link,
             reviewerSlackId,
             reviewerName: reviewerName,
