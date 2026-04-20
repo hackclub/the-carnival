@@ -37,7 +37,10 @@ type ReviewBody = {
   reviewJustification?: unknown;
   consideredHackatimeRange?: unknown;
   dismiss?: unknown;
+  dismissReason?: unknown;
 };
+
+const DISMISS_REASON_MAX_LENGTH = 2000;
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
   return role === "reviewer" || role === "admin";
@@ -160,6 +163,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const dismiss = body.dismiss === true;
+  let dismissReason: string | null = null;
   if (dismiss) {
     if (decision !== "rejected") {
       return NextResponse.json(
@@ -173,6 +177,26 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         { status: 403 },
       );
     }
+    const rawReason = toCleanString(body.dismissReason);
+    if (!rawReason) {
+      return NextResponse.json(
+        {
+          error: "Please provide a reason that will be shown to the creator.",
+          code: "dismiss_requires_reason",
+        },
+        { status: 400 },
+      );
+    }
+    if (rawReason.length > DISMISS_REASON_MAX_LENGTH) {
+      return NextResponse.json(
+        {
+          error: `Dismissal reason is too long (max ${DISMISS_REASON_MAX_LENGTH} characters).`,
+          code: "dismiss_reason_too_long",
+        },
+        { status: 400 },
+      );
+    }
+    dismissReason = rawReason;
   }
 
   const now = new Date();
@@ -349,6 +373,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
                       resubmissionBlocked: true,
                       resubmissionBlockedAt: now,
                       resubmissionBlockedBy: userId,
+                      resubmissionBlockedReason: dismissReason,
                     }
                   : {}),
               } as const)
@@ -396,6 +421,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             consideredHackatimeRange,
             reviewJustification: normalizedReviewJustification,
             dismissed: dismiss,
+            ...(dismiss ? { dismissReason } : {}),
           },
           at: now,
         },
@@ -444,7 +470,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
                 : "Rejected: ";
 
         const dismissNote = dismiss
-          ? "\n\nAn admin has dismissed this project, so it cannot be resubmitted for review. If you believe this was a mistake, contact an organizer."
+          ? `\n\nAn admin has dismissed this project, so it cannot be resubmitted for review.${
+              dismissReason ? `\n\nReason from admin: ${dismissReason}` : ""
+            }\n\nIf you believe this was a mistake, contact an organizer.`
           : "";
         const updates = `${decisionPrefix}${comment}${dismissNote}`;
 
@@ -471,14 +499,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             .limit(1);
 
           const reviewerSlackId = reviewerSlack[0]?.slackId ?? undefined;
-          const statusLabel =
-            decision === "comment"
-              ? "comment"
-              : dismiss
-                ? "rejected and dismissed"
-                : decision;
+          const statusLabel: "submitted" | "approved" | "rejected" | "comment" | "shipped" =
+            decision === "comment" ? "comment" : decision;
           const slackComment = dismiss
-            ? `${comment}\n\nAn admin has dismissed this project, so it cannot be resubmitted for review.`
+            ? `${comment}\n\nAn admin has dismissed this project, so it cannot be resubmitted for review.${
+                dismissReason ? `\n\nReason from admin: ${dismissReason}` : ""
+              }`
             : comment;
           await notifyReviewDM({
             slackId: creatorSlackId,
