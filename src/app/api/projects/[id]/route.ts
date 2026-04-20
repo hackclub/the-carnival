@@ -207,6 +207,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       creatorDuplicateExplanation: project.creatorDuplicateExplanation,
       creatorOriginalityRationale: project.creatorOriginalityRationale,
       submittedAt: project.submittedAt,
+      resubmissionBlocked: project.resubmissionBlocked,
       createdAt: project.createdAt,
     })
     .from(project)
@@ -522,6 +523,16 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   // Enforce required fields when the project is in the review queue.
   const nextStatus = (set.status ?? current.status) as ProjectStatus;
   if (nextStatus === "in-review") {
+    if (current.resubmissionBlocked && current.status !== "in-review") {
+      return NextResponse.json(
+        {
+          error:
+            "An admin dismissed this project, so it cannot be resubmitted for review. Contact an organizer if you believe this is a mistake.",
+          code: "resubmission_blocked",
+        },
+        { status: 403 },
+      );
+    }
     const nextName = (set.name ?? current.name).trim();
     const nextDescription = (set.description ?? current.description).trim();
     const nextHackatime = nextHackatimeProjectName;
