@@ -205,7 +205,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const requestedRangeOverride = body.consideredHackatimeRange;
 
   let consideredHackatimeRange: ConsideredHackatimeRange | null = null;
-  if (requestedRangeOverride !== undefined) {
+  if (requestedRangeOverride !== undefined && requestedRangeOverride !== null) {
     if (role !== "admin") {
       return NextResponse.json(
         { error: "Only admins can override the considered Hackatime range on approval." },
