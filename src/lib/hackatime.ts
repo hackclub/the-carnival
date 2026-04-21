@@ -144,6 +144,77 @@ export async function getHackatimeAccessTokenForUser(userId: string): Promise<st
   return typeof token === "string" && token.trim() ? token : null;
 }
 
+/**
+ * Public Hackatime identifier for a user. Preferred for the /users/{uid}/stats
+ * endpoint which does not require OAuth. Falls back to slack_id when hackatime
+ * has not yet been OAuth-connected but the user is known by Slack.
+ */
+export async function getHackatimePublicUidForUser(userId: string): Promise<string | null> {
+  const rows = await db
+    .select({ hackatimeUserId: user.hackatimeUserId, slackId: user.slackId })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+  const hackatimeUid =
+    typeof rows[0]?.hackatimeUserId === "string" ? rows[0].hackatimeUserId.trim() : "";
+  if (hackatimeUid) return hackatimeUid;
+  const slackId = typeof rows[0]?.slackId === "string" ? rows[0].slackId.trim() : "";
+  return slackId || null;
+}
+
+type HackatimeStatsTotalsResponse = {
+  data?: {
+    total_seconds?: number | string;
+    projects?: { name?: string; total_seconds?: number | string }[];
+  };
+};
+
+/**
+ * Query Hackatime's public /users/{uid}/stats endpoint for the total seconds
+ * coded on a given project within an arbitrary time window. Mirrors the call
+ * flavortown makes from HackatimeService.sync_devlog_duration.
+ *
+ * Notes:
+ * - `start_date` / `end_date` accept ISO-8601 timestamps (not only YYYY-MM-DD).
+ * - `filter_by_project` narrows totals to a single project key.
+ * - No bearer token required; keyed off the user's Slack/Hackatime UID.
+ */
+export async function fetchHackatimeStatsProjectTotalSeconds(input: {
+  hackatimeUid: string;
+  projectName: string;
+  start: string;
+  end: string;
+}): Promise<number> {
+  const hackatimeUid = input.hackatimeUid.trim();
+  const projectName = input.projectName.trim();
+  if (!hackatimeUid || !projectName) return 0;
+
+  const url = new URL(`https://hackatime.hackclub.com/api/v1/users/${encodeURIComponent(hackatimeUid)}/stats`);
+  url.searchParams.set("features", "projects");
+  url.searchParams.set("start_date", input.start);
+  url.searchParams.set("end_date", input.end);
+  url.searchParams.set("filter_by_project", projectName);
+  url.searchParams.set("total_seconds", "true");
+  url.searchParams.set("test_param", "true");
+
+  const response = await fetch(url.toString(), { cache: "no-store" });
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `Hackatime stats request failed (${response.status} ${response.statusText})${body ? `: ${body}` : ""}`,
+    );
+  }
+
+  const raw = (await response.json().catch(() => ({}))) as HackatimeStatsTotalsResponse;
+  const topLevel = toSafeSeconds(raw.data?.total_seconds);
+  if (topLevel > 0) return topLevel;
+
+  const projects = Array.isArray(raw.data?.projects) ? raw.data!.projects! : [];
+  const wanted = projectName.toLowerCase();
+  const matched = projects.find((p) => typeof p.name === "string" && p.name.trim().toLowerCase() === wanted);
+  return toSafeSeconds(matched?.total_seconds);
+}
+
 export async function fetchHackatimeIdentityFromToken(accessToken: string): Promise<{ userId: string | null }> {
   const response = await makeHackatimeAuthedRequest(
     "https://hackatime.hackclub.com/api/v1/authenticated/me",
@@ -239,6 +310,47 @@ export async function fetchHackatimeProjectTotalSecondsForRange(
   return {
     totalSeconds: matched?.totalSeconds ?? 0,
   };
+}
+
+/**
+ * Precise (ISO-timestamp) variant of fetchHackatimeProjectTotalSecondsForRange
+ * used for devlog-sized windows. Hits the public /users/{uid}/stats endpoint
+ * (the same one flavortown uses from sync_devlog_duration) with full ISO
+ * timestamps for start_date/end_date.
+ */
+export async function fetchHackatimeProjectTotalSecondsForInstantRange(
+  userId: string,
+  input: { projectName: string; startedAt: Date; endedAt: Date },
+) {
+  const projectName = input.projectName.trim();
+  if (!projectName) {
+    throw new Error("Select a Hackatime project before pulling devlog hours.");
+  }
+  if (
+    !(input.startedAt instanceof Date) ||
+    !(input.endedAt instanceof Date) ||
+    Number.isNaN(input.startedAt.getTime()) ||
+    Number.isNaN(input.endedAt.getTime())
+  ) {
+    throw new Error("Invalid devlog time window.");
+  }
+  if (input.endedAt.getTime() <= input.startedAt.getTime()) {
+    throw new Error("Devlog end must be after start.");
+  }
+
+  const hackatimeUid = await getHackatimePublicUidForUser(userId);
+  if (!hackatimeUid) {
+    throw new Error("Connect your Hackatime account to post a devlog.");
+  }
+
+  const totalSeconds = await fetchHackatimeStatsProjectTotalSeconds({
+    hackatimeUid,
+    projectName,
+    start: input.startedAt.toISOString(),
+    end: input.endedAt.toISOString(),
+  });
+
+  return { totalSeconds };
 }
 
 export async function refreshHackatimeProjectSnapshotForRange(
