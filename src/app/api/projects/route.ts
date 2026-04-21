@@ -272,6 +272,9 @@ export async function POST(req: Request) {
     creatorDeclaredOriginality: originalityDeclaration.value.creatorDeclaredOriginality,
     creatorDuplicateExplanation: originalityDeclaration.value.creatorDuplicateExplanation,
     creatorOriginalityRationale: originalityDeclaration.value.creatorOriginalityRationale,
+    // Record the moment the project is officially started on Carnival.
+    // Only hours logged between this timestamp and submittedAt are considered during review.
+    startedOnCarnivalAt: now,
     // status: default in schema
     createdAt: now,
     updatedAt: now,

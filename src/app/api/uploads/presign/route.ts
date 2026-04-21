@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { project } from "@/db/schema";
 import { getAuthUser, parseJsonBody, toCleanString } from "@/lib/api-utils";
 import { makeR2ObjectKey, presignR2PutObject, r2PublicUrlForKey, type R2UploadKind } from "@/lib/r2";
 
@@ -9,7 +12,12 @@ type PresignBody = {
 };
 
 function isKind(value: string): value is R2UploadKind {
-  return value === "project_screenshot" || value === "shop_item_image" || value === "editor_icon";
+  return (
+    value === "project_screenshot" ||
+    value === "shop_item_image" ||
+    value === "editor_icon" ||
+    value === "devlog_attachment"
+  );
 }
 
 export async function POST(req: Request) {
@@ -38,10 +46,40 @@ export async function POST(req: Request) {
 
   const projectId = toCleanString(body.projectId);
 
+  if (kindRaw === "devlog_attachment") {
+    if (!projectId) {
+      return NextResponse.json(
+        { error: "projectId is required for devlog attachments" },
+        { status: 400 },
+      );
+    }
+    const ownerRows = await db
+      .select({ id: project.id, status: project.status })
+      .from(project)
+      .where(and(eq(project.id, projectId), eq(project.creatorId, user.id)))
+      .limit(1);
+    const owned = ownerRows[0];
+    if (!owned) {
+      return NextResponse.json(
+        { error: "Project not found, or you are not the creator." },
+        { status: 403 },
+      );
+    }
+    if (owned.status !== "work-in-progress") {
+      return NextResponse.json(
+        { error: "Devlogs can only be posted while a project is work-in-progress." },
+        { status: 403 },
+      );
+    }
+  }
+
   const key = makeR2ObjectKey({
     kind: kindRaw,
     contentType,
-    projectId: kindRaw === "project_screenshot" && projectId ? projectId : undefined,
+    projectId:
+      (kindRaw === "project_screenshot" || kindRaw === "devlog_attachment") && projectId
+        ? projectId
+        : undefined,
   });
 
   try {

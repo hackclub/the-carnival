@@ -225,6 +225,20 @@
       "when": 1776086400000,
       "tag": "0031_add_project_resubmission_reason",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1776514513403,
+      "tag": "0032_add_devlog_and_started_on_carnival",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1776600913403,
+      "tag": "0033_devlogs_v2",
+      "breakpoints": true
     }
   ]
 }

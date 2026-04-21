@@ -10,7 +10,11 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
  * Docs: https://developers.cloudflare.com/r2/api/s3/presigned-urls/
  */
 
-export type R2UploadKind = "project_screenshot" | "shop_item_image" | "editor_icon";
+export type R2UploadKind =
+  | "project_screenshot"
+  | "shop_item_image"
+  | "editor_icon"
+  | "devlog_attachment";
 
 export type R2Config = {
   accountId: string;
@@ -100,6 +104,11 @@ export function makeR2ObjectKey(input: {
     // Keep projectId optional (Create flow may not have one yet).
     const projectPart = safeProjectId ? safeProjectId : "unassigned";
     return `projects/${projectPart}/${id}.${ext}`;
+  }
+
+  if (input.kind === "devlog_attachment") {
+    const projectPart = safeProjectId ? safeProjectId : "unassigned";
+    return `devlogs/${projectPart}/${id}.${ext}`;
   }
 
   if (input.kind === "shop_item_image") {

@@ -38,6 +38,13 @@ export type ProjectEditor = (typeof projectEditor.enumValues)[number];
 export const reviewDecision = pgEnum("review_decision", ["approved", "rejected", "comment"]);
 export type ReviewDecision = (typeof reviewDecision.enumValues)[number];
 
+export const devlogAssessmentDecision = pgEnum("devlog_assessment_decision", [
+  "accepted",
+  "rejected",
+  "adjusted",
+]);
+export type DevlogAssessmentDecision = (typeof devlogAssessmentDecision.enumValues)[number];
+
 export type ProjectSubmissionChecklist = {
   readmeInstructions: boolean;
   testedWorking: boolean;
@@ -117,9 +124,80 @@ export const project = pgTable("project", {
   }),
   // Admin-provided explanation surfaced to the creator in the dismissal banner.
   resubmissionBlockedReason: text("resubmission_blocked_reason"),
+  // Official project start as recorded on Carnival. Used as the lower bound of the
+  // Hackatime window considered during review. Set when the project is created.
+  startedOnCarnivalAt: timestamp("started_on_carnival_at"),
+  // Denormalized sum of all devlog.durationSeconds for this project. Kept in sync
+  // on every devlog insert/update/delete so that hour displays stay cheap.
+  hoursSpentSeconds: integer("hours_spent_seconds").notNull().default(0),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
+
+export const devlog = pgTable(
+  "devlog",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    // User-selected working window for this devlog. Hackatime seconds for the
+    // project's hackatimeProjectName within [startedAt, endedAt] are captured as
+    // durationSeconds at creation time.
+    startedAt: timestamp("started_at").notNull(),
+    endedAt: timestamp("ended_at").notNull(),
+    durationSeconds: integer("duration_seconds").notNull().default(0),
+    attachments: text("attachments").array().notNull().default(sql`'{}'::text[]`),
+    usedAi: boolean("used_ai").notNull().default(false),
+    aiUsageDescription: text("ai_usage_description"),
+    // Snapshot of project.hackatimeProjectName at the time the devlog was posted,
+    // so the audit is stable even if the project later points at a different key.
+    hackatimeProjectNameSnapshot: text("hackatime_project_name_snapshot").notNull().default(""),
+    hackatimePulledAt: timestamp("hackatime_pulled_at"),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (t) => ({
+    projectCreatedAtIdx: index("devlog_project_created_at_idx").on(t.projectId, t.createdAt),
+    userCreatedAtIdx: index("devlog_user_created_at_idx").on(t.userId, t.createdAt),
+    projectEndedAtIdx: index("devlog_project_ended_at_idx").on(t.projectId, t.endedAt),
+  }),
+);
+
+export const peerReviewDevlogAssessment = pgTable(
+  "peer_review_devlog_assessment",
+  {
+    id: text("id").primaryKey(),
+    reviewId: text("review_id")
+      .notNull()
+      .references(() => peerReview.id, { onDelete: "cascade" }),
+    devlogId: text("devlog_id")
+      .notNull()
+      .references(() => devlog.id, { onDelete: "cascade" }),
+    decision: devlogAssessmentDecision("decision").notNull(),
+    // When decision = 'adjusted', this is the reviewer's overridden seconds for
+    // this devlog. Null for accepted (=> use devlog.durationSeconds) or rejected
+    // (=> contributes 0).
+    adjustedSeconds: integer("adjusted_seconds"),
+    comment: text("comment"),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (t) => ({
+    uniqReviewDevlog: uniqueIndex("peer_review_devlog_assessment_review_devlog_uniq").on(
+      t.reviewId,
+      t.devlogId,
+    ),
+    reviewCreatedAtIdx: index("peer_review_devlog_assessment_review_created_at_idx").on(
+      t.reviewId,
+      t.createdAt,
+    ),
+  }),
+);
 
 export const peerReview = pgTable("peer_review", {
   id: text("id").primaryKey(),
