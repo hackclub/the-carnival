@@ -3,16 +3,30 @@ import { randomUUID } from "crypto";
 import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { devlog, project, user } from "@/db/schema";
+import {
+  DEVLOG_AI_DESCRIPTION_MAX_LENGTH,
+  DEVLOG_MAX_CONTENT_LENGTH,
+  DEVLOG_MAX_TITLE_LENGTH,
+  computeWindowCeiling,
+  getDevlogWindowFloor,
+  parseAttachmentUrls,
+  parseDevlogWindow,
+  parseOptionalTrimmedString,
+  recomputeProjectHoursSpentSeconds,
+} from "@/lib/devlogs";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
+import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
 import { getServerSession } from "@/lib/server-session";
 
 type CreateDevlogBody = {
   title?: unknown;
   content?: unknown;
+  startedAt?: unknown;
+  endedAt?: unknown;
+  attachments?: unknown;
+  usedAi?: unknown;
+  aiUsageDescription?: unknown;
 };
-
-const MAX_TITLE_LENGTH = 200;
-const MAX_CONTENT_LENGTH = 20_000;
 
 function toCleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -23,10 +37,6 @@ function canViewProjectDevlogs(role: unknown, isCreator: boolean) {
   return role === "reviewer" || role === "admin";
 }
 
-/**
- * GET /api/projects/[id]/devlogs
- * List devlogs for a project. Visible to the creator, reviewers, and admins.
- */
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
   const userId = (session?.user as { id?: string } | undefined)?.id;
@@ -60,6 +70,13 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       userId: devlog.userId,
       title: devlog.title,
       content: devlog.content,
+      startedAt: devlog.startedAt,
+      endedAt: devlog.endedAt,
+      durationSeconds: devlog.durationSeconds,
+      attachments: devlog.attachments,
+      usedAi: devlog.usedAi,
+      aiUsageDescription: devlog.aiUsageDescription,
+      hackatimeProjectNameSnapshot: devlog.hackatimeProjectNameSnapshot,
       createdAt: devlog.createdAt,
       updatedAt: devlog.updatedAt,
       authorName: user.name,
@@ -67,7 +84,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     .from(devlog)
     .leftJoin(user, eq(devlog.userId, user.id))
     .where(eq(devlog.projectId, projectId))
-    .orderBy(desc(devlog.createdAt), asc(devlog.id));
+    .orderBy(desc(devlog.endedAt), asc(devlog.id));
 
   return NextResponse.json({
     devlogs: rows.map((r) => ({
@@ -76,6 +93,13 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       userId: r.userId,
       title: r.title,
       content: r.content,
+      startedAt: r.startedAt.toISOString(),
+      endedAt: r.endedAt.toISOString(),
+      durationSeconds: r.durationSeconds,
+      attachments: r.attachments ?? [],
+      usedAi: r.usedAi,
+      aiUsageDescription: r.aiUsageDescription ?? null,
+      hackatimeProjectNameSnapshot: r.hackatimeProjectNameSnapshot ?? "",
       authorName: r.authorName || "Unknown",
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
@@ -83,10 +107,6 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   });
 }
 
-/**
- * POST /api/projects/[id]/devlogs
- * Create a new devlog entry. Only the project creator may post devlogs.
- */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
   const userId = (session?.user as { id?: string } | undefined)?.id;
@@ -108,7 +128,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id: projectId } = await ctx.params;
 
   const projectRows = await db
-    .select({ id: project.id, creatorId: project.creatorId, status: project.status })
+    .select({
+      id: project.id,
+      creatorId: project.creatorId,
+      status: project.status,
+      hackatimeProjectName: project.hackatimeProjectName,
+      submittedAt: project.submittedAt,
+      startedOnCarnivalAt: project.startedOnCarnivalAt,
+      createdAt: project.createdAt,
+    })
     .from(project)
     .where(eq(project.id, projectId))
     .limit(1);
@@ -121,6 +149,32 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json(
       { error: "Only the project creator can add devlogs." },
       { status: 403 },
+    );
+  }
+  if (p.status !== "work-in-progress") {
+    return NextResponse.json(
+      {
+        error: "Devlogs can only be posted while the project is work-in-progress.",
+        code: "project_not_editable",
+      },
+      { status: 409 },
+    );
+  }
+  if (p.submittedAt) {
+    return NextResponse.json(
+      { error: "This project has been submitted for review; devlogs are frozen." },
+      { status: 409 },
+    );
+  }
+  const hackatimeProjectName = p.hackatimeProjectName?.trim() ?? "";
+  if (!hackatimeProjectName) {
+    return NextResponse.json(
+      {
+        error:
+          "Set a Hackatime project name on the project before posting devlogs.",
+        code: "missing_hackatime_project",
+      },
+      { status: 400 },
     );
   }
 
@@ -137,43 +191,123 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!title) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
   }
-  if (title.length > MAX_TITLE_LENGTH) {
+  if (title.length > DEVLOG_MAX_TITLE_LENGTH) {
     return NextResponse.json(
-      { error: `Title must be ${MAX_TITLE_LENGTH} characters or less` },
+      { error: `Title must be ${DEVLOG_MAX_TITLE_LENGTH} characters or less` },
       { status: 400 },
     );
   }
   if (!content) {
     return NextResponse.json({ error: "Content is required" }, { status: 400 });
   }
-  if (content.length > MAX_CONTENT_LENGTH) {
+  if (content.length > DEVLOG_MAX_CONTENT_LENGTH) {
     return NextResponse.json(
-      { error: `Content must be ${MAX_CONTENT_LENGTH} characters or less` },
+      { error: `Content must be ${DEVLOG_MAX_CONTENT_LENGTH} characters or less` },
       { status: 400 },
     );
   }
 
-  const now = new Date();
-  const id = randomUUID();
+  const attachments = parseAttachmentUrls(body.attachments, { projectId });
+  if (!attachments.ok) {
+    return NextResponse.json({ error: attachments.error }, { status: 400 });
+  }
 
-  await db.insert(devlog).values({
-    id,
-    projectId,
-    userId,
-    title,
-    content,
-    createdAt: now,
-    updatedAt: now,
+  if (body.usedAi !== undefined && typeof body.usedAi !== "boolean") {
+    return NextResponse.json({ error: "usedAi must be a boolean." }, { status: 400 });
+  }
+  const usedAi = body.usedAi === true;
+
+  const aiDescParsed = parseOptionalTrimmedString(
+    body.aiUsageDescription,
+    DEVLOG_AI_DESCRIPTION_MAX_LENGTH,
+  );
+  if (aiDescParsed === undefined) {
+    return NextResponse.json(
+      {
+        error: `AI usage description is too long (max ${DEVLOG_AI_DESCRIPTION_MAX_LENGTH} characters).`,
+      },
+      { status: 400 },
+    );
+  }
+  if (usedAi && !aiDescParsed) {
+    return NextResponse.json(
+      { error: "Describe how you used AI when checking the AI declaration." },
+      { status: 400 },
+    );
+  }
+  const aiUsageDescription = usedAi ? aiDescParsed : null;
+
+  const floorStart = p.startedOnCarnivalAt ?? p.createdAt;
+  const floor = await getDevlogWindowFloor(projectId, floorStart);
+  const ceiling = computeWindowCeiling(p.submittedAt ?? null);
+
+  const window = parseDevlogWindow({
+    startedAt: body.startedAt,
+    endedAt: body.endedAt,
+    floor,
+    ceiling,
   });
+  if (!window.ok) {
+    return NextResponse.json({ error: window.error }, { status: 400 });
+  }
 
-  return NextResponse.json(
-    {
-      devlog: {
-        id,
+  let durationSeconds = 0;
+  try {
+    const hackatime = await fetchHackatimeProjectTotalSecondsForInstantRange(userId, {
+      projectName: hackatimeProjectName,
+      startedAt: window.startedAt,
+      endedAt: window.endedAt,
+    });
+    durationSeconds = Math.max(0, Math.floor(hackatime.totalSeconds));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to pull Hackatime hours.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+
+  const now = new Date();
+  const devlogId = randomUUID();
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx.insert(devlog).values({
+        id: devlogId,
         projectId,
         userId,
         title,
         content,
+        startedAt: window.startedAt,
+        endedAt: window.endedAt,
+        durationSeconds,
+        attachments: attachments.value,
+        usedAi,
+        aiUsageDescription,
+        hackatimeProjectNameSnapshot: hackatimeProjectName,
+        hackatimePulledAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await recomputeProjectHoursSpentSeconds(projectId, tx);
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to save devlog.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+
+  return NextResponse.json(
+    {
+      devlog: {
+        id: devlogId,
+        projectId,
+        userId,
+        title,
+        content,
+        startedAt: window.startedAt.toISOString(),
+        endedAt: window.endedAt.toISOString(),
+        durationSeconds,
+        attachments: attachments.value,
+        usedAi,
+        aiUsageDescription,
+        hackatimeProjectNameSnapshot: hackatimeProjectName,
         authorName: (session?.user as { name?: string | null } | undefined)?.name ?? "",
         createdAt: now.toISOString(),
         updatedAt: now.toISOString(),

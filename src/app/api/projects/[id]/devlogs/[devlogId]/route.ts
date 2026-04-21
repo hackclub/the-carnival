@@ -1,17 +1,31 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, gt } from "drizzle-orm";
 import { db } from "@/db";
 import { devlog, project, user } from "@/db/schema";
+import {
+  DEVLOG_AI_DESCRIPTION_MAX_LENGTH,
+  DEVLOG_MAX_CONTENT_LENGTH,
+  DEVLOG_MAX_TITLE_LENGTH,
+  computeWindowCeiling,
+  getDevlogWindowFloor,
+  parseAttachmentUrls,
+  parseDevlogWindow,
+  parseOptionalTrimmedString,
+  recomputeProjectHoursSpentSeconds,
+} from "@/lib/devlogs";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
+import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
 import { getServerSession } from "@/lib/server-session";
 
 type UpdateDevlogBody = {
   title?: unknown;
   content?: unknown;
+  startedAt?: unknown;
+  endedAt?: unknown;
+  attachments?: unknown;
+  usedAi?: unknown;
+  aiUsageDescription?: unknown;
 };
-
-const MAX_TITLE_LENGTH = 200;
-const MAX_CONTENT_LENGTH = 20_000;
 
 function toCleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -30,10 +44,22 @@ async function loadDevlog(projectId: string, devlogId: string) {
       userId: devlog.userId,
       title: devlog.title,
       content: devlog.content,
+      startedAt: devlog.startedAt,
+      endedAt: devlog.endedAt,
+      durationSeconds: devlog.durationSeconds,
+      attachments: devlog.attachments,
+      usedAi: devlog.usedAi,
+      aiUsageDescription: devlog.aiUsageDescription,
+      hackatimeProjectNameSnapshot: devlog.hackatimeProjectNameSnapshot,
       createdAt: devlog.createdAt,
       updatedAt: devlog.updatedAt,
       authorName: user.name,
       projectCreatorId: project.creatorId,
+      projectStatus: project.status,
+      projectHackatimeProjectName: project.hackatimeProjectName,
+      projectSubmittedAt: project.submittedAt,
+      projectStartedOnCarnivalAt: project.startedOnCarnivalAt,
+      projectCreatedAt: project.createdAt,
     })
     .from(devlog)
     .leftJoin(user, eq(devlog.userId, user.id))
@@ -43,10 +69,6 @@ async function loadDevlog(projectId: string, devlogId: string) {
   return rows[0] ?? null;
 }
 
-/**
- * GET /api/projects/[id]/devlogs/[devlogId]
- * Read a single devlog.
- */
 export async function GET(
   _req: Request,
   ctx: { params: Promise<{ id: string; devlogId: string }> },
@@ -76,6 +98,13 @@ export async function GET(
       userId: row.userId,
       title: row.title,
       content: row.content,
+      startedAt: row.startedAt.toISOString(),
+      endedAt: row.endedAt.toISOString(),
+      durationSeconds: row.durationSeconds,
+      attachments: row.attachments ?? [],
+      usedAi: row.usedAi,
+      aiUsageDescription: row.aiUsageDescription ?? null,
+      hackatimeProjectNameSnapshot: row.hackatimeProjectNameSnapshot ?? "",
       authorName: row.authorName || "Unknown",
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -83,10 +112,6 @@ export async function GET(
   });
 }
 
-/**
- * PATCH /api/projects/[id]/devlogs/[devlogId]
- * Update a devlog. Only the author can edit.
- */
 export async function PATCH(
   req: Request,
   ctx: { params: Promise<{ id: string; devlogId: string }> },
@@ -120,6 +145,15 @@ export async function PATCH(
       { status: 403 },
     );
   }
+  if (row.projectStatus !== "work-in-progress" || row.projectSubmittedAt) {
+    return NextResponse.json(
+      {
+        error: "Devlogs are frozen once the project is submitted for review.",
+        code: "devlog_frozen",
+      },
+      { status: 409 },
+    );
+  }
 
   let body: UpdateDevlogBody;
   try {
@@ -128,16 +162,26 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const set: Partial<{ title: string; content: string; updatedAt: Date }> = {};
+  const set: Partial<{
+    title: string;
+    content: string;
+    startedAt: Date;
+    endedAt: Date;
+    durationSeconds: number;
+    attachments: string[];
+    usedAi: boolean;
+    aiUsageDescription: string | null;
+    hackatimePulledAt: Date;
+    updatedAt: Date;
+  }> = {};
+  let hoursChanged = false;
 
   if (body.title !== undefined) {
     const title = toCleanString(body.title);
-    if (!title) {
-      return NextResponse.json({ error: "Title is required" }, { status: 400 });
-    }
-    if (title.length > MAX_TITLE_LENGTH) {
+    if (!title) return NextResponse.json({ error: "Title is required" }, { status: 400 });
+    if (title.length > DEVLOG_MAX_TITLE_LENGTH) {
       return NextResponse.json(
-        { error: `Title must be ${MAX_TITLE_LENGTH} characters or less` },
+        { error: `Title must be ${DEVLOG_MAX_TITLE_LENGTH} characters or less` },
         { status: 400 },
       );
     }
@@ -146,16 +190,105 @@ export async function PATCH(
 
   if (body.content !== undefined) {
     const content = toCleanString(body.content);
-    if (!content) {
-      return NextResponse.json({ error: "Content is required" }, { status: 400 });
-    }
-    if (content.length > MAX_CONTENT_LENGTH) {
+    if (!content) return NextResponse.json({ error: "Content is required" }, { status: 400 });
+    if (content.length > DEVLOG_MAX_CONTENT_LENGTH) {
       return NextResponse.json(
-        { error: `Content must be ${MAX_CONTENT_LENGTH} characters or less` },
+        { error: `Content must be ${DEVLOG_MAX_CONTENT_LENGTH} characters or less` },
         { status: 400 },
       );
     }
     set.content = content;
+  }
+
+  if (body.attachments !== undefined) {
+    const parsed = parseAttachmentUrls(body.attachments, { projectId });
+    if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    set.attachments = parsed.value;
+  }
+
+  let usedAi = row.usedAi;
+  let aiUsageDescription: string | null = row.aiUsageDescription ?? null;
+  if (body.usedAi !== undefined) {
+    if (typeof body.usedAi !== "boolean") {
+      return NextResponse.json({ error: "usedAi must be a boolean." }, { status: 400 });
+    }
+    usedAi = body.usedAi;
+  }
+  if (body.aiUsageDescription !== undefined) {
+    const parsed = parseOptionalTrimmedString(
+      body.aiUsageDescription,
+      DEVLOG_AI_DESCRIPTION_MAX_LENGTH,
+    );
+    if (parsed === undefined) {
+      return NextResponse.json(
+        { error: `AI usage description is too long (max ${DEVLOG_AI_DESCRIPTION_MAX_LENGTH} characters).` },
+        { status: 400 },
+      );
+    }
+    aiUsageDescription = parsed;
+  }
+  if (usedAi && !aiUsageDescription) {
+    return NextResponse.json(
+      { error: "Describe how you used AI when checking the AI declaration." },
+      { status: 400 },
+    );
+  }
+  if (body.usedAi !== undefined || body.aiUsageDescription !== undefined) {
+    set.usedAi = usedAi;
+    set.aiUsageDescription = usedAi ? aiUsageDescription : null;
+  }
+
+  if (body.startedAt !== undefined || body.endedAt !== undefined) {
+    const laterRows = await db
+      .select({ id: devlog.id })
+      .from(devlog)
+      .where(and(eq(devlog.projectId, projectId), gt(devlog.endedAt, row.endedAt)))
+      .limit(1);
+    if (laterRows.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "You can only change the window on the latest devlog. Delete newer devlogs first or edit them instead.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const floorBase = row.projectStartedOnCarnivalAt ?? row.projectCreatedAt ?? row.createdAt;
+    const floor = await getDevlogWindowFloor(projectId, floorBase, row.id);
+    const ceiling = computeWindowCeiling(row.projectSubmittedAt ?? null);
+
+    const window = parseDevlogWindow({
+      startedAt: body.startedAt ?? row.startedAt.toISOString(),
+      endedAt: body.endedAt ?? row.endedAt.toISOString(),
+      floor,
+      ceiling,
+    });
+    if (!window.ok) return NextResponse.json({ error: window.error }, { status: 400 });
+
+    const hackatimeProjectName = (row.projectHackatimeProjectName ?? "").trim();
+    if (!hackatimeProjectName) {
+      return NextResponse.json(
+        { error: "Hackatime project name is missing on the parent project." },
+        { status: 400 },
+      );
+    }
+
+    try {
+      const hackatime = await fetchHackatimeProjectTotalSecondsForInstantRange(userId, {
+        projectName: hackatimeProjectName,
+        startedAt: window.startedAt,
+        endedAt: window.endedAt,
+      });
+      set.startedAt = window.startedAt;
+      set.endedAt = window.endedAt;
+      set.durationSeconds = Math.max(0, Math.floor(hackatime.totalSeconds));
+      set.hackatimePulledAt = new Date();
+      hoursChanged = true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to pull Hackatime hours.";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
   }
 
   if (Object.keys(set).length === 0) {
@@ -164,43 +297,45 @@ export async function PATCH(
 
   set.updatedAt = new Date();
 
-  const updated = await db
-    .update(devlog)
-    .set(set)
-    .where(and(eq(devlog.id, devlogId), eq(devlog.userId, userId)))
-    .returning({
-      id: devlog.id,
-      projectId: devlog.projectId,
-      userId: devlog.userId,
-      title: devlog.title,
-      content: devlog.content,
-      createdAt: devlog.createdAt,
-      updatedAt: devlog.updatedAt,
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(devlog)
+        .set(set)
+        .where(and(eq(devlog.id, devlogId), eq(devlog.userId, userId)));
+      if (hoursChanged) {
+        await recomputeProjectHoursSpentSeconds(projectId, tx);
+      }
     });
-
-  const u = updated[0];
-  if (!u) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to update devlog.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
+
+  const updated = await loadDevlog(projectId, devlogId);
+  if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   return NextResponse.json({
     devlog: {
-      id: u.id,
-      projectId: u.projectId,
-      userId: u.userId,
-      title: u.title,
-      content: u.content,
-      authorName: row.authorName || "Unknown",
-      createdAt: u.createdAt.toISOString(),
-      updatedAt: u.updatedAt.toISOString(),
+      id: updated.id,
+      projectId: updated.projectId,
+      userId: updated.userId,
+      title: updated.title,
+      content: updated.content,
+      startedAt: updated.startedAt.toISOString(),
+      endedAt: updated.endedAt.toISOString(),
+      durationSeconds: updated.durationSeconds,
+      attachments: updated.attachments ?? [],
+      usedAi: updated.usedAi,
+      aiUsageDescription: updated.aiUsageDescription ?? null,
+      hackatimeProjectNameSnapshot: updated.hackatimeProjectNameSnapshot ?? "",
+      authorName: updated.authorName || "Unknown",
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
     },
   });
 }
 
-/**
- * DELETE /api/projects/[id]/devlogs/[devlogId]
- * Delete a devlog. Only the author can delete. Admins can also delete.
- */
 export async function DELETE(
   _req: Request,
   ctx: { params: Promise<{ id: string; devlogId: string }> },
@@ -224,8 +359,30 @@ export async function DELETE(
   if (!isAuthor && !isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  if (isAuthor && !isAdmin) {
+    if (row.projectStatus !== "work-in-progress" || row.projectSubmittedAt) {
+      return NextResponse.json(
+        {
+          error: "Devlogs are frozen once the project is submitted for review.",
+          code: "devlog_frozen",
+        },
+        { status: 409 },
+      );
+    }
+  }
 
-  await db.delete(devlog).where(eq(devlog.id, devlogId));
+  try {
+    await db.transaction(async (tx) => {
+      await tx.delete(devlog).where(eq(devlog.id, devlogId));
+      await recomputeProjectHoursSpentSeconds(projectId, tx);
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to delete devlog.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }
+
+// Keep desc import even though not used directly — helps typed builders.
+void desc;
