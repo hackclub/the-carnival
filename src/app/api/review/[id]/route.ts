@@ -3,14 +3,22 @@ import { randomUUID } from "crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  devlog,
   peerReview,
+  peerReviewDevlogAssessment,
   project,
   projectReviewerAssignment,
   user,
+  type DevlogAssessmentDecision,
   type ProjectStatus,
   type ReviewDecision,
   type UserRole,
 } from "@/db/schema";
+import {
+  assessmentSecondsToApprovedHours,
+  effectiveSecondsForAssessment,
+  isValidAssessmentDecision,
+} from "@/lib/devlog-assessments";
 import { getServerSession } from "@/lib/server-session";
 import { sendReviewEmail } from "@/lib/loops";
 import { appendReviewAudit } from "@/lib/review-audit";
@@ -38,7 +46,47 @@ type ReviewBody = {
   consideredHackatimeRange?: unknown;
   dismiss?: unknown;
   dismissReason?: unknown;
+  devlogAssessments?: unknown;
 };
+
+type ParsedAssessmentInput = {
+  devlogId: string;
+  decision: DevlogAssessmentDecision;
+  adjustedSeconds: number | null;
+  comment: string | null;
+};
+
+function parseDevlogAssessments(value: unknown): ParsedAssessmentInput[] | null {
+  if (value === undefined || value === null) return null;
+  if (!Array.isArray(value)) return null;
+  const out: ParsedAssessmentInput[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") return null;
+    const { devlogId, decision, adjustedSeconds, comment } = item as Record<string, unknown>;
+    if (typeof devlogId !== "string" || !devlogId.trim()) return null;
+    if (!isValidAssessmentDecision(decision)) return null;
+    let adj: number | null = null;
+    if (decision === "adjusted") {
+      const raw =
+        typeof adjustedSeconds === "number"
+          ? adjustedSeconds
+          : typeof adjustedSeconds === "string"
+            ? Number(adjustedSeconds)
+            : NaN;
+      if (!Number.isFinite(raw) || raw < 0) return null;
+      adj = Math.max(0, Math.floor(raw));
+    } else if (adjustedSeconds !== undefined && adjustedSeconds !== null) {
+      return null;
+    }
+    let cmt: string | null = null;
+    if (typeof comment === "string") {
+      const t = comment.trim();
+      if (t) cmt = t.slice(0, 2000);
+    }
+    out.push({ devlogId: devlogId.trim(), decision, adjustedSeconds: adj, comment: cmt });
+  }
+  return out;
+}
 
 const DISMISS_REASON_MAX_LENGTH = 2000;
 
@@ -130,6 +178,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: "Comment is required" }, { status: 400 });
   }
 
+  const parsedAssessments = parseDevlogAssessments(body.devlogAssessments);
+  if (body.devlogAssessments !== undefined && parsedAssessments === null) {
+    return NextResponse.json(
+      { error: "Invalid devlogAssessments payload." },
+      { status: 400 },
+    );
+  }
+
   const approvedHoursRaw = body.approvedHours;
   let approvedHours =
     approvedHoursRaw === null || approvedHoursRaw === undefined
@@ -141,25 +197,32 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           : NaN;
 
   if (decision === "approved") {
-    if (!Number.isFinite(approvedHours)) {
-      return NextResponse.json(
-        { error: "Approved hours is required when approving" },
-        { status: 400 },
-      );
+    if (!parsedAssessments || parsedAssessments.length === 0) {
+      if (!Number.isFinite(approvedHours)) {
+        return NextResponse.json(
+          {
+            error:
+              "Approving now requires per-devlog assessments. Accept, adjust, or reject each devlog.",
+          },
+          { status: 400 },
+        );
+      }
     }
-    if (approvedHours! <= 0) {
-      return NextResponse.json(
-        { error: "Approved hours must be greater than 0" },
-        { status: 400 },
-      );
+    if (Number.isFinite(approvedHours)) {
+      if (approvedHours! <= 0) {
+        return NextResponse.json(
+          { error: "Approved hours must be greater than 0" },
+          { status: 400 },
+        );
+      }
+      if (!isApprovedHourIncrement(approvedHours!)) {
+        return NextResponse.json(
+          { error: "Approved hours must be in 0.1-hour increments" },
+          { status: 400 },
+        );
+      }
+      approvedHours = normalizeApprovedHours(approvedHours);
     }
-    if (!isApprovedHourIncrement(approvedHours!)) {
-      return NextResponse.json(
-        { error: "Approved hours must be in 0.1-hour increments" },
-        { status: 400 },
-      );
-    }
-    approvedHours = normalizeApprovedHours(approvedHours);
   }
 
   const dismiss = body.dismiss === true;
@@ -288,7 +351,113 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         }
       }
 
+      let derivedApprovedSeconds: number | null = null;
+      if (parsedAssessments && parsedAssessments.length > 0) {
+        const projectDevlogs = await tx
+          .select({ id: devlog.id, durationSeconds: devlog.durationSeconds })
+          .from(devlog)
+          .where(eq(devlog.projectId, projectId));
+
+        const knownIds = new Set(projectDevlogs.map((d) => d.id));
+        const durationLookup = new Map(
+          projectDevlogs.map((d) => [d.id, Math.max(0, Math.floor(d.durationSeconds || 0))]),
+        );
+
+        const seenAssessmentIds = new Set<string>();
+        for (const a of parsedAssessments) {
+          if (!knownIds.has(a.devlogId)) {
+            throw new ReviewSubmitError(
+              "validation",
+              `Assessment references unknown devlog ${a.devlogId}.`,
+              400,
+            );
+          }
+          if (seenAssessmentIds.has(a.devlogId)) {
+            throw new ReviewSubmitError(
+              "validation",
+              `Duplicate assessment for devlog ${a.devlogId}.`,
+              400,
+            );
+          }
+          seenAssessmentIds.add(a.devlogId);
+
+          if (a.decision === "adjusted") {
+            const base = durationLookup.get(a.devlogId) ?? 0;
+            if (a.adjustedSeconds === null) {
+              throw new ReviewSubmitError(
+                "validation",
+                "adjustedSeconds is required when decision='adjusted'.",
+                400,
+              );
+            }
+            if (a.adjustedSeconds > base) {
+              throw new ReviewSubmitError(
+                "validation",
+                "adjustedSeconds cannot exceed the devlog's logged Hackatime duration.",
+                400,
+              );
+            }
+          }
+        }
+
+        if (decision === "approved") {
+          if (seenAssessmentIds.size !== projectDevlogs.length) {
+            throw new ReviewSubmitError(
+              "validation",
+              "Every devlog must be assessed (accepted, rejected, or adjusted) before approval.",
+              400,
+            );
+          }
+        }
+
+        let totalSeconds = 0;
+        for (const a of parsedAssessments) {
+          totalSeconds += effectiveSecondsForAssessment(
+            { devlogId: a.devlogId, durationSeconds: durationLookup.get(a.devlogId) ?? 0 },
+            { decision: a.decision, adjustedSeconds: a.adjustedSeconds ?? null },
+          );
+        }
+        derivedApprovedSeconds = totalSeconds;
+
+        if (decision === "approved") {
+          const derivedHours = assessmentSecondsToApprovedHours(totalSeconds);
+          if (derivedHours <= 0) {
+            throw new ReviewSubmitError(
+              "validation",
+              "Assessed devlog hours total less than 0.1h; approving is not possible.",
+              400,
+            );
+          }
+          approvedHours = derivedHours;
+        }
+
+        await tx
+          .delete(peerReviewDevlogAssessment)
+          .where(eq(peerReviewDevlogAssessment.reviewId, reviewId));
+
+        if (parsedAssessments.length > 0) {
+          await tx.insert(peerReviewDevlogAssessment).values(
+            parsedAssessments.map((a) => ({
+              id: randomUUID(),
+              reviewId,
+              devlogId: a.devlogId,
+              decision: a.decision,
+              adjustedSeconds: a.decision === "adjusted" ? a.adjustedSeconds ?? null : null,
+              comment: a.comment,
+              createdAt: now,
+            })),
+          );
+        }
+      }
+
       if (decision === "approved") {
+        if (!Number.isFinite(approvedHours)) {
+          throw new ReviewSubmitError(
+            "validation",
+            "Could not determine approved hours. Assess every devlog.",
+            400,
+          );
+        }
         if (!approvedHoursWithinSnapshot(approvedHours as number, hackatimeSnapshotSeconds)) {
           throw new ReviewSubmitError(
             "validation",
@@ -297,6 +466,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           );
         }
       }
+
+      void derivedApprovedSeconds;
 
       const normalizedReviewJustification =
         decision === "comment"

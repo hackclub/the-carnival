@@ -2,9 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { asc, desc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
-import ReviewDevlogsPanel, {
-  type ReviewDevlog,
-} from "@/components/ReviewDevlogsPanel";
+import type { ReviewDevlogFull } from "@/components/DevlogAssessmentPanel";
 import ReviewHackatimeTools from "@/components/ReviewHackatimeTools";
 import ReviewProjectClient from "@/components/ReviewProjectClient";
 import { db } from "@/db";
@@ -49,6 +47,7 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
       hackatimeStartedAt: project.hackatimeStartedAt,
       hackatimeStoppedAt: project.hackatimeStoppedAt,
       hackatimeTotalSeconds: project.hackatimeTotalSeconds,
+      hoursSpentSeconds: project.hoursSpentSeconds,
       videoUrl: project.videoUrl,
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
@@ -76,10 +75,15 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
   const p = projectRows[0];
   if (!p) notFound();
 
-  const totalSeconds =
+  const devlogSeconds =
+    typeof p.hoursSpentSeconds === "number" && Number.isFinite(p.hoursSpentSeconds)
+      ? Math.max(0, Math.floor(p.hoursSpentSeconds))
+      : 0;
+  const legacySeconds =
     typeof p.hackatimeTotalSeconds === "number" && Number.isFinite(p.hackatimeTotalSeconds)
       ? Math.max(0, Math.floor(p.hackatimeTotalSeconds))
       : 0;
+  const totalSeconds = devlogSeconds > 0 ? devlogSeconds : legacySeconds;
   const hackatimeHours = { hours: Math.floor(totalSeconds / 3600), minutes: Math.floor(totalSeconds / 60) % 60 };
   const reviewJustificationColumn = (
     peerReview as unknown as { reviewJustification?: typeof peerReview.id }
@@ -138,19 +142,33 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
       id: devlog.id,
       title: devlog.title,
       content: devlog.content,
+      startedAt: devlog.startedAt,
+      endedAt: devlog.endedAt,
+      durationSeconds: devlog.durationSeconds,
+      attachments: devlog.attachments,
+      usedAi: devlog.usedAi,
+      aiUsageDescription: devlog.aiUsageDescription,
+      hackatimeProjectNameSnapshot: devlog.hackatimeProjectNameSnapshot,
       createdAt: devlog.createdAt,
       authorName: user.name,
     })
     .from(devlog)
     .leftJoin(user, eq(devlog.userId, user.id))
     .where(eq(devlog.projectId, id))
-    .orderBy(desc(devlog.createdAt), asc(devlog.id));
+    .orderBy(asc(devlog.startedAt), asc(devlog.id));
 
-  const devlogsForReview: ReviewDevlog[] = devlogRows.map((row) => ({
+  const devlogsForReview: ReviewDevlogFull[] = devlogRows.map((row) => ({
     id: row.id,
     title: row.title,
     content: row.content,
     createdAt: row.createdAt.toISOString(),
+    startedAt: row.startedAt.toISOString(),
+    endedAt: row.endedAt.toISOString(),
+    durationSeconds: row.durationSeconds ?? 0,
+    attachments: row.attachments ?? [],
+    usedAi: row.usedAi,
+    aiUsageDescription: row.aiUsageDescription ?? null,
+    hackatimeProjectNameSnapshot: row.hackatimeProjectNameSnapshot ?? "",
     authorName: row.authorName || "Unknown",
   }));
 
@@ -165,7 +183,7 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
         </Link>
       </div>
 
-      <div className="mb-6 grid gap-6 lg:grid-cols-2">
+      <div className="mb-6">
         <ReviewHackatimeTools
           projectId={p.id}
           hackatimeUserId={
@@ -175,7 +193,6 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
           submittedAtIso={p.submittedAt ? p.submittedAt.toISOString() : null}
           projectCreatedAtIso={p.createdAt.toISOString()}
         />
-        <ReviewDevlogsPanel projectId={p.id} devlogs={devlogsForReview} />
       </div>
 
       <ReviewProjectClient
@@ -234,6 +251,7 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
             reviewerEmail: a.reviewerEmail || "",
             createdAt: a.createdAt.toISOString(),
           })),
+          devlogs: devlogsForReview,
         }}
       />
     </AppShell>

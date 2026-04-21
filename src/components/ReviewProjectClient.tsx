@@ -11,6 +11,14 @@ import { buildBillyUrl } from "@/lib/constants";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
+import DevlogAssessmentPanel, {
+  type ReviewDevlogFull,
+} from "@/components/DevlogAssessmentPanel";
+import {
+  assessmentSecondsToApprovedHours,
+  effectiveSecondsForAssessment,
+  type DevlogAssessmentDraft,
+} from "@/lib/devlog-assessments";
 import { Modal } from "@/components/ui";
 import { PROJECT_SUBMISSION_CHECKLIST_ITEMS } from "@/lib/project-submission-checklist";
 import {
@@ -106,6 +114,7 @@ export default function ReviewProjectClient({
     project: ReviewableProject;
     reviews: ReviewItem[];
     assignments: AssignmentItem[];
+    devlogs: ReviewDevlogFull[];
   };
 }) {
   const isAdmin = initial.isAdmin;
@@ -114,13 +123,7 @@ export default function ReviewProjectClient({
   const [assignments, setAssignments] = useState<AssignmentItem[]>(initial.assignments);
   const [decision, setDecision] = useState<ReviewDecision>("comment");
   const [comment, setComment] = useState("");
-  const [approvedHours, setApprovedHours] = useState<string>(() => {
-    if (initial.project.approvedHours !== null && initial.project.approvedHours !== undefined) {
-      return String(initial.project.approvedHours);
-    }
-    if (initial.project.hackatimeHours) return String(initial.project.hackatimeHours.hours);
-    return "";
-  });
+  const [devlogAssessments, setDevlogAssessments] = useState<Record<string, DevlogAssessmentDraft>>({});
   const [submitting, setSubmitting] = useState(false);
   const [assignmentBusy, setAssignmentBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -206,19 +209,43 @@ export default function ReviewProjectClient({
     [],
   );
 
+  const assessmentsMap = useMemo(() => {
+    return new Map<string, DevlogAssessmentDraft>(Object.entries(devlogAssessments));
+  }, [devlogAssessments]);
+
+  const allDevlogsAssessed = useMemo(() => {
+    if (initial.devlogs.length === 0) return false;
+    return initial.devlogs.every((d) => assessmentsMap.has(d.id));
+  }, [assessmentsMap, initial.devlogs]);
+
+  const assessedTotalSeconds = useMemo(() => {
+    let total = 0;
+    for (const d of initial.devlogs) {
+      const a = assessmentsMap.get(d.id);
+      if (!a) continue;
+      total += effectiveSecondsForAssessment(
+        { devlogId: d.id, durationSeconds: d.durationSeconds },
+        { decision: a.decision, adjustedSeconds: a.adjustedSeconds ?? null },
+      );
+    }
+    return total;
+  }, [assessmentsMap, initial.devlogs]);
+
   const approvedHoursValue = useMemo(() => {
-    const v = approvedHours.trim();
-    if (!v) return null;
-    const n = Number(v);
-    return normalizeApprovedHours(Number.isFinite(n) ? n : null);
-  }, [approvedHours]);
+    if (assessedTotalSeconds <= 0) return null;
+    const h = assessmentSecondsToApprovedHours(assessedTotalSeconds);
+    return normalizeApprovedHours(h);
+  }, [assessedTotalSeconds]);
 
   const canSubmit = useMemo(() => {
     if (submitting) return false;
     if (comment.trim().length === 0) return false;
-    if (decision === "approved") return approvedHoursValue !== null;
+    if (decision === "approved") {
+      if (!allDevlogsAssessed) return false;
+      return approvedHoursValue !== null && approvedHoursValue > 0;
+    }
     return true;
-  }, [approvedHoursValue, comment, decision, submitting]);
+  }, [allDevlogsAssessed, approvedHoursValue, comment, decision, submitting]);
 
   const hackatimeLoggedHoursValue = useMemo(() => {
     if (!project.hackatimeHours) return null;
@@ -407,6 +434,15 @@ export default function ReviewProjectClient({
     const trimmedDismissReason = dismiss ? (input.dismissReason ?? "").trim() : "";
     const toastId = toast.loading(dismiss ? "Rejecting and dismissing…" : "Submitting review…");
     try {
+      const assessmentsPayload = Object.values(devlogAssessments).map((a) => ({
+        devlogId: a.devlogId,
+        decision: a.decision,
+        ...(a.decision === "adjusted"
+          ? { adjustedSeconds: Math.max(0, Math.floor(a.adjustedSeconds ?? 0)) }
+          : {}),
+        ...(a.comment ? { comment: a.comment } : {}),
+      }));
+
       const res = await fetch(`/api/review/${encodeURIComponent(project.id)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -416,6 +452,7 @@ export default function ReviewProjectClient({
           approvedHours: decision === "approved" ? approvedHoursValue : null,
           reviewJustification: input.requestReviewJustification,
           consideredHackatimeRange: input.consideredHackatimeRange,
+          devlogAssessments: assessmentsPayload,
           ...(dismiss ? { dismiss: true, dismissReason: trimmedDismissReason } : {}),
         }),
       });
@@ -476,6 +513,7 @@ export default function ReviewProjectClient({
 
       setComment("");
       setDecision("comment");
+      setDevlogAssessments({});
       setShowConfirmationModal(false);
       setShowDismissConfirmationModal(false);
       setDismissReason("");
@@ -495,6 +533,7 @@ export default function ReviewProjectClient({
     approvedHoursValue,
     comment,
     decision,
+    devlogAssessments,
     project.id,
     resetReviewJustificationDraft,
   ]);
@@ -848,6 +887,13 @@ export default function ReviewProjectClient({
         </div>
       ) : null}
 
+      <DevlogAssessmentPanel
+        projectId={project.id}
+        devlogs={initial.devlogs}
+        assessments={devlogAssessments}
+        onChange={setDevlogAssessments}
+      />
+
       <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Leave a review</div>
 
@@ -893,22 +939,31 @@ export default function ReviewProjectClient({
           </button>
         </div>
 
-        <label className="block">
-          <div className="text-sm text-muted-foreground font-medium mb-2">Approved hours</div>
-          <input
-            type="number"
-            min={0.1}
-            step={0.1}
-            value={approvedHours}
-            onChange={(e) => setApprovedHours(e.target.value)}
-            disabled={decision !== "approved"}
-            className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40 disabled:opacity-60"
-            placeholder="e.g. 10.8"
-          />
-          <div className="text-xs text-muted-foreground mt-2">
-            Required for <span className="text-foreground">Approve</span>. Use 0.1-hour increments for the final approved total.
+        <div className="rounded-2xl border border-border bg-muted px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm text-muted-foreground">Approved hours</div>
+            <div className="text-sm font-semibold text-foreground">
+              {approvedHoursValue !== null
+                ? `${approvedHoursValue}h`
+                : initial.devlogs.length === 0
+                  ? "No devlogs yet"
+                  : allDevlogsAssessed
+                    ? "0h"
+                    : "Pending assessment"}
+            </div>
           </div>
-        </label>
+          <div className="mt-1 text-xs text-muted-foreground">
+            Approved hours is the sum of accepted and adjusted devlog durations, snapped down to
+            the nearest 0.1h. Assess each devlog below before approving.
+          </div>
+          {decision === "approved" && !allDevlogsAssessed ? (
+            <div className="mt-2 text-xs text-red-200">
+              {initial.devlogs.length === 0
+                ? "There are no devlogs; the creator must post at least one before you can approve."
+                : `Assess every devlog before approving (${Object.keys(devlogAssessments).length}/${initial.devlogs.length} done).`}
+            </div>
+          ) : null}
+        </div>
 
         <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">Comment</div>
