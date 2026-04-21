@@ -34,6 +34,7 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
       hackatimeStartedAt: project.hackatimeStartedAt,
       hackatimeStoppedAt: project.hackatimeStoppedAt,
       hackatimeTotalSeconds: project.hackatimeTotalSeconds,
+      hoursSpentSeconds: project.hoursSpentSeconds,
       videoUrl: project.videoUrl,
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
@@ -93,13 +94,18 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
       id: devlog.id,
       title: devlog.title,
       content: devlog.content,
+      startedAt: devlog.startedAt,
+      endedAt: devlog.endedAt,
+      durationSeconds: devlog.durationSeconds,
+      attachments: devlog.attachments,
+      usedAi: devlog.usedAi,
       createdAt: devlog.createdAt,
       authorName: user.name,
     })
     .from(devlog)
     .leftJoin(user, eq(devlog.userId, user.id))
     .where(eq(devlog.projectId, id))
-    .orderBy(desc(devlog.createdAt), asc(devlog.id))
+    .orderBy(desc(devlog.endedAt), asc(devlog.id))
     .limit(3);
 
   const devlogCountRows = await db
@@ -115,19 +121,46 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
       id: row.id,
       title: row.title,
       createdAt: row.createdAt.toISOString(),
+      startedAt: row.startedAt.toISOString(),
+      endedAt: row.endedAt.toISOString(),
+      durationSeconds: row.durationSeconds,
+      attachments: row.attachments ?? [],
+      usedAi: row.usedAi,
       authorName: row.authorName || "Unknown",
       excerpt,
     };
   });
 
-  const canWriteDevlog = p.status !== "granted";
+  const canWriteDevlog = p.status === "work-in-progress" && !p.submittedAt;
+  const writeBlockedReason = canWriteDevlog
+    ? null
+    : p.submittedAt
+      ? "Devlogs are frozen after submitting the project for review."
+      : p.status === "in-review"
+        ? "Devlogs are frozen while the project is in review."
+        : p.status === "shipped"
+          ? "This project is shipped; no more devlogs can be added."
+          : p.status === "granted"
+            ? "This project has been granted and is immutable."
+            : "Devlogs can only be posted while a project is work-in-progress.";
+  const totalHoursSeconds = p.hoursSpentSeconds ?? 0;
 
   return (
     <AppShell title="Manage project">
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <Link href="/projects" className="text-sm text-muted-foreground hover:text-foreground">
           ← Back to projects
         </Link>
+        {p.submittedAt ? (
+          <Link
+            href={`/p/${p.id}`}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="text-sm font-semibold text-carnival-blue hover:underline"
+          >
+            Share submission →
+          </Link>
+        ) : null}
       </div>
 
       <div className="mb-6">
@@ -136,8 +169,10 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
           devlogs={devlogSummaries}
           totalCount={devlogTotalCount}
           canWrite={canWriteDevlog}
+          writeBlockedReason={writeBlockedReason}
           projectStartedAtIso={(p.startedOnCarnivalAt ?? p.createdAt).toISOString()}
           submittedAtIso={p.submittedAt ? p.submittedAt.toISOString() : null}
+          totalHoursSeconds={totalHoursSeconds}
         />
       </div>
 

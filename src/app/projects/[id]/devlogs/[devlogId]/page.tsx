@@ -2,28 +2,17 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
-import DevlogViewActions from "@/components/DevlogViewActions";
-import { Card, CardContent } from "@/components/ui";
+import DevlogDetailClient from "@/components/DevlogDetailClient";
 import { db } from "@/db";
-import { devlog, project, user, type UserRole } from "@/db/schema";
+import { devlog, project, user } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
-
-function formatDateTime(d: Date) {
-  return d.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 function canView(role: unknown, isCreator: boolean) {
   if (isCreator) return true;
   return role === "reviewer" || role === "admin";
 }
 
-export default async function ViewDevlogPage(props: {
+export default async function DevlogDetailPage(props: {
   params: Promise<{ id: string; devlogId: string }>;
 }) {
   const session = await getServerSession({ disableCookieCache: true });
@@ -32,18 +21,29 @@ export default async function ViewDevlogPage(props: {
   }
 
   const { id, devlogId } = await props.params;
+  const role = (session.user as { role?: unknown } | undefined)?.role;
 
   const rows = await db
     .select({
       id: devlog.id,
+      projectId: devlog.projectId,
+      userId: devlog.userId,
       title: devlog.title,
       content: devlog.content,
+      startedAt: devlog.startedAt,
+      endedAt: devlog.endedAt,
+      durationSeconds: devlog.durationSeconds,
+      attachments: devlog.attachments,
+      usedAi: devlog.usedAi,
+      aiUsageDescription: devlog.aiUsageDescription,
+      hackatimeProjectNameSnapshot: devlog.hackatimeProjectNameSnapshot,
       createdAt: devlog.createdAt,
       updatedAt: devlog.updatedAt,
-      authorId: devlog.userId,
       authorName: user.name,
       projectName: project.name,
       projectCreatorId: project.creatorId,
+      projectStatus: project.status,
+      projectSubmittedAt: project.submittedAt,
     })
     .from(devlog)
     .leftJoin(user, eq(devlog.userId, user.id))
@@ -54,16 +54,13 @@ export default async function ViewDevlogPage(props: {
   const row = rows[0];
   if (!row) notFound();
 
-  const role = (session.user as { role?: UserRole } | undefined)?.role;
   const isCreator = row.projectCreatorId === session.user.id;
-  if (!canView(role, isCreator)) {
-    redirect(`/projects/${id}`);
-  }
+  const isAuthor = row.userId === session.user.id;
+  if (!canView(role, isCreator)) notFound();
 
-  const isAuthor = row.authorId === session.user.id;
-  const isAdmin = role === "admin";
-  const canEdit = isAuthor;
-  const canDelete = isAuthor || isAdmin;
+  const projectEditable = row.projectStatus === "work-in-progress" && !row.projectSubmittedAt;
+  const canEdit = isAuthor && projectEditable;
+  const canDelete = canEdit || role === "admin";
 
   return (
     <AppShell title={row.title}>
@@ -78,42 +75,31 @@ export default async function ViewDevlogPage(props: {
           href={`/projects/${id}`}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
-          {row.projectName ? `View ${row.projectName}` : "View project"}
+          View project
         </Link>
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>{row.authorName || "Unknown"}</span>
-            <span>·</span>
-            <span>Posted {formatDateTime(row.createdAt)}</span>
-            {row.updatedAt.getTime() !== row.createdAt.getTime() ? (
-              <>
-                <span>·</span>
-                <span>Edited {formatDateTime(row.updatedAt)}</span>
-              </>
-            ) : null}
-          </div>
-
-          <h1 className="mb-4 text-2xl font-bold">{row.title}</h1>
-
-          <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-            {row.content}
-          </div>
-
-          {canEdit || canDelete ? (
-            <div className="mt-6 border-t border-border pt-4">
-              <DevlogViewActions
-                projectId={id}
-                devlogId={devlogId}
-                canEdit={canEdit}
-                canDelete={canDelete}
-              />
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+      <DevlogDetailClient
+        projectId={id}
+        projectName={row.projectName || "Project"}
+        devlog={{
+          id: row.id,
+          title: row.title,
+          content: row.content,
+          startedAt: row.startedAt.toISOString(),
+          endedAt: row.endedAt.toISOString(),
+          durationSeconds: row.durationSeconds,
+          attachments: row.attachments ?? [],
+          usedAi: row.usedAi,
+          aiUsageDescription: row.aiUsageDescription ?? null,
+          hackatimeProjectNameSnapshot: row.hackatimeProjectNameSnapshot ?? "",
+          createdAt: row.createdAt.toISOString(),
+          updatedAt: row.updatedAt.toISOString(),
+          authorName: row.authorName || "Unknown",
+        }}
+        canEdit={canEdit}
+        canDelete={canDelete}
+      />
     </AppShell>
   );
 }

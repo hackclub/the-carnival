@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
-import DevlogForm from "@/components/DevlogForm";
+import NewDevlogForm from "@/components/NewDevlogForm";
+import { Card, CardContent } from "@/components/ui";
 import { db } from "@/db";
 import { devlog, project } from "@/db/schema";
+import { computeWindowCeiling, getDevlogWindowFloor } from "@/lib/devlogs";
 import { getServerSession } from "@/lib/server-session";
 
 export default async function EditDevlogPage(props: {
@@ -20,10 +22,21 @@ export default async function EditDevlogPage(props: {
   const rows = await db
     .select({
       id: devlog.id,
+      userId: devlog.userId,
       title: devlog.title,
       content: devlog.content,
-      userId: devlog.userId,
+      startedAt: devlog.startedAt,
+      endedAt: devlog.endedAt,
+      attachments: devlog.attachments,
+      usedAi: devlog.usedAi,
+      aiUsageDescription: devlog.aiUsageDescription,
       projectName: project.name,
+      projectStatus: project.status,
+      projectCreatorId: project.creatorId,
+      projectSubmittedAt: project.submittedAt,
+      projectStartedOnCarnivalAt: project.startedOnCarnivalAt,
+      projectCreatedAt: project.createdAt,
+      projectHackatimeProjectName: project.hackatimeProjectName,
     })
     .from(devlog)
     .leftJoin(project, eq(devlog.projectId, project.id))
@@ -37,8 +50,71 @@ export default async function EditDevlogPage(props: {
     redirect(`/projects/${id}/devlogs/${devlogId}`);
   }
 
+  const hackatimeProjectName = (row.projectHackatimeProjectName ?? "").trim();
+
+  if (row.projectStatus !== "work-in-progress" || row.projectSubmittedAt) {
+    return (
+      <AppShell title="Edit devlog">
+        <div className="mb-6">
+          <Link
+            href={`/projects/${id}/devlogs/${devlogId}`}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            ← Back to devlog
+          </Link>
+        </div>
+        <Card>
+          <CardContent className="pt-6 space-y-2">
+            <div className="font-semibold text-foreground">This devlog is frozen</div>
+            <p className="text-sm text-muted-foreground">
+              You can only edit devlogs while the project is work-in-progress. Once the project
+              is submitted for review, devlogs lock.
+            </p>
+          </CardContent>
+        </Card>
+      </AppShell>
+    );
+  }
+
+  if (!hackatimeProjectName) {
+    return (
+      <AppShell title="Edit devlog">
+        <div className="mb-6">
+          <Link
+            href={`/projects/${id}/devlogs/${devlogId}`}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            ← Back to devlog
+          </Link>
+        </div>
+        <Card>
+          <CardContent className="pt-6 space-y-2">
+            <div className="font-semibold text-foreground">
+              Set a Hackatime project first
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Each devlog pulls its hours from Hackatime for this project's configured
+              Hackatime project. Pick one on the project page before editing this devlog.
+            </p>
+          </CardContent>
+        </Card>
+      </AppShell>
+    );
+  }
+
+  const laterDevlogs = await db
+    .select({ id: devlog.id })
+    .from(devlog)
+    .where(and(eq(devlog.projectId, id), gt(devlog.endedAt, row.endedAt)))
+    .limit(1);
+  const isLatest = laterDevlogs.length === 0;
+
+  const floorBase = row.projectStartedOnCarnivalAt ?? row.projectCreatedAt ?? new Date(0);
+  const floor = await getDevlogWindowFloor(id, floorBase, row.id);
+  const ceiling = computeWindowCeiling(row.projectSubmittedAt ?? null);
+
   return (
-    <AppShell title={`Edit devlog${row.projectName ? ` · ${row.projectName}` : ""}`}>
+    <AppShell title={`Edit devlog · ${row.projectName ?? ""}`}>
       <div className="mb-6">
         <Link
           href={`/projects/${id}/devlogs/${devlogId}`}
@@ -47,14 +123,29 @@ export default async function EditDevlogPage(props: {
           ← Back to devlog
         </Link>
       </div>
-
-      <DevlogForm
-        projectId={id}
+      <NewDevlogForm
+        mode="edit"
         devlogId={devlogId}
-        initial={{ title: row.title, content: row.content }}
-        onCancelHref={`/projects/${id}/devlogs/${devlogId}`}
-        onSavedHref={(savedId) => `/projects/${id}/devlogs/${savedId}`}
-        submitLabel="Save changes"
+        projectId={id}
+        projectName={row.projectName ?? "Project"}
+        hackatimeProjectName={hackatimeProjectName}
+        floorIso={floor.toISOString()}
+        ceilingIso={ceiling.toISOString()}
+        canEditWindow={isLatest}
+        windowLockedReason={
+          isLatest
+            ? undefined
+            : "Only the most recent devlog can change its start/end window. Delete the newer devlogs first, or edit this devlog's other fields only."
+        }
+        initial={{
+          title: row.title,
+          content: row.content,
+          attachments: row.attachments ?? [],
+          usedAi: row.usedAi,
+          aiUsageDescription: row.aiUsageDescription ?? null,
+          startedAtIso: row.startedAt.toISOString(),
+          endedAtIso: row.endedAt.toISOString(),
+        }}
       />
     </AppShell>
   );
