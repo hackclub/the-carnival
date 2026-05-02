@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { signOut } from "@/lib/auth-client";
 import { useSidebar } from "@/components/SidebarContext";
@@ -36,13 +36,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import WalletConverterPopover from "@/components/WalletConverterPopover";
 
 type UserRole = "user" | "reviewer" | "admin" | null;
@@ -188,7 +181,6 @@ export default function AppSidebar({
   walletFetchedAt: string;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { mobileOpen, setMobileOpen, collapsed, toggleCollapsed } = useSidebar();
 
   const [walletBalance, setWalletBalance] = useState<number | null>(initialWalletBalance);
@@ -305,78 +297,103 @@ export default function AppSidebar({
         onNavigate={isMobile ? () => setMobileOpen(false) : undefined}
       />
 
-      {/* Bottom section: wallet + user */}
-      <div className="mt-auto border-t border-[var(--platform-border)] px-3 pt-3 pb-4 space-y-2">
-        {/* Wallet */}
+      {/* Profile chip */}
+      <div className="mt-auto border-t border-[var(--platform-border)] px-3 pt-3 pb-4">
         {isAuthed && (
-          <div className={collapsed && !isMobile ? "flex justify-center" : ""}>
-            {collapsed && !isMobile ? (
+          <div
+            className={
+              collapsed && !isMobile
+                ? "flex flex-col items-center gap-2"
+                : "rounded-[var(--radius-xl)] border border-[rgba(116,33,10,0.16)] bg-[rgba(255,240,207,0.74)] p-2 shadow-sm"
+            }
+          >
+            <div className={collapsed && !isMobile ? "flex flex-col items-center gap-2" : "flex items-center gap-2.5"}>
               <Tooltip>
-                <TooltipTrigger className="inline-flex items-center justify-center rounded-lg p-2 text-sm font-semibold text-[var(--platform-ink-muted)]">
-                  <span>🪙</span>
+                <TooltipTrigger className="shrink-0">
+                  {sessionUser?.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={sessionUser.image}
+                      alt=""
+                      className="h-10 w-10 rounded-full border-2 border-background object-cover shadow-sm"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-background bg-[var(--platform-accent)]/20 text-sm font-bold text-[var(--platform-ink)] shadow-sm">
+                      {avatarText}
+                    </span>
+                  )}
                 </TooltipTrigger>
                 <TooltipContent side="right">
+                  <div className="font-medium">{displayName}</div>
+                  {sessionUser?.email ? <div className="text-xs opacity-80">{sessionUser.email}</div> : null}
+                </TooltipContent>
+              </Tooltip>
+
+              {(!collapsed || isMobile) && (
+                <div className="min-w-0 flex-1">
+                  <div className="sidebar-user-name truncate text-sm font-bold text-[var(--platform-ink)]">
+                    {displayName}
+                  </div>
+                  {sessionUser?.email ? (
+                    <div className="truncate text-[0.68rem] font-medium text-[var(--platform-ink-muted)]">
+                      {sessionUser.email}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Link
+                    href="/account"
+                    onClick={isMobile ? () => setMobileOpen(false) : undefined}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--platform-ink-muted)] transition-colors hover:bg-background/80 hover:text-[var(--platform-ink)]"
+                    aria-label="Account settings"
+                  >
+                    <Settings size={17} />
+                  </Link>
+                  }
+                />
+                <TooltipContent side={collapsed && !isMobile ? "right" : "top"}>Account settings</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                    type="button"
+                    onClick={onSignOut}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--platform-ink-muted)] transition-colors hover:bg-background/80 hover:text-red-600"
+                    aria-label="Sign out"
+                  >
+                    <LogOut size={17} />
+                  </button>
+                  }
+                />
+                <TooltipContent side={collapsed && !isMobile ? "right" : "top"}>Sign out</TooltipContent>
+              </Tooltip>
+            </div>
+
+            <div className={collapsed && !isMobile ? "" : "mt-2 flex justify-start"}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <div>
+                    <WalletConverterPopover
+                      walletBalance={walletBalance}
+                      variant={collapsed && !isMobile ? "compact" : "chip"}
+                    />
+                  </div>
+                  }
+                />
+                <TooltipContent side={collapsed && !isMobile ? "right" : "top"}>
                   {walletBalance ?? "—"} tokens
                 </TooltipContent>
               </Tooltip>
-            ) : (
-              <WalletConverterPopover walletBalance={walletBalance} />
-            )}
+            </div>
           </div>
-        )}
-
-        {/* User */}
-        {isAuthed && (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className={`w-full rounded-[var(--radius-xl)] border border-transparent px-2 py-2 transition-colors hover:border-[rgba(116,33,10,0.16)] hover:bg-[rgba(255,240,207,0.82)] ${collapsed && !isMobile ? "flex justify-center" : "flex items-center gap-2.5"}`}
-            >
-              {sessionUser?.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={sessionUser.image}
-                  alt=""
-                  className="h-8 w-8 rounded-full object-cover border border-[var(--platform-border)] shrink-0"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <span className="h-8 w-8 rounded-full bg-[var(--platform-accent)]/20 border border-[var(--platform-border)] flex items-center justify-center text-[var(--platform-ink)] text-sm font-bold shrink-0">
-                  {avatarText}
-                </span>
-              )}
-              {(!collapsed || isMobile) && (
-                <span className="sidebar-user-name text-sm font-semibold text-[var(--platform-ink)] truncate text-left flex-1">
-                  {displayName}
-                </span>
-              )}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side={collapsed && !isMobile ? "right" : "top"} align="start" className="w-56">
-              <div className="px-3 py-2 border-b border-border">
-                <div className="text-sm font-semibold text-foreground truncate">{sessionUser?.name || "Signed in"}</div>
-                {sessionUser?.email && (
-                  <div className="text-xs text-muted-foreground truncate">{sessionUser.email}</div>
-                )}
-              </div>
-              <DropdownMenuItem
-                className="gap-2 mt-1 cursor-pointer"
-                onClick={() => {
-                  router.push("/account");
-                  if (isMobile) setMobileOpen(false);
-                }}
-              >
-                <Settings size={15} />
-                Account settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="gap-2 cursor-pointer text-red-600 focus:text-red-600"
-                onClick={onSignOut}
-              >
-                <LogOut size={15} />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         )}
       </div>
     </div>

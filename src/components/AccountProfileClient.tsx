@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
 import { Input, FormLabel } from "@/components/ui/form";
 import { DatePicker } from "@/components/ui/date-picker";
 
@@ -13,6 +14,8 @@ export type AccountProfileInitial = {
   stateProvince: string | null;
   country: string | null;
   zipPostalCode: string | null;
+  hackatimeUserId: string | null;
+  hackatimeConnectedAt: string | null;
 };
 
 function toClean(v: string) {
@@ -74,11 +77,60 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
   }, [addressLine1, addressLine2, birthday, city, country, stateProvince, zipPostalCode]);
 
   return (
-    <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6">
-      <div className="text-foreground font-semibold text-lg">Shipping address</div>
-      <div className="text-muted-foreground mt-1">
-        We use this for grants. You’ll fill it once on your first submission, and you can update it any time.
-      </div>
+    <div className="flex flex-col gap-6">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle>Hackatime</CardTitle>
+              <CardDescription>Connection status for project time tracking.</CardDescription>
+            </div>
+            <Badge variant={initial.hackatimeConnectedAt ? "success" : "warning"}>
+              {initial.hackatimeConnectedAt ? "Connected" : "Not connected"}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {initial.hackatimeConnectedAt ? (
+            <div className="text-sm text-muted-foreground">
+              Connected
+              {initial.hackatimeConnectedAt
+                ? ` ${new Date(initial.hackatimeConnectedAt).toLocaleString()}`
+                : ""}
+              {initial.hackatimeUserId ? (
+                <>
+                  {" "}
+                  as <span className="font-mono text-foreground">{initial.hackatimeUserId}</span>
+                </>
+              ) : null}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-muted-foreground">
+                Connect Hackatime so Carnival can read your coding time.
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  window.location.href = "/api/hackatime/oauth/start?returnTo=/account";
+                }}
+              >
+                Connect Hackatime
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Shipping address</CardTitle>
+          <CardDescription>
+            We use this for grants. You’ll fill it once on your first submission, and you can update it any time.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -137,16 +189,18 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
       ) : null}
 
       <div className="mt-6 flex items-center justify-end gap-3">
-        <button
+        <Button
           type="button"
           onClick={onSave}
           disabled={saving}
-          className="bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-[var(--radius-xl)] font-bold transition-colors shadow-md leading-none"
+          loading={saving}
+          loadingText="Saving..."
         >
-          {saving ? "Saving…" : "Save"}
-        </button>
+          Save
+        </Button>
       </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-

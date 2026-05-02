@@ -13,6 +13,7 @@ import {
 
 type WalletConverterPopoverProps = {
   walletBalance: number | null;
+  variant?: "default" | "chip" | "compact";
 };
 
 function parseAmount(value: string): number | null {
@@ -38,7 +39,10 @@ function formatNumber(value: number, maximumFractionDigits = 2): string {
   });
 }
 
-export default function WalletConverterPopover({ walletBalance }: WalletConverterPopoverProps) {
+export default function WalletConverterPopover({
+  walletBalance,
+  variant = "default",
+}: WalletConverterPopoverProps) {
   const [tokenInput, setTokenInput] = useState("10");
   const [usdInput, setUsdInput] = useState("4");
 
@@ -55,11 +59,19 @@ export default function WalletConverterPopover({ walletBalance }: WalletConverte
     <details className="relative">
       <summary className="list-none cursor-pointer select-none">
         <span
-          className="bg-carnival-blue/15 border border-border text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold inline-flex items-center gap-2"
+          className={
+            variant === "compact"
+              ? "inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background/70 text-sm font-semibold text-foreground"
+              : variant === "chip"
+                ? "inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/70 px-2.5 py-1.5 text-sm font-semibold text-foreground"
+                : "bg-carnival-blue/15 border border-border text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold inline-flex items-center gap-2"
+          }
           title="Wallet balance and converter"
         >
-          <span>💸 {walletBalance ?? "—"}</span>
-          <span className="text-xs text-muted-foreground">Convert ▾</span>
+          <span>{variant === "compact" ? "🪙" : `🪙 ${walletBalance ?? "—"}`}</span>
+          {variant === "default" ? (
+            <span className="text-xs text-muted-foreground">Convert ▾</span>
+          ) : null}
         </span>
       </summary>
 
