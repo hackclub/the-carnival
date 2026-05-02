@@ -2,7 +2,23 @@
 
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Button, Input, Modal, Textarea } from "@/components/ui";
+import ShopItemSuggestionStatusBadge from "@/components/ShopItemSuggestionStatusBadge";
+import ShopOrderStatusBadge from "@/components/ShopOrderStatusBadge";
+import { R2ImageUpload } from "@/components/R2ImageUpload";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  EmptyState,
+  Input,
+  Modal,
+  Textarea,
+} from "@/components/ui";
+import { SHOP_ORDER_MAX_QUANTITY, calculateShopOrderTotal } from "@/lib/shop";
 
 export type ShopItemDTO = {
   id: string;
@@ -21,9 +37,26 @@ export type ShopOrderDTO = {
   itemName: string;
   itemImageUrl: string;
   orderNote: string | null;
+  quantity: number;
+  unitTokenCost: number;
   tokenCost: number;
   fulfillmentLink: string | null;
   fulfilledAt: string | null;
+  createdAt: string;
+};
+
+export type ShopItemSuggestionDTO = {
+  id: string;
+  status: "pending" | "approved" | "rejected";
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  referenceUrl: string | null;
+  orderNoteRequired: boolean;
+  approvedHoursNeeded: number;
+  tokenCost: number;
+  rejectionReason: string | null;
+  approvedShopItemId: string | null;
   createdAt: string;
 };
 
@@ -45,6 +78,7 @@ export default function ShopClient({
     items: ShopItemDTO[];
     orders: ShopOrderDTO[];
     ledger: ShopLedgerDTO[];
+    suggestions: ShopItemSuggestionDTO[];
   };
 }) {
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
@@ -53,6 +87,19 @@ export default function ShopClient({
   const [search, setSearch] = useState("");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [orderNote, setOrderNote] = useState("");
+  const [quantity, setQuantity] = useState("1");
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestBusy, setSuggestBusy] = useState(false);
+  const [suggestForm, setSuggestForm] = useState({
+    name: "",
+    description: "",
+    imageUrl: "",
+    referenceUrl: "",
+    orderNoteRequired: false,
+    approvedHoursNeeded: "0",
+    tokenCost: "0",
+  });
 
   const items = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -70,10 +117,16 @@ export default function ShopClient({
   const openOrderModal = useCallback((itemId: string) => {
     setSelectedItemId(itemId);
     setOrderNote("");
+    setQuantity("1");
   }, []);
 
-  const onOrder = useCallback(async (item: ShopItemDTO, note: string) => {
+  const onOrder = useCallback(async (item: ShopItemDTO, note: string, rawQuantity: string) => {
     const cleanedNote = note.trim();
+    const parsedQuantity = Number(rawQuantity);
+    if (!Number.isInteger(parsedQuantity) || parsedQuantity < 1 || parsedQuantity > SHOP_ORDER_MAX_QUANTITY) {
+      toast.error(`Quantity must be a whole number between 1 and ${SHOP_ORDER_MAX_QUANTITY}.`);
+      return;
+    }
     if (item.orderNoteRequired && !cleanedNote) {
       toast.error("A request note is required for this item.");
       return;
@@ -85,7 +138,11 @@ export default function ShopClient({
       const res = await fetch("/api/shop/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId: item.id, orderNote: cleanedNote || undefined }),
+        body: JSON.stringify({
+          itemId: item.id,
+          orderNote: cleanedNote || undefined,
+          quantity: parsedQuantity,
+        }),
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown; id?: string } | null;
       if (!res.ok) {
@@ -97,6 +154,7 @@ export default function ShopClient({
       toast.success("Order placed.", { id: toastId });
       setSelectedItemId(null);
       setOrderNote("");
+      setQuantity("1");
       window.location.reload();
     } catch {
       toast.error("Failed to place order.", { id: toastId });
@@ -104,18 +162,63 @@ export default function ShopClient({
     }
   }, []);
 
+  const onSuggest = useCallback(async () => {
+    if (!suggestForm.name.trim()) {
+      toast.error("Item name is required.");
+      return;
+    }
+    setSuggestBusy(true);
+    const toastId = toast.loading("Sending suggestion...");
+    try {
+      const res = await fetch("/api/shop/item-suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: suggestForm.name,
+          description: suggestForm.description,
+          imageUrl: suggestForm.imageUrl || undefined,
+          referenceUrl: suggestForm.referenceUrl || undefined,
+          orderNoteRequired: suggestForm.orderNoteRequired,
+          approvedHoursNeeded: suggestForm.approvedHoursNeeded,
+          tokenCost: suggestForm.tokenCost,
+        }),
+      });
+      const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+      if (!res.ok) {
+        toast.error(typeof data?.error === "string" ? data.error : "Failed to suggest item.", {
+          id: toastId,
+        });
+        setSuggestBusy(false);
+        return;
+      }
+      toast.success("Suggestion sent.", { id: toastId });
+      setShowSuggest(false);
+      window.location.reload();
+    } catch {
+      toast.error("Failed to suggest item.", { id: toastId });
+      setSuggestBusy(false);
+    }
+  }, [suggestForm]);
+
   const pendingCount = initial.orders.filter((o) => o.status === "pending").length;
 
   return (
-    <div className="space-y-8">
-      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <div className="text-foreground font-semibold text-lg">Your wallet</div>
-          <div className="text-muted-foreground mt-1">
+    <div className="flex flex-col gap-8">
+      <Card>
+        <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <CardTitle>Your wallet</CardTitle>
+            <CardDescription>
             Balance: <span className="text-foreground font-bold">{initial.balance}</span> tokens
+            </CardDescription>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+          <Button variant="secondary" onClick={() => setShowSuggest(true)}>
+            Suggest item
+          </Button>
+          <Button variant="outline" onClick={() => setShowSuggestions(true)}>
+            My suggestions{initial.suggestions.length ? ` (${initial.suggestions.length})` : ""}
+          </Button>
           {canViewLedger ? (
             <Button variant="secondary" onClick={() => setShowLedger(true)}>
               View ledger
@@ -124,14 +227,15 @@ export default function ShopClient({
           <Button variant="outline" onClick={() => setShowOrders(true)}>
             My orders{pendingCount ? ` (${pendingCount})` : ""}
           </Button>
-        </div>
-      </div>
+          </div>
+        </CardHeader>
+      </Card>
 
-      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+      <Card>
+        <CardHeader className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="text-foreground font-semibold text-lg">Shop items</div>
-            <div className="text-muted-foreground mt-1">Order items with your tokens. Admins fulfill orders later.</div>
+            <CardTitle>Shop items</CardTitle>
+            <CardDescription>Order items with your tokens. Admins fulfill orders later.</CardDescription>
           </div>
           <div className="w-full md:w-80">
             <Input
@@ -142,22 +246,24 @@ export default function ShopClient({
               size="small"
             />
           </div>
-        </div>
+        </CardHeader>
 
+        <CardContent>
         {items.length === 0 ? (
-          <div className="text-muted-foreground mt-6">No shop items yet.</div>
+          <EmptyState title="No shop items yet" description="Suggest something you would like to see here." />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-6">
             {items.map((i) => (
-              <div key={i.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted p-4">
+              <Card key={i.id}>
+                <CardContent className="pt-5">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={i.imageUrl}
                   alt=""
-                  className="w-full h-44 object-cover rounded-[var(--radius-xl)] border border-border bg-background"
+                  className="h-44 w-full rounded-[var(--radius-xl)] border border-border bg-background object-cover"
                   referrerPolicy="no-referrer"
                 />
-                <div className="mt-4">
+                <div className="mt-4 flex flex-col gap-1">
                   <div className="text-foreground font-bold text-lg truncate">{i.name}</div>
                   {i.description ? (
                     <div className="text-sm text-muted-foreground mt-1 line-clamp-2">{i.description}</div>
@@ -170,7 +276,8 @@ export default function ShopClient({
                     <div className="text-xs text-carnival-blue mt-1 font-medium">Requester note required</div>
                   ) : null}
                 </div>
-                <div className="mt-4">
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <Badge variant="info">{i.tokenCost} tokens each</Badge>
                   <Button
                     variant="secondary"
                     loading={busyItemId === i.id}
@@ -180,11 +287,13 @@ export default function ShopClient({
                     Order
                   </Button>
                 </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
-      </div>
+        </CardContent>
+      </Card>
 
       <Modal
         open={showOrders}
@@ -196,14 +305,15 @@ export default function ShopClient({
         {initial.orders.length === 0 ? (
           <div className="text-muted-foreground">No orders yet.</div>
         ) : (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {initial.orders.map((o) => (
-              <div key={o.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
+              <Card key={o.id}>
+                <CardContent className="pt-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-foreground font-semibold truncate">{o.itemName}</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {new Date(o.createdAt).toLocaleString()} • {o.tokenCost} tokens
+                      {new Date(o.createdAt).toLocaleString()} • Qty {o.quantity} • {o.tokenCost} tokens
                     </div>
                     {o.orderNote ? (
                       <div className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
@@ -221,11 +331,10 @@ export default function ShopClient({
                       </a>
                     ) : null}
                   </div>
-                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {o.status}
-                  </div>
+                  <ShopOrderStatusBadge status={o.status} />
                 </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
@@ -246,9 +355,28 @@ export default function ShopClient({
         maxWidth="lg"
       >
         {selectedItem ? (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <div className="text-sm text-muted-foreground">
-              Cost: <span className="text-foreground font-semibold">{selectedItem.tokenCost}</span> tokens
+              Cost:{" "}
+              <span className="text-foreground font-semibold">
+                {selectedItem.tokenCost} tokens each
+              </span>
+            </div>
+            <Input
+              label="Quantity"
+              type="number"
+              min="1"
+              max={SHOP_ORDER_MAX_QUANTITY}
+              step="1"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              disabled={busyItemId === selectedItem.id}
+            />
+            <div className="rounded-[var(--radius-xl)] border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+              Total:{" "}
+              <span className="font-semibold text-foreground">
+                {calculateShopOrderTotal(selectedItem.tokenCost, Number(quantity) || 1)} tokens
+              </span>
             </div>
             <Textarea
               label={selectedItem.orderNoteRequired ? "Request note (required)" : "Request note (optional)"}
@@ -263,7 +391,7 @@ export default function ShopClient({
                 variant="secondary"
                 loading={busyItemId === selectedItem.id}
                 loadingText="Ordering…"
-                onClick={() => onOrder(selectedItem, orderNote)}
+                onClick={() => onOrder(selectedItem, orderNote, quantity)}
               >
                 Place order
               </Button>
@@ -280,6 +408,123 @@ export default function ShopClient({
             </div>
           </div>
         ) : null}
+      </Modal>
+
+      <Modal
+        open={showSuggest}
+        onClose={() => setShowSuggest(false)}
+        title="Suggest shop item"
+        description="Suggest an item and the token price you think makes sense. Admins review before it appears in the shop."
+        maxWidth="lg"
+      >
+        <div className="flex flex-col gap-4">
+          <Input
+            label="Item name"
+            value={suggestForm.name}
+            onChange={(e) => setSuggestForm((f) => ({ ...f, name: e.target.value }))}
+            placeholder="e.g. Desk lamp"
+            disabled={suggestBusy}
+          />
+          <Textarea
+            label="Description"
+            value={suggestForm.description}
+            onChange={(e) => setSuggestForm((f) => ({ ...f, description: e.target.value }))}
+            rows={3}
+            disabled={suggestBusy}
+          />
+          <R2ImageUpload
+            label="Suggested image"
+            value={suggestForm.imageUrl}
+            onChange={(url) => setSuggestForm((f) => ({ ...f, imageUrl: url }))}
+            kind="shop_item_image"
+            disabled={suggestBusy}
+            helperText="Optional, but it helps admins review the item faster."
+          />
+          <Input
+            label="Reference URL"
+            value={suggestForm.referenceUrl}
+            onChange={(e) => setSuggestForm((f) => ({ ...f, referenceUrl: e.target.value }))}
+            placeholder="https://..."
+            disabled={suggestBusy}
+          />
+          <label className="flex items-start gap-3 rounded-[var(--radius-xl)] border border-border bg-muted px-4 py-3">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 accent-carnival-blue"
+              checked={suggestForm.orderNoteRequired}
+              onChange={(e) =>
+                setSuggestForm((f) => ({ ...f, orderNoteRequired: e.target.checked }))
+              }
+              disabled={suggestBusy}
+            />
+            <span className="text-sm">
+              <span className="block font-medium text-foreground">Require requester note</span>
+              <span className="block text-muted-foreground">Useful for items with size, color, or shipping choices.</span>
+            </span>
+          </label>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Input
+              label="Approved hours needed"
+              value={suggestForm.approvedHoursNeeded}
+              onChange={(e) =>
+                setSuggestForm((f) => ({ ...f, approvedHoursNeeded: e.target.value }))
+              }
+              inputMode="numeric"
+              disabled={suggestBusy}
+            />
+            <Input
+              label="Token cost"
+              value={suggestForm.tokenCost}
+              onChange={(e) => setSuggestForm((f) => ({ ...f, tokenCost: e.target.value }))}
+              inputMode="numeric"
+              disabled={suggestBusy}
+            />
+          </div>
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="outline" onClick={() => setShowSuggest(false)} disabled={suggestBusy}>
+              Cancel
+            </Button>
+            <Button variant="secondary" loading={suggestBusy} loadingText="Sending..." onClick={onSuggest}>
+              Send suggestion
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={showSuggestions}
+        onClose={() => setShowSuggestions(false)}
+        title="My suggestions"
+        description="Admins review suggested items before they appear in the official shop."
+        maxWidth="lg"
+      >
+        {initial.suggestions.length === 0 ? (
+          <EmptyState title="No suggestions yet" description="Suggest an item you want to see in the shop." />
+        ) : (
+          <div className="flex flex-col gap-3">
+            {initial.suggestions.map((s) => (
+              <Card key={s.id}>
+                <CardContent className="pt-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-foreground truncate">{s.name}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {new Date(s.createdAt).toLocaleString()} • {s.tokenCost} tokens • ~
+                        {s.approvedHoursNeeded} hours
+                      </div>
+                      {s.rejectionReason ? (
+                        <div className="mt-2 text-sm text-muted-foreground">
+                          Reason: {s.rejectionReason}
+                        </div>
+                      ) : null}
+                    </div>
+                    <ShopItemSuggestionStatusBadge status={s.status} />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </Modal>
 
       {canViewLedger ? (

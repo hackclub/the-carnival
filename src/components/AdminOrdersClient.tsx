@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
+import ShopOrderStatusBadge from "@/components/ShopOrderStatusBadge";
 import { Button, Input, Modal, Textarea } from "@/components/ui";
 
 export type AdminShopOrderDTO = {
@@ -17,6 +18,8 @@ export type AdminShopOrderDTO = {
   itemImageUrl: string;
   itemDescription: string | null;
   orderNote: string | null;
+  quantity: number;
+  unitTokenCost: number;
   tokenCost: number;
   fulfillmentLink: string | null;
   cancellationReason: string | null;
@@ -229,9 +232,9 @@ export default function AdminOrdersClient({
                         <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{o.itemDescription}</div>
                       ) : null}
                       <div className="text-xs text-muted-foreground mt-1">
-                        {new Date(o.createdAt).toLocaleString()} • price {o.tokenCost} tokens • {o.requesterName}
-                        {o.requesterEmail ? ` (${o.requesterEmail})` : ""} • available {o.requesterTokenBalance} tokens •{" "}
-                        <span className="font-semibold">{o.status}</span>
+                          {new Date(o.createdAt).toLocaleString()} • qty {o.quantity} • price {o.tokenCost} tokens • {o.requesterName}
+                          {o.requesterEmail ? ` (${o.requesterEmail})` : ""} • available {o.requesterTokenBalance} tokens •{" "}
+                          <ShopOrderStatusBadge status={o.status} />
                         {o.status === "fulfilled" && o.fulfilledAt
                           ? ` • fulfilled ${new Date(o.fulfilledAt).toLocaleString()}`
                           : ""}
@@ -287,7 +290,8 @@ export default function AdminOrdersClient({
                     <div className="text-sm text-muted-foreground mt-2">No item description provided.</div>
                   )}
                   <div className="text-sm text-muted-foreground mt-3">
-                    Price: <span className="text-foreground font-semibold">{selectedOrder.tokenCost}</span> tokens
+                    Qty {selectedOrder.quantity} × {selectedOrder.unitTokenCost} tokens ={" "}
+                    <span className="text-foreground font-semibold">{selectedOrder.tokenCost}</span> tokens
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
                     Available tokens now:{" "}
@@ -297,7 +301,7 @@ export default function AdminOrdersClient({
                     Placed: {new Date(selectedOrder.createdAt).toLocaleString()}
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
-                    Status: <span className="font-semibold">{selectedOrder.status}</span>
+                    Status: <ShopOrderStatusBadge status={selectedOrder.status} />
                   </div>
                   <div className="text-sm text-muted-foreground mt-3">
                     Request note:
