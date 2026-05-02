@@ -53,7 +53,7 @@ export default async function ProjectsPage() {
   return (
     <AppShell title="My projects">
       {myProjects.length === 0 ? (
-        <div className="bg-card border border-border rounded-2xl p-8">
+        <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-8">
           <div className="text-foreground font-semibold text-lg">No projects yet</div>
           <div className="text-muted-foreground mt-1">
             Create your first project to start tracking hours and status.
@@ -61,7 +61,7 @@ export default async function ProjectsPage() {
           <div className="mt-6">
             <Link
               href="/projects?new=1"
-              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 text-white px-6 py-3 rounded-full font-bold transition-colors"
+              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 text-white px-6 py-3 rounded-[var(--radius-xl)] font-bold transition-colors"
             >
               Create a project
             </Link>
@@ -79,7 +79,7 @@ export default async function ProjectsPage() {
               <Link
                 key={p.id}
                 href={`/projects/${p.id}`}
-                className="bg-card border border-border rounded-2xl p-6 card-glow transition-all hover:bg-muted block"
+                className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 card-glow transition-all hover:bg-muted block"
                 aria-label={`Manage ${p.name}`}
               >
                 <div className="flex items-start justify-between gap-4">
@@ -112,7 +112,7 @@ export default async function ProjectsPage() {
       {/* FAB */}
       <Link
         href="/projects?new=1"
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-carnival-red hover:bg-carnival-red/80 text-white flex items-center justify-center shadow-xl border border-border carnival-glow transition-all hover:scale-105"
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-[var(--radius-xl)] bg-carnival-red hover:bg-carnival-red/80 text-white flex items-center justify-center shadow-xl border border-border carnival-glow transition-all hover:scale-105"
         aria-label="Create new project"
         title="Create new project"
       >

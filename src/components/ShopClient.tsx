@@ -108,7 +108,7 @@ export default function ShopClient({
 
   return (
     <div className="space-y-8">
-      <div className="bg-card border border-border rounded-2xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="text-foreground font-semibold text-lg">Your wallet</div>
           <div className="text-muted-foreground mt-1">
@@ -127,7 +127,7 @@ export default function ShopClient({
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-6">
+      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
             <div className="text-foreground font-semibold text-lg">Shop items</div>
@@ -149,12 +149,12 @@ export default function ShopClient({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-6">
             {items.map((i) => (
-              <div key={i.id} className="rounded-2xl border border-border bg-muted p-4">
+              <div key={i.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted p-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={i.imageUrl}
                   alt=""
-                  className="w-full h-44 object-cover rounded-xl border border-border bg-background"
+                  className="w-full h-44 object-cover rounded-[var(--radius-xl)] border border-border bg-background"
                   referrerPolicy="no-referrer"
                 />
                 <div className="mt-4">
@@ -198,7 +198,7 @@ export default function ShopClient({
         ) : (
           <div className="space-y-3">
             {initial.orders.map((o) => (
-              <div key={o.id} className="rounded-2xl border border-border bg-muted px-4 py-4">
+              <div key={o.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-foreground font-semibold truncate">{o.itemName}</div>
@@ -295,7 +295,7 @@ export default function ShopClient({
           ) : (
             <div className="space-y-3">
               {initial.ledger.map((l) => (
-                <div key={l.id} className="rounded-2xl border border-border bg-muted px-4 py-4">
+                <div key={l.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="text-foreground font-semibold truncate">{l.reason}</div>

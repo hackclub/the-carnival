@@ -105,7 +105,7 @@ export default async function AdminShopPage() {
         <div className="text-muted-foreground">Create/edit items and fulfill orders.</div>
         <Link
           href="/admin/shop/items/new"
-          className="bg-carnival-blue/20 hover:bg-carnival-blue/30 text-foreground px-5 py-3 rounded-full font-semibold transition-colors border border-border"
+          className="bg-carnival-blue/20 hover:bg-carnival-blue/30 text-foreground px-5 py-3 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
         >
           New item
         </Link>

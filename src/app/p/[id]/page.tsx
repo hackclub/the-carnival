@@ -6,7 +6,7 @@ import { Badge, Card, CardContent } from "@/components/ui";
 import { PlatformContent, PlatformShell } from "@/components/ui/platform";
 import { db } from "@/db";
 import { devlog, project, user } from "@/db/schema";
-import { formatDurationHM } from "@/lib/devlogs";
+import { formatDurationHM } from "@/lib/devlog-shared";
 
 function formatDateTime(iso: string | null) {
   if (!iso) return null;
@@ -199,7 +199,7 @@ export default async function PublicProjectPage(props: {
         {devlogRows.length === 0 ? (
           <Card>
             <CardContent className="pt-6">
-              <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
+              <div className="rounded-[var(--radius-xl)] border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
                 No devlogs were posted before this project was submitted.
               </div>
             </CardContent>
@@ -250,7 +250,7 @@ export default async function PublicProjectPage(props: {
                       ) : null}
 
                       {row.usedAi && row.aiUsageDescription ? (
-                        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-100">
+                        <div className="rounded-[var(--radius-xl)] border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-100">
                           <span className="font-semibold text-amber-200">AI used:</span>{" "}
                           {row.aiUsageDescription}
                         </div>

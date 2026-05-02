@@ -44,7 +44,7 @@ export default async function AdminDismissedProjectsPage() {
       </div>
 
       {rows.length === 0 ? (
-        <div className="bg-card border border-border rounded-2xl p-8">
+        <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-8">
           <div className="text-foreground font-semibold text-lg">No dismissed projects</div>
           <div className="text-muted-foreground mt-1">
             When admins use &ldquo;Reject and dismiss&rdquo; in the review queue, those projects
@@ -57,7 +57,7 @@ export default async function AdminDismissedProjectsPage() {
             <Link
               key={p.id}
               href={`/admin/dismissed/${p.id}`}
-              className="bg-card border border-border rounded-2xl p-6 card-glow transition-all hover:bg-muted block h-full min-h-[240px]"
+              className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 card-glow transition-all hover:bg-muted block h-full min-h-[240px]"
             >
               <div className="flex h-full flex-col">
                 <div className="flex items-start justify-between gap-4">

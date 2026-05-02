@@ -2,7 +2,8 @@
 
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Input } from "@/components/ui/form";
+import { Input, FormLabel } from "@/components/ui/form";
+import { DatePicker } from "@/components/ui/date-picker";
 
 export type AccountProfileInitial = {
   birthday: string | null;
@@ -73,20 +74,17 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
   }, [addressLine1, addressLine2, birthday, city, country, stateProvince, zipPostalCode]);
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-6">
+    <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6">
       <div className="text-foreground font-semibold text-lg">Shipping address</div>
       <div className="text-muted-foreground mt-1">
         We use this for grants. You’ll fill it once on your first submission, and you can update it any time.
       </div>
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          label="Birthday"
-          type="date"
-          value={birthday}
-          onChange={(e) => setBirthday(e.target.value)}
-          autoComplete="bday"
-        />
+        <div>
+          <FormLabel>Birthday</FormLabel>
+          <DatePicker value={birthday} onChange={(v) => setBirthday(v)} />
+        </div>
         <Input
           label="Address (Line 1) *"
           value={addressLine1}
@@ -143,7 +141,7 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
           type="button"
           onClick={onSave}
           disabled={saving}
-          className="bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-full font-bold transition-colors shadow-md leading-none"
+          className="bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-[var(--radius-xl)] font-bold transition-colors shadow-md leading-none"
         >
           {saving ? "Saving…" : "Save"}
         </button>

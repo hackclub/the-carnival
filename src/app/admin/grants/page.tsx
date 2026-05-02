@@ -24,9 +24,7 @@ const FILTERS: Array<{ label: string; value: FilterKey; statuses: Array<"shipped
 export default async function AdminGrantsPage({
   searchParams,
 }: {
-  searchParams?:
-    | Promise<Record<string, string | string[] | undefined>>
-    | Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
@@ -68,7 +66,7 @@ export default async function AdminGrantsPage({
             <Link
               key={f.value}
               href={`/admin/grants?status=${f.value}`}
-              className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+              className={`inline-flex items-center rounded-[var(--radius-xl)] border px-4 py-2 text-sm font-semibold transition ${
                 isActive
                   ? "bg-carnival-red text-white border-carnival-red"
                   : "bg-card text-foreground border-border hover:bg-muted"
@@ -87,7 +85,7 @@ export default async function AdminGrantsPage({
       </div>
 
       {rows.length === 0 ? (
-        <div className="bg-card border border-border rounded-2xl p-8">
+        <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-8">
           <div className="text-foreground font-semibold text-lg">
             {activeFilter === "granted"
               ? "No granted projects"
@@ -109,7 +107,7 @@ export default async function AdminGrantsPage({
             <Link
               key={p.id}
               href={`/admin/grants/${p.id}`}
-              className="bg-card border border-border rounded-2xl p-6 card-glow transition-all hover:bg-muted block h-full min-h-[300px]"
+              className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 card-glow transition-all hover:bg-muted block h-full min-h-[300px]"
             >
               <div className="flex h-full flex-col">
                 <div className="flex items-start justify-between gap-4">
@@ -150,4 +148,3 @@ export default async function AdminGrantsPage({
     </AppShell>
   );
 }
-

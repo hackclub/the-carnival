@@ -121,7 +121,7 @@ export default function AdminReviewCommentsClient() {
             <Link
               key={filter.value}
               href={`/admin/review/comments?mode=${filter.value}`}
-              className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+              className={`inline-flex items-center rounded-[var(--radius-xl)] border px-4 py-2 text-sm font-semibold transition ${
                 isActive
                   ? "bg-carnival-red text-white border-carnival-red"
                   : "bg-card text-foreground border-border hover:bg-muted"
@@ -135,12 +135,12 @@ export default function AdminReviewCommentsClient() {
       </div>
 
       {loading ? (
-        <div className="bg-card border border-border rounded-2xl p-8">
+        <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-8">
           <div className="text-foreground font-semibold text-lg">Loading reviewer comments…</div>
           <div className="text-muted-foreground mt-1">Fetching the latest reviewer feedback.</div>
         </div>
       ) : error ? (
-        <div className="bg-card border border-border rounded-2xl p-8">
+        <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-8">
           <div className="text-foreground font-semibold text-lg">Could not load reviewer comments</div>
           <div className="text-muted-foreground mt-1">{error}</div>
         </div>
@@ -152,7 +152,7 @@ export default function AdminReviewCommentsClient() {
             </div>
             <div className="space-y-3">
               {flatComments.map((comment) => (
-                <div key={comment.id} className="rounded-2xl border border-border bg-card px-5 py-4">
+                <div key={comment.id} className="rounded-[var(--radius-2xl)] border border-border bg-card px-5 py-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="text-foreground font-semibold truncate">{comment.reviewerName}</div>
@@ -188,7 +188,7 @@ export default function AdminReviewCommentsClient() {
             </div>
           </>
         ) : (
-          <div className="bg-card border border-border rounded-2xl p-8">
+          <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-8">
             <div className="text-foreground font-semibold text-lg">No reviewer comments yet</div>
             <div className="text-muted-foreground mt-1">
               Comments appear here after reviewers submit project feedback.
@@ -203,7 +203,7 @@ export default function AdminReviewCommentsClient() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {groupedReviewers.map((reviewer) => (
-              <div key={reviewer.reviewerId} className="bg-card border border-border rounded-2xl p-6">
+              <div key={reviewer.reviewerId} className="bg-card border border-border rounded-[var(--radius-2xl)] p-6">
                 <div className="flex items-start justify-between gap-3">
                   <div className="text-foreground font-bold text-xl truncate">{reviewer.reviewerName}</div>
                   <div className="text-xs text-muted-foreground shrink-0">
@@ -218,7 +218,7 @@ export default function AdminReviewCommentsClient() {
                     {reviewer.projects.map((project) => (
                       <div
                         key={project.projectId}
-                        className="rounded-2xl border border-border bg-muted px-4 py-3"
+                        className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3"
                       >
                         <div className="text-foreground font-semibold truncate">{project.projectName}</div>
                         <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
@@ -244,7 +244,7 @@ export default function AdminReviewCommentsClient() {
           </div>
         </>
       ) : (
-        <div className="bg-card border border-border rounded-2xl p-8">
+        <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-8">
           <div className="text-foreground font-semibold text-lg">No reviewer activity yet</div>
           <div className="text-muted-foreground mt-1">
             Reviewers show up here after leaving at least one comment.

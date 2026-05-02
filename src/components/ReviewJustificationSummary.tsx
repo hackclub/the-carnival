@@ -26,7 +26,7 @@ export default function ReviewJustificationSummary({
     : [];
 
   return (
-    <div className="mt-3 rounded-xl border border-border bg-background px-3 py-3 space-y-3">
+    <div className="mt-3 rounded-[var(--radius-xl)] border border-border bg-background px-3 py-3 space-y-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <div className="text-[11px] uppercase tracking-wide text-muted-foreground">

@@ -171,19 +171,19 @@ export default function AdminShopClient({
 
   return (
     <div className="space-y-8">
-      <div className="bg-card border border-border rounded-2xl p-6">
+      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6">
         <div className="text-foreground font-semibold text-lg">Items</div>
         {initial.items.length === 0 ? (
           <div className="text-muted-foreground mt-3">No items yet.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-4">
             {initial.items.map((i) => (
-              <div key={i.id} className="rounded-2xl border border-border bg-muted p-4">
+              <div key={i.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted p-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={i.imageUrl}
                   alt=""
-                  className="w-full h-40 object-cover rounded-xl border border-border bg-background"
+                  className="w-full h-40 object-cover rounded-[var(--radius-xl)] border border-border bg-background"
                   referrerPolicy="no-referrer"
                 />
                 <div className="mt-3">
@@ -213,7 +213,7 @@ export default function AdminShopClient({
       </div>
 
       {canManageOrders ? (
-        <div className="bg-card border border-border rounded-2xl p-6">
+        <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6">
           <div className="mb-4 flex flex-wrap gap-2">
             {ORDER_FILTERS.map((f) => {
               const isActive = f.value === activeFilter;
@@ -221,7 +221,7 @@ export default function AdminShopClient({
                 <Link
                   key={f.value}
                   href={`/admin/shop?status=${f.value}`}
-                  className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                  className={`inline-flex items-center rounded-[var(--radius-xl)] border px-4 py-2 text-sm font-semibold transition ${
                     isActive
                       ? "bg-carnival-red text-white border-carnival-red"
                       : "bg-card text-foreground border-border hover:bg-muted"
@@ -269,7 +269,7 @@ export default function AdminShopClient({
           ) : (
             <div className="space-y-3 mt-4">
               {filteredOrders.map((o) => (
-                <div key={o.id} className="rounded-2xl border border-border bg-muted px-4 py-4">
+                <div key={o.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                     <div className="min-w-0 flex items-start gap-3">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -327,13 +327,13 @@ export default function AdminShopClient({
       >
         {selectedOrder ? (
           <div className="space-y-6">
-            <div className="rounded-2xl border border-border bg-muted p-4">
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted p-4">
               <div className="flex flex-col md:flex-row gap-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={selectedOrder.itemImageUrl}
                   alt={selectedOrder.itemName}
-                  className="w-full md:w-48 h-48 object-cover rounded-xl border border-border bg-background shrink-0"
+                  className="w-full md:w-48 h-48 object-cover rounded-[var(--radius-xl)] border border-border bg-background shrink-0"
                   referrerPolicy="no-referrer"
                 />
                 <div className="min-w-0">

@@ -55,15 +55,15 @@ export default function WalletConverterPopover({ walletBalance }: WalletConverte
     <details className="relative">
       <summary className="list-none cursor-pointer select-none">
         <span
-          className="bg-carnival-blue/15 border border-border text-foreground px-4 py-2 rounded-full font-semibold inline-flex items-center gap-2"
+          className="bg-carnival-blue/15 border border-border text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold inline-flex items-center gap-2"
           title="Wallet balance and converter"
         >
-          <span>🪙 {walletBalance ?? "—"}</span>
+          <span>💸 {walletBalance ?? "—"}</span>
           <span className="text-xs text-muted-foreground">Convert ▾</span>
         </span>
       </summary>
 
-      <div className="absolute right-0 mt-3 z-50 w-[340px] rounded-2xl bg-card/95 backdrop-blur border border-border shadow-xl p-4 space-y-4">
+      <div className="absolute right-0 mt-3 z-50 w-[340px] rounded-[var(--radius-2xl)] bg-card/95 backdrop-blur border border-border shadow-xl p-4 space-y-4">
         <div className="text-xs text-muted-foreground">
           Fixed rates:{" "}
           <span className="text-foreground font-medium">

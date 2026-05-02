@@ -32,7 +32,7 @@ export default function ReviewFiltersClient({
           <Link
             key={f.value}
             href={href}
-            className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+            className={`inline-flex items-center rounded-[var(--radius-xl)] border px-4 py-2 text-sm font-semibold transition ${
               isActive
                 ? "bg-carnival-red text-white border-carnival-red"
                 : "bg-card text-foreground border-border hover:bg-muted"

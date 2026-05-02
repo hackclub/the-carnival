@@ -35,7 +35,7 @@ export default async function EditorsPage() {
           </p>
         </div>
 
-        <div className="bg-card/80 backdrop-blur border border-border rounded-2xl p-6">
+        <div className="bg-card/80 backdrop-blur border border-border rounded-[var(--radius-2xl)] p-6">
           <div className="flex flex-wrap gap-3">
             {editors.map((e) => (
               <Link
