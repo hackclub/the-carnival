@@ -445,6 +445,13 @@ export type TokenUpdateKind = (typeof tokenUpdateKind.enumValues)[number];
 export const shopOrderStatus = pgEnum("shop_order_status", ["pending", "fulfilled", "cancelled"]);
 export type ShopOrderStatus = (typeof shopOrderStatus.enumValues)[number];
 
+export const shopItemSuggestionStatus = pgEnum("shop_item_suggestion_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
+export type ShopItemSuggestionStatus = (typeof shopItemSuggestionStatus.enumValues)[number];
+
 export const shopItem = pgTable("shop_item", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -453,6 +460,27 @@ export const shopItem = pgTable("shop_item", {
   orderNoteRequired: boolean("order_note_required").notNull().default(false),
   approvedHoursNeeded: integer("approved_hours_needed").notNull(),
   tokenCost: integer("token_cost").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+});
+
+export const shopItemSuggestion = pgTable("shop_item_suggestion", {
+  id: text("id").primaryKey(),
+  submittedByUserId: text("submitted_by_user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  status: shopItemSuggestionStatus("status").notNull().default("pending"),
+  name: text("name").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url"),
+  referenceUrl: text("reference_url"),
+  orderNoteRequired: boolean("order_note_required").notNull().default(false),
+  approvedHoursNeeded: integer("approved_hours_needed").notNull(),
+  tokenCost: integer("token_cost").notNull(),
+  reviewedById: text("reviewed_by_id").references(() => user.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at"),
+  rejectionReason: text("rejection_reason"),
+  approvedShopItemId: text("approved_shop_item_id").references(() => shopItem.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
@@ -493,6 +521,8 @@ export const shopOrder = pgTable("shop_order", {
   itemImageSnapshot: text("item_image_snapshot").notNull(),
   itemDescriptionSnapshot: text("item_description_snapshot"),
   orderNote: text("order_note"),
+  quantity: integer("quantity").notNull().default(1),
+  unitTokenCostSnapshot: integer("unit_token_cost_snapshot").notNull().default(0),
   tokenCostSnapshot: integer("token_cost_snapshot").notNull(),
   fulfillmentLink: text("fulfillment_link"),
   cancellationReason: text("cancellation_reason"),
