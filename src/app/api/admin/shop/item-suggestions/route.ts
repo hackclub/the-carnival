@@ -3,7 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { shopItemSuggestion, user } from "@/db/schema";
 import { getAuthUser } from "@/lib/api-utils";
-import { isShopItemSuggestionStatus } from "@/lib/shop";
+import { isShopItemSuggestionStatus } from "@/lib/shop-shared";
 
 export async function GET(req: Request) {
   const authUser = await getAuthUser();

@@ -18,7 +18,7 @@ import {
   Modal,
   Textarea,
 } from "@/components/ui";
-import { SHOP_ORDER_MAX_QUANTITY, calculateShopOrderTotal } from "@/lib/shop";
+import { SHOP_ORDER_MAX_QUANTITY, calculateShopOrderTotal } from "@/lib/shop-shared";
 
 export type ShopItemDTO = {
   id: string;

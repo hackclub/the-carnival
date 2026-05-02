@@ -10,7 +10,7 @@ import {
   toPositiveInt,
 } from "@/lib/api-utils";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
-import { normalizeOptionalUrl } from "@/lib/shop";
+import { normalizeOptionalUrl } from "@/lib/shop-shared";
 
 type CreateSuggestionBody = {
   name?: unknown;

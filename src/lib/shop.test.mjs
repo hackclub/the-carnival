@@ -6,7 +6,7 @@ const {
   isShopItemSuggestionStatus,
   normalizeOptionalUrl,
   parseShopOrderQuantity,
-} = await import("./shop.ts");
+} = await import("./shop-shared.ts");
 
 describe("shop order quantity", () => {
   test("defaults missing quantities to one", () => {
