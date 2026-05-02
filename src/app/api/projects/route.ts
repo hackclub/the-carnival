@@ -8,6 +8,7 @@ import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
 import { validateCreatorOriginalityDeclaration } from "@/lib/project-originality";
 import { normalizeCategory, normalizeProjectTags } from "@/lib/project-taxonomy";
 import { getServerSession } from "@/lib/server-session";
+import { validateLinkableBountyProjectId } from "@/lib/bounties";
 
 type CreateProjectBody = {
   name?: unknown;
@@ -28,6 +29,7 @@ type CreateProjectBody = {
   creatorDuplicateExplanation?: unknown;
   creatorOriginalityRationale?: unknown;
   consideredHackatimeRange?: unknown;
+  bountyProjectId?: unknown;
   status?: unknown;
 };
 const MIN_SCREENSHOTS = 3;
@@ -249,6 +251,15 @@ export async function POST(req: Request) {
     }
   }
 
+  const bountyProjectId =
+    typeof body.bountyProjectId === "string" && body.bountyProjectId.trim()
+      ? body.bountyProjectId.trim()
+      : null;
+  const bountyValidation = await validateLinkableBountyProjectId(bountyProjectId);
+  if (!bountyValidation.ok) {
+    return NextResponse.json({ error: bountyValidation.error }, { status: 400 });
+  }
+
   const now = new Date();
   const id = randomUUID();
 
@@ -272,10 +283,8 @@ export async function POST(req: Request) {
     creatorDeclaredOriginality: originalityDeclaration.value.creatorDeclaredOriginality,
     creatorDuplicateExplanation: originalityDeclaration.value.creatorDuplicateExplanation,
     creatorOriginalityRationale: originalityDeclaration.value.creatorOriginalityRationale,
-    // Record the moment the project is officially started on Carnival.
-    // Only hours logged between this timestamp and submittedAt are considered during review.
+    bountyProjectId,
     startedOnCarnivalAt: now,
-    // status: default in schema
     createdAt: now,
     updatedAt: now,
   });

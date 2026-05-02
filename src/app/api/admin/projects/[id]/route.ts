@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { peerReview, project, tokenLedger, user, type ProjectStatus, type ReviewDecision } from "@/db/schema";
+import { bountyProject, peerReview, project, tokenLedger, user, type ProjectStatus, type ReviewDecision } from "@/db/schema";
 import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
 import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
 import { getServerSession } from "@/lib/server-session";
 import { approvedHoursWithinSnapshot } from "@/lib/review-rules";
 import { tokensForApprovedHours } from "@/lib/tokens";
+import { bountyPrizeUsdToTokens } from "@/lib/bounties";
 import { generateId, isUniqueConstraintError } from "@/lib/api-utils";
 import { appendReviewAudit } from "@/lib/review-audit";
 import {
@@ -656,6 +657,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           status: project.status,
           creatorId: project.creatorId,
           approvedHours: project.approvedHours,
+          bountyProjectId: project.bountyProjectId,
           name: project.name,
           codeUrl: project.codeUrl,
         })
@@ -706,6 +708,39 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         const tokensToIssue = tokensForApprovedHours(current.approvedHours);
         const projectUrl = current.codeUrl;
         const reason = `Issue ${tokensToIssue} tokens for Shipped project (${current.name}) ${current.id}, ${projectUrl}`;
+        const bountyReferenceType = "bounty_bonus";
+        let bountyBonus:
+          | {
+              referenceId: string;
+              tokens: number;
+              reason: string;
+            }
+          | null = null;
+
+        if (current.bountyProjectId) {
+          const bountyRows = await tx
+            .select({
+              id: bountyProject.id,
+              name: bountyProject.name,
+              prizeUsd: bountyProject.prizeUsd,
+              status: bountyProject.status,
+            })
+            .from(bountyProject)
+            .where(eq(bountyProject.id, current.bountyProjectId))
+            .limit(1);
+
+          const linkedBounty = bountyRows[0];
+          if (linkedBounty?.status === "approved") {
+            const bountyTokens = bountyPrizeUsdToTokens(linkedBounty.prizeUsd);
+            if (bountyTokens > 0) {
+              bountyBonus = {
+                referenceId: `${current.id}:${linkedBounty.id}`,
+                tokens: bountyTokens,
+                reason: `Issue ${bountyTokens} bonus tokens for bounty "${linkedBounty.name}" (${linkedBounty.id}) on project ${current.id}. Bounty prize: $${linkedBounty.prizeUsd}.`,
+              };
+            }
+          }
+        }
 
         // 1) Update status to granted
         await tx
@@ -730,6 +765,25 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           .onConflictDoNothing({
             target: [tokenLedger.referenceType, tokenLedger.referenceId, tokenLedger.kind],
           });
+
+        if (bountyBonus) {
+          await tx
+            .insert(tokenLedger)
+            .values({
+              id: generateId(),
+              kind: "issue",
+              tokens: bountyBonus.tokens,
+              reason: bountyBonus.reason,
+              issuedToUserId: current.creatorId,
+              byUserId: adminUserId,
+              referenceType: bountyReferenceType,
+              referenceId: bountyBonus.referenceId,
+              createdAt: now,
+            })
+            .onConflictDoNothing({
+              target: [tokenLedger.referenceType, tokenLedger.referenceId, tokenLedger.kind],
+            });
+        }
 
         return { ok: true as const };
       }

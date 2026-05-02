@@ -7,6 +7,7 @@ import ReviewHackatimeTools from "@/components/ReviewHackatimeTools";
 import ReviewProjectClient from "@/components/ReviewProjectClient";
 import { db } from "@/db";
 import {
+  bountyProject,
   devlog,
   peerReview,
   project,
@@ -63,12 +64,15 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
       startedOnCarnivalAt: project.startedOnCarnivalAt,
       updatedAt: project.updatedAt,
       creatorId: project.creatorId,
+      bountyProjectId: project.bountyProjectId,
+      bountyProjectName: bountyProject.name,
       creatorName: user.name,
       creatorEmail: user.email,
       creatorHackatimeUserId: user.hackatimeUserId,
     })
     .from(project)
     .leftJoin(user, eq(project.creatorId, user.id))
+    .leftJoin(bountyProject, eq(project.bountyProjectId, bountyProject.id))
     .where(eq(project.id, id))
     .limit(1);
 
@@ -225,6 +229,8 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
             hackatimeStoppedAt: p.hackatimeStoppedAt ? p.hackatimeStoppedAt.toISOString() : null,
             createdAt: p.createdAt.toISOString(),
             submittedAt: p.submittedAt ? p.submittedAt.toISOString() : null,
+            bountyProjectId: p.bountyProjectId ?? null,
+            bountyProjectName: p.bountyProjectName ?? null,
           },
           reviews: reviews.map((r) => ({
             id: r.id,

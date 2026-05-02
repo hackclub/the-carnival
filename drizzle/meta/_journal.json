@@ -239,6 +239,34 @@
       "when": 1776600913403,
       "tag": "0033_devlogs_v2",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1777679398640,
+      "tag": "0034_left_valkyrie",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1777680125465,
+      "tag": "0035_project_bounty_project_id_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1777683600000,
+      "tag": "0036_bounty_proposals_and_rewards",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1777687200000,
+      "tag": "0037_guard_bounty_helpful_links",
+      "breakpoints": true
     }
   ]
 }

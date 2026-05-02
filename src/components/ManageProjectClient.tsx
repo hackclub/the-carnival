@@ -11,6 +11,14 @@ import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
 import { Modal } from "@/components/ui";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
+import { DatePicker } from "@/components/ui/date-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { ReviewJustificationPayload } from "@/lib/review-rules";
 import {
   hasRequiredProjectSubmissionChecklistAnswers,
@@ -65,6 +73,7 @@ export type ManageProjectInitial = {
   creatorDuplicateExplanation: string | null;
   creatorOriginalityRationale: string | null;
   status: ProjectStatus;
+  bountyProjectId: string | null;
   approvedHours: number | null;
   resubmissionBlocked: boolean;
   resubmissionBlockedReason: string | null;
@@ -199,6 +208,32 @@ export default function ManageProjectClient({
   const reviews = initial.reviews;
   const [hackatimePreviewLoading, setHackatimePreviewLoading] = useState(false);
   const [hackatimePreviewError, setHackatimePreviewError] = useState<string | null>(null);
+  const [bountyProjectId, setBountyProjectId] = useState<string | null>(initial.bountyProjectId ?? null);
+  const [availableBounties, setAvailableBounties] = useState<Array<{ id: string; name: string; prizeUsd: number }>>([]);
+  const [bountiesLoading, setBountiesLoading] = useState(false);
+
+  useEffect(() => {
+    setBountiesLoading(true);
+    fetch("/api/bounties")
+      .then((r) => r.json())
+      .then((data) => {
+        const projects = Array.isArray(data?.projects) ? data.projects : [];
+        setAvailableBounties(
+          projects
+            .filter(
+              (p: { completed?: boolean; id?: string; status?: string }) =>
+                (p.status === "approved" && !p.completed) || p.id === initial.bountyProjectId,
+            )
+            .map((p: { id: string; name: string; prizeUsd: number }) => ({
+              id: p.id,
+              name: p.name,
+              prizeUsd: p.prizeUsd,
+            })),
+        );
+      })
+      .catch(() => {})
+      .finally(() => setBountiesLoading(false));
+  }, [initial.bountyProjectId]);
 
   const isGranted = status === "granted";
 
@@ -523,6 +558,7 @@ export default function ManageProjectClient({
       playableDemoUrl: playableDemoUrl.trim(),
       codeUrl: codeUrl.trim(),
       screenshots: cleanList(screenshotUrls),
+      bountyProjectId: bountyProjectId || null,
       consideredHackatimeRange:
         hackatimeProjectName.trim() && submitConsideredRange.ok ? submitConsideredRange.value : undefined,
     };
@@ -675,6 +711,7 @@ export default function ManageProjectClient({
       playableDemoUrl: playableDemoUrl.trim(),
       codeUrl: codeUrl.trim(),
       screenshots: cleanList(screenshotUrls),
+      bountyProjectId: bountyProjectId || null,
       status: "in-review",
       consideredHackatimeRange: submitConsideredRange.value,
     };
@@ -700,7 +737,7 @@ export default function ManageProjectClient({
         if (code === "missing_profile_address") {
           toast.custom(
             (t) => (
-              <div className="bg-card border border-border rounded-2xl px-4 py-3 shadow-xl max-w-[520px]">
+              <div className="bg-card border border-border rounded-[var(--radius-2xl)] px-4 py-3 shadow-xl max-w-[520px]">
                 <div className="text-foreground font-semibold">Shipping address required</div>
                 <div className="text-muted-foreground text-sm mt-1">{message}</div>
                 <div className="mt-3 flex items-center justify-end gap-3">
@@ -717,7 +754,7 @@ export default function ManageProjectClient({
                       toast.dismiss(t.id);
                       window.location.href = "/account";
                     }}
-                    className="bg-carnival-red hover:bg-carnival-red/80 text-white px-4 py-2 rounded-full font-bold transition-colors text-sm"
+                    className="bg-carnival-red hover:bg-carnival-red/80 text-white px-4 py-2 rounded-[var(--radius-xl)] font-bold transition-colors text-sm"
                   >
                     Open account settings
                   </button>
@@ -798,7 +835,7 @@ export default function ManageProjectClient({
 
   return (
     <div className="space-y-6">
-      <div className="bg-card border border-border rounded-2xl p-6">
+      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="text-foreground font-bold text-2xl truncate">{name || "Project"}</div>
@@ -808,12 +845,20 @@ export default function ManageProjectClient({
                 Approved hours: <span className="text-foreground font-semibold">{approvedHours}h</span>
               </div>
             ) : null}
+            {bountyProjectId ? (
+              <div className="text-sm text-muted-foreground mt-2">
+                Linked bounty:{" "}
+                <span className="text-purple-700 dark:text-purple-300 font-semibold">
+                  {availableBounties.find((b) => b.id === bountyProjectId)?.name ?? bountyProjectId}
+                </span>
+              </div>
+            ) : null}
           </div>
           <ProjectStatusBadge status={status} />
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Status</div>
         {isGranted ? (
           <div className="text-sm text-muted-foreground">This project has been granted. Editing is locked.</div>
@@ -826,10 +871,10 @@ export default function ManageProjectClient({
             Shipped! If you need to make changes, ask a reviewer/admin first.
           </div>
         ) : isResubmissionBlocked ? (
-          <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-foreground">
+          <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-foreground">
             <div className="font-semibold mb-1">This project has been dismissed by an admin.</div>
             {resubmissionBlockedReason ? (
-              <div className="mt-2 rounded-xl border border-carnival-red/30 bg-background/40 px-3 py-2">
+              <div className="mt-2 rounded-[var(--radius-xl)] border border-carnival-red/30 bg-background/40 px-3 py-2">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
                   Reason from admin
                 </div>
@@ -851,7 +896,7 @@ export default function ManageProjectClient({
             <button
               type="button"
               onClick={openSubmit}
-              className="inline-flex items-center justify-center bg-carnival-blue hover:bg-carnival-blue/80 disabled:bg-carnival-blue/50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-full font-bold transition-colors"
+              className="inline-flex items-center justify-center bg-carnival-blue hover:bg-carnival-blue/80 disabled:bg-carnival-blue/50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
               disabled={saving}
             >
               {isReReview ? "Submit for re-review" : "Submit for review"}
@@ -860,9 +905,9 @@ export default function ManageProjectClient({
         )}
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Originality declaration</div>
-        <div className="rounded-2xl border border-border bg-muted px-4 py-4 space-y-3">
+        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 space-y-3">
           <div className="text-sm text-muted-foreground">Creator statement</div>
           <div className="text-foreground font-semibold">
             {creatorDeclaredOriginality
@@ -888,14 +933,14 @@ export default function ManageProjectClient({
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Reviewer comments</div>
         {reviews.length === 0 ? (
           <div className="text-muted-foreground">No comments yet.</div>
         ) : (
           <div className="space-y-3">
             {reviews.map((r) => (
-              <div key={r.id} className="rounded-2xl border border-border bg-muted px-4 py-4">
+              <div key={r.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-foreground font-semibold truncate">
@@ -920,23 +965,24 @@ export default function ManageProjectClient({
         )}
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
+      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-5">
         <div className="text-foreground font-semibold text-lg">Project details</div>
 
         <fieldset disabled={saving || isGranted} className={isGranted ? "opacity-60" : ""}>
         <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">Editor / app</div>
-          <select
-            value={editor}
-            onChange={(e) => setEditor(e.target.value as ProjectEditor)}
-            className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-          >
-            {EDITOR_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          <Select value={editor} onValueChange={(v) => { if (v) setEditor(v as ProjectEditor); }}>
+            <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
+              <SelectValue placeholder="Select editor" />
+            </SelectTrigger>
+            <SelectContent>
+              {EDITOR_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
 
         {editor === "other" ? (
@@ -948,7 +994,7 @@ export default function ManageProjectClient({
               value={editorOther}
               onChange={(e) => setEditorOther(e.target.value)}
               required
-              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="e.g. JetBrains, Sublime, ..."
             />
           </label>
@@ -959,7 +1005,7 @@ export default function ManageProjectClient({
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+            className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
             placeholder="My awesome game"
           />
         </label>
@@ -967,10 +1013,10 @@ export default function ManageProjectClient({
         <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">Hackatime project name</div>
           <div className="space-y-2">
-            <select
-              value={hackatimeProjectName}
-              onChange={(e) => {
-                const next = e.target.value;
+            <Select
+              value={hackatimeProjectName || "__none__"}
+              onValueChange={(v) => {
+                const next = !v || v === "__none__" ? "" : v;
                 setHackatimeProjectName(next);
                 const selected = (hackatimeProjects ?? []).find((p) => p.name === next) ?? null;
                 setHackatimeStartedAt(selected?.startedAt ?? null);
@@ -980,16 +1026,20 @@ export default function ManageProjectClient({
                 setSubmitRangeEndDate(toDateInputValue(selected?.stoppedAt ?? null));
                 setHackatimePreviewError(null);
               }}
-              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               disabled={hackatimeLoading || (hackatimeProjects?.length ?? 0) === 0}
             >
-              <option value="">Select a Hackatime project</option>
-              {hackatimeProjects?.map((p) => (
-                <option key={p.name} value={p.name}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
+                <SelectValue placeholder="Select a Hackatime project" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Select a Hackatime project</SelectItem>
+                {hackatimeProjects?.map((p) => (
+                  <SelectItem key={p.name} value={p.name}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
               <div>Fetched from your Hackatime account.</div>
               <div className="flex items-center gap-2">
@@ -1020,27 +1070,15 @@ export default function ManageProjectClient({
               </div>
             </div>
             {hackatimeProjectName ? (
-              <div className="rounded-xl border border-border bg-muted px-3 py-3 space-y-3">
+              <div className="rounded-[var(--radius-xl)] border border-border bg-muted px-3 py-3 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="block">
                     <div className="text-xs text-muted-foreground mb-1">Considered start date</div>
-                    <input
-                      type="date"
-                      value={submitRangeStartDate}
-                      onChange={(e) => setSubmitRangeStartDate(e.target.value)}
-                      className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                      disabled={saving || isGranted}
-                    />
+                    <DatePicker value={submitRangeStartDate} onChange={(v) => setSubmitRangeStartDate(v)} disabled={saving || isGranted} />
                   </label>
                   <label className="block">
                     <div className="text-xs text-muted-foreground mb-1">Considered end date</div>
-                    <input
-                      type="date"
-                      value={submitRangeEndDate}
-                      onChange={(e) => setSubmitRangeEndDate(e.target.value)}
-                      className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                      disabled={saving || isGranted}
-                    />
+                    <DatePicker value={submitRangeEndDate} onChange={(v) => setSubmitRangeEndDate(v)} disabled={saving || isGranted} />
                   </label>
                 </div>
                 {!submitConsideredRange.ok ? (
@@ -1067,7 +1105,7 @@ export default function ManageProjectClient({
             {hackatimeConnectUrl ? (
               <a
                 href={hackatimeConnectUrl}
-                className="inline-flex items-center justify-center bg-carnival-blue hover:bg-carnival-blue/80 text-white px-4 py-2 rounded-full font-semibold transition-colors"
+                className="inline-flex items-center justify-center bg-carnival-blue hover:bg-carnival-blue/80 text-white px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors"
               >
                 Connect Hackatime
               </a>
@@ -1090,7 +1128,7 @@ export default function ManageProjectClient({
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               list="manage-project-category-suggestions"
-              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="e.g. Productivity, Game Dev"
             />
             <datalist id="manage-project-category-suggestions">
@@ -1110,7 +1148,7 @@ export default function ManageProjectClient({
             <input
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
-              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="e.g. ai, web, multiplayer"
             />
             {tagSuggestions.length > 0 ? (
@@ -1136,7 +1174,7 @@ export default function ManageProjectClient({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={5}
-            className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+            className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
             placeholder="What are you building?"
           />
         </label>
@@ -1148,7 +1186,7 @@ export default function ManageProjectClient({
               value={videoUrl}
               onChange={(e) => setVideoUrl(e.target.value)}
               required
-              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="https://youtu.be/... or https://..."
             />
           </label>
@@ -1159,7 +1197,7 @@ export default function ManageProjectClient({
               value={playableDemoUrl}
               onChange={(e) => setPlayableDemoUrl(e.target.value)}
               required
-              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="https://mygame.example.com or https://itch.io/..."
             />
           </label>
@@ -1169,11 +1207,39 @@ export default function ManageProjectClient({
             <input
               value={codeUrl}
               onChange={(e) => setCodeUrl(e.target.value)}
-              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="https://github.com/me/mygame"
             />
           </label>
         </div>
+
+        {availableBounties.length > 0 ? (
+          <div className="block">
+            <div className="text-sm text-muted-foreground font-medium mb-2">
+              Linked bounty <span className="font-normal">(optional)</span>
+            </div>
+            <Select
+              value={bountyProjectId || "__none__"}
+              onValueChange={(v) => setBountyProjectId(v === "__none__" ? null : v)}
+              disabled={saving || isGranted}
+            >
+              <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
+                <SelectValue placeholder="None" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None</SelectItem>
+                {availableBounties.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name} (${b.prizeUsd})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="mt-2 text-xs text-muted-foreground">
+              Attach a bounty to claim when this project gets granted.
+            </div>
+          </div>
+        ) : null}
 
         <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">
@@ -1181,13 +1247,13 @@ export default function ManageProjectClient({
           </div>
           <div className="space-y-3">
             {screenshotUrls.map((value, idx) => (
-              <div key={idx} className="rounded-2xl border border-border bg-card p-4 space-y-3">
+              <div key={idx} className="rounded-[var(--radius-2xl)] border border-border bg-card p-4 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm text-muted-foreground font-medium">Screenshot {idx + 1}</div>
                   <button
                     type="button"
                     onClick={() => removeScreenshotField(idx)}
-                    className="h-10 px-4 rounded-full bg-muted hover:bg-muted/70 border border-border text-foreground font-semibold disabled:opacity-60"
+                    className="h-10 px-4 rounded-[var(--radius-xl)] bg-muted hover:bg-muted/70 border border-border text-foreground font-semibold disabled:opacity-60"
                     disabled={screenshotUrls.length <= 1}
                     aria-label="Remove screenshot"
                     title="Remove"
@@ -1210,7 +1276,7 @@ export default function ManageProjectClient({
             <button
               type="button"
               onClick={addScreenshotField}
-              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border"
+              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
             >
               Add screenshot
             </button>
@@ -1219,7 +1285,7 @@ export default function ManageProjectClient({
         </fieldset>
 
         {error ? (
-          <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
+          <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
             {error}
           </div>
         ) : null}
@@ -1232,14 +1298,14 @@ export default function ManageProjectClient({
             type="button"
             onClick={onSave}
             disabled={saving || isGranted}
-            className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-full font-bold transition-colors"
+            className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-[var(--radius-xl)] font-bold transition-colors"
           >
             {saving ? "Saving…" : "Save changes"}
           </button>
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-6 space-y-3">
+      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
             <div className="text-foreground font-semibold text-lg">Delete project</div>
@@ -1256,7 +1322,7 @@ export default function ManageProjectClient({
             type="button"
             onClick={openDeleteConfirm}
             disabled={!canDelete}
-            className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/40 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-full font-bold transition-colors"
+            className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/40 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
           >
             Delete project
           </button>
@@ -1280,12 +1346,12 @@ export default function ManageProjectClient({
       >
         {submitStep === 0 ? (
           <div className="space-y-4">
-            <div className="rounded-2xl border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
               You can’t submit until these are set: GitHub URL, video link, playable demo link, Hackatime project name, considered Hackatime range, and at least one screenshot.
             </div>
 
             <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
+              <div className="flex items-center justify-between border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">GitHub URL</div>
                 <div
                   className={[
@@ -1298,7 +1364,7 @@ export default function ManageProjectClient({
                   {submitRequirements.githubOk ? "Set" : "Missing/invalid"}
                 </div>
               </div>
-              <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
+              <div className="flex items-center justify-between border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
               <div className="text-foreground">Video link</div>
               <div
                 className={[
@@ -1311,7 +1377,7 @@ export default function ManageProjectClient({
                 {submitRequirements.demoOk ? "Set" : "Missing/invalid"}
               </div>
             </div>
-            <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
+            <div className="flex items-center justify-between border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">Playable demo link</div>
                 <div
                   className={[
@@ -1324,7 +1390,7 @@ export default function ManageProjectClient({
                   {submitRequirements.playableOk ? "Set" : "Missing/invalid"}
                 </div>
               </div>
-              <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
+              <div className="flex items-center justify-between border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">Hackatime project name</div>
                 <div
                   className={[
@@ -1337,7 +1403,7 @@ export default function ManageProjectClient({
                   {submitRequirements.hackatimeOk ? "Set" : "Missing"}
                 </div>
               </div>
-              <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
+              <div className="flex items-center justify-between border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">Considered Hackatime range</div>
                 <div
                   className={[
@@ -1350,7 +1416,7 @@ export default function ManageProjectClient({
                   {submitConsideredRange.ok ? "Set" : "Missing/invalid"}
                 </div>
               </div>
-              <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
+              <div className="flex items-center justify-between border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">Screenshots</div>
                 <div
                   className={[
@@ -1364,7 +1430,7 @@ export default function ManageProjectClient({
                 </div>
               </div>
               {editor === "other" ? (
-                <div className="flex items-center justify-between border border-border bg-background rounded-xl px-3 py-2">
+                <div className="flex items-center justify-between border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                   <div className="text-foreground">Other editor name</div>
                   <div
                     className={[
@@ -1380,7 +1446,7 @@ export default function ManageProjectClient({
               ) : null}
             </div>
 
-            <div className="rounded-2xl border border-border bg-background px-4 py-4 space-y-3">
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-background px-4 py-4 space-y-3">
               <div>
                 <div className="text-foreground font-semibold">Considered Hackatime range</div>
                 <div className="text-sm text-muted-foreground mt-1">
@@ -1390,21 +1456,11 @@ export default function ManageProjectClient({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="block">
                   <div className="text-xs text-muted-foreground mb-1">Start date</div>
-                  <input
-                    type="date"
-                    value={submitRangeStartDate}
-                    onChange={(e) => setSubmitRangeStartDate(e.target.value)}
-                    className="w-full bg-card border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                  />
+                  <DatePicker value={submitRangeStartDate} onChange={(v) => setSubmitRangeStartDate(v)} />
                 </label>
                 <label className="block">
                   <div className="text-xs text-muted-foreground mb-1">End date</div>
-                  <input
-                    type="date"
-                    value={submitRangeEndDate}
-                    onChange={(e) => setSubmitRangeEndDate(e.target.value)}
-                    className="w-full bg-card border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                  />
+                  <DatePicker value={submitRangeEndDate} onChange={(v) => setSubmitRangeEndDate(v)} />
                 </label>
               </div>
               {!submitConsideredRange.ok ? (
@@ -1416,7 +1472,7 @@ export default function ManageProjectClient({
               <button
                 type="button"
                 onClick={closeSubmit}
-                className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-full font-semibold transition-colors border border-border"
+                className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
                 disabled={submitting}
               >
                 Not yet
@@ -1424,7 +1480,7 @@ export default function ManageProjectClient({
               <button
                 type="button"
                 onClick={() => setSubmitStep(1)}
-                className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-full font-bold transition-colors"
+                className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
                 disabled={!submitRequirements.allOk || !submitConsideredRange.ok || submitting}
               >
                 Continue
@@ -1434,7 +1490,7 @@ export default function ManageProjectClient({
         ) : (
           isReReview ? (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-border bg-muted px-4 py-4">
+              <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
                 <div className="text-sm text-foreground font-semibold">Most recent rejection feedback</div>
                 <div className="text-xs text-muted-foreground mt-1">
                   {latestRejectedReview
@@ -1467,7 +1523,7 @@ export default function ManageProjectClient({
                 <button
                   type="button"
                   onClick={() => setSubmitStep(0)}
-                  className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-full font-semibold transition-colors border border-border"
+                  className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
                   disabled={submitting}
                 >
                   Back
@@ -1475,7 +1531,7 @@ export default function ManageProjectClient({
                 <button
                   type="button"
                   onClick={onSubmitForReview}
-                  className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-full font-bold transition-colors"
+                  className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
                   disabled={!submitRequirements.allOk || !checkAddressedRejection || submitting}
                 >
                   {submitting ? "Submitting…" : "Submit for re-review"}
@@ -1484,7 +1540,7 @@ export default function ManageProjectClient({
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
+              <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
                 Required items must be checked. Optional items are recorded for reviewer context.
               </div>
               <div className="space-y-3">
@@ -1520,7 +1576,7 @@ export default function ManageProjectClient({
                 <button
                   type="button"
                   onClick={() => setSubmitStep(0)}
-                  className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-full font-semibold transition-colors border border-border"
+                  className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
                   disabled={submitting}
                 >
                   Back
@@ -1528,7 +1584,7 @@ export default function ManageProjectClient({
                 <button
                   type="button"
                   onClick={onSubmitForReview}
-                  className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-full font-bold transition-colors"
+                  className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
                   disabled={!submitRequirements.allOk || !checklistOk || submitting}
                 >
                   {submitting ? "Submitting…" : "Submit for review"}
@@ -1547,7 +1603,7 @@ export default function ManageProjectClient({
         maxWidth="md"
       >
         <div className="space-y-4">
-          <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
+          <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
             Deleting will permanently remove this project and any review comments. You can only delete while work-in-progress.
           </div>
           <div className="flex items-center justify-end gap-3">
@@ -1555,7 +1611,7 @@ export default function ManageProjectClient({
               type="button"
               onClick={closeDeleteConfirm}
               disabled={deleting}
-              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-full font-semibold transition-colors border border-border"
+              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
             >
               Cancel
             </button>
@@ -1563,7 +1619,7 @@ export default function ManageProjectClient({
               type="button"
               onClick={onDeleteProject}
               disabled={deleting}
-              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-full font-bold transition-colors"
+              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
             >
               {deleting ? "Deleting…" : "Delete project"}
             </button>

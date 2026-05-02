@@ -11,6 +11,7 @@ import { buildBillyUrl } from "@/lib/constants";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
+import { DatePicker } from "@/components/ui/date-picker";
 import DevlogAssessmentPanel, {
   type ReviewDevlogFull,
 } from "@/components/DevlogAssessmentPanel";
@@ -86,6 +87,8 @@ type ReviewableProject = {
   hackatimeStoppedAt: string | null;
   createdAt: string; // ISO
   submittedAt: string | null; // ISO
+  bountyProjectId: string | null;
+  bountyProjectName: string | null;
 };
 
 function toHackatimeHours(totalSeconds: number | null | undefined) {
@@ -699,7 +702,7 @@ export default function ReviewProjectClient({
 
   return (
     <div className="space-y-6">
-      <div className="bg-card border border-border rounded-2xl p-6">
+      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="text-foreground font-bold text-2xl truncate">{project.name}</div>
@@ -716,28 +719,28 @@ export default function ReviewProjectClient({
         <div className="text-muted-foreground mt-4">{project.description}</div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Review info</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-          <div className="rounded-2xl border border-border bg-muted px-4 py-3">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
             <div className="text-muted-foreground">Created</div>
             <div className="text-foreground font-semibold">
               {new Date(project.createdAt).toLocaleString()}
             </div>
           </div>
-          <div className="rounded-2xl border border-border bg-muted px-4 py-3">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
             <div className="text-muted-foreground">Submitted</div>
             <div className="text-foreground font-semibold">
               {project.submittedAt ? new Date(project.submittedAt).toLocaleString() : "—"}
             </div>
           </div>
-          <div className="rounded-2xl border border-border bg-muted px-4 py-3 md:col-span-1">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 md:col-span-1">
             <div className="text-muted-foreground">Considered Hackatime range</div>
             <div className="text-foreground font-semibold">{canonicalProjectRangeLabel}</div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-muted px-4 py-4 space-y-3">
+        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 space-y-3">
           <div className="text-foreground font-semibold">Submission checklist</div>
           {project.submissionChecklist ? (
             <div className="space-y-2">
@@ -782,7 +785,7 @@ export default function ReviewProjectClient({
             href={project.playableDemoUrl}
             target="_blank"
             rel="noreferrer"
-            className="rounded-2xl border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
+            className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
           >
             <div className="text-sm text-muted-foreground">Playable demo link</div>
             <div className="text-foreground font-semibold truncate">{project.playableDemoUrl}</div>
@@ -791,7 +794,7 @@ export default function ReviewProjectClient({
             href={project.videoUrl}
             target="_blank"
             rel="noreferrer"
-            className="rounded-2xl border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
+            className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
           >
             <div className="text-sm text-muted-foreground">Video</div>
             <div className="text-foreground font-semibold truncate">{project.videoUrl}</div>
@@ -800,20 +803,20 @@ export default function ReviewProjectClient({
             href={project.codeUrl}
             target="_blank"
             rel="noreferrer"
-            className="rounded-2xl border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
+            className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
           >
             <div className="text-sm text-muted-foreground">Code</div>
             <div className="text-foreground font-semibold truncate">{project.codeUrl}</div>
           </a>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-border bg-muted px-4 py-3">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
             <div className="text-sm text-muted-foreground">Hackatime project</div>
             <div className="text-foreground font-semibold truncate">
               <span className="font-mono">{project.hackatimeProjectName || "—"}</span>
             </div>
           </div>
-          <div className="rounded-2xl border border-border bg-muted px-4 py-3">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
             <div className="text-sm text-muted-foreground">Hackatime hours (this project)</div>
             <div className="text-foreground font-semibold">{hackatimeLoggedLabel}</div>
           </div>
@@ -822,20 +825,29 @@ export default function ReviewProjectClient({
               href={billyLink}
               target="_blank"
               rel="noreferrer"
-              className="rounded-2xl border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
+              className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
             >
               <div className="text-sm text-muted-foreground">Hackatime review link</div>
               <div className="text-foreground font-semibold truncate">{billyLink}</div>
             </a>
           ) : (
-            <div className="rounded-2xl border border-border bg-muted px-4 py-3">
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
               <div className="text-sm text-muted-foreground">Hackatime review link</div>
               <div className="text-foreground font-semibold">—</div>
             </div>
           )}
         </div>
 
-        <div className="rounded-2xl border border-border bg-muted px-4 py-4">
+        {project.bountyProjectId ? (
+          <div className="rounded-[var(--radius-2xl)] border border-purple-500/30 bg-purple-500/10 px-4 py-3">
+            <div className="text-sm text-muted-foreground">Linked bounty</div>
+            <div className="text-foreground font-semibold">
+              {project.bountyProjectName || project.bountyProjectId}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
           <div className="flex items-center justify-between gap-4">
             <div>
               <div className="text-sm text-muted-foreground">Reviewer assignments</div>
@@ -849,7 +861,7 @@ export default function ReviewProjectClient({
               type="button"
               onClick={onToggleAssignment}
               disabled={assignmentBusy}
-              className="inline-flex items-center justify-center bg-background hover:bg-background/80 disabled:bg-background/50 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border"
+              className="inline-flex items-center justify-center bg-background hover:bg-background/80 disabled:bg-background/50 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
             >
               {assignmentBusy ? "Updating…" : isAssignedToMe ? "Unassign me" : "Assign to me"}
             </button>
@@ -870,7 +882,7 @@ export default function ReviewProjectClient({
       </div>
 
       {project.screenshots?.length ? (
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+        <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-4">
           <div className="text-foreground font-semibold text-lg">Screenshots</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {project.screenshots.map((url) => (
@@ -879,7 +891,7 @@ export default function ReviewProjectClient({
                 key={url}
                 src={url}
                 alt=""
-                className="w-full rounded-2xl border border-border object-cover bg-muted"
+                className="w-full rounded-[var(--radius-2xl)] border border-border object-cover bg-muted"
                 referrerPolicy="no-referrer"
               />
             ))}
@@ -894,7 +906,7 @@ export default function ReviewProjectClient({
         onChange={setDevlogAssessments}
       />
 
-      <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Leave a review</div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -902,7 +914,7 @@ export default function ReviewProjectClient({
             type="button"
             onClick={() => onDecisionChange("approved")}
             className={[
-              "rounded-2xl border px-4 py-3 text-left transition-colors",
+              "rounded-[var(--radius-2xl)] border px-4 py-3 text-left transition-colors",
               decision === "approved"
                 ? "border-carnival-blue/50 bg-carnival-blue/10"
                 : "border-border bg-muted hover:bg-muted/70",
@@ -915,7 +927,7 @@ export default function ReviewProjectClient({
             type="button"
             onClick={() => onDecisionChange("rejected")}
             className={[
-              "rounded-2xl border px-4 py-3 text-left transition-colors",
+              "rounded-[var(--radius-2xl)] border px-4 py-3 text-left transition-colors",
               decision === "rejected"
                 ? "border-carnival-blue/50 bg-carnival-blue/10"
                 : "border-border bg-muted hover:bg-muted/70",
@@ -928,7 +940,7 @@ export default function ReviewProjectClient({
             type="button"
             onClick={() => onDecisionChange("comment")}
             className={[
-              "rounded-2xl border px-4 py-3 text-left transition-colors",
+              "rounded-[var(--radius-2xl)] border px-4 py-3 text-left transition-colors",
               decision === "comment"
                 ? "border-carnival-blue/50 bg-carnival-blue/10"
                 : "border-border bg-muted hover:bg-muted/70",
@@ -939,7 +951,7 @@ export default function ReviewProjectClient({
           </button>
         </div>
 
-        <div className="rounded-2xl border border-border bg-muted px-4 py-3">
+        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm text-muted-foreground">Approved hours</div>
             <div className="text-sm font-semibold text-foreground">
@@ -971,19 +983,19 @@ export default function ReviewProjectClient({
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={5}
-            className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+            className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
             placeholder="Be specific and kind. What should they improve?"
           />
         </label>
 
         {error ? (
-          <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
+          <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
             {error}
           </div>
         ) : null}
 
         {decision === "approved" ? (
-          <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
             Approvals require confirmation with evidence checks and a review range.
           </div>
         ) : null}
@@ -999,7 +1011,7 @@ export default function ReviewProjectClient({
                   setShowDismissConfirmationModal(true);
                 }}
                 disabled={!canSubmit}
-                className="inline-flex items-center justify-center border border-carnival-red/60 bg-carnival-red/10 hover:bg-carnival-red/20 disabled:opacity-50 disabled:cursor-not-allowed text-carnival-red px-6 py-3 rounded-full font-bold transition-colors"
+                className="inline-flex items-center justify-center border border-carnival-red/60 bg-carnival-red/10 hover:bg-carnival-red/20 disabled:opacity-50 disabled:cursor-not-allowed text-carnival-red px-6 py-3 rounded-[var(--radius-xl)] font-bold transition-colors"
                 title="Reject and prevent resubmission"
               >
                 Reject and dismiss
@@ -1009,7 +1021,7 @@ export default function ReviewProjectClient({
               type="button"
               onClick={onSubmit}
               disabled={!canSubmit}
-              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-full font-bold transition-colors"
+              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-[var(--radius-xl)] font-bold transition-colors"
             >
               {submitting ? "Submitting…" : "Submit review"}
             </button>
@@ -1037,7 +1049,7 @@ export default function ReviewProjectClient({
         maxWidth="md"
       >
         <div className="space-y-4">
-          <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-foreground">
+          <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-foreground">
             <div className="font-semibold mb-1">Heads up</div>
             <div className="text-muted-foreground">
               The creator will receive a rejection notice noting that the project was dismissed. An
@@ -1045,7 +1057,7 @@ export default function ReviewProjectClient({
               <span className="font-semibold text-foreground">Dismissed projects</span> admin page.
             </div>
           </div>
-          <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
             <div className="font-semibold text-foreground mb-1">Reviewer comment</div>
             <div className="whitespace-pre-wrap">{comment.trim() || "(empty — please add a comment before dismissing)"}</div>
           </div>
@@ -1061,7 +1073,7 @@ export default function ReviewProjectClient({
               maxLength={2000}
               placeholder="Explain why this project is being dismissed. The creator will see this in the banner on their project page."
               disabled={submitting}
-              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-carnival-red disabled:opacity-60"
+              className="w-full rounded-[var(--radius-2xl)] border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-carnival-red disabled:opacity-60"
             />
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>The creator will see this on their project page.</span>
@@ -1069,7 +1081,7 @@ export default function ReviewProjectClient({
             </div>
           </div>
           {error ? (
-            <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
+            <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
               {error}
             </div>
           ) : null}
@@ -1082,7 +1094,7 @@ export default function ReviewProjectClient({
                 setDismissReason("");
               }}
               disabled={submitting}
-              className="inline-flex items-center justify-center rounded-full border border-border bg-background px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center justify-center rounded-[var(--radius-xl)] border border-border bg-background px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
               Cancel
             </button>
@@ -1100,7 +1112,7 @@ export default function ReviewProjectClient({
                 });
               }}
               disabled={!canSubmit || !dismissReason.trim()}
-              className="inline-flex items-center justify-center rounded-full bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-5 py-2.5 text-sm font-bold transition-colors"
+              className="inline-flex items-center justify-center rounded-[var(--radius-xl)] bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-5 py-2.5 text-sm font-bold transition-colors"
             >
               {submitting ? "Dismissing…" : "Reject and dismiss"}
             </button>
@@ -1116,7 +1128,7 @@ export default function ReviewProjectClient({
         maxWidth="lg"
       >
         <div className="space-y-5">
-          <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
             <div>
               Logged Hackatime for this project:{" "}
               <span className="text-foreground font-semibold">{approvalHackatimeLabel}</span>
@@ -1139,7 +1151,7 @@ export default function ReviewProjectClient({
 
             <div className="block">
               <div className="text-xs text-muted-foreground mb-2">Hackatime project name reviewed</div>
-              <div className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground font-mono">
+              <div className="w-full bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2 text-foreground font-mono">
                 {project.hackatimeProjectName || "—"}
               </div>
             </div>
@@ -1148,7 +1160,7 @@ export default function ReviewProjectClient({
               {REVIEW_EVIDENCE_ITEMS.map((item) => (
                 <label
                   key={item.key}
-                  className="flex items-start gap-3 rounded-xl border border-border bg-background px-3 py-2"
+                  className="flex items-start gap-3 rounded-[var(--radius-xl)] border border-border bg-background px-3 py-2"
                 >
                   <input
                     type="checkbox"
@@ -1171,27 +1183,11 @@ export default function ReviewProjectClient({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="block">
                   <div className="text-xs text-muted-foreground mb-1">Start date</div>
-                  <input
-                    type="date"
-                    value={approvalProjectRange.startDate}
-                    onChange={(e) => {
-                      setApprovalProjectRange((prev) => ({ ...prev, startDate: e.target.value }));
-                      setModalError(null);
-                    }}
-                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                  />
+                  <DatePicker value={approvalProjectRange.startDate} onChange={(v) => { setApprovalProjectRange((prev) => ({ ...prev, startDate: v })); setModalError(null); }} />
                 </label>
                 <label className="block">
                   <div className="text-xs text-muted-foreground mb-1">End date</div>
-                  <input
-                    type="date"
-                    value={approvalProjectRange.endDate}
-                    onChange={(e) => {
-                      setApprovalProjectRange((prev) => ({ ...prev, endDate: e.target.value }));
-                      setModalError(null);
-                    }}
-                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                  />
+                  <DatePicker value={approvalProjectRange.endDate} onChange={(v) => { setApprovalProjectRange((prev) => ({ ...prev, endDate: v })); setModalError(null); }} />
                 </label>
               </div>
               {!adminApprovalRange.ok ? (
@@ -1214,35 +1210,11 @@ export default function ReviewProjectClient({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="block">
                   <div className="text-xs text-muted-foreground mb-1">Start date</div>
-                  <input
-                    type="date"
-                    value={reviewJustificationDraft.reviewDateRange.startDate}
-                    onChange={(e) => {
-                      const nextValue = e.target.value;
-                      setReviewJustificationDraft((prev) => ({
-                        ...prev,
-                        reviewDateRange: { ...prev.reviewDateRange, startDate: nextValue },
-                      }));
-                      setModalError(null);
-                    }}
-                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                  />
+                  <DatePicker value={reviewJustificationDraft.reviewDateRange.startDate} onChange={(v) => { setReviewJustificationDraft((prev) => ({ ...prev, reviewDateRange: { ...prev.reviewDateRange, startDate: v } })); setModalError(null); }} />
                 </label>
                 <label className="block">
                   <div className="text-xs text-muted-foreground mb-1">End date</div>
-                  <input
-                    type="date"
-                    value={reviewJustificationDraft.reviewDateRange.endDate}
-                    onChange={(e) => {
-                      const nextValue = e.target.value;
-                      setReviewJustificationDraft((prev) => ({
-                        ...prev,
-                        reviewDateRange: { ...prev.reviewDateRange, endDate: nextValue },
-                      }));
-                      setModalError(null);
-                    }}
-                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                  />
+                  <DatePicker value={reviewJustificationDraft.reviewDateRange.endDate} onChange={(v) => { setReviewJustificationDraft((prev) => ({ ...prev, reviewDateRange: { ...prev.reviewDateRange, endDate: v } })); setModalError(null); }} />
                 </label>
               </div>
             </div>
@@ -1263,7 +1235,7 @@ export default function ReviewProjectClient({
                 {REVIEW_DEFLATION_REASON_OPTIONS.map((option) => (
                   <label
                     key={option.key}
-                    className="flex items-start gap-3 rounded-xl border border-border bg-background px-3 py-2"
+                    className="flex items-start gap-3 rounded-[var(--radius-xl)] border border-border bg-background px-3 py-2"
                   >
                     <input
                       type="checkbox"
@@ -1289,7 +1261,7 @@ export default function ReviewProjectClient({
                     setModalError(null);
                   }}
                   rows={3}
-                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  className="w-full bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
                   placeholder="Explain context for the reduced approved hours."
                 />
               </label>
@@ -1297,7 +1269,7 @@ export default function ReviewProjectClient({
           ) : null}
 
           {modalError ? (
-            <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
+            <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
               {modalError}
             </div>
           ) : null}
@@ -1307,7 +1279,7 @@ export default function ReviewProjectClient({
               type="button"
               onClick={onCloseConfirmationModal}
               disabled={submitting}
-              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border"
+              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
             >
               Cancel
             </button>
@@ -1315,7 +1287,7 @@ export default function ReviewProjectClient({
               type="button"
               onClick={onConfirmSubmission}
               disabled={submitting}
-              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-5 py-2 rounded-full font-bold transition-colors"
+              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-5 py-2 rounded-[var(--radius-xl)] font-bold transition-colors"
             >
               {submitting ? "Submitting…" : "Confirm and submit"}
             </button>
@@ -1323,14 +1295,14 @@ export default function ReviewProjectClient({
         </div>
       </Modal>
 
-      <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Review history</div>
         {reviews.length === 0 ? (
           <div className="text-muted-foreground">No reviews yet.</div>
         ) : (
           <div className="space-y-3">
             {reviews.map((r) => (
-              <div key={r.id} className="rounded-2xl border border-border bg-muted px-4 py-4">
+              <div key={r.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-foreground font-semibold truncate">

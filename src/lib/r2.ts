@@ -12,6 +12,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export type R2UploadKind =
   | "project_screenshot"
+  | "bounty_preview"
   | "shop_item_image"
   | "editor_icon"
   | "devlog_attachment";
@@ -115,6 +116,10 @@ export function makeR2ObjectKey(input: {
     return `shop-items/${id}.${ext}`;
   }
 
+  if (input.kind === "bounty_preview") {
+    return `bounties/${id}.${ext}`;
+  }
+
   // editor_icon
   return `editor-icons/${id}.${ext}`;
 }
@@ -153,4 +158,3 @@ export async function presignR2PutObject(input: {
   const uploadUrl = await getSignedUrl(client, command, { expiresIn: expiresInSeconds });
   return { uploadUrl, publicUrl, key: input.key };
 }
-

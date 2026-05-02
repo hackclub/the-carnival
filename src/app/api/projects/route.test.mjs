@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { bountyProject } from "@/db/schema";
 
 const state = {
   session: {
@@ -13,6 +14,7 @@ const state = {
   insertedProjectValues: null,
   rangeRefreshCalls: [],
   rangeRefreshTotalSeconds: 3660,
+  bountyRows: [],
 };
 
 function resetState() {
@@ -28,9 +30,24 @@ function resetState() {
   state.insertedProjectValues = null;
   state.rangeRefreshCalls = [];
   state.rangeRefreshTotalSeconds = 3660;
+  state.bountyRows = [];
 }
 
 const db = {
+  select() {
+    const query = {
+      sourceTable: null,
+      from(table) {
+        query.sourceTable = table;
+        return query;
+      },
+      where() {
+        return query;
+      },
+      limit: async () => (query.sourceTable === bountyProject ? state.bountyRows : []),
+    };
+    return query;
+  },
   insert() {
     return {
       values: async (values) => {
@@ -142,5 +159,38 @@ describe("POST /api/projects", () => {
     expect(state.insertedProjectValues.hackatimeStartedAt).toBeNull();
     expect(state.insertedProjectValues.hackatimeStoppedAt).toBeNull();
     expect(state.insertedProjectValues.hackatimeTotalSeconds).toBeNull();
+  });
+
+  test("accepts an approved open bounty link", async () => {
+    state.bountyRows = [{ id: "bounty-1", status: "approved", completed: false }];
+
+    const { res } = await createProject({
+      ...BASE_BODY,
+      hackatimeProjectName: "",
+      bountyProjectId: "bounty-1",
+    });
+
+    expect(res.status).toBe(201);
+    expect(state.insertedProjectValues.bountyProjectId).toBe("bounty-1");
+  });
+
+  test("rejects pending and completed bounty links", async () => {
+    state.bountyRows = [{ id: "bounty-1", status: "pending", completed: false }];
+    const pending = await createProject({
+      ...BASE_BODY,
+      hackatimeProjectName: "",
+      bountyProjectId: "bounty-1",
+    });
+    expect(pending.res.status).toBe(400);
+    expect(pending.json.error).toContain("not official");
+
+    state.bountyRows = [{ id: "bounty-1", status: "approved", completed: true }];
+    const completed = await createProject({
+      ...BASE_BODY,
+      hackatimeProjectName: "",
+      bountyProjectId: "bounty-1",
+    });
+    expect(completed.res.status).toBe(400);
+    expect(completed.json.error).toContain("completed");
   });
 });

@@ -14,6 +14,7 @@ type PresignBody = {
 function isKind(value: string): value is R2UploadKind {
   return (
     value === "project_screenshot" ||
+    value === "bounty_preview" ||
     value === "shop_item_image" ||
     value === "editor_icon" ||
     value === "devlog_attachment"
@@ -91,4 +92,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-

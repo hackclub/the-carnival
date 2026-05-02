@@ -38,6 +38,13 @@ export type ProjectEditor = (typeof projectEditor.enumValues)[number];
 export const reviewDecision = pgEnum("review_decision", ["approved", "rejected", "comment"]);
 export type ReviewDecision = (typeof reviewDecision.enumValues)[number];
 
+export const bountyProjectStatus = pgEnum("bounty_project_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
+export type BountyProjectStatus = (typeof bountyProjectStatus.enumValues)[number];
+
 export const devlogAssessmentDecision = pgEnum("devlog_assessment_decision", [
   "accepted",
   "rejected",
@@ -130,6 +137,7 @@ export const project = pgTable("project", {
   // Denormalized sum of all devlog.durationSeconds for this project. Kept in sync
   // on every devlog insert/update/delete so that hour displays stay cheap.
   hoursSpentSeconds: integer("hours_spent_seconds").notNull().default(0),
+  bountyProjectId: text("bounty_project_id").references(() => bountyProject.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
@@ -299,9 +307,16 @@ export const bountyProject = pgTable("bounty_project", {
   name: text("name").notNull(),
   description: text("description").notNull(),
   prizeUsd: integer("prize_usd").notNull(),
+  status: bountyProjectStatus("status").notNull().default("approved"),
+  previewImageUrl: text("preview_image_url"),
+  requirements: text("requirements").notNull().default(""),
+  examples: text("examples").notNull().default(""),
   helpfulLinks: jsonb("helpful_links").$type<BountyHelpfulLink[]>().notNull().default(sql`'[]'::jsonb`),
   completed: boolean("completed").notNull().default(false),
   createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
+  reviewedById: text("reviewed_by_id").references(() => user.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at"),
+  rejectionReason: text("rejection_reason"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
