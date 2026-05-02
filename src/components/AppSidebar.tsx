@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { signOut, useSession } from "@/lib/auth-client";
+import { signOut } from "@/lib/auth-client";
 import { useSidebar } from "@/components/SidebarContext";
 import {
   Ban,
@@ -46,6 +46,14 @@ import {
 import WalletConverterPopover from "@/components/WalletConverterPopover";
 
 type UserRole = "user" | "reviewer" | "admin" | null;
+
+type SidebarUser = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  image: string | null;
+  role: string | null;
+};
 
 type NavItem = {
   href: string;
@@ -114,6 +122,8 @@ function getInitials(nameOrEmail?: string | null) {
   return value[0]?.toUpperCase() ?? "?";
 }
 
+const WALLET_STALE_MS = 60_000;
+
 type SidebarNavProps = {
   sections: NavSection[];
   pathname: string | null;
@@ -168,16 +178,26 @@ function SidebarNav({ sections, pathname, collapsed, onNavigate }: SidebarNavPro
   );
 }
 
-export default function AppSidebar() {
+export default function AppSidebar({
+  user,
+  initialWalletBalance,
+  walletFetchedAt,
+}: {
+  user: SidebarUser | null;
+  initialWalletBalance: number | null;
+  walletFetchedAt: string;
+}) {
   const pathname = usePathname();
   const router = useRouter();
-  const { data } = useSession();
   const { mobileOpen, setMobileOpen, collapsed, toggleCollapsed } = useSidebar();
 
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number | null>(initialWalletBalance);
+  const [lastWalletFetchedAt, setLastWalletFetchedAt] = useState(() => {
+    const ms = new Date(walletFetchedAt).getTime();
+    return Number.isFinite(ms) ? ms : Date.now();
+  });
 
-  type SessionUser = { id?: string; name?: string | null; email?: string | null; image?: string | null; role?: string | null };
-  const sessionUser = (data as { user?: SessionUser } | null | undefined)?.user;
+  const sessionUser = user;
   const isAuthed = !!sessionUser?.id;
   const role = asUserRole(sessionUser?.role ?? null);
   const sections = getNavSections(role);
@@ -190,23 +210,43 @@ export default function AppSidebar() {
     return getInitials(sessionUser?.name ?? sessionUser?.email);
   }, [sessionUser?.email, sessionUser?.name]);
 
+  const refreshWalletBalance = useCallback(async () => {
+    if (!isAuthed) return;
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+    try {
+      const res = await fetch("/api/wallet/balance", { method: "GET", cache: "no-store" });
+      const json = (await res.json().catch(() => null)) as
+        | { balance?: unknown; fetchedAt?: unknown }
+        | null;
+      if (!res.ok) return;
+      const b = typeof json?.balance === "number" ? json.balance : Number(json?.balance);
+      if (Number.isFinite(b)) setWalletBalance(b);
+      const fetchedMs =
+        typeof json?.fetchedAt === "string" ? new Date(json.fetchedAt).getTime() : Date.now();
+      setLastWalletFetchedAt(Number.isFinite(fetchedMs) ? fetchedMs : Date.now());
+    } catch {
+      // Keep the last known balance on transient refresh failures.
+    }
+  }, [isAuthed]);
+
   useEffect(() => {
     if (!isAuthed) return;
     let cancelled = false;
-    fetch("/api/wallet/balance", { method: "GET" })
-      .then(async (res) => {
-        const json = (await res.json().catch(() => null)) as { balance?: unknown } | null;
-        if (!res.ok) return null;
-        const b = typeof json?.balance === "number" ? json.balance : Number(json?.balance);
-        return Number.isFinite(b) ? b : null;
-      })
-      .then((b) => {
-        if (cancelled) return;
-        if (typeof b === "number") setWalletBalance(b);
-      })
-      .catch(() => null);
-    return () => { cancelled = true; };
-  }, [isAuthed]);
+    const interval = window.setInterval(() => {
+      if (!cancelled) void refreshWalletBalance();
+    }, WALLET_STALE_MS);
+    const onFocus = () => {
+      if (Date.now() - lastWalletFetchedAt >= WALLET_STALE_MS) {
+        void refreshWalletBalance();
+      }
+    };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [isAuthed, lastWalletFetchedAt, refreshWalletBalance]);
 
   const onSignOut = useCallback(async () => {
     await signOut();
