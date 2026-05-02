@@ -267,6 +267,13 @@
       "when": 1777687200000,
       "tag": "0037_guard_bounty_helpful_links",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1777766400000,
+      "tag": "0038_project_hackatime_projects",
+      "breakpoints": true
     }
   ]
 }

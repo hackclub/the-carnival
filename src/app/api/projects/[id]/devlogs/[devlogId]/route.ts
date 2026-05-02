@@ -11,7 +11,11 @@ import {
   parseDevlogWindow,
   parseOptionalTrimmedString,
 } from "@/lib/devlog-shared";
-import { getDevlogWindowFloor, recomputeProjectHoursSpentSeconds } from "@/lib/devlogs";
+import {
+  getDevlogWindowFloor,
+  recomputeProjectHoursSpentSeconds,
+  upsertProjectHackatimeProject,
+} from "@/lib/devlogs";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
 import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
 import { getServerSession } from "@/lib/server-session";
@@ -19,6 +23,7 @@ import { getServerSession } from "@/lib/server-session";
 type UpdateDevlogBody = {
   title?: unknown;
   content?: unknown;
+  hackatimeProjectName?: unknown;
   startedAt?: unknown;
   endedAt?: unknown;
   attachments?: unknown;
@@ -167,6 +172,7 @@ export async function PATCH(
     startedAt: Date;
     endedAt: Date;
     durationSeconds: number;
+    hackatimeProjectNameSnapshot: string;
     attachments: string[];
     usedAi: boolean;
     aiUsageDescription: string | null;
@@ -237,6 +243,19 @@ export async function PATCH(
     set.aiUsageDescription = usedAi ? aiUsageDescription : null;
   }
 
+  if (
+    body.hackatimeProjectName !== undefined &&
+    body.startedAt === undefined &&
+    body.endedAt === undefined
+  ) {
+    return NextResponse.json(
+      { error: "Changing the Hackatime project requires recalculating the devlog window." },
+      { status: 400 },
+    );
+  }
+
+  let linkedHackatimeProjectName: string | null = null;
+
   if (body.startedAt !== undefined || body.endedAt !== undefined) {
     const laterRows = await db
       .select({ id: devlog.id })
@@ -265,10 +284,15 @@ export async function PATCH(
     });
     if (!window.ok) return NextResponse.json({ error: window.error }, { status: 400 });
 
-    const hackatimeProjectName = (row.projectHackatimeProjectName ?? "").trim();
+    const requestedHackatimeProjectName =
+      typeof body.hackatimeProjectName === "string" ? body.hackatimeProjectName.trim() : "";
+    const hackatimeProjectName =
+      requestedHackatimeProjectName ||
+      (row.hackatimeProjectNameSnapshot ?? "").trim() ||
+      (row.projectHackatimeProjectName ?? "").trim();
     if (!hackatimeProjectName) {
       return NextResponse.json(
-        { error: "Hackatime project name is missing on the parent project." },
+        { error: "Select a Hackatime project before recalculating this devlog." },
         { status: 400 },
       );
     }
@@ -282,7 +306,9 @@ export async function PATCH(
       set.startedAt = window.startedAt;
       set.endedAt = window.endedAt;
       set.durationSeconds = Math.max(0, Math.floor(hackatime.totalSeconds));
+      set.hackatimeProjectNameSnapshot = hackatimeProjectName;
       set.hackatimePulledAt = new Date();
+      linkedHackatimeProjectName = hackatimeProjectName;
       hoursChanged = true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to pull Hackatime hours.";
@@ -302,6 +328,16 @@ export async function PATCH(
         .update(devlog)
         .set(set)
         .where(and(eq(devlog.id, devlogId), eq(devlog.userId, userId)));
+      if (linkedHackatimeProjectName) {
+        await upsertProjectHackatimeProject(
+          {
+            projectId,
+            name: linkedHackatimeProjectName,
+            firstDevlogId: devlogId,
+          },
+          tx,
+        );
+      }
       if (hoursChanged) {
         await recomputeProjectHoursSpentSeconds(projectId, tx);
       }

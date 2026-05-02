@@ -12,7 +12,13 @@ import {
   parseDevlogWindow,
   parseOptionalTrimmedString,
 } from "@/lib/devlog-shared";
-import { getDevlogWindowFloor, recomputeProjectHoursSpentSeconds } from "@/lib/devlogs";
+import {
+  countProjectDevlogs,
+  getDevlogWindowFloor,
+  recomputeProjectHoursSpentSeconds,
+  resolveDevlogHackatimeProjectName,
+  upsertProjectHackatimeProject,
+} from "@/lib/devlogs";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
 import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
 import { getServerSession } from "@/lib/server-session";
@@ -20,6 +26,7 @@ import { getServerSession } from "@/lib/server-session";
 type CreateDevlogBody = {
   title?: unknown;
   content?: unknown;
+  hackatimeProjectName?: unknown;
   startedAt?: unknown;
   endedAt?: unknown;
   attachments?: unknown;
@@ -165,18 +172,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       { status: 409 },
     );
   }
-  const hackatimeProjectName = p.hackatimeProjectName?.trim() ?? "";
-  if (!hackatimeProjectName) {
-    return NextResponse.json(
-      {
-        error:
-          "Set a Hackatime project name on the project before posting devlogs.",
-        code: "missing_hackatime_project",
-      },
-      { status: 400 },
-    );
-  }
-
   let body: CreateDevlogBody;
   try {
     body = (await req.json()) as CreateDevlogBody;
@@ -239,6 +234,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const floorStart = p.startedOnCarnivalAt ?? p.createdAt;
   const floor = await getDevlogWindowFloor(projectId, floorStart);
   const ceiling = computeWindowCeiling(p.submittedAt ?? null);
+  const priorDevlogCount = await countProjectDevlogs(projectId);
+  let hackatimeProjectName = "";
+  try {
+    hackatimeProjectName = resolveDevlogHackatimeProjectName({
+      requestedName: body.hackatimeProjectName,
+      defaultName: p.hackatimeProjectName,
+      hasPriorDevlogs: priorDevlogCount > 0,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Select a Hackatime project.";
+    return NextResponse.json(
+      { error: message, code: "missing_hackatime_project" },
+      { status: 400 },
+    );
+  }
 
   const window = parseDevlogWindow({
     startedAt: body.startedAt,
@@ -285,6 +295,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         createdAt: now,
         updatedAt: now,
       });
+      await upsertProjectHackatimeProject(
+        {
+          projectId,
+          name: hackatimeProjectName,
+          firstDevlogId: devlogId,
+          makeDefault: priorDevlogCount === 0,
+        },
+        tx,
+      );
       await recomputeProjectHoursSpentSeconds(projectId, tx);
     });
   } catch (err) {

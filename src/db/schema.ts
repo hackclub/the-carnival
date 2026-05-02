@@ -177,6 +177,31 @@ export const devlog = pgTable(
   }),
 );
 
+export const projectHackatimeProject = pgTable(
+  "project_hackatime_project",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    isDefault: boolean("is_default").notNull().default(false),
+    firstDevlogId: text("first_devlog_id").references(() => devlog.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (t) => ({
+    uniqProjectName: uniqueIndex("project_hackatime_project_project_name_uniq").on(
+      t.projectId,
+      t.name,
+    ),
+    projectDefaultIdx: index("project_hackatime_project_project_default_idx").on(
+      t.projectId,
+      t.isDefault,
+    ),
+  }),
+);
+
 export const peerReviewDevlogAssessment = pgTable(
   "peer_review_devlog_assessment",
   {
