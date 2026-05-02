@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { Badge, Button, Card, CardContent } from "@/components/ui";
-import { formatDurationHM } from "@/lib/devlogs";
+import { formatDurationHM } from "@/lib/devlog-shared";
 
 export type DevlogDetail = {
   id: string;
@@ -145,7 +145,7 @@ export default function DevlogDetailClient({
                   <img
                     src={url}
                     alt=""
-                    className="w-full rounded-xl border border-border bg-muted object-cover"
+                    className="w-full rounded-[var(--radius-xl)] border border-border bg-muted object-cover"
                     referrerPolicy="no-referrer"
                   />
                 </a>

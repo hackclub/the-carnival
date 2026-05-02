@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Badge, Button, Card, CardContent } from "@/components/ui";
-import { formatDurationHM } from "@/lib/devlogs";
+import { formatDurationHM } from "@/lib/devlog-shared";
 
 export type DevlogSummary = {
   id: string;
@@ -93,7 +93,7 @@ export default function ProjectDevlogsSummary({
         ) : null}
 
         {devlogs.length === 0 ? (
-          <div className="mt-5 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-sm text-muted-foreground">
+          <div className="mt-5 rounded-[var(--radius-xl)] border border-dashed border-border bg-muted/30 px-4 py-5 text-sm text-muted-foreground">
             {canWrite
               ? "You haven't written any devlogs yet. Devlogs log your hours; reviewers use them to verify your time."
               : "No devlogs yet."}
@@ -106,7 +106,7 @@ export default function ProjectDevlogsSummary({
                 <li key={d.id}>
                   <Link
                     href={`/projects/${projectId}/devlogs/${d.id}`}
-                    className="block rounded-xl border border-border bg-background/60 px-4 py-3 transition-colors hover:bg-muted"
+                    className="block rounded-[var(--radius-xl)] border border-border bg-background/60 px-4 py-3 transition-colors hover:bg-muted"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">

@@ -8,7 +8,7 @@ const {
   parseAttachmentUrls,
   parseDevlogWindow,
   parseOptionalTrimmedString,
-} = await import("./devlogs.ts");
+} = await import("./devlog-shared.ts");
 
 describe("formatDurationHM", () => {
   test("formats zero", () => {

@@ -2,11 +2,8 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { project } from "@/db/schema";
-import {
-  computeWindowCeiling,
-  getDevlogWindowFloor,
-  parseDevlogWindow,
-} from "@/lib/devlogs";
+import { computeWindowCeiling, parseDevlogWindow } from "@/lib/devlog-shared";
+import { getDevlogWindowFloor } from "@/lib/devlogs";
 import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
 import { getServerSession } from "@/lib/server-session";
 

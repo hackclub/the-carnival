@@ -7,12 +7,11 @@ import {
   DEVLOG_MAX_CONTENT_LENGTH,
   DEVLOG_MAX_TITLE_LENGTH,
   computeWindowCeiling,
-  getDevlogWindowFloor,
   parseAttachmentUrls,
   parseDevlogWindow,
   parseOptionalTrimmedString,
-  recomputeProjectHoursSpentSeconds,
-} from "@/lib/devlogs";
+} from "@/lib/devlog-shared";
+import { getDevlogWindowFloor, recomputeProjectHoursSpentSeconds } from "@/lib/devlogs";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
 import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
 import { getServerSession } from "@/lib/server-session";

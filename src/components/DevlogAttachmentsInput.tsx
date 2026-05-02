@@ -143,7 +143,7 @@ export function DevlogAttachmentsInput({
           {value.map((url, idx) => (
             <div
               key={`${url}-${idx}`}
-              className="relative rounded-xl border border-border bg-muted overflow-hidden"
+              className="relative rounded-[var(--radius-xl)] border border-border bg-muted overflow-hidden"
             >
               <div className="aspect-square">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -179,7 +179,7 @@ export function DevlogAttachmentsInput({
         }}
         onDrop={onDrop}
         className={[
-          "rounded-2xl border border-dashed border-border bg-background p-4 transition-colors",
+          "rounded-[var(--radius-2xl)] border border-dashed border-border bg-background p-4 transition-colors",
           dragOver ? "border-carnival-blue/70 bg-carnival-blue/10" : "",
           disabled || atLimit ? "opacity-60" : "",
         ].join(" ")}
@@ -219,7 +219,7 @@ export function DevlogAttachmentsInput({
       </div>
 
       {localError ? (
-        <div className="text-xs text-red-200 border border-carnival-red/40 bg-carnival-red/10 rounded-xl px-3 py-2">
+        <div className="text-xs text-red-200 border border-carnival-red/40 bg-carnival-red/10 rounded-[var(--radius-xl)] px-3 py-2">
           {localError}
         </div>
       ) : null}

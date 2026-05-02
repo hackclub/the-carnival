@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import DevlogAttachmentsInput from "@/components/DevlogAttachmentsInput";
 import { Button, Card, CardContent, FormLabel, Input, Textarea } from "@/components/ui";
-import { formatDurationHM } from "@/lib/devlogs";
+import { DateTimePicker } from "@/components/ui/date-picker";
+import { formatDurationHM } from "@/lib/devlog-shared";
 
 type DevlogFormMode = "create" | "edit";
 
@@ -328,7 +329,7 @@ export default function NewDevlogForm({
           </div>
 
           {!canEditWindow ? (
-            <div className="rounded-xl border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+            <div className="rounded-[var(--radius-xl)] border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
               {windowLockedReason ??
                 "The time window for this devlog is locked because newer devlogs exist. Edit title, description, attachments, or AI declaration only."}
             </div>
@@ -337,23 +338,17 @@ export default function NewDevlogForm({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="block">
               <FormLabel>Started at</FormLabel>
-              <Input
-                type="datetime-local"
+              <DateTimePicker
                 value={startedAt}
-                onChange={(e) => setStartedAt(e.target.value)}
-                min={toDatetimeLocalValue(floorIso)}
-                max={toDatetimeLocalValue(ceilingIso)}
+                onChange={(v) => setStartedAt(v)}
                 disabled={!canEditWindow}
               />
             </label>
             <label className="block">
               <FormLabel>Ended at</FormLabel>
-              <Input
-                type="datetime-local"
+              <DateTimePicker
                 value={endedAt}
-                onChange={(e) => setEndedAt(e.target.value)}
-                min={toDatetimeLocalValue(floorIso)}
-                max={toDatetimeLocalValue(ceilingIso)}
+                onChange={(v) => setEndedAt(v)}
                 disabled={!canEditWindow}
               />
             </label>
@@ -361,11 +356,11 @@ export default function NewDevlogForm({
 
           {canEditWindow ? (
             windowError ? (
-              <div className="rounded-xl border border-carnival-red/40 bg-carnival-red/10 px-3 py-2 text-sm text-red-200">
+              <div className="rounded-[var(--radius-xl)] border border-carnival-red/40 bg-carnival-red/10 px-3 py-2 text-sm text-red-200">
                 {windowError}
               </div>
             ) : (
-              <div className="rounded-xl border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+              <div className="rounded-[var(--radius-xl)] border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
                 {previewLabel}
               </div>
             )
@@ -406,7 +401,7 @@ export default function NewDevlogForm({
       </Card>
 
       {submitError ? (
-        <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
+        <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
           {submitError}
         </div>
       ) : null}

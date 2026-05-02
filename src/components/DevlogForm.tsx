@@ -133,7 +133,7 @@ export default function DevlogForm({
           </div>
 
           {error ? (
-            <div className="rounded-xl border border-carnival-red/40 bg-carnival-red/10 text-carnival-red px-4 py-3 text-sm">
+            <div className="rounded-[var(--radius-xl)] border border-carnival-red/40 bg-carnival-red/10 text-carnival-red px-4 py-3 text-sm">
               {error}
             </div>
           ) : null}

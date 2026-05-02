@@ -6,7 +6,8 @@ import NewDevlogForm from "@/components/NewDevlogForm";
 import { Card, CardContent } from "@/components/ui";
 import { db } from "@/db";
 import { project } from "@/db/schema";
-import { computeWindowCeiling, getDevlogWindowFloor } from "@/lib/devlogs";
+import { computeWindowCeiling } from "@/lib/devlog-shared";
+import { getDevlogWindowFloor } from "@/lib/devlogs";
 import { getServerSession } from "@/lib/server-session";
 
 export default async function NewDevlogPage(props: {

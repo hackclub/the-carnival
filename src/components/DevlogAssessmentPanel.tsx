@@ -8,7 +8,7 @@ import {
   effectiveSecondsForAssessment,
   type DevlogAssessmentDraft,
 } from "@/lib/devlog-assessments";
-import { formatDurationHM } from "@/lib/devlogs";
+import { formatDurationHM } from "@/lib/devlog-shared";
 
 export type ReviewDevlogFull = {
   id: string;
@@ -170,7 +170,7 @@ function DevlogItem({
   }
 
   return (
-    <li className="rounded-xl border border-border bg-background/60 p-4 space-y-3">
+    <li className="rounded-[var(--radius-xl)] border border-border bg-background/60 p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -215,7 +215,7 @@ function DevlogItem({
       ) : null}
 
       {devlog.usedAi && devlog.aiUsageDescription ? (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-100">
+        <div className="rounded-[var(--radius-xl)] border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-100">
           <span className="font-semibold text-amber-200">AI used:</span>{" "}
           {devlog.aiUsageDescription}
         </div>
@@ -387,7 +387,7 @@ export default function DevlogAssessmentPanel({
         </div>
 
         {devlogs.length === 0 ? (
-          <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-sm text-muted-foreground">
+          <div className="mt-4 rounded-[var(--radius-xl)] border border-dashed border-border bg-muted/30 px-4 py-5 text-sm text-muted-foreground">
             The creator has not posted any devlogs for this project.
           </div>
         ) : (
