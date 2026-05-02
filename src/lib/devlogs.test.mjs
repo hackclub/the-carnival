@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
 const {
+  resolveDevlogHackatimeProjectName,
+} = await import("./devlogs.ts");
+
+const {
   DEVLOG_AI_DESCRIPTION_MAX_LENGTH,
   DEVLOG_MAX_ATTACHMENTS,
   computeWindowCeiling,
@@ -9,6 +13,38 @@ const {
   parseDevlogWindow,
   parseOptionalTrimmedString,
 } = await import("./devlog-shared.ts");
+
+describe("resolveDevlogHackatimeProjectName", () => {
+  test("uses an explicit devlog project selection", () => {
+    expect(
+      resolveDevlogHackatimeProjectName({
+        requestedName: "  site-redesign  ",
+        defaultName: "default-project",
+        hasPriorDevlogs: false,
+      }),
+    ).toBe("site-redesign");
+  });
+
+  test("falls back to the project default", () => {
+    expect(
+      resolveDevlogHackatimeProjectName({
+        requestedName: "",
+        defaultName: "default-project",
+        hasPriorDevlogs: true,
+      }),
+    ).toBe("default-project");
+  });
+
+  test("requires a selection for first devlog when no default exists", () => {
+    expect(() =>
+      resolveDevlogHackatimeProjectName({
+        requestedName: "",
+        defaultName: "",
+        hasPriorDevlogs: false,
+      }),
+    ).toThrow("Select a Hackatime project for your first devlog.");
+  });
+});
 
 describe("formatDurationHM", () => {
   test("formats zero", () => {
