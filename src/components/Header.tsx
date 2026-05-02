@@ -1,93 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { usePathname } from "next/navigation";
-import { signIn, signOut, useSession } from "@/lib/auth-client";
-import WalletConverterPopover from "@/components/WalletConverterPopover";
+import { signIn, useSession } from "@/lib/auth-client";
 
 type HeaderProps = {
-  /**
-   * When true, shows the home-page section links (About/Rewards/FAQ).
-   * Useful to disable on pages like /login.
-   */
   showSectionLinks?: boolean;
-  /**
-   * Optional: server-provided initial wallet balance so dashboards don't flash "—".
-   */
-  initialWalletBalance?: number | null;
 };
 
-function getInitials(nameOrEmail?: string | null) {
-  const value = (nameOrEmail ?? "").trim();
-  if (!value) return "?";
-  return value[0]?.toUpperCase() ?? "?";
-}
-
-export default function Header({ showSectionLinks = true, initialWalletBalance = null }: HeaderProps) {
+export default function Header({ showSectionLinks = true }: HeaderProps) {
   const { data, isPending } = useSession();
   const pathname = usePathname();
-  const detailsRef = useRef<HTMLDetailsElement | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
-  const [walletBalance, setWalletBalance] = useState<number | null>(initialWalletBalance);
   const isLandingHeader = showSectionLinks && pathname === "/";
 
-  // `better-auth` shapes can differ by version; keep this tolerant (but typed).
-  type SessionUser = {
-    id?: string;
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
-    slackId?: string | null;
-    verificationStatus?: string | null;
-  };
-
+  type SessionUser = { id?: string; name?: string | null };
   const sessionUser = (data as { user?: SessionUser } | null | undefined)?.user;
-
   const isAuthed = !!sessionUser?.id;
   const showDashboardLink = isAuthed && pathname === "/";
-
-  // Fetch wallet once per mount when authenticated (async callback style to satisfy lint rule).
-  useEffect(() => {
-    if (!isAuthed) return;
-    let cancelled = false;
-
-    fetch("/api/wallet/balance", { method: "GET" })
-      .then(async (res) => {
-        const json = (await res.json().catch(() => null)) as { balance?: unknown } | null;
-        if (!res.ok) return null;
-        const b = typeof json?.balance === "number" ? json.balance : Number(json?.balance);
-        return Number.isFinite(b) ? b : null;
-      })
-      .then((b) => {
-        if (cancelled) return;
-        if (typeof b === "number") setWalletBalance(b);
-      })
-      .catch(() => null);
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthed]);
-
-  const displayName = useMemo(() => {
-    return sessionUser?.name?.trim() || sessionUser?.email?.trim() || "Unknown";
-  }, [sessionUser?.email, sessionUser?.name]);
-
-  const avatarText = useMemo(() => {
-    return getInitials(sessionUser?.name ?? sessionUser?.email);
-  }, [sessionUser?.email, sessionUser?.name]);
-
-  const closeMenu = useCallback(() => {
-    detailsRef.current?.removeAttribute("open");
-  }, []);
-
-  const onSignOut = useCallback(async () => {
-    await signOut();
-    closeMenu();
-    // This ensures any server components re-fetch auth state.
-    window.location.href = "/";
-  }, [closeMenu]);
 
   const onJoinCarnival = useCallback(async () => {
     setAuthLoading(true);
@@ -165,99 +96,21 @@ export default function Header({ showSectionLinks = true, initialWalletBalance =
         {isPending ? (
           <span className="text-muted-foreground text-sm">Checking session…</span>
         ) : isAuthed ? (
-          <>
-            {showDashboardLink ? (
-              <Link
-                href="/projects"
-                className="rounded-full border border-border bg-muted px-5 py-2.5 text-base font-semibold text-foreground shadow-sm transition-colors hover:bg-muted/70"
-              >
-                Dashboard
-              </Link>
-            ) : null}
-
-            {!showSectionLinks ? (
-              <WalletConverterPopover walletBalance={walletBalance} />
-            ) : null}
-
-          <details ref={detailsRef} className="relative z-50">
-            <summary className="list-none cursor-pointer select-none">
-              <span className="flex items-center gap-3">
-                {sessionUser?.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={sessionUser.image}
-                    alt=""
-                    className="h-9 w-9 rounded-full object-cover border border-border"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <span className="h-9 w-9 rounded-full bg-carnival-blue/15 border border-border flex items-center justify-center text-foreground font-bold">
-                    {avatarText}
-                  </span>
-                )}
-                <span className="text-foreground font-medium max-w-[220px] truncate">
-                  {displayName}
-                </span>
-                <span className="text-carnival-blue">▼</span>
-              </span>
-            </summary>
-
-            <div className="absolute right-0 mt-3 z-50 w-[min(320px,calc(100vw-2rem))] rounded-2xl bg-card/95 backdrop-blur border border-border shadow-xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-border">
-                <div className="text-foreground font-semibold truncate">
-                  {sessionUser?.name || "Signed in"}
-                </div>
-                {sessionUser?.email ? (
-                  <div className="text-muted-foreground text-sm truncate">
-                    {sessionUser.email}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="px-5 py-4 space-y-2">
-                <div className="text-xs text-muted-foreground uppercase tracking-wide">
-                  Profile
-                </div>
-                <Link
-                  href="/account"
-                  onClick={() => closeMenu()}
-                  className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Account settings →
-                </Link>
-                {sessionUser?.slackId ? (
-                  <div className="text-sm text-muted-foreground">
-                    <span className="text-muted-foreground">Slack:</span>{" "}
-                    <span className="font-mono">{sessionUser.slackId}</span>
-                  </div>
-                ) : null}
-                {sessionUser?.verificationStatus ? (
-                  <div className="text-sm text-muted-foreground">
-                    <span className="text-muted-foreground">Verification:</span>{" "}
-                    {sessionUser.verificationStatus}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="px-5 py-4 border-t border-border flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => closeMenu()}
-                  className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  onClick={onSignOut}
-                  className="rounded-full bg-carnival-red px-6 py-3 text-lg leading-none font-bold text-white shadow-md transition-colors hover:bg-carnival-red/80"
-                >
-                  Sign out
-                </button>
-              </div>
-            </div>
-          </details>
-          </>
+          showDashboardLink ? (
+            <Link
+              href="/projects"
+              className="rounded-full border border-border bg-muted px-5 py-2.5 text-base font-semibold text-foreground shadow-sm transition-colors hover:bg-muted/70"
+            >
+              Dashboard
+            </Link>
+          ) : (
+            <Link
+              href="/projects"
+              className="rounded-full border border-border bg-muted px-5 py-2.5 text-base font-semibold text-foreground shadow-sm transition-colors hover:bg-muted/70"
+            >
+              Dashboard
+            </Link>
+          )
         ) : (
           <button
             type="button"
@@ -272,7 +125,6 @@ export default function Header({ showSectionLinks = true, initialWalletBalance =
             {authLoading ? "Opening Identity…" : "Join Carnival"}
           </button>
         )}
-
       </div>
     </nav>
   );

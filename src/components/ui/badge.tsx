@@ -3,20 +3,20 @@
 // ============================================================================
 
 export const badgeVariants = {
-  default: "bg-muted text-muted-foreground",
-  success: "bg-green-500/10 text-green-600 ring-1 ring-green-500/20",
-  warning: "bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20",
-  error: "bg-red-500/10 text-red-600 ring-1 ring-red-500/20",
-  info: "bg-blue-500/10 text-blue-600 ring-1 ring-blue-500/20",
-  purple: "bg-purple-500/10 text-purple-600 ring-1 ring-purple-500/20",
-  emerald: "bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20",
+  default: "bg-muted text-foreground ring-1 ring-border",
+  success: "bg-green-500/15 text-green-700 ring-1 ring-green-600/30 dark:text-green-300",
+  warning: "bg-amber-500/15 text-amber-700 ring-1 ring-amber-600/30 dark:text-amber-300",
+  error: "bg-red-500/15 text-red-700 ring-1 ring-red-600/30 dark:text-red-300",
+  info: "bg-blue-500/15 text-blue-700 ring-1 ring-blue-600/30 dark:text-blue-300",
+  purple: "bg-purple-500/15 text-purple-700 ring-1 ring-purple-600/30 dark:text-purple-300",
+  emerald: "bg-emerald-500/15 text-emerald-700 ring-1 ring-emerald-600/30 dark:text-emerald-300",
 };
 
 // ============================================================================
 // Badge component
 // ============================================================================
 
-type BadgeVariant = keyof typeof badgeVariants;
+export type BadgeVariant = keyof typeof badgeVariants;
 
 type BadgeProps = {
   children: React.ReactNode;

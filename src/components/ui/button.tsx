@@ -9,31 +9,31 @@ export const buttonVariants = {
     "inline-flex items-center justify-center",
     "bg-carnival-red hover:bg-carnival-red/80",
     "disabled:bg-carnival-red/50 disabled:cursor-not-allowed",
-    "text-white px-6 py-3 rounded-full font-bold transition-colors",
+    "text-white px-6 py-3 rounded-[var(--radius-xl)] font-bold transition-colors",
   ].join(" "),
   
   secondary: [
     "inline-flex items-center justify-center",
     "bg-carnival-blue/20 hover:bg-carnival-blue/30",
-    "text-foreground px-5 py-2 rounded-full font-semibold transition-colors border border-border",
+    "text-foreground px-5 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border",
   ].join(" "),
   
   outline: [
     "inline-flex items-center justify-center",
-    "px-5 py-2 rounded-full font-semibold transition-colors",
+    "px-5 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors",
     "border border-border hover:bg-muted",
   ].join(" "),
   
   ghost: [
     "inline-flex items-center justify-center",
-    "px-5 py-2 rounded-full font-semibold transition-colors",
+    "px-5 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors",
     "text-muted-foreground hover:text-foreground",
   ].join(" "),
   
   disabled: [
     "inline-flex items-center justify-center",
     "bg-muted text-muted-foreground",
-    "px-5 py-2 rounded-full font-semibold border border-border cursor-not-allowed",
+    "px-5 py-2 rounded-[var(--radius-xl)] font-semibold border border-border cursor-not-allowed",
   ].join(" "),
   
   icon: [
@@ -80,4 +80,3 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 );
 
 Button.displayName = "Button";
-

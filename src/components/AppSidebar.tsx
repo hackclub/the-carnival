@@ -1,24 +1,49 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useSession } from "@/lib/auth-client";
+import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { signOut, useSession } from "@/lib/auth-client";
+import { useSidebar } from "@/components/SidebarContext";
 import {
   Ban,
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   ClipboardList,
   Compass,
   FolderKanban,
   Gift,
-  MessageSquare,
+  LogOut,
   LucideIcon,
+  MessageSquare,
+  Settings,
+  Shield,
   ShoppingBag,
   Trophy,
-  User,
   Users,
-  BookOpen,
-  Shield,
 } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import WalletConverterPopover from "@/components/WalletConverterPopover";
 
 type UserRole = "user" | "reviewer" | "admin" | null;
 
@@ -36,11 +61,10 @@ type NavSection = {
 
 const WORKSPACE_NAV: NavItem[] = [
   { href: "/projects", label: "My projects", icon: FolderKanban },
-  { href: "/bounties", label: "Bounties", icon: Trophy },
   { href: "/explore", label: "Explore", icon: Compass },
-  { href: "/resources", label: "Resources", icon: BookOpen },
+  { href: "/bounties", label: "Bounties", icon: Trophy },
   { href: "/shop", label: "Shop", icon: ShoppingBag },
-  { href: "/account", label: "Account", icon: User },
+  { href: "/resources", label: "Resources", icon: BookOpen },
 ];
 
 const REVIEW_NAV: NavItem[] = [
@@ -69,73 +93,275 @@ function isActivePath(pathname: string | null, href: string) {
 function getNavSections(role: UserRole): NavSection[] {
   if (role === "admin") {
     return [
-      { id: "ops", title: "Operations", items: [...REVIEW_NAV, ...ADMIN_NAV] },
       { id: "workspace", title: "Workspace", items: WORKSPACE_NAV },
+      { id: "ops", title: "Operations", items: [...REVIEW_NAV, ...ADMIN_NAV] },
     ];
   }
 
   if (role === "reviewer") {
     return [
-      { id: "ops", title: "Operations", items: REVIEW_NAV },
       { id: "workspace", title: "Workspace", items: WORKSPACE_NAV },
+      { id: "ops", title: "Operations", items: REVIEW_NAV },
     ];
   }
 
   return [{ id: "workspace", title: "Workspace", items: WORKSPACE_NAV }];
 }
 
+function getInitials(nameOrEmail?: string | null) {
+  const value = (nameOrEmail ?? "").trim();
+  if (!value) return "?";
+  return value[0]?.toUpperCase() ?? "?";
+}
+
+type SidebarNavProps = {
+  sections: NavSection[];
+  pathname: string | null;
+  collapsed: boolean;
+  onNavigate?: () => void;
+};
+
+function SidebarNav({ sections, pathname, collapsed, onNavigate }: SidebarNavProps) {
+  return (
+    <nav className="flex-1 space-y-5 px-3 overflow-y-auto">
+      {sections.map((section) => (
+        <section key={section.id} className="space-y-1.5">
+          {!collapsed && (sections.length > 1 || section.title !== "Workspace") && (
+            <div className="platform-nav-section-label sidebar-section-label mt-2 mb-1">{section.title}</div>
+          )}
+          {collapsed && sections.length > 1 && section.id !== sections[0]?.id && (
+            <div className="mx-auto my-2 h-px w-6 bg-[var(--platform-border)]" />
+          )}
+          <div className="space-y-0.5">
+            {section.items.map((item) => {
+              const Icon = item.icon;
+              const active = isActivePath(pathname, item.href);
+
+              const linkElement = (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  data-active={active ? "true" : "false"}
+                  className="platform-nav-link"
+                  onClick={onNavigate}
+                >
+                  <Icon size={17} className="shrink-0" />
+                  {!collapsed && <span className="sidebar-label">{item.label}</span>}
+                </Link>
+              );
+
+              if (collapsed) {
+                return (
+                  <Tooltip key={item.href}>
+                    <TooltipTrigger render={linkElement} />
+                    <TooltipContent side="right">{item.label}</TooltipContent>
+                  </Tooltip>
+                );
+              }
+
+              return linkElement;
+            })}
+          </div>
+        </section>
+      ))}
+    </nav>
+  );
+}
+
 export default function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { data } = useSession();
+  const { mobileOpen, setMobileOpen, collapsed, toggleCollapsed } = useSidebar();
 
-  type SessionUser = { role?: string | null };
-  const rawRole = (data as { user?: SessionUser } | null | undefined)?.user?.role ?? null;
-  const role = asUserRole(rawRole);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  type SessionUser = { id?: string; name?: string | null; email?: string | null; image?: string | null; role?: string | null };
+  const sessionUser = (data as { user?: SessionUser } | null | undefined)?.user;
+  const isAuthed = !!sessionUser?.id;
+  const role = asUserRole(sessionUser?.role ?? null);
   const sections = getNavSections(role);
 
-  return (
-    <aside className="w-full md:w-72 md:shrink-0">
-      <div className="platform-sidebar-surface border-b md:border-b-0 md:border-r md:sticky md:top-0 md:h-screen md:overflow-auto">
-        <div className="px-5 pt-5 pb-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(116,33,10,0.2)] bg-[rgba(255,247,220,0.95)] px-4 py-2 shadow-[0_10px_24px_rgba(120,53,15,0.12)]">
+  const displayName = useMemo(() => {
+    return sessionUser?.name?.trim() || sessionUser?.email?.trim() || "Unknown";
+  }, [sessionUser?.email, sessionUser?.name]);
+
+  const avatarText = useMemo(() => {
+    return getInitials(sessionUser?.name ?? sessionUser?.email);
+  }, [sessionUser?.email, sessionUser?.name]);
+
+  useEffect(() => {
+    if (!isAuthed) return;
+    let cancelled = false;
+    fetch("/api/wallet/balance", { method: "GET" })
+      .then(async (res) => {
+        const json = (await res.json().catch(() => null)) as { balance?: unknown } | null;
+        if (!res.ok) return null;
+        const b = typeof json?.balance === "number" ? json.balance : Number(json?.balance);
+        return Number.isFinite(b) ? b : null;
+      })
+      .then((b) => {
+        if (cancelled) return;
+        if (typeof b === "number") setWalletBalance(b);
+      })
+      .catch(() => null);
+    return () => { cancelled = true; };
+  }, [isAuthed]);
+
+  const onSignOut = useCallback(async () => {
+    await signOut();
+    window.location.href = "/";
+  }, []);
+
+  const sidebarContent = (isMobile: boolean) => (
+    <div className={`flex h-full flex-col ${isMobile ? "" : collapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}>
+      {/* Header / branding */}
+      <div className="px-4 pt-5 pb-2">
+        <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 shrink-0">
             <span className="text-xl leading-none">🎪</span>
-            <span className="text-sm font-black uppercase tracking-[0.08em] text-[var(--platform-ink)]">
-              Carnival
-            </span>
-          </div>
-          <div className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--platform-ink-muted)]">
+            {(!collapsed || isMobile) && (
+              <span className="sidebar-branding-text text-sm font-black uppercase tracking-[0.08em] text-[var(--platform-ink)]">
+                Carnival
+              </span>
+            )}
+          </Link>
+          {!isMobile && (
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              className="ml-auto inline-flex items-center justify-center rounded-lg p-1.5 text-[var(--platform-ink-muted)] transition-colors hover:bg-[rgba(255,240,207,0.8)] hover:text-[var(--platform-ink)]"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            </button>
+          )}
+        </div>
+        {(!collapsed || isMobile) && (
+          <div className="sidebar-branding-text mt-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[var(--platform-ink-muted)]">
             Dashboard
           </div>
-        </div>
-
-        <nav className="space-y-5 px-3 pb-7">
-          {sections.map((section) => (
-            <section key={section.id} className="space-y-2">
-              {sections.length > 1 || section.title !== "Workspace" ? (
-                <div className="platform-nav-section-label">{section.title}</div>
-              ) : null}
-              <div className="space-y-1">
-                {section.items.map((item) => {
-                  const Icon = item.icon;
-                  const active = isActivePath(pathname, item.href);
-
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      data-active={active ? "true" : "false"}
-                      className="platform-nav-link"
-                    >
-                      <Icon size={17} />
-                      <span>{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </nav>
+        )}
       </div>
-    </aside>
+
+      {/* Art decoration */}
+      {(!collapsed || isMobile) && (
+        <div className="sidebar-art relative mx-auto my-1 h-12 w-28 opacity-50">
+          <Image
+            src="/ferris-wheel.png"
+            alt=""
+            fill
+            sizes="112px"
+            className="object-contain"
+          />
+        </div>
+      )}
+
+      {/* Navigation */}
+      <SidebarNav
+        sections={sections}
+        pathname={pathname}
+        collapsed={!isMobile && collapsed}
+        onNavigate={isMobile ? () => setMobileOpen(false) : undefined}
+      />
+
+      {/* Bottom section: wallet + user */}
+      <div className="mt-auto border-t border-[var(--platform-border)] px-3 pt-3 pb-4 space-y-2">
+        {/* Wallet */}
+        {isAuthed && (
+          <div className={collapsed && !isMobile ? "flex justify-center" : ""}>
+            {collapsed && !isMobile ? (
+              <Tooltip>
+                <TooltipTrigger className="inline-flex items-center justify-center rounded-lg p-2 text-sm font-semibold text-[var(--platform-ink-muted)]">
+                  <span>🪙</span>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {walletBalance ?? "—"} tokens
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <WalletConverterPopover walletBalance={walletBalance} />
+            )}
+          </div>
+        )}
+
+        {/* User */}
+        {isAuthed && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={`w-full rounded-[var(--radius-xl)] border border-transparent px-2 py-2 transition-colors hover:border-[rgba(116,33,10,0.16)] hover:bg-[rgba(255,240,207,0.82)] ${collapsed && !isMobile ? "flex justify-center" : "flex items-center gap-2.5"}`}
+            >
+              {sessionUser?.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={sessionUser.image}
+                  alt=""
+                  className="h-8 w-8 rounded-full object-cover border border-[var(--platform-border)] shrink-0"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <span className="h-8 w-8 rounded-full bg-[var(--platform-accent)]/20 border border-[var(--platform-border)] flex items-center justify-center text-[var(--platform-ink)] text-sm font-bold shrink-0">
+                  {avatarText}
+                </span>
+              )}
+              {(!collapsed || isMobile) && (
+                <span className="sidebar-user-name text-sm font-semibold text-[var(--platform-ink)] truncate text-left flex-1">
+                  {displayName}
+                </span>
+              )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side={collapsed && !isMobile ? "right" : "top"} align="start" className="w-56">
+              <div className="px-3 py-2 border-b border-border">
+                <div className="text-sm font-semibold text-foreground truncate">{sessionUser?.name || "Signed in"}</div>
+                {sessionUser?.email && (
+                  <div className="text-xs text-muted-foreground truncate">{sessionUser.email}</div>
+                )}
+              </div>
+              <DropdownMenuItem
+                className="gap-2 mt-1 cursor-pointer"
+                onClick={() => {
+                  router.push("/account");
+                  if (isMobile) setMobileOpen(false);
+                }}
+              >
+                <Settings size={15} />
+                Account settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                onClick={onSignOut}
+              >
+                <LogOut size={15} />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside
+        className={`hidden md:block md:shrink-0 ${collapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}
+      >
+        <div className="platform-sidebar-surface border-r sticky top-0 h-screen overflow-hidden">
+          {sidebarContent(false)}
+        </div>
+      </aside>
+
+      {/* Mobile sheet */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent side="left" showCloseButton={true} className="w-72 p-0 platform-sidebar-surface border-r">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Navigation</SheetTitle>
+          </SheetHeader>
+          {sidebarContent(true)}
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }

@@ -1,20 +1,23 @@
 import { forwardRef } from "react";
+import { Input as ShadInput } from "@/components/ui/input";
+import { Textarea as ShadTextarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 // ============================================================================
 // Shared styles
 // ============================================================================
 
 const baseInputStyles = [
-  "w-full bg-background border border-border rounded-2xl px-4 py-3",
+  "min-h-11 rounded-[var(--radius-xl)] bg-background px-4 py-3",
   "text-foreground placeholder:text-muted-foreground",
-  "focus:outline-none focus:ring-2 focus:ring-carnival-blue/40",
+  "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
   "disabled:opacity-50 disabled:cursor-not-allowed",
 ].join(" ");
 
 const smallInputStyles = [
-  "w-full bg-background border border-border rounded-xl px-3 py-2 text-sm",
+  "min-h-9 rounded-[var(--radius-lg)] bg-background px-3 py-2 text-sm",
   "text-foreground placeholder:text-muted-foreground",
-  "focus:outline-none focus:ring-2 focus:ring-carnival-blue/40",
+  "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
   "disabled:opacity-50 disabled:cursor-not-allowed",
 ].join(" ");
 
@@ -31,7 +34,7 @@ type FormLabelProps = {
 export function FormLabel({ children, className = "", size = "default" }: FormLabelProps) {
   const sizeClass = size === "small" ? "text-xs" : "text-sm";
   return (
-    <div className={`${sizeClass} text-muted-foreground font-medium mb-2 ${className}`}>
+    <div className={cn(sizeClass, "mb-2 font-medium text-muted-foreground", className)}>
       {children}
     </div>
   );
@@ -54,12 +57,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       return (
         <label className="block">
           <FormLabel size={size}>{label}</FormLabel>
-          <input ref={ref} className={`${inputClass} ${className}`} {...props} />
+          <ShadInput ref={ref} className={cn(inputClass, className)} {...props} />
         </label>
       );
     }
     
-    return <input ref={ref} className={`${inputClass} ${className}`} {...props} />;
+    return <ShadInput ref={ref} className={cn(inputClass, className)} {...props} />;
   }
 );
 
@@ -82,49 +85,66 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       return (
         <label className="block">
           <FormLabel size={size}>{label}</FormLabel>
-          <textarea ref={ref} className={`${inputClass} ${className}`} {...props} />
+          <ShadTextarea ref={ref} className={cn(inputClass, className)} {...props} />
         </label>
       );
     }
     
-    return <textarea ref={ref} className={`${inputClass} ${className}`} {...props} />;
+    return <ShadTextarea ref={ref} className={cn(inputClass, className)} {...props} />;
   }
 );
 
 Textarea.displayName = "Textarea";
 
 // ============================================================================
-// Select
+// NativeSelect — styled <select> for controlled/uncontrolled native forms
 // ============================================================================
 
-type SelectProps = Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "size"> & {
+type NativeSelectProps = Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "size"> & {
   label?: string;
   size?: "default" | "small";
   children: React.ReactNode;
 };
 
-export const Select = forwardRef<HTMLSelectElement, SelectProps>(
+export const NativeSelect = forwardRef<HTMLSelectElement, NativeSelectProps>(
   ({ label, className = "", size = "default", children, ...props }, ref) => {
     const inputClass = size === "small" ? smallInputStyles : baseInputStyles;
-    
+
     if (label) {
       return (
         <label className="block">
           <FormLabel size={size}>{label}</FormLabel>
-          <select ref={ref} className={`${inputClass} ${className}`} {...props}>
+          <select ref={ref} className={cn(inputClass, "border border-input outline-none", className)} {...props}>
             {children}
           </select>
         </label>
       );
     }
-    
+
     return (
-      <select ref={ref} className={`${inputClass} ${className}`} {...props}>
+      <select ref={ref} className={cn(inputClass, "border border-input outline-none", className)} {...props}>
         {children}
       </select>
     );
-  }
+  },
 );
 
-Select.displayName = "Select";
+NativeSelect.displayName = "NativeSelect";
+
+// ============================================================================
+// shadcn Select — prefer these for popover-style dropdowns in client components
+// ============================================================================
+
+export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectScrollDownButton,
+  SelectScrollUpButton,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 

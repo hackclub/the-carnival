@@ -1,4 +1,17 @@
-export { Input, Textarea, Select, FormLabel } from "./form";
+export {
+  Input,
+  Textarea,
+  NativeSelect,
+  FormLabel,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+  SelectSeparator,
+} from "./form";
 export { Button, buttonVariants } from "./button";
 export { Modal } from "./modal";
 export { Card, CardHeader, CardContent, CardFooter } from "./card";
