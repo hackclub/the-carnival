@@ -4,8 +4,16 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import DevlogAttachmentsInput from "@/components/DevlogAttachmentsInput";
+import { RichTextField } from "@/components/RichTextField";
 import { Button, Card, CardContent, FormLabel, Input, Textarea } from "@/components/ui";
 import { DateTimePicker } from "@/components/ui/date-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatDurationHM } from "@/lib/devlog-shared";
 
 type DevlogFormMode = "create" | "edit";
@@ -24,6 +32,12 @@ type NewDevlogFormProps = {
   projectId: string;
   projectName: string;
   hackatimeProjectName: string;
+  linkedHackatimeProjects?: Array<{
+    id: string;
+    name: string;
+    isDefault: boolean;
+    firstDevlogId: string | null;
+  }>;
   floorIso: string;
   ceilingIso: string;
   mode?: DevlogFormMode;
@@ -52,6 +66,7 @@ export default function NewDevlogForm({
   projectId,
   projectName,
   hackatimeProjectName,
+  linkedHackatimeProjects = [],
   floorIso,
   ceilingIso,
   mode = "create",
@@ -65,6 +80,15 @@ export default function NewDevlogForm({
 
   const [title, setTitle] = useState(initial?.title ?? "");
   const [content, setContent] = useState(initial?.content ?? "");
+  const [selectedHackatimeProjectName, setSelectedHackatimeProjectName] = useState(
+    hackatimeProjectName.trim(),
+  );
+  const [hackatimeProjects, setHackatimeProjects] = useState<
+    Array<{ name: string; totalSeconds: number; startedAt: string | null; stoppedAt: string | null }>
+  >([]);
+  const [hackatimeLoading, setHackatimeLoading] = useState(false);
+  const [hackatimeError, setHackatimeError] = useState<string | null>(null);
+  const [hackatimeConnectUrl, setHackatimeConnectUrl] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<string[]>(initial?.attachments ?? []);
   const [usedAi, setUsedAi] = useState(initial?.usedAi ?? false);
   const [aiDesc, setAiDesc] = useState(initial?.aiUsageDescription ?? "");
@@ -82,6 +106,91 @@ export default function NewDevlogForm({
 
   const startedIso = useMemo(() => fromDatetimeLocalValue(startedAt), [startedAt]);
   const endedIso = useMemo(() => fromDatetimeLocalValue(endedAt), [endedAt]);
+  const hackatimeProjectOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const options: Array<{ name: string; source: "linked" | "account"; label: string }> = [];
+    const push = (name: string, source: "linked" | "account") => {
+      const clean = name.trim();
+      if (!clean) return;
+      const key = clean.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      options.push({
+        name: clean,
+        source,
+        label: source === "linked" ? `${clean} (linked)` : clean,
+      });
+    };
+    linkedHackatimeProjects.forEach((p) => push(p.name, "linked"));
+    if (hackatimeProjectName.trim()) push(hackatimeProjectName, "linked");
+    hackatimeProjects.forEach((p) => push(p.name, "account"));
+    return options;
+  }, [hackatimeProjectName, hackatimeProjects, linkedHackatimeProjects]);
+
+  const refreshHackatimeProjects = useCallback(async () => {
+    setHackatimeLoading(true);
+    setHackatimeError(null);
+    try {
+      const returnTo = `${window.location.pathname}${window.location.search}`;
+      const res = await fetch(
+        `/api/hackatime/projects?returnTo=${encodeURIComponent(returnTo)}`,
+        { method: "GET" },
+      );
+      const data = (await res.json().catch(() => null)) as
+        | { projects?: unknown; error?: unknown; code?: unknown; connectUrl?: unknown }
+        | null;
+      if (!res.ok) {
+        const code = typeof data?.code === "string" ? data.code : "";
+        if (code === "oauth_required") {
+          setHackatimeConnectUrl(
+            typeof data?.connectUrl === "string" && data.connectUrl.trim()
+              ? data.connectUrl
+              : `/api/hackatime/oauth/start?returnTo=${encodeURIComponent(returnTo)}`,
+          );
+        }
+        setHackatimeError(
+          typeof data?.error === "string" ? data.error : "Failed to load Hackatime projects.",
+        );
+        setHackatimeProjects([]);
+        setHackatimeLoading(false);
+        return;
+      }
+
+      const projects = (Array.isArray(data?.projects) ? data.projects : [])
+        .map((p) => {
+          if (!p || typeof p !== "object") return null;
+          const row = p as {
+            name?: unknown;
+            totalSeconds?: unknown;
+            startedAt?: unknown;
+            stoppedAt?: unknown;
+          };
+          const name = typeof row.name === "string" ? row.name.trim() : "";
+          if (!name) return null;
+          return {
+            name,
+            totalSeconds:
+              typeof row.totalSeconds === "number" && Number.isFinite(row.totalSeconds)
+                ? Math.max(0, Math.floor(row.totalSeconds))
+                : 0,
+            startedAt: typeof row.startedAt === "string" ? row.startedAt : null,
+            stoppedAt: typeof row.stoppedAt === "string" ? row.stoppedAt : null,
+          };
+        })
+        .filter((p): p is { name: string; totalSeconds: number; startedAt: string | null; stoppedAt: string | null } => !!p);
+      setHackatimeProjects(projects);
+      setHackatimeConnectUrl(null);
+      setHackatimeLoading(false);
+    } catch {
+      setHackatimeError("Failed to load Hackatime projects.");
+      setHackatimeProjects([]);
+      setHackatimeLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshHackatimeProjects();
+  }, [refreshHackatimeProjects]);
 
   const windowError = useMemo(() => {
     if (!canEditWindow) return null;
@@ -108,7 +217,7 @@ export default function NewDevlogForm({
       setPreviewLoading(false);
       return;
     }
-    if (!startedIso || !endedIso || windowError) {
+    if (!selectedHackatimeProjectName.trim() || !startedIso || !endedIso || windowError) {
       setPreviewSeconds(null);
       setPreviewError(null);
       setPreviewLoading(false);
@@ -126,6 +235,7 @@ export default function NewDevlogForm({
         );
         url.searchParams.set("startedAt", startedIso);
         url.searchParams.set("endedAt", endedIso);
+        url.searchParams.set("hackatimeProjectName", selectedHackatimeProjectName);
         const res = await fetch(url.toString());
         const data = (await res.json().catch(() => null)) as
           | { durationSeconds?: number | null; error?: unknown }
@@ -153,11 +263,12 @@ export default function NewDevlogForm({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [canEditWindow, endedIso, projectId, startedIso, windowError]);
+  }, [canEditWindow, endedIso, projectId, selectedHackatimeProjectName, startedIso, windowError]);
 
   const canSubmit = useMemo(() => {
     if (submitting) return false;
     if (!title.trim() || !content.trim()) return false;
+    if ((!isEdit || canEditWindow) && !selectedHackatimeProjectName.trim()) return false;
     if (canEditWindow && (!startedIso || !endedIso)) return false;
     if (windowError) return false;
     if (attachments.length < 1) return false;
@@ -169,8 +280,10 @@ export default function NewDevlogForm({
     canEditWindow,
     content,
     endedIso,
+    isEdit,
     startedIso,
     submitting,
+    selectedHackatimeProjectName,
     title,
     usedAi,
     windowError,
@@ -195,6 +308,9 @@ export default function NewDevlogForm({
         usedAi,
         aiUsageDescription: usedAi ? aiDesc.trim() : null,
       };
+      if (!isEdit || canEditWindow) {
+        body.hackatimeProjectName = selectedHackatimeProjectName.trim();
+      }
       if (canEditWindow) {
         body.startedAt = startedIso;
         body.endedAt = endedIso;
@@ -244,6 +360,7 @@ export default function NewDevlogForm({
     isEdit,
     projectId,
     router,
+    selectedHackatimeProjectName,
     startedIso,
     title,
     usedAi,
@@ -253,10 +370,11 @@ export default function NewDevlogForm({
     if (!canEditWindow) return null;
     if (previewLoading) return "Calculating Hackatime time…";
     if (previewError) return previewError;
+    if (!selectedHackatimeProjectName.trim()) return "Pick a Hackatime project to preview time.";
     if (previewSeconds === null) return "Pick a start and end time to preview Hackatime time.";
     const d = formatDurationHM(previewSeconds);
     return `Hackatime time for this window: ${d.label}.`;
-  }, [canEditWindow, previewError, previewLoading, previewSeconds]);
+  }, [canEditWindow, previewError, previewLoading, previewSeconds, selectedHackatimeProjectName]);
 
   const cancelHref = isEdit && devlogId
     ? `/projects/${projectId}/devlogs/${devlogId}`
@@ -272,10 +390,60 @@ export default function NewDevlogForm({
               {isEdit ? "Edit devlog" : "New devlog"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Record what you worked on. Hackatime seconds logged against{" "}
-              <span className="font-mono text-foreground">{hackatimeProjectName}</span>{" "}
-              within your chosen window are what count toward this devlog.
+              Record what you worked on. Hackatime seconds logged against the selected
+              Hackatime project within your chosen window are what count toward this devlog.
             </p>
+          </div>
+
+          <div>
+            <FormLabel>Hackatime project</FormLabel>
+            <Select
+              value={selectedHackatimeProjectName || "__none__"}
+              onValueChange={(value) => {
+                setSelectedHackatimeProjectName(!value || value === "__none__" ? "" : value);
+                setPreviewSeconds(null);
+                setPreviewError(null);
+              }}
+              disabled={!canEditWindow || (hackatimeLoading && hackatimeProjectOptions.length === 0)}
+            >
+              <SelectTrigger className="w-full h-11 rounded-[var(--radius-xl)] border-border bg-background px-4 text-foreground">
+                <SelectValue placeholder="Select a Hackatime project" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Select a Hackatime project</SelectItem>
+                {hackatimeProjectOptions.map((option) => (
+                  <SelectItem key={`${option.source}:${option.name}`} value={option.name}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+              <span>
+                {hackatimeLoading
+                  ? "Loading Hackatime projects..."
+                  : "Linked projects appear first, followed by your Hackatime projects."}
+              </span>
+              <button
+                type="button"
+                onClick={refreshHackatimeProjects}
+                disabled={hackatimeLoading}
+                className="font-semibold text-carnival-blue hover:underline disabled:opacity-60 disabled:hover:no-underline"
+              >
+                {hackatimeLoading ? "Refreshing..." : "Refresh"}
+              </button>
+            </div>
+            {hackatimeConnectUrl ? (
+              <a
+                href={hackatimeConnectUrl}
+                className="mt-3 inline-flex items-center justify-center rounded-[var(--radius-xl)] bg-carnival-blue px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-carnival-blue/80"
+              >
+                Connect Hackatime
+              </a>
+            ) : null}
+            {hackatimeError ? (
+              <div className="mt-2 text-sm text-red-200">Could not load projects: {hackatimeError}</div>
+            ) : null}
           </div>
 
           <label className="block">
@@ -288,16 +456,14 @@ export default function NewDevlogForm({
             />
           </label>
 
-          <label className="block">
-            <FormLabel>What did you work on?</FormLabel>
-            <Textarea
-              rows={8}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Describe what you built, what broke, and what's next."
-              maxLength={20000}
-            />
-          </label>
+          <RichTextField
+            label="What did you work on?"
+            value={content}
+            onChange={setContent}
+            placeholder="Describe what you built, what broke, and what's next."
+            rows={8}
+            maxLength={20000}
+          />
         </CardContent>
       </Card>
 
@@ -323,8 +489,8 @@ export default function NewDevlogForm({
           <div>
             <div className="font-semibold text-foreground">Working window</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Pick the time range you worked during. Start can't be earlier than the end of your
-              last devlog (or the project start), and end can't be in the future.
+              Pick the time range you worked during. Start can&apos;t be earlier than the end of your
+              last devlog (or the project start), and end can&apos;t be in the future.
             </p>
           </div>
 

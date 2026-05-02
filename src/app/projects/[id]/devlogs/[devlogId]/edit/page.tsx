@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui";
 import { db } from "@/db";
 import { devlog, project } from "@/db/schema";
 import { computeWindowCeiling } from "@/lib/devlog-shared";
-import { getDevlogWindowFloor } from "@/lib/devlogs";
+import { getDevlogWindowFloor, listProjectHackatimeProjects } from "@/lib/devlogs";
 import { getServerSession } from "@/lib/server-session";
 
 export default async function EditDevlogPage(props: {
@@ -31,6 +31,7 @@ export default async function EditDevlogPage(props: {
       attachments: devlog.attachments,
       usedAi: devlog.usedAi,
       aiUsageDescription: devlog.aiUsageDescription,
+      hackatimeProjectNameSnapshot: devlog.hackatimeProjectNameSnapshot,
       projectName: project.name,
       projectStatus: project.status,
       projectCreatorId: project.creatorId,
@@ -51,7 +52,9 @@ export default async function EditDevlogPage(props: {
     redirect(`/projects/${id}/devlogs/${devlogId}`);
   }
 
-  const hackatimeProjectName = (row.projectHackatimeProjectName ?? "").trim();
+  const hackatimeProjectName =
+    (row.hackatimeProjectNameSnapshot ?? "").trim() ||
+    (row.projectHackatimeProjectName ?? "").trim();
 
   if (row.projectStatus !== "work-in-progress" || row.projectSubmittedAt) {
     return (
@@ -94,7 +97,7 @@ export default async function EditDevlogPage(props: {
               Set a Hackatime project first
             </div>
             <p className="text-sm text-muted-foreground">
-              Each devlog pulls its hours from Hackatime for this project's configured
+              Each devlog pulls its hours from Hackatime for this project&apos;s configured
               Hackatime project. Pick one on the project page before editing this devlog.
             </p>
           </CardContent>
@@ -113,6 +116,7 @@ export default async function EditDevlogPage(props: {
   const floorBase = row.projectStartedOnCarnivalAt ?? row.projectCreatedAt ?? new Date(0);
   const floor = await getDevlogWindowFloor(id, floorBase, row.id);
   const ceiling = computeWindowCeiling(row.projectSubmittedAt ?? null);
+  const linkedHackatimeProjects = await listProjectHackatimeProjects(id);
 
   return (
     <AppShell title={`Edit devlog · ${row.projectName ?? ""}`}>
@@ -129,7 +133,8 @@ export default async function EditDevlogPage(props: {
         devlogId={devlogId}
         projectId={id}
         projectName={row.projectName ?? "Project"}
-        hackatimeProjectName={hackatimeProjectName}
+        hackatimeProjectName={(row.hackatimeProjectNameSnapshot ?? "").trim() || hackatimeProjectName}
+        linkedHackatimeProjects={linkedHackatimeProjects}
         floorIso={floor.toISOString()}
         ceilingIso={ceiling.toISOString()}
         canEditWindow={isLatest}

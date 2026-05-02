@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui";
 import { db } from "@/db";
 import { project } from "@/db/schema";
 import { computeWindowCeiling } from "@/lib/devlog-shared";
-import { getDevlogWindowFloor } from "@/lib/devlogs";
+import { listProjectHackatimeProjects, getDevlogWindowFloor } from "@/lib/devlogs";
 import { getServerSession } from "@/lib/server-session";
 
 export default async function NewDevlogPage(props: {
@@ -55,34 +55,8 @@ export default async function NewDevlogPage(props: {
           <CardContent className="pt-6 space-y-2">
             <div className="font-semibold text-foreground">Devlogs are frozen</div>
             <p className="text-sm text-muted-foreground">
-              You can only post devlogs while the project is work-in-progress. Once you've
+              You can only post devlogs while the project is work-in-progress. Once you&apos;ve
               submitted the project for review, devlogs lock until you need to resubmit.
-            </p>
-          </CardContent>
-        </Card>
-      </AppShell>
-    );
-  }
-
-  if (!hackatimeProjectName) {
-    return (
-      <AppShell title="New devlog">
-        <div className="mb-6">
-          <Link
-            href={`/projects/${p.id}`}
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            ← Back to project
-          </Link>
-        </div>
-        <Card>
-          <CardContent className="pt-6 space-y-2">
-            <div className="font-semibold text-foreground">
-              Set a Hackatime project first
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Each devlog pulls its hours from Hackatime for this project's configured
-              Hackatime project. Pick one on the project page before posting a devlog.
             </p>
           </CardContent>
         </Card>
@@ -93,6 +67,7 @@ export default async function NewDevlogPage(props: {
   const floorBase = p.startedOnCarnivalAt ?? p.createdAt;
   const floor = await getDevlogWindowFloor(p.id, floorBase);
   const ceiling = computeWindowCeiling(p.submittedAt ?? null);
+  const linkedHackatimeProjects = await listProjectHackatimeProjects(p.id);
 
   return (
     <AppShell title="New devlog">
@@ -108,6 +83,7 @@ export default async function NewDevlogPage(props: {
         projectId={p.id}
         projectName={p.name}
         hackatimeProjectName={hackatimeProjectName}
+        linkedHackatimeProjects={linkedHackatimeProjects}
         floorIso={floor.toISOString()}
         ceilingIso={ceiling.toISOString()}
       />

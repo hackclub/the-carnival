@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { Bold, Heading3, Italic, Link as LinkIcon, List } from "lucide-react";
+import { Bold, Heading3, Italic, Link as LinkIcon, List, ListOrdered } from "lucide-react";
 import { FormLabel } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -14,9 +14,10 @@ type RichTextFieldProps = {
   disabled?: boolean;
   placeholder?: string;
   rows?: number;
+  maxLength?: number;
 };
 
-type FormatAction = "bold" | "italic" | "heading" | "list" | "link";
+type FormatAction = "bold" | "italic" | "heading" | "list" | "ordered-list" | "link";
 
 function applyFormat(action: FormatAction, value: string, start: number, end: number) {
   const before = value.slice(0, start);
@@ -32,9 +33,15 @@ function applyFormat(action: FormatAction, value: string, start: number, end: nu
   const listText = selected
     ? selected
         .split("\n")
-        .map((line) => (line.trim() ? `- ${line.replace(/^\s*[-*]\s+/, "")}` : line))
+        .map((line, index) => {
+          if (!line.trim()) return line;
+          const clean = line.replace(/^\s*(?:[-*]|\d+\.)\s+/, "");
+          return action === "ordered-list" ? `${index + 1}. ${clean}` : `- ${clean}`;
+        })
         .join("\n")
-    : "- item";
+    : action === "ordered-list"
+      ? "1. item"
+      : "- item";
   return `${before}${listText}${after}`;
 }
 
@@ -47,6 +54,7 @@ export function RichTextField({
   disabled,
   placeholder,
   rows = 7,
+  maxLength,
 }: RichTextFieldProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -80,6 +88,9 @@ export function RichTextField({
           <button type="button" className={buttonClass} onClick={() => format("list")} disabled={disabled} title="Bulleted list">
             <List className="h-4 w-4" />
           </button>
+          <button type="button" className={buttonClass} onClick={() => format("ordered-list")} disabled={disabled} title="Numbered list">
+            <ListOrdered className="h-4 w-4" />
+          </button>
           <button type="button" className={buttonClass} onClick={() => format("link")} disabled={disabled} title="Link">
             <LinkIcon className="h-4 w-4" />
           </button>
@@ -92,6 +103,7 @@ export function RichTextField({
           required={required}
           disabled={disabled}
           rows={rows}
+          maxLength={maxLength}
           placeholder={placeholder}
           className={cn(
             "block w-full resize-y bg-transparent px-4 py-3 text-base text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
@@ -99,6 +111,11 @@ export function RichTextField({
           )}
         />
       </div>
+      {typeof maxLength === "number" ? (
+        <div className="mt-1 text-xs text-muted-foreground">
+          {value.length} / {maxLength}
+        </div>
+      ) : null}
     </div>
   );
 }

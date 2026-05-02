@@ -59,6 +59,7 @@ export function RichTextContent({ value, className = "", clamp = false }: RichTe
 
   const blocks: React.ReactNode[] = [];
   let listItems: string[] = [];
+  let orderedListItems: string[] = [];
 
   const flushList = () => {
     if (listItems.length === 0) return;
@@ -71,15 +72,34 @@ export function RichTextContent({ value, className = "", clamp = false }: RichTe
     );
     listItems = [];
   };
+  const flushOrderedList = () => {
+    if (orderedListItems.length === 0) return;
+    blocks.push(
+      <ol key={`ol-${blocks.length}`} className="my-2 list-decimal space-y-1 pl-5">
+        {orderedListItems.map((item, index) => (
+          <li key={index}>{renderInline(item)}</li>
+        ))}
+      </ol>,
+    );
+    orderedListItems = [];
+  };
 
   for (const line of lines) {
     const bullet = line.match(/^\s*[-*]\s+(.+)$/);
     if (bullet) {
+      flushOrderedList();
       listItems.push(bullet[1]);
+      continue;
+    }
+    const numbered = line.match(/^\s*\d+\.\s+(.+)$/);
+    if (numbered) {
+      flushList();
+      orderedListItems.push(numbered[1]);
       continue;
     }
 
     flushList();
+    flushOrderedList();
 
     if (!line.trim()) {
       continue;
@@ -111,6 +131,7 @@ export function RichTextContent({ value, className = "", clamp = false }: RichTe
   }
 
   flushList();
+  flushOrderedList();
 
   if (blocks.length === 0) return null;
 
