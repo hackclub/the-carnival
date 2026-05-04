@@ -15,7 +15,15 @@ ALTER TABLE "devlog" ALTER COLUMN "ended_at" SET NOT NULL;--> statement-breakpoi
 CREATE INDEX "devlog_project_ended_at_idx" ON "devlog" USING btree ("project_id","ended_at");--> statement-breakpoint
 ALTER TABLE "project" ADD COLUMN "hours_spent_seconds" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 -- Seed project.hours_spent_seconds from any pre-existing devlog durations (all zero today, but safe).
-UPDATE "project" p SET "hours_spent_seconds" = COALESCE((SELECT SUM(d.duration_seconds) FROM "devlog" d WHERE d.project_id = p.id), 0);--> statement-breakpoint
+-- Skip legacy rows that predate the NOT VALID video-link check; Postgres still
+-- enforces that check for unrelated UPDATEs even though old invalid rows remain.
+UPDATE "project" p
+SET "hours_spent_seconds" = COALESCE((
+  SELECT SUM(d.duration_seconds)
+  FROM "devlog" d
+  WHERE d.project_id = p.id
+), 0)
+WHERE p."video_url" <> '' AND p."playable_demo_url" <> '';--> statement-breakpoint
 CREATE TABLE "peer_review_devlog_assessment" (
 	"id" text PRIMARY KEY NOT NULL,
 	"review_id" text NOT NULL,
