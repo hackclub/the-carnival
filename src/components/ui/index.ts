@@ -32,4 +32,5 @@ export {
   PlatformSurfaceCard,
   PlatformDialogSurface,
   PlatformTableShell,
+  PlatformNestedSurface,
 } from "./platform";

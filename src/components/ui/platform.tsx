@@ -47,3 +47,7 @@ export function PlatformDialogSurface({ className, ...props }: DivProps) {
 export function PlatformTableShell({ className, ...props }: DivProps) {
   return <div {...props} className={joinClasses("platform-table-shell", className)} />;
 }
+
+export function PlatformNestedSurface({ className, ...props }: DivProps) {
+  return <div {...props} className={joinClasses("platform-nested-surface", className)} />;
+}

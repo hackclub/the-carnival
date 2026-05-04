@@ -5,7 +5,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import DevlogAttachmentsInput from "@/components/DevlogAttachmentsInput";
 import { RichTextField } from "@/components/RichTextField";
-import { Button, Card, CardContent, FormLabel, Input, Textarea } from "@/components/ui";
+import {
+  Button,
+  Card,
+  CardContent,
+  FormLabel,
+  Input,
+  PlatformNestedSurface,
+  Textarea,
+} from "@/components/ui";
 import { DateTimePicker } from "@/components/ui/date-picker";
 import {
   Select,
@@ -495,10 +503,10 @@ export default function NewDevlogForm({
           </div>
 
           {!canEditWindow ? (
-            <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted px-3 py-2 text-sm text-muted-foreground">
+            <PlatformNestedSurface className="px-3 py-2 text-sm text-muted-foreground">
               {windowLockedReason ??
                 "The time window for this devlog is locked because newer devlogs exist. Edit title, description, attachments, or AI declaration only."}
-            </div>
+            </PlatformNestedSurface>
           ) : null}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -526,9 +534,9 @@ export default function NewDevlogForm({
                 {windowError}
               </div>
             ) : (
-              <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted px-3 py-2 text-sm text-muted-foreground">
+              <PlatformNestedSurface className="px-3 py-2 text-sm text-muted-foreground">
                 {previewLabel}
-              </div>
+              </PlatformNestedSurface>
             )
           ) : null}
         </CardContent>

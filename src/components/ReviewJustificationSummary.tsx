@@ -3,6 +3,7 @@ import {
   REVIEW_EVIDENCE_ITEMS,
   type ReviewJustificationPayload,
 } from "@/lib/review-rules";
+import { PlatformNestedSurface } from "@/components/ui";
 import { formatDateOnlyForDisplay } from "@/lib/hackatime-range";
 
 const DEFLATION_REASON_LABELS = new Map(
@@ -26,7 +27,7 @@ export default function ReviewJustificationSummary({
     : [];
 
   return (
-    <div className="mt-3 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-3 py-3 space-y-3">
+    <PlatformNestedSurface className="mt-3 px-3 py-3 space-y-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -92,6 +93,6 @@ export default function ReviewJustificationSummary({
           ) : null}
         </div>
       ) : null}
-    </div>
+    </PlatformNestedSurface>
   );
 }
