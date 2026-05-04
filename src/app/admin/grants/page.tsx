@@ -24,9 +24,7 @@ const FILTERS: Array<{ label: string; value: FilterKey; statuses: Array<"shipped
 export default async function AdminGrantsPage({
   searchParams,
 }: {
-  searchParams?:
-    | Promise<Record<string, string | string[] | undefined>>
-    | Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
@@ -68,7 +66,7 @@ export default async function AdminGrantsPage({
             <Link
               key={f.value}
               href={`/admin/grants?status=${f.value}`}
-              className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+              className={`inline-flex items-center rounded-[var(--radius-xl)] border px-4 py-2 text-sm font-semibold transition ${
                 isActive
                   ? "bg-carnival-red text-white border-carnival-red"
                   : "bg-card text-foreground border-border hover:bg-muted"
@@ -87,7 +85,7 @@ export default async function AdminGrantsPage({
       </div>
 
       {rows.length === 0 ? (
-        <div className="bg-card border border-border rounded-2xl p-8">
+        <div className="platform-surface-card p-8">
           <div className="text-foreground font-semibold text-lg">
             {activeFilter === "granted"
               ? "No granted projects"
@@ -109,7 +107,7 @@ export default async function AdminGrantsPage({
             <Link
               key={p.id}
               href={`/admin/grants/${p.id}`}
-              className="bg-card border border-border rounded-2xl p-6 card-glow transition-all hover:bg-muted block h-full min-h-[300px]"
+              className="platform-surface-card p-6 card-glow transition-all hover:bg-muted block h-full min-h-[300px]"
             >
               <div className="flex h-full flex-col">
                 <div className="flex items-start justify-between gap-4">
@@ -117,14 +115,14 @@ export default async function AdminGrantsPage({
                     <div className="text-foreground font-bold text-xl truncate">{p.name}</div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {p.category ? (
-                        <span className="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+                        <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-muted px-2.5 py-1 text-xs text-foreground">
                           {formatCategoryLabel(p.category) ?? p.category}
                         </span>
                       ) : null}
                       {(p.tags ?? []).slice(0, 3).map((tag) => (
                         <span
                           key={`${p.id}-${tag}`}
-                          className="inline-flex items-center rounded-full border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                          className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-background px-2 py-1 text-[11px] text-muted-foreground"
                         >
                           #{formatTagLabel(tag) ?? tag}
                         </span>
@@ -150,4 +148,3 @@ export default async function AdminGrantsPage({
     </AppShell>
   );
 }
-

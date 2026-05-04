@@ -1,8 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Input, Textarea, Button, Card, Badge, EmptyState, FormLabel, Modal } from "@/components/ui";
+import { R2ImageUpload } from "@/components/R2ImageUpload";
+import { RichTextContent } from "@/components/RichTextContent";
+import { RichTextField } from "@/components/RichTextField";
 
 const GRANT_USD_PER_HOUR = 4;
 
@@ -158,11 +162,21 @@ export type BountyListItem = {
   id: string;
   name: string;
   description: string;
+  status: "pending" | "approved" | "rejected";
   prizeUsd: number;
+  previewImageUrl: string | null;
+  requirements: string;
+  examples: string;
   helpfulLinks: BountyHelpfulLink[];
   claimedCount: number;
   claimedByMe: boolean;
   completed: boolean;
+  createdById: string | null;
+  authorName: string | null;
+  reviewedById: string | null;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+  createdAt?: string;
 };
 
 export default function BountiesClient({
@@ -174,6 +188,9 @@ export default function BountiesClient({
 }) {
   const [items, setItems] = useState<BountyListItem[]>(initial);
   const [creating, setCreating] = useState(false);
+  const [createDescription, setCreateDescription] = useState("");
+  const [createRequirements, setCreateRequirements] = useState("");
+  const [previewImageUrl, setPreviewImageUrl] = useState("");
   const [helpfulLinksDraft, setHelpfulLinksDraft] = useState<BountyHelpfulLink[]>([
     createEmptyHelpfulLink(),
   ]);
@@ -181,11 +198,16 @@ export default function BountiesClient({
   const [editingName, setEditingName] = useState("");
   const [editingDescription, setEditingDescription] = useState("");
   const [editingPrizeUsd, setEditingPrizeUsd] = useState("");
+  const [editingPreviewImageUrl, setEditingPreviewImageUrl] = useState("");
+  const [editingRequirements, setEditingRequirements] = useState("");
+  const [editingExamples, setEditingExamples] = useState("");
   const [editingHelpfulLinksDraft, setEditingHelpfulLinksDraft] = useState<BountyHelpfulLink[]>([
     createEmptyHelpfulLink(),
   ]);
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
   const editBusy = editingId !== null && (savingEdit || deletingId === editingId);
 
   const refresh = useCallback(async () => {
@@ -199,11 +221,24 @@ export default function BountiesClient({
         id: p.id!,
         name: String(p.name ?? ""),
         description: String(p.description ?? ""),
+        status:
+          p.status === "pending" || p.status === "rejected"
+            ? p.status
+            : ("approved" as BountyListItem["status"]),
         prizeUsd: Number(p.prizeUsd ?? 0),
+        previewImageUrl: typeof p.previewImageUrl === "string" && p.previewImageUrl.trim() ? p.previewImageUrl : null,
+        requirements: String(p.requirements ?? ""),
+        examples: String(p.examples ?? ""),
         helpfulLinks: parseHelpfulLinks(p.helpfulLinks),
         claimedCount: Number(p.claimedCount ?? 0),
         claimedByMe: Boolean(p.claimedByMe),
         completed: Boolean(p.completed),
+        createdById: typeof p.createdById === "string" ? p.createdById : null,
+        authorName: typeof p.authorName === "string" ? p.authorName : null,
+        reviewedById: typeof p.reviewedById === "string" ? p.reviewedById : null,
+        reviewedAt: typeof p.reviewedAt === "string" ? p.reviewedAt : null,
+        rejectionReason: typeof p.rejectionReason === "string" ? p.rejectionReason : null,
+        createdAt: typeof p.createdAt === "string" ? p.createdAt : undefined,
       }));
     setItems(next);
   }, []);
@@ -214,6 +249,9 @@ export default function BountiesClient({
     setEditingName("");
     setEditingDescription("");
     setEditingPrizeUsd("");
+    setEditingPreviewImageUrl("");
+    setEditingRequirements("");
+    setEditingExamples("");
     setEditingHelpfulLinksDraft([createEmptyHelpfulLink()]);
   }, [editBusy]);
 
@@ -222,6 +260,9 @@ export default function BountiesClient({
     setEditingName(item.name);
     setEditingDescription(item.description);
     setEditingPrizeUsd(String(item.prizeUsd));
+    setEditingPreviewImageUrl(item.previewImageUrl ?? "");
+    setEditingRequirements(item.requirements ?? "");
+    setEditingExamples(item.examples ?? "");
     setEditingHelpfulLinksDraft(getInitialHelpfulLinksDraft(item.helpfulLinks));
   }, []);
 
@@ -230,8 +271,10 @@ export default function BountiesClient({
       e.preventDefault();
       const fd = new FormData(e.currentTarget);
       const name = String(fd.get("name") ?? "").trim();
-      const description = String(fd.get("description") ?? "").trim();
+      const description = createDescription.trim();
       const prizeUsd = Number(fd.get("prizeUsd") ?? 0);
+      const requirements = createRequirements.trim();
+      const examples = String(fd.get("examples") ?? "").trim();
       const { helpfulLinks, error } = prepareHelpfulLinksDraft(helpfulLinksDraft);
       if (error) {
         toast.error(error);
@@ -244,7 +287,15 @@ export default function BountiesClient({
         const res = await fetch("/api/bounties", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, description, prizeUsd, helpfulLinks }),
+          body: JSON.stringify({
+            name,
+            description,
+            prizeUsd,
+            previewImageUrl,
+            requirements,
+            examples,
+            helpfulLinks,
+          }),
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
@@ -254,8 +305,11 @@ export default function BountiesClient({
           setCreating(false);
           return;
         }
-        toast.success("Created.", { id: toastId });
+        toast.success(isAdmin ? "Created." : "Proposal submitted for admin review.", { id: toastId });
         e.currentTarget.reset();
+        setCreateDescription("");
+        setCreateRequirements("");
+        setPreviewImageUrl("");
         setHelpfulLinksDraft([createEmptyHelpfulLink()]);
         await refresh();
         setCreating(false);
@@ -264,7 +318,7 @@ export default function BountiesClient({
         setCreating(false);
       }
     },
-    [helpfulLinksDraft, refresh],
+    [createDescription, createRequirements, helpfulLinksDraft, isAdmin, previewImageUrl, refresh],
   );
 
   const onSaveEdit = useCallback(async () => {
@@ -297,10 +351,18 @@ export default function BountiesClient({
     const toastId = toast.loading("Saving bounty…");
     try {
       const res = await fetch(`/api/bounties/${encodeURIComponent(editingId)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, prizeUsd, helpfulLinks }),
-      });
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            description,
+            prizeUsd,
+            previewImageUrl: editingPreviewImageUrl,
+            requirements: editingRequirements,
+            examples: editingExamples,
+            helpfulLinks,
+          }),
+        });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
 
       if (!res.ok) {
@@ -325,7 +387,10 @@ export default function BountiesClient({
     editingHelpfulLinksDraft,
     editingId,
     editingName,
+    editingPreviewImageUrl,
     editingPrizeUsd,
+    editingRequirements,
+    editingExamples,
     refresh,
   ]);
 
@@ -406,9 +471,42 @@ export default function BountiesClient({
     [refresh],
   );
 
+  const updateStatus = useCallback(
+    async (id: string, status: BountyListItem["status"], reason = "") => {
+      const toastId = toast.loading(
+        status === "approved" ? "Approving bounty…" : status === "rejected" ? "Rejecting bounty…" : "Updating…",
+      );
+      try {
+        const res = await fetch(`/api/bounties/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status, rejectionReason: reason }),
+        });
+        const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+
+        if (!res.ok) {
+          toast.error(typeof data?.error === "string" ? data.error : "Failed to update.", { id: toastId });
+          return;
+        }
+
+        toast.success(status === "approved" ? "Bounty is now official." : "Bounty rejected.", {
+          id: toastId,
+        });
+        setRejectingId(null);
+        setRejectionReason("");
+        await refresh();
+      } catch {
+        toast.error("Failed to update.", { id: toastId });
+      }
+    },
+    [refresh],
+  );
+
   const sorted = useMemo(() => {
     return [...items].sort((a, b) => {
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      const statusRank = { pending: 0, approved: 1, rejected: 2 } as const;
+      if (a.status !== b.status) return statusRank[a.status] - statusRank[b.status];
       const aAvail = a.claimedCount < 2 ? 1 : 0;
       const bAvail = b.claimedCount < 2 ? 1 : 0;
       if (aAvail !== bAvail) return bAvail - aAvail;
@@ -429,10 +527,15 @@ export default function BountiesClient({
         </div>
       </Card>
 
-      {isAdmin && (
-        <Card className="p-6">
-          <div className="text-foreground font-semibold text-lg">Create bounty</div>
-          <div className="text-muted-foreground mt-1 text-sm">Only admins can create bounty projects.</div>
+      <Card className="p-6">
+          <div className="text-foreground font-semibold text-lg">
+            {isAdmin ? "Create official bounty" : "Submit a bounty proposal"}
+          </div>
+          <div className="text-muted-foreground mt-1 text-sm">
+            {isAdmin
+              ? "Admin-created bounties go live immediately."
+              : "An admin will review your proposal before it becomes official."}
+          </div>
 
           <form onSubmit={onCreate} className="mt-5 space-y-4">
             <Input
@@ -452,12 +555,38 @@ export default function BountiesClient({
               placeholder="250"
               disabled={creating}
             />
-            <Textarea
+            <R2ImageUpload
+              label="Preview image (optional)"
+              value={previewImageUrl}
+              onChange={setPreviewImageUrl}
+              kind="bounty_preview"
+              disabled={creating}
+              helperText="A visual preview for the bounty card and detail page."
+            />
+            <RichTextField
               name="description"
               label="Description"
-              rows={4}
+              value={createDescription}
+              onChange={setCreateDescription}
+              rows={7}
               required
               placeholder="What should the bounty extension do? List the requirements and acceptance criteria."
+              disabled={creating}
+            />
+            <RichTextField
+              name="requirements"
+              label="Requirements (optional)"
+              value={createRequirements}
+              onChange={setCreateRequirements}
+              rows={7}
+              placeholder="What must a project do to qualify?"
+              disabled={creating}
+            />
+            <Textarea
+              name="examples"
+              label="Examples or resources (optional)"
+              rows={3}
+              placeholder="Example ideas, references, APIs, or starter resources."
               disabled={creating}
             />
             <HelpfulLinksFields
@@ -467,12 +596,11 @@ export default function BountiesClient({
             />
             <div className="flex items-center justify-end">
               <Button type="submit" loading={creating} loadingText="Creating…">
-                Create bounty
+                {isAdmin ? "Create bounty" : "Submit proposal"}
               </Button>
             </div>
           </form>
-        </Card>
-      )}
+      </Card>
 
       {sorted.length === 0 ? (
         <EmptyState title="No bounties yet" description="Check back soon." />
@@ -481,7 +609,8 @@ export default function BountiesClient({
           {sorted.map((b) => {
             const isFull = b.claimedCount >= 2;
             const isCompleted = b.completed;
-            const canClaim = !isFull && !b.claimedByMe && !isCompleted;
+            const isOfficial = b.status === "approved";
+            const canClaim = isOfficial && !isFull && !b.claimedByMe && !isCompleted;
             const equivalentHours = getEquivalentHours(b.prizeUsd);
             const minimumHours = getMinimumHoursForBounty(b.prizeUsd);
 
@@ -490,13 +619,43 @@ export default function BountiesClient({
                 key={b.id}
                 className={`p-6 ${isCompleted ? "opacity-50" : isFull ? "opacity-70" : "hover:bg-muted"}`}
               >
+                <Link href={`/bounties/${encodeURIComponent(b.id)}`} className="block -mx-1 -mt-1 rounded-[var(--radius-xl)] p-1 hover:bg-background/40">
+                  {b.previewImageUrl ? (
+                    <div className="mb-4 h-40 overflow-hidden rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={b.previewImageUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  ) : null}
+                </Link>
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <div className="text-foreground font-bold text-xl truncate">{b.name}</div>
+                      <Link
+                        href={`/bounties/${encodeURIComponent(b.id)}`}
+                        className="text-foreground font-bold text-xl truncate hover:underline"
+                      >
+                        {b.name}
+                      </Link>
                       {isCompleted && <Badge variant="success">Completed</Badge>}
+                      {b.status === "pending" && <Badge variant="warning">Pending</Badge>}
+                      {b.status === "rejected" && <Badge variant="error">Rejected</Badge>}
                     </div>
-                    <div className="text-muted-foreground mt-2 whitespace-pre-wrap break-words">{b.description}</div>
+                    <div className="text-muted-foreground mt-1 text-sm">
+                      by <span className="text-foreground font-medium">{b.authorName || "Unknown creator"}</span>
+                    </div>
+                    <RichTextContent value={b.description} className="mt-2 text-muted-foreground" clamp />
+                    {b.requirements ? (
+                      <div className="mt-3 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted/40 px-3 py-2 text-sm">
+                        <div className="font-semibold text-foreground">Requirements</div>
+                        <RichTextContent value={b.requirements} className="mt-1 text-muted-foreground" clamp />
+                      </div>
+                    ) : null}
                     {b.helpfulLinks.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         {b.helpfulLinks.map((link, idx) => (
@@ -519,36 +678,71 @@ export default function BountiesClient({
                   </div>
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3">
-                    <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                      Hours Equivalent
+                {isOfficial ? (
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted/40 px-4 py-3">
+                      <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                        Hours Equivalent
+                      </div>
+                      <div className="mt-1 text-base font-semibold text-foreground">
+                        {formatHoursLabel(equivalentHours)}
+                      </div>
                     </div>
-                    <div className="mt-1 text-base font-semibold text-foreground">{formatHoursLabel(equivalentHours)}</div>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3">
-                    <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                      Minimum Hours
+                    <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted/40 px-4 py-3">
+                      <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                        Minimum Hours
+                      </div>
+                      <div className="mt-1 text-base font-semibold text-foreground">
+                        {formatHoursLabel(minimumHours)}
+                      </div>
                     </div>
-                    <div className="mt-1 text-base font-semibold text-foreground">{formatHoursLabel(minimumHours)}</div>
                   </div>
-                </div>
+                ) : null}
 
-                <div className="mt-3 text-sm text-muted-foreground">
-                  Your extension must meet every bounty requirement above to qualify for the payout.
-                </div>
+                {isOfficial ? (
+                  <div className="mt-3 text-sm text-muted-foreground">
+                    Your extension must meet every bounty requirement above to qualify for the payout.
+                  </div>
+                ) : null}
+                {b.status === "rejected" && b.rejectionReason ? (
+                  <div className="mt-3 rounded-[var(--radius-xl)] border border-carnival-red/40 bg-carnival-red/10 px-3 py-2 text-sm text-red-200">
+                    {b.rejectionReason}
+                  </div>
+                ) : null}
 
                 <div className="mt-6 flex items-center justify-between gap-4">
                   <div className="text-sm text-muted-foreground">
-                    Claims: <span className="text-foreground font-semibold">{b.claimedCount}/2</span>
+                    {isOfficial ? (
+                      <>
+                        Claims: <span className="text-foreground font-semibold">{b.claimedCount}/2</span>
+                      </>
+                    ) : (
+                      "Proposal review"
+                    )}
                   </div>
                   <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Link
+                      href={`/bounties/${encodeURIComponent(b.id)}`}
+                      className="inline-flex items-center justify-center px-5 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border hover:bg-muted"
+                    >
+                      View
+                    </Link>
                     {isAdmin && (
                       <Button type="button" variant="ghost" onClick={() => openEditModal(b)}>
                         Edit
                       </Button>
                     )}
-                    {isAdmin && (
+                    {isAdmin && b.status === "pending" && (
+                      <Button type="button" variant="secondary" onClick={() => updateStatus(b.id, "approved")}>
+                        Approve
+                      </Button>
+                    )}
+                    {isAdmin && b.status === "pending" && (
+                      <Button type="button" variant="outline" onClick={() => setRejectingId(b.id)}>
+                        Reject
+                      </Button>
+                    )}
+                    {isAdmin && isOfficial && (
                       <Button
                         type="button"
                         variant="outline"
@@ -557,14 +751,16 @@ export default function BountiesClient({
                         {isCompleted ? "Reopen" : "Mark Done"}
                       </Button>
                     )}
-                    <Button
-                      type="button"
-                      variant={canClaim ? "secondary" : "disabled"}
-                      onClick={() => claim(b.id)}
-                      disabled={!canClaim}
-                    >
-                      {isCompleted ? "Done" : b.claimedByMe ? "Claimed" : isFull ? "Full" : "Claim"}
-                    </Button>
+                    {isOfficial ? (
+                      <Button
+                        type="button"
+                        variant={canClaim ? "secondary" : "disabled"}
+                        onClick={() => claim(b.id)}
+                        disabled={!canClaim}
+                      >
+                        {isCompleted ? "Done" : b.claimedByMe ? "Claimed" : isFull ? "Full" : "Claim"}
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               </Card>
@@ -604,13 +800,36 @@ export default function BountiesClient({
             required
             disabled={editBusy}
           />
-          <Textarea
+          <R2ImageUpload
+            label="Preview image (optional)"
+            value={editingPreviewImageUrl}
+            onChange={setEditingPreviewImageUrl}
+            kind="bounty_preview"
+            disabled={editBusy}
+          />
+          <RichTextField
             label="Description"
-            rows={4}
             value={editingDescription}
-            onChange={(e) => setEditingDescription(e.target.value)}
+            onChange={setEditingDescription}
+            rows={7}
             required
             placeholder="What should the bounty extension do? List the requirements and acceptance criteria."
+            disabled={editBusy}
+          />
+          <RichTextField
+            label="Requirements (optional)"
+            value={editingRequirements}
+            onChange={setEditingRequirements}
+            rows={7}
+            placeholder="What must a project do to qualify?"
+            disabled={editBusy}
+          />
+          <Textarea
+            label="Examples or resources (optional)"
+            rows={3}
+            value={editingExamples}
+            onChange={(e) => setEditingExamples(e.target.value)}
+            placeholder="Example ideas, references, APIs, or starter resources."
             disabled={editBusy}
           />
           <HelpfulLinksFields
@@ -623,7 +842,7 @@ export default function BountiesClient({
               type="button"
               onClick={() => void onDeleteBounty()}
               disabled={editBusy}
-              className="mr-auto inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-full font-bold transition-colors"
+              className="mr-auto inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
             >
               {deletingId === editingId ? "Deleting…" : "Delete bounty"}
             </button>
@@ -645,6 +864,48 @@ export default function BountiesClient({
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={rejectingId !== null}
+        onClose={() => {
+          setRejectingId(null);
+          setRejectionReason("");
+        }}
+        title="Reject bounty proposal"
+        description="The creator will see this proposal as rejected."
+        maxWidth="lg"
+      >
+        <div className="space-y-4">
+          <Textarea
+            label="Reason (optional)"
+            rows={4}
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            placeholder="Explain what should change before this can become official."
+          />
+          <div className="flex items-center justify-end gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setRejectingId(null);
+                setRejectionReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (rejectingId) void updateStatus(rejectingId, "rejected", rejectionReason);
+              }}
+            >
+              Reject proposal
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

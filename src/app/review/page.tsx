@@ -24,7 +24,7 @@ const FILTERS: Array<{ label: string; value: FilterKey; statuses: ProjectStatus[
 export default async function ReviewQueuePage({
   searchParams,
 }: {
-  searchParams?: { status?: string };
+  searchParams?: Promise<{ status?: string | string[] }>;
 }) {
   const session = await getServerSession({ disableCookieCache: true });
   if (!session?.user?.id) {
@@ -36,7 +36,8 @@ export default async function ReviewQueuePage({
     redirect("/projects");
   }
 
-  const rawStatus = searchParams?.status;
+  const sp = await searchParams;
+  const rawStatus = sp?.status;
   const statusParam = Array.isArray(rawStatus) ? rawStatus[0] : rawStatus;
   const allowed = new Set(FILTERS.map((f) => f.value));
   const activeFilter: FilterKey = allowed.has(statusParam as FilterKey)
@@ -55,5 +56,4 @@ export default async function ReviewQueuePage({
     </AppShell>
   );
 }
-
 

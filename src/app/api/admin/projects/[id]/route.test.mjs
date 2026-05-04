@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { project } from "@/db/schema";
+import { bountyProject, peerReview, project, tokenLedger } from "@/db/schema";
 
 const state = {
   session: {
@@ -11,6 +11,9 @@ const state = {
   currentProjectRow: null,
   updatedProjectRow: null,
   updateSets: [],
+  tokenInserts: [],
+  ledgerKeys: new Set(),
+  bountyRows: [],
   rangeRefreshCalls: [],
   rangeRefreshTotalSeconds: 4 * 3600,
 };
@@ -27,6 +30,7 @@ function resetState() {
     status: "work-in-progress",
     creatorId: "creator-1",
     approvedHours: null,
+    bountyProjectId: null,
     hackatimeProjectName: "project-one",
     hackatimeStartedAt: new Date("2026-03-01T00:00:00.000Z"),
     hackatimeStoppedAt: new Date("2026-03-31T23:59:59.999Z"),
@@ -44,6 +48,9 @@ function resetState() {
     updatedAt: new Date("2026-03-20T12:00:00.000Z"),
   };
   state.updateSets = [];
+  state.tokenInserts = [];
+  state.ledgerKeys = new Set();
+  state.bountyRows = [];
   state.rangeRefreshCalls = [];
   state.rangeRefreshTotalSeconds = 4 * 3600;
 }
@@ -57,10 +64,19 @@ function buildDb() {
           query.sourceTable = table;
           return query;
         },
+        leftJoin() {
+          return query;
+        },
         where() {
           return query;
         },
-        limit: async () => (query.sourceTable === project && state.currentProjectRow ? [state.currentProjectRow] : []),
+        orderBy: async () => (query.sourceTable === peerReview ? [] : []),
+        limit: async () => {
+          if (query.sourceTable === project && state.currentProjectRow) return [state.currentProjectRow];
+          if (query.sourceTable === tokenLedger) return [];
+          if (query.sourceTable === bountyProject) return state.bountyRows;
+          return [];
+        },
       };
       return query;
     },
@@ -78,8 +94,60 @@ function buildDb() {
         },
       };
     },
-    transaction() {
-      throw new Error("transaction should not be called in standalone range update tests");
+    transaction(callback) {
+      const tx = {
+        select() {
+          const query = {
+            sourceTable: null,
+            from(table) {
+              query.sourceTable = table;
+              return query;
+            },
+            where() {
+              return query;
+            },
+            limit: async () => {
+              if (query.sourceTable === project && state.currentProjectRow) return [state.currentProjectRow];
+              if (query.sourceTable === tokenLedger) return [];
+              if (query.sourceTable === bountyProject) return state.bountyRows;
+              return [];
+            },
+          };
+          return query;
+        },
+        update() {
+          return {
+            set(values) {
+              state.updateSets.push(values);
+              if (state.currentProjectRow && values.status) {
+                state.currentProjectRow = { ...state.currentProjectRow, ...values };
+              }
+              return {
+                where: async () => [],
+              };
+            },
+          };
+        },
+        insert(table) {
+          return {
+            values(values) {
+              return {
+                onConflictDoNothing: async () => {
+                  if (table === tokenLedger) {
+                    const key = `${values.referenceType}:${values.referenceId}:${values.kind}`;
+                    if (!state.ledgerKeys.has(key)) {
+                      state.ledgerKeys.add(key);
+                      state.tokenInserts.push(values);
+                    }
+                  }
+                  return [];
+                },
+              };
+            },
+          };
+        },
+      };
+      return callback(tx);
     },
   };
 }
@@ -103,6 +171,12 @@ mock.module("@/lib/hackatime", () => ({
       },
     };
   },
+}));
+mock.module("@/lib/airtable", () => ({
+  createAirtableGrantRecord: async () => ({ id: "airtable-1" }),
+  toAirtableCreateErrorDetails: () => ({ message: "airtable failed", hints: [] }),
+  getAirtableConfigErrors: () => [],
+  AIRTABLE_GRANTS_TABLE_ENV: "AIRTABLE_GRANTS_TABLE",
 }));
 
 const { PATCH } = await import("./route.ts");
@@ -186,5 +260,78 @@ describe("PATCH /api/admin/projects/[id]", () => {
     expect(state.updateSets[0].submittedAt).toBeInstanceOf(Date);
     expect(json.project.status).toBe("in-review");
     expect(json.notice).toContain("returned the project to review");
+  });
+
+  test("granting a linked project issues project and bounty bonus tokens", async () => {
+    state.currentProjectRow.status = "shipped";
+    state.currentProjectRow.approvedHours = 7.5;
+    state.currentProjectRow.bountyProjectId = "bounty-1";
+    state.currentProjectRow.name = "Project One";
+    state.currentProjectRow.codeUrl = "https://github.com/example/project-one";
+    state.bountyRows = [
+      {
+        id: "bounty-1",
+        name: "Bonus bounty",
+        prizeUsd: 40,
+        status: "approved",
+      },
+    ];
+
+    const { res } = await patchAdminProject({ status: "granted" });
+
+    expect(res.status).toBe(200);
+    expect(state.tokenInserts).toHaveLength(2);
+    expect(state.tokenInserts[0].referenceType).toBe("project_grant");
+    expect(state.tokenInserts[0].tokens).toBe(70);
+    expect(state.tokenInserts[1].referenceType).toBe("bounty_bonus");
+    expect(state.tokenInserts[1].referenceId).toBe("project-1:bounty-1");
+    expect(state.tokenInserts[1].tokens).toBe(100);
+  });
+
+  test("bounty bonus is based on bounty payout, not approved project hours", async () => {
+    state.currentProjectRow.status = "shipped";
+    state.currentProjectRow.approvedHours = 1;
+    state.currentProjectRow.bountyProjectId = "bounty-1";
+    state.currentProjectRow.name = "Small Hours";
+    state.currentProjectRow.codeUrl = "https://github.com/example/small";
+    state.bountyRows = [
+      {
+        id: "bounty-1",
+        name: "Big bonus",
+        prizeUsd: 400,
+        status: "approved",
+      },
+    ];
+
+    const { res } = await patchAdminProject({ status: "granted" });
+
+    expect(res.status).toBe(200);
+    const bonus = state.tokenInserts.find((row) => row.referenceType === "bounty_bonus");
+    expect(bonus.tokens).toBe(1000);
+    expect(state.tokenInserts.find((row) => row.referenceType === "project_grant").tokens).toBe(10);
+  });
+
+  test("repeated grant calls do not duplicate project or bounty ledger entries", async () => {
+    state.currentProjectRow.status = "shipped";
+    state.currentProjectRow.approvedHours = 3;
+    state.currentProjectRow.bountyProjectId = "bounty-1";
+    state.currentProjectRow.name = "Repeat Grant";
+    state.currentProjectRow.codeUrl = "https://github.com/example/repeat";
+    state.bountyRows = [
+      {
+        id: "bounty-1",
+        name: "Repeat bonus",
+        prizeUsd: 40,
+        status: "approved",
+      },
+    ];
+
+    const first = await patchAdminProject({ status: "granted" });
+    const second = await patchAdminProject({ status: "granted" });
+
+    expect(first.res.status).toBe(200);
+    expect(second.res.status).toBe(200);
+    expect(state.tokenInserts.filter((row) => row.referenceType === "project_grant")).toHaveLength(1);
+    expect(state.tokenInserts.filter((row) => row.referenceType === "bounty_bonus")).toHaveLength(1);
   });
 });

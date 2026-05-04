@@ -225,6 +225,62 @@
       "when": 1776086400000,
       "tag": "0031_add_project_resubmission_reason",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1776514513403,
+      "tag": "0032_add_devlog_and_started_on_carnival",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1776600913403,
+      "tag": "0033_devlogs_v2",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1777679398640,
+      "tag": "0034_left_valkyrie",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1777680125465,
+      "tag": "0035_project_bounty_project_id_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1777683600000,
+      "tag": "0036_bounty_proposals_and_rewards",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1777687200000,
+      "tag": "0037_guard_bounty_helpful_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1777766400000,
+      "tag": "0038_project_hackatime_projects",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1777852800000,
+      "tag": "0039_shop_suggestions_and_order_quantity",
+      "breakpoints": true
     }
   ]
 }

@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { BookOpen, ExternalLink, FileText, Plus, Video, X } from "lucide-react";
-import { Input, Select, Button, Modal, Card, Badge, EmptyState } from "@/components/ui";
+import { Input, NativeSelect, Button, Modal, Card, Badge, EmptyState } from "@/components/ui";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
 
 export type ResourceItem = {
@@ -296,9 +296,9 @@ export default function ResourcesClient({
               <div className="flex items-center gap-3">
                 {ed.iconUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={ed.iconUrl} alt="" className="h-10 w-10 rounded-xl border border-border bg-muted object-cover" />
+                  <img src={ed.iconUrl} alt="" className="h-10 w-10 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted object-cover" />
                 ) : (
-                  <div className="h-10 w-10 rounded-xl border border-border bg-muted" />
+                  <div className="h-10 w-10 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted" />
                 )}
                 <div className="text-foreground font-bold text-xl truncate">{ed.name}</div>
               </div>
@@ -325,7 +325,7 @@ export default function ResourcesClient({
         >
           <div className="space-y-6">
             {isAdmin ? (
-              <div className="rounded-2xl border border-border bg-card p-4">
+              <div className="platform-surface-card p-4">
                 <R2ImageUpload
                   label="Editor icon (optional)"
                   value={selectedEditorIconUrl}
@@ -360,7 +360,7 @@ export default function ResourcesClient({
                       </h3>
                       <div className="space-y-2">
                         {items.map((r) => (
-                          <div key={r.id} className="flex items-start justify-between gap-4 bg-muted/50 rounded-xl p-4">
+                          <div key={r.id} className="flex items-start justify-between gap-4 bg-muted/50 rounded-[var(--radius-xl)] p-4">
                             <div className="min-w-0 flex-1">
                               <a
                                 href={r.url}
@@ -455,7 +455,7 @@ export default function ResourcesClient({
         >
           <form onSubmit={onCreateResources} className="space-y-6">
             {newResources.map((resource, index) => (
-              <div key={index} className="bg-muted/30 rounded-xl p-4 space-y-3">
+              <div key={index} className="bg-muted/30 rounded-[var(--radius-xl)] p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-muted-foreground">Resource {index + 1}</span>
                   {newResources.length > 1 && (
@@ -474,7 +474,7 @@ export default function ResourcesClient({
                     placeholder="Resource title"
                     disabled={addingResource}
                   />
-                  <Select
+                  <NativeSelect
                     size="small"
                     label="Type"
                     value={resource.type}
@@ -484,7 +484,7 @@ export default function ResourcesClient({
                     <option value="video">Video</option>
                     <option value="documentation">Documentation</option>
                     <option value="article">Article</option>
-                  </Select>
+                  </NativeSelect>
                 </div>
 
                 <Input
@@ -510,7 +510,7 @@ export default function ResourcesClient({
             <button
               type="button"
               onClick={addResourceField}
-              className="w-full py-3 border-2 border-dashed border-border rounded-xl text-muted-foreground hover:text-foreground hover:border-muted-foreground transition-colors flex items-center justify-center gap-2"
+              className="w-full py-3 border-2 border-dashed border-border rounded-[var(--radius-xl)] text-muted-foreground hover:text-foreground hover:border-muted-foreground transition-colors flex items-center justify-center gap-2"
               disabled={addingResource}
             >
               <Plus size={18} />

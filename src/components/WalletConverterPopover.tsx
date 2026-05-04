@@ -13,6 +13,7 @@ import {
 
 type WalletConverterPopoverProps = {
   walletBalance: number | null;
+  variant?: "default" | "chip" | "compact";
 };
 
 function parseAmount(value: string): number | null {
@@ -38,7 +39,10 @@ function formatNumber(value: number, maximumFractionDigits = 2): string {
   });
 }
 
-export default function WalletConverterPopover({ walletBalance }: WalletConverterPopoverProps) {
+export default function WalletConverterPopover({
+  walletBalance,
+  variant = "default",
+}: WalletConverterPopoverProps) {
   const [tokenInput, setTokenInput] = useState("10");
   const [usdInput, setUsdInput] = useState("4");
 
@@ -55,18 +59,26 @@ export default function WalletConverterPopover({ walletBalance }: WalletConverte
     <details className="relative">
       <summary className="list-none cursor-pointer select-none">
         <span
-          className="bg-carnival-blue/15 border border-border text-foreground px-4 py-2 rounded-full font-semibold inline-flex items-center gap-2"
+          className={
+            variant === "compact"
+              ? "inline-flex h-10 w-10 items-center justify-center rounded-[var(--carnival-squircle-radius)] border-[2px] border-[var(--carnival-border)] bg-[#fff7dc] text-sm font-black text-foreground transition-[transform,box-shadow,background-color] hover:bg-[#fff0cf]"
+              : variant === "chip"
+                ? "inline-flex items-center gap-1.5 rounded-[var(--carnival-squircle-radius)] border-[2px] border-[var(--carnival-border)] bg-[#fff7dc] px-3 py-1.5 text-sm font-black text-foreground transition-[transform,box-shadow,background-color] hover:bg-[#fff0cf]"
+                : "inline-flex items-center gap-2 rounded-[var(--carnival-squircle-radius)] border-[2px] border-[var(--carnival-border)] bg-[#f6a61c] px-4 py-2 font-black text-[#fff7dc] transition-[transform,box-shadow,background-color]"
+          }
           title="Wallet balance and converter"
         >
-          <span>🪙 {walletBalance ?? "—"}</span>
-          <span className="text-xs text-muted-foreground">Convert ▾</span>
+          <span>{variant === "compact" ? "💸" : `💸 ${walletBalance ?? "—"}`}</span>
+          {variant === "default" ? (
+            <span className="text-xs font-black uppercase tracking-[0.08em] text-[#fff7dc]">Convert ▾</span>
+          ) : null}
         </span>
       </summary>
 
-      <div className="absolute right-0 mt-3 z-50 w-[340px] rounded-2xl bg-card/95 backdrop-blur border border-border shadow-xl p-4 space-y-4">
-        <div className="text-xs text-muted-foreground">
+      <div className="absolute bottom-full left-0 z-[100] mb-3 w-[min(340px,calc(100vw-2rem))] space-y-4 rounded-[var(--radius-2xl)] border-[2px] border-[var(--carnival-border)] bg-[#fff7dc] p-4 text-[var(--platform-ink)]">
+        <div className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
           Fixed rates:{" "}
-          <span className="text-foreground font-medium">
+          <span className="text-foreground">
             {FIXED_RATE_TOKENS} tokens = ${FIXED_RATE_USD} and 1 hour = {TOKENS_PER_HOUR} tokens
           </span>
         </div>
@@ -82,21 +94,21 @@ export default function WalletConverterPopover({ walletBalance }: WalletConverte
             onChange={(e) => setTokenInput(e.target.value)}
             placeholder="Enter token amount"
           />
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm font-bold text-muted-foreground">
             USD equivalent:{" "}
-            <span className="text-foreground font-semibold">
+            <span className="font-black text-foreground">
               {tokenToUsd === null ? "—" : formatCurrency(tokenToUsd)}
             </span>
           </div>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm font-bold text-muted-foreground">
             Hour equivalent:{" "}
-            <span className="text-foreground font-semibold">
+            <span className="font-black text-foreground">
               {tokenToHours === null ? "—" : `${formatNumber(tokenToHours)}h`}
             </span>
           </div>
         </div>
 
-        <div className="h-px bg-border" />
+        <div className="h-[3px] rounded-[var(--carnival-squircle-radius)] bg-[var(--carnival-border)]/25" />
 
         <div className="space-y-2">
           <Input
@@ -109,15 +121,15 @@ export default function WalletConverterPopover({ walletBalance }: WalletConverte
             onChange={(e) => setUsdInput(e.target.value)}
             placeholder="Enter USD amount"
           />
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm font-bold text-muted-foreground">
             Token equivalent:{" "}
-            <span className="text-foreground font-semibold">
+            <span className="font-black text-foreground">
               {usdToToken === null ? "—" : formatNumber(usdToToken)}
             </span>
           </div>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm font-bold text-muted-foreground">
             Hour equivalent:{" "}
-            <span className="text-foreground font-semibold">
+            <span className="font-black text-foreground">
               {usdToHours === null ? "—" : `${formatNumber(usdToHours)}h`}
             </span>
           </div>

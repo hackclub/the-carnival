@@ -38,6 +38,20 @@ export type ProjectEditor = (typeof projectEditor.enumValues)[number];
 export const reviewDecision = pgEnum("review_decision", ["approved", "rejected", "comment"]);
 export type ReviewDecision = (typeof reviewDecision.enumValues)[number];
 
+export const bountyProjectStatus = pgEnum("bounty_project_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
+export type BountyProjectStatus = (typeof bountyProjectStatus.enumValues)[number];
+
+export const devlogAssessmentDecision = pgEnum("devlog_assessment_decision", [
+  "accepted",
+  "rejected",
+  "adjusted",
+]);
+export type DevlogAssessmentDecision = (typeof devlogAssessmentDecision.enumValues)[number];
+
 export type ProjectSubmissionChecklist = {
   readmeInstructions: boolean;
   testedWorking: boolean;
@@ -117,9 +131,106 @@ export const project = pgTable("project", {
   }),
   // Admin-provided explanation surfaced to the creator in the dismissal banner.
   resubmissionBlockedReason: text("resubmission_blocked_reason"),
+  // Official project start as recorded on Carnival. Used as the lower bound of the
+  // Hackatime window considered during review. Set when the project is created.
+  startedOnCarnivalAt: timestamp("started_on_carnival_at"),
+  // Denormalized sum of all devlog.durationSeconds for this project. Kept in sync
+  // on every devlog insert/update/delete so that hour displays stay cheap.
+  hoursSpentSeconds: integer("hours_spent_seconds").notNull().default(0),
+  bountyProjectId: text("bounty_project_id").references(() => bountyProject.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
+
+export const devlog = pgTable(
+  "devlog",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    // User-selected working window for this devlog. Hackatime seconds for the
+    // project's hackatimeProjectName within [startedAt, endedAt] are captured as
+    // durationSeconds at creation time.
+    startedAt: timestamp("started_at").notNull(),
+    endedAt: timestamp("ended_at").notNull(),
+    durationSeconds: integer("duration_seconds").notNull().default(0),
+    attachments: text("attachments").array().notNull().default(sql`'{}'::text[]`),
+    usedAi: boolean("used_ai").notNull().default(false),
+    aiUsageDescription: text("ai_usage_description"),
+    // Snapshot of project.hackatimeProjectName at the time the devlog was posted,
+    // so the audit is stable even if the project later points at a different key.
+    hackatimeProjectNameSnapshot: text("hackatime_project_name_snapshot").notNull().default(""),
+    hackatimePulledAt: timestamp("hackatime_pulled_at"),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (t) => ({
+    projectCreatedAtIdx: index("devlog_project_created_at_idx").on(t.projectId, t.createdAt),
+    userCreatedAtIdx: index("devlog_user_created_at_idx").on(t.userId, t.createdAt),
+    projectEndedAtIdx: index("devlog_project_ended_at_idx").on(t.projectId, t.endedAt),
+  }),
+);
+
+export const projectHackatimeProject = pgTable(
+  "project_hackatime_project",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    isDefault: boolean("is_default").notNull().default(false),
+    firstDevlogId: text("first_devlog_id").references(() => devlog.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (t) => ({
+    uniqProjectName: uniqueIndex("project_hackatime_project_project_name_uniq").on(
+      t.projectId,
+      t.name,
+    ),
+    projectDefaultIdx: index("project_hackatime_project_project_default_idx").on(
+      t.projectId,
+      t.isDefault,
+    ),
+  }),
+);
+
+export const peerReviewDevlogAssessment = pgTable(
+  "peer_review_devlog_assessment",
+  {
+    id: text("id").primaryKey(),
+    reviewId: text("review_id")
+      .notNull()
+      .references(() => peerReview.id, { onDelete: "cascade" }),
+    devlogId: text("devlog_id")
+      .notNull()
+      .references(() => devlog.id, { onDelete: "cascade" }),
+    decision: devlogAssessmentDecision("decision").notNull(),
+    // When decision = 'adjusted', this is the reviewer's overridden seconds for
+    // this devlog. Null for accepted (=> use devlog.durationSeconds) or rejected
+    // (=> contributes 0).
+    adjustedSeconds: integer("adjusted_seconds"),
+    comment: text("comment"),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (t) => ({
+    uniqReviewDevlog: uniqueIndex("peer_review_devlog_assessment_review_devlog_uniq").on(
+      t.reviewId,
+      t.devlogId,
+    ),
+    reviewCreatedAtIdx: index("peer_review_devlog_assessment_review_created_at_idx").on(
+      t.reviewId,
+      t.createdAt,
+    ),
+  }),
+);
 
 export const peerReview = pgTable("peer_review", {
   id: text("id").primaryKey(),
@@ -221,9 +332,16 @@ export const bountyProject = pgTable("bounty_project", {
   name: text("name").notNull(),
   description: text("description").notNull(),
   prizeUsd: integer("prize_usd").notNull(),
+  status: bountyProjectStatus("status").notNull().default("approved"),
+  previewImageUrl: text("preview_image_url"),
+  requirements: text("requirements").notNull().default(""),
+  examples: text("examples").notNull().default(""),
   helpfulLinks: jsonb("helpful_links").$type<BountyHelpfulLink[]>().notNull().default(sql`'[]'::jsonb`),
   completed: boolean("completed").notNull().default(false),
   createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
+  reviewedById: text("reviewed_by_id").references(() => user.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at"),
+  rejectionReason: text("rejection_reason"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
@@ -327,6 +445,13 @@ export type TokenUpdateKind = (typeof tokenUpdateKind.enumValues)[number];
 export const shopOrderStatus = pgEnum("shop_order_status", ["pending", "fulfilled", "cancelled"]);
 export type ShopOrderStatus = (typeof shopOrderStatus.enumValues)[number];
 
+export const shopItemSuggestionStatus = pgEnum("shop_item_suggestion_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
+export type ShopItemSuggestionStatus = (typeof shopItemSuggestionStatus.enumValues)[number];
+
 export const shopItem = pgTable("shop_item", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -335,6 +460,27 @@ export const shopItem = pgTable("shop_item", {
   orderNoteRequired: boolean("order_note_required").notNull().default(false),
   approvedHoursNeeded: integer("approved_hours_needed").notNull(),
   tokenCost: integer("token_cost").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+});
+
+export const shopItemSuggestion = pgTable("shop_item_suggestion", {
+  id: text("id").primaryKey(),
+  submittedByUserId: text("submitted_by_user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  status: shopItemSuggestionStatus("status").notNull().default("pending"),
+  name: text("name").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url"),
+  referenceUrl: text("reference_url"),
+  orderNoteRequired: boolean("order_note_required").notNull().default(false),
+  approvedHoursNeeded: integer("approved_hours_needed").notNull(),
+  tokenCost: integer("token_cost").notNull(),
+  reviewedById: text("reviewed_by_id").references(() => user.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at"),
+  rejectionReason: text("rejection_reason"),
+  approvedShopItemId: text("approved_shop_item_id").references(() => shopItem.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
@@ -375,6 +521,8 @@ export const shopOrder = pgTable("shop_order", {
   itemImageSnapshot: text("item_image_snapshot").notNull(),
   itemDescriptionSnapshot: text("item_description_snapshot"),
   orderNote: text("order_note"),
+  quantity: integer("quantity").notNull().default(1),
+  unitTokenCostSnapshot: integer("unit_token_cost_snapshot").notNull().default(0),
   tokenCostSnapshot: integer("token_cost_snapshot").notNull(),
   fulfillmentLink: text("fulfillment_link"),
   cancellationReason: text("cancellation_reason"),

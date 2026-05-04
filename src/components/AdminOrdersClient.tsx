@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
+import ShopOrderStatusBadge from "@/components/ShopOrderStatusBadge";
 import { Button, Input, Modal, Textarea } from "@/components/ui";
 
 export type AdminShopOrderDTO = {
@@ -17,6 +18,8 @@ export type AdminShopOrderDTO = {
   itemImageUrl: string;
   itemDescription: string | null;
   orderNote: string | null;
+  quantity: number;
+  unitTokenCost: number;
   tokenCost: number;
   fulfillmentLink: string | null;
   cancellationReason: string | null;
@@ -157,7 +160,7 @@ export default function AdminOrdersClient({
 
   return (
     <div className="space-y-8">
-      <div className="bg-card border border-border rounded-2xl p-6">
+      <div className="platform-surface-card p-6">
         <div className="mb-4 flex flex-wrap gap-2">
           {ORDER_FILTERS.map((f) => {
             const isActive = f.value === activeFilter;
@@ -165,7 +168,7 @@ export default function AdminOrdersClient({
               <Link
                 key={f.value}
                 href={`/admin/orders?status=${f.value}`}
-                className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                className={`inline-flex items-center rounded-[var(--radius-xl)] border px-4 py-2 text-sm font-semibold transition ${
                   isActive
                     ? "bg-carnival-red text-white border-carnival-red"
                     : "bg-card text-foreground border-border hover:bg-muted"
@@ -213,14 +216,14 @@ export default function AdminOrdersClient({
         ) : (
           <div className="space-y-3 mt-4">
             {filteredOrders.map((o) => (
-              <div key={o.id} className="rounded-2xl border border-border bg-muted px-4 py-4">
+              <div key={o.id} className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div className="min-w-0 flex items-start gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={o.itemImageUrl}
                       alt={o.itemName}
-                      className="w-16 h-16 object-cover rounded-lg border border-border bg-background shrink-0"
+                      className="w-16 h-16 object-cover rounded-lg  border-2 border-[var(--carnival-border)] bg-background shrink-0"
                       referrerPolicy="no-referrer"
                     />
                     <div className="min-w-0">
@@ -229,9 +232,9 @@ export default function AdminOrdersClient({
                         <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{o.itemDescription}</div>
                       ) : null}
                       <div className="text-xs text-muted-foreground mt-1">
-                        {new Date(o.createdAt).toLocaleString()} • price {o.tokenCost} tokens • {o.requesterName}
-                        {o.requesterEmail ? ` (${o.requesterEmail})` : ""} • available {o.requesterTokenBalance} tokens •{" "}
-                        <span className="font-semibold">{o.status}</span>
+                          {new Date(o.createdAt).toLocaleString()} • qty {o.quantity} • price {o.tokenCost} tokens • {o.requesterName}
+                          {o.requesterEmail ? ` (${o.requesterEmail})` : ""} • available {o.requesterTokenBalance} tokens •{" "}
+                          <ShopOrderStatusBadge status={o.status} />
                         {o.status === "fulfilled" && o.fulfilledAt
                           ? ` • fulfilled ${new Date(o.fulfilledAt).toLocaleString()}`
                           : ""}
@@ -270,13 +273,13 @@ export default function AdminOrdersClient({
       >
         {selectedOrder ? (
           <div className="space-y-6">
-            <div className="rounded-2xl border border-border bg-muted p-4">
+            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted p-4">
               <div className="flex flex-col md:flex-row gap-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={selectedOrder.itemImageUrl}
                   alt={selectedOrder.itemName}
-                  className="w-full md:w-48 h-48 object-cover rounded-xl border border-border bg-background shrink-0"
+                  className="w-full md:w-48 h-48 object-cover rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background shrink-0"
                   referrerPolicy="no-referrer"
                 />
                 <div className="min-w-0">
@@ -287,7 +290,8 @@ export default function AdminOrdersClient({
                     <div className="text-sm text-muted-foreground mt-2">No item description provided.</div>
                   )}
                   <div className="text-sm text-muted-foreground mt-3">
-                    Price: <span className="text-foreground font-semibold">{selectedOrder.tokenCost}</span> tokens
+                    Qty {selectedOrder.quantity} × {selectedOrder.unitTokenCost} tokens ={" "}
+                    <span className="text-foreground font-semibold">{selectedOrder.tokenCost}</span> tokens
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
                     Available tokens now:{" "}
@@ -297,7 +301,7 @@ export default function AdminOrdersClient({
                     Placed: {new Date(selectedOrder.createdAt).toLocaleString()}
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
-                    Status: <span className="font-semibold">{selectedOrder.status}</span>
+                    Status: <ShopOrderStatusBadge status={selectedOrder.status} />
                   </div>
                   <div className="text-sm text-muted-foreground mt-3">
                     Request note:

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type {
   ProjectEditor,
   ProjectStatus,
@@ -13,12 +13,19 @@ import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import { PROJECT_SUBMISSION_CHECKLIST_ITEMS } from "@/lib/project-submission-checklist";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
+import { DatePicker } from "@/components/ui/date-picker";
 import type { ReviewJustificationPayload } from "@/lib/review-rules";
 import {
   formatConsideredHackatimeRangeLabel,
   getProjectConsideredHackatimeRange,
   parseConsideredHackatimeRange,
 } from "@/lib/hackatime-range";
+import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
+import {
+  formatHoursMinutes,
+  toDateInputValue,
+  type HackatimeRangePreview,
+} from "@/lib/project-form-utils";
 import toast from "react-hot-toast";
 
 type GrantProject = {
@@ -62,18 +69,6 @@ type GrantReviewItem = {
   reviewerEmail: string;
 };
 
-function formatHoursMinutes(hours: number, minutes: number) {
-  const h = Number.isFinite(hours) ? Math.max(0, Math.floor(hours)) : 0;
-  const m = Number.isFinite(minutes) ? Math.max(0, Math.floor(minutes)) : 0;
-  return `${h}h${String(m).padStart(2, "0")}m`;
-}
-
-function toDateInputValue(value: string | null) {
-  if (!value) return "";
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
-}
-
 export default function AdminGrantClient({
   initial,
 }: {
@@ -104,12 +99,6 @@ export default function AdminGrantClient({
   );
   const [rangeStartDate, setRangeStartDate] = useState(canonicalProjectRange?.startDate ?? "");
   const [rangeEndDate, setRangeEndDate] = useState(canonicalProjectRange?.endDate ?? "");
-  const [rangePreview, setRangePreview] = useState<{
-    hackatimeTotalSeconds: number | null;
-    hackatimeHours: { hours: number; minutes: number } | null;
-  } | null>(null);
-  const [rangePreviewLoading, setRangePreviewLoading] = useState(false);
-  const [rangePreviewError, setRangePreviewError] = useState<string | null>(null);
   const [rangeSaving, setRangeSaving] = useState(false);
 
   const editableRange = useMemo(
@@ -121,89 +110,31 @@ export default function AdminGrantClient({
     [rangeEndDate, rangeStartDate],
   );
 
-  useEffect(() => {
-    if (project.status === "granted" || !project.hackatimeProjectName.trim()) {
-      setRangePreview(null);
-      setRangePreviewLoading(false);
-      setRangePreviewError(null);
-      return;
-    }
-
-    if (!editableRange.ok) {
-      setRangePreviewLoading(false);
-      setRangePreviewError(rangeStartDate || rangeEndDate ? editableRange.error : null);
-      return;
-    }
-
+  const localRangePreview = useMemo<HackatimeRangePreview | null>(() => {
     if (
-      canonicalProjectRange &&
-      canonicalProjectRange.startDate === editableRange.value.startDate &&
-      canonicalProjectRange.endDate === editableRange.value.endDate
+      !editableRange.ok ||
+      !canonicalProjectRange ||
+      canonicalProjectRange.startDate !== editableRange.value.startDate ||
+      canonicalProjectRange.endDate !== editableRange.value.endDate
     ) {
-      setRangePreview({
+      return null;
+    }
+    return {
         hackatimeTotalSeconds: project.hackatimeHours
           ? project.hackatimeHours.hours * 3600 + project.hackatimeHours.minutes * 60
           : null,
         hackatimeHours: project.hackatimeHours,
-      });
-      setRangePreviewLoading(false);
-      setRangePreviewError(null);
-      return;
-    }
-
-    let cancelled = false;
-    const timer = window.setTimeout(async () => {
-      setRangePreviewLoading(true);
-      setRangePreviewError(null);
-      try {
-        const res = await fetch(`/api/admin/projects/${encodeURIComponent(project.id)}/hackatime-preview`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            consideredHackatimeRange: editableRange.value,
-          }),
-        });
-        const data = (await res.json().catch(() => null)) as
-          | {
-              project?: {
-                hackatimeTotalSeconds?: number | null;
-                hackatimeHours?: { hours?: number; minutes?: number } | null;
-              };
-              error?: unknown;
-            }
-          | null;
-        if (cancelled) return;
-        if (!res.ok) {
-          const message =
-            typeof data?.error === "string" ? data.error : "Failed to refresh Hackatime hours.";
-          setRangePreviewError(message);
-          setRangePreviewLoading(false);
-          return;
-        }
-        const hours = data?.project?.hackatimeHours;
-        setRangePreview({
-          hackatimeTotalSeconds:
-            typeof data?.project?.hackatimeTotalSeconds === "number"
-              ? data.project.hackatimeTotalSeconds
-              : null,
-          hackatimeHours:
-            hours && typeof hours.hours === "number" && typeof hours.minutes === "number"
-              ? { hours: hours.hours, minutes: hours.minutes }
-              : null,
-        });
-        setRangePreviewLoading(false);
-      } catch {
-        if (cancelled) return;
-        setRangePreviewError("Failed to refresh Hackatime hours.");
-        setRangePreviewLoading(false);
-      }
-    }, 400);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
     };
-  }, [canonicalProjectRange, editableRange, project.hackatimeHours, project.hackatimeProjectName, project.id, project.status, rangeEndDate, rangeStartDate]);
+  }, [canonicalProjectRange, editableRange, project.hackatimeHours]);
+
+  const { preview: rangePreview, loading: rangePreviewLoading, error: rangePreviewError } =
+    useHackatimeRangePreview({
+      enabled: project.status !== "granted" && !!project.hackatimeProjectName.trim(),
+      endpoint: `/api/admin/projects/${encodeURIComponent(project.id)}/hackatime-preview`,
+      body: editableRange.ok ? { consideredHackatimeRange: editableRange.value } : null,
+      rangeError: !editableRange.ok && (rangeStartDate || rangeEndDate) ? editableRange.error : null,
+      localPreview: localRangePreview,
+    });
 
   const previewHoursLabel = useMemo(() => {
     if (rangePreview?.hackatimeHours) {
@@ -330,7 +261,7 @@ export default function AdminGrantClient({
           if (details || hints.length) {
             toast.custom(
               (t) => (
-                <div className="bg-card border border-border rounded-2xl px-4 py-3 shadow-xl max-w-[720px]">
+                <div className="platform-surface-card px-4 py-3 shadow-xl max-w-[720px]">
                   <div className="text-foreground font-semibold">{message}</div>
                   {statusCode || airtableError ? (
                     <div className="text-muted-foreground text-xs mt-1">
@@ -340,7 +271,7 @@ export default function AdminGrantClient({
                     </div>
                   ) : null}
                   {details ? (
-                    <pre className="mt-3 text-xs text-muted-foreground whitespace-pre-wrap break-words bg-muted border border-border rounded-xl p-3">
+                    <pre className="mt-3 text-xs text-muted-foreground whitespace-pre-wrap break-words bg-muted border border-border rounded-[var(--radius-xl)] p-3">
                       {details}
                     </pre>
                   ) : null}
@@ -440,7 +371,7 @@ export default function AdminGrantClient({
         if (details || hints.length) {
           toast.custom(
             (t) => (
-              <div className="bg-card border border-border rounded-2xl px-4 py-3 shadow-xl max-w-[720px]">
+              <div className="platform-surface-card px-4 py-3 shadow-xl max-w-[720px]">
                 <div className="text-foreground font-semibold">{message}</div>
                 {statusCode || airtableError ? (
                   <div className="text-muted-foreground text-xs mt-1">
@@ -450,7 +381,7 @@ export default function AdminGrantClient({
                   </div>
                 ) : null}
                 {details ? (
-                  <pre className="mt-3 text-xs text-muted-foreground whitespace-pre-wrap break-words bg-muted border border-border rounded-xl p-3">
+                  <pre className="mt-3 text-xs text-muted-foreground whitespace-pre-wrap break-words bg-muted border border-border rounded-[var(--radius-xl)] p-3">
                     {details}
                   </pre>
                 ) : null}
@@ -497,7 +428,7 @@ export default function AdminGrantClient({
 
   return (
     <div className="space-y-6">
-      <div className="bg-card border border-border rounded-2xl p-6">
+      <div className="platform-surface-card p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="text-foreground font-bold text-2xl truncate">{project.name}</div>
@@ -508,7 +439,7 @@ export default function AdminGrantClient({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+        <div className="platform-surface-card p-6 space-y-4">
           <div className="text-foreground font-semibold text-lg">Project</div>
           <div className="text-muted-foreground">{project.description}</div>
           <div className="flex items-center justify-between gap-3">
@@ -528,37 +459,37 @@ export default function AdminGrantClient({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-border bg-muted px-4 py-3">
+            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
               <div className="text-sm text-muted-foreground">Hackatime project</div>
               <div className="text-foreground font-semibold truncate">
                 <span className="font-mono">{project.hackatimeProjectName || "—"}</span>
               </div>
             </div>
-            <div className="rounded-2xl border border-border bg-muted px-4 py-3">
+            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
               <div className="text-sm text-muted-foreground">Hackatime user_id</div>
               <div className="text-foreground font-semibold truncate">
                 <span className="font-mono">{project.hackatimeUserId || "—"}</span>
               </div>
             </div>
-            <div className="rounded-2xl border border-border bg-muted px-4 py-3">
+            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
               <div className="text-sm text-muted-foreground">Hours logged (Hackatime)</div>
               <div className="text-foreground font-semibold">
                 {project.hackatimeHours ? formatHoursMinutes(project.hackatimeHours.hours, project.hackatimeHours.minutes) : "—"}
               </div>
             </div>
-            <div className="rounded-2xl border border-border bg-muted px-4 py-3">
+            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
               <div className="text-sm text-muted-foreground">Approved hours</div>
               <div className="text-foreground font-semibold">
                 {project.approvedHours !== null && project.approvedHours !== undefined ? `${project.approvedHours}h` : "—"}
               </div>
             </div>
-            <div className="rounded-2xl border border-border bg-muted px-4 py-3 md:col-span-2">
+            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 md:col-span-2">
               <div className="text-sm text-muted-foreground">Considered Hackatime range</div>
               <div className="text-foreground font-semibold">{canonicalProjectRangeLabel}</div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border bg-muted px-4 py-4 space-y-3">
+          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4 space-y-3">
             <div>
               <div className="text-foreground font-semibold">Edit considered Hackatime range</div>
               <div className="text-sm text-muted-foreground mt-1">
@@ -568,23 +499,11 @@ export default function AdminGrantClient({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="block">
                 <div className="text-xs text-muted-foreground mb-1">Start date</div>
-                <input
-                  type="date"
-                  value={rangeStartDate}
-                  onChange={(e) => setRangeStartDate(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                  disabled={rangeSaving || project.status === "granted"}
-                />
+                <DatePicker value={rangeStartDate} onChange={(v) => setRangeStartDate(v)} disabled={rangeSaving || project.status === "granted"} />
               </label>
               <label className="block">
                 <div className="text-xs text-muted-foreground mb-1">End date</div>
-                <input
-                  type="date"
-                  value={rangeEndDate}
-                  onChange={(e) => setRangeEndDate(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                  disabled={rangeSaving || project.status === "granted"}
-                />
+                <DatePicker value={rangeEndDate} onChange={(v) => setRangeEndDate(v)} disabled={rangeSaving || project.status === "granted"} />
               </label>
             </div>
             {!editableRange.ok ? (
@@ -604,7 +523,7 @@ export default function AdminGrantClient({
                 type="button"
                 onClick={onSaveRange}
                 disabled={rangeSaving || project.status === "granted" || !editableRange.ok}
-                className="inline-flex items-center justify-center bg-background hover:bg-background/80 disabled:bg-background/50 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border"
+                className="inline-flex items-center justify-center bg-background hover:bg-background/80 disabled:bg-background/50 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
               >
                 {rangeSaving ? "Saving…" : "Save range"}
               </button>
@@ -616,7 +535,7 @@ export default function AdminGrantClient({
             ) : null}
           </div>
 
-          <div className="rounded-2xl border border-border bg-muted px-4 py-4 space-y-3">
+          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4 space-y-3">
             <div className="text-foreground font-semibold">Submission checklist</div>
             {project.submissionChecklist ? (
               <div className="space-y-2">
@@ -661,7 +580,7 @@ export default function AdminGrantClient({
               href={project.playableDemoUrl}
               target="_blank"
               rel="noreferrer"
-              className="rounded-2xl border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
+              className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
             >
               <div className="text-sm text-muted-foreground">Playable demo link</div>
               <div className="text-foreground font-semibold truncate">{project.playableDemoUrl}</div>
@@ -670,7 +589,7 @@ export default function AdminGrantClient({
               href={project.videoUrl}
               target="_blank"
               rel="noreferrer"
-              className="rounded-2xl border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
+              className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
             >
               <div className="text-sm text-muted-foreground">Video</div>
               <div className="text-foreground font-semibold truncate">{project.videoUrl}</div>
@@ -679,7 +598,7 @@ export default function AdminGrantClient({
               href={project.codeUrl}
               target="_blank"
               rel="noreferrer"
-              className="rounded-2xl border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
+              className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
             >
               <div className="text-sm text-muted-foreground">GitHub</div>
               <div className="text-foreground font-semibold truncate">{project.codeUrl}</div>
@@ -726,7 +645,7 @@ export default function AdminGrantClient({
                     key={url}
                     src={url}
                     alt=""
-                    className="w-full rounded-2xl border border-border object-cover bg-muted"
+                    className="w-full rounded-[var(--radius-2xl)] border border-border object-cover bg-muted"
                     referrerPolicy="no-referrer"
                     role="button"
                     tabIndex={0}
@@ -741,7 +660,7 @@ export default function AdminGrantClient({
           ) : null}
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+        <div className="platform-surface-card p-6 space-y-4">
           <div className="text-foreground font-semibold text-lg">Creator</div>
           <div className="text-sm text-muted-foreground">
             <div>
@@ -764,7 +683,7 @@ export default function AdminGrantClient({
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="platform-surface-card p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="text-muted-foreground">
           {project.status === "granted"
             ? "Granted projects are locked for creators."
@@ -775,7 +694,7 @@ export default function AdminGrantClient({
             type="button"
             onClick={() => setStatus("granted")}
             disabled={busy || !canGrant}
-            className="inline-flex items-center justify-center bg-carnival-blue/20 hover:bg-carnival-blue/30 disabled:bg-carnival-blue/10 disabled:cursor-not-allowed text-foreground px-5 py-3 rounded-full font-semibold transition-colors border border-border"
+            className="inline-flex items-center justify-center bg-carnival-blue/20 hover:bg-carnival-blue/30 disabled:bg-carnival-blue/10 disabled:cursor-not-allowed text-foreground px-5 py-3 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
           >
             Grant
           </button>
@@ -783,7 +702,7 @@ export default function AdminGrantClient({
             type="button"
             onClick={() => setStatus("shipped")}
             disabled={busy || !canUngrant}
-            className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-5 py-3 rounded-full font-semibold transition-colors border border-border"
+            className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-5 py-3 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
           >
             Undo grant
           </button>
@@ -791,7 +710,7 @@ export default function AdminGrantClient({
             type="button"
             onClick={() => setStatus("in-review")}
             disabled={busy || !canSendBackToReview}
-            className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-5 py-3 rounded-full font-semibold transition-colors border border-border"
+            className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-5 py-3 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
           >
             Back to review queue
           </button>
@@ -799,7 +718,7 @@ export default function AdminGrantClient({
             type="button"
             onClick={onPushToAirtable}
             disabled={busy || project.status !== "granted"}
-            className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-5 py-3 rounded-full font-semibold transition-colors border border-border"
+            className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-5 py-3 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
           >
             Push to Airtable
           </button>
@@ -807,7 +726,7 @@ export default function AdminGrantClient({
             type="button"
             onClick={onDeleteProject}
             disabled={busy}
-            className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-5 py-3 rounded-full font-bold transition-colors"
+            className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-5 py-3 rounded-[var(--radius-xl)] font-bold transition-colors"
           >
             Delete project
           </button>
@@ -826,7 +745,7 @@ export default function AdminGrantClient({
         ) : (
           <div className="space-y-3">
             {initial.reviews.map((r) => (
-              <div key={r.id} className="rounded-2xl border border-border bg-muted px-4 py-4">
+              <div key={r.id} className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-foreground font-semibold truncate">
@@ -872,7 +791,7 @@ export default function AdminGrantClient({
                 type="button"
                 onClick={() => setScreenshotIndex((i) => Math.max(0, i - 1))}
                 disabled={screenshotIndex <= 0}
-                className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border"
+                className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
               >
                 Prev
               </button>
@@ -888,7 +807,7 @@ export default function AdminGrantClient({
                 type="button"
                 onClick={() => setScreenshotIndex((i) => Math.min(screenshots.length - 1, i + 1))}
                 disabled={screenshotIndex >= screenshots.length - 1}
-                className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border"
+                className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
               >
                 Next
               </button>
@@ -898,7 +817,7 @@ export default function AdminGrantClient({
             <img
               src={activeScreenshot}
               alt=""
-              className="w-full max-h-[70vh] object-contain rounded-2xl border border-border bg-muted"
+              className="w-full max-h-[70vh] object-contain rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted"
               referrerPolicy="no-referrer"
             />
           </div>

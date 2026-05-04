@@ -2,9 +2,13 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
+import type { ReviewDevlogFull } from "@/components/DevlogAssessmentPanel";
+import ReviewHackatimeTools from "@/components/ReviewHackatimeTools";
 import ReviewProjectClient from "@/components/ReviewProjectClient";
 import { db } from "@/db";
 import {
+  bountyProject,
+  devlog,
   peerReview,
   project,
   projectReviewerAssignment,
@@ -44,6 +48,7 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
       hackatimeStartedAt: project.hackatimeStartedAt,
       hackatimeStoppedAt: project.hackatimeStoppedAt,
       hackatimeTotalSeconds: project.hackatimeTotalSeconds,
+      hoursSpentSeconds: project.hoursSpentSeconds,
       videoUrl: project.videoUrl,
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
@@ -56,24 +61,33 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
       approvedHours: project.approvedHours,
       createdAt: project.createdAt,
       submittedAt: project.submittedAt,
+      startedOnCarnivalAt: project.startedOnCarnivalAt,
       updatedAt: project.updatedAt,
       creatorId: project.creatorId,
+      bountyProjectId: project.bountyProjectId,
+      bountyProjectName: bountyProject.name,
       creatorName: user.name,
       creatorEmail: user.email,
       creatorHackatimeUserId: user.hackatimeUserId,
     })
     .from(project)
     .leftJoin(user, eq(project.creatorId, user.id))
+    .leftJoin(bountyProject, eq(project.bountyProjectId, bountyProject.id))
     .where(eq(project.id, id))
     .limit(1);
 
   const p = projectRows[0];
   if (!p) notFound();
 
-  const totalSeconds =
+  const devlogSeconds =
+    typeof p.hoursSpentSeconds === "number" && Number.isFinite(p.hoursSpentSeconds)
+      ? Math.max(0, Math.floor(p.hoursSpentSeconds))
+      : 0;
+  const legacySeconds =
     typeof p.hackatimeTotalSeconds === "number" && Number.isFinite(p.hackatimeTotalSeconds)
       ? Math.max(0, Math.floor(p.hackatimeTotalSeconds))
       : 0;
+  const totalSeconds = devlogSeconds > 0 ? devlogSeconds : legacySeconds;
   const hackatimeHours = { hours: Math.floor(totalSeconds / 3600), minutes: Math.floor(totalSeconds / 60) % 60 };
   const reviewJustificationColumn = (
     peerReview as unknown as { reviewJustification?: typeof peerReview.id }
@@ -127,6 +141,41 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
     .where(eq(projectReviewerAssignment.projectId, id))
     .orderBy(asc(projectReviewerAssignment.createdAt), asc(projectReviewerAssignment.reviewerId));
 
+  const devlogRows = await db
+    .select({
+      id: devlog.id,
+      title: devlog.title,
+      content: devlog.content,
+      startedAt: devlog.startedAt,
+      endedAt: devlog.endedAt,
+      durationSeconds: devlog.durationSeconds,
+      attachments: devlog.attachments,
+      usedAi: devlog.usedAi,
+      aiUsageDescription: devlog.aiUsageDescription,
+      hackatimeProjectNameSnapshot: devlog.hackatimeProjectNameSnapshot,
+      createdAt: devlog.createdAt,
+      authorName: user.name,
+    })
+    .from(devlog)
+    .leftJoin(user, eq(devlog.userId, user.id))
+    .where(eq(devlog.projectId, id))
+    .orderBy(asc(devlog.startedAt), asc(devlog.id));
+
+  const devlogsForReview: ReviewDevlogFull[] = devlogRows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    content: row.content,
+    createdAt: row.createdAt.toISOString(),
+    startedAt: row.startedAt.toISOString(),
+    endedAt: row.endedAt.toISOString(),
+    durationSeconds: row.durationSeconds ?? 0,
+    attachments: row.attachments ?? [],
+    usedAi: row.usedAi,
+    aiUsageDescription: row.aiUsageDescription ?? null,
+    hackatimeProjectNameSnapshot: row.hackatimeProjectNameSnapshot ?? "",
+    authorName: row.authorName || "Unknown",
+  }));
+
   return (
     <AppShell title="Review project">
       <div className="mb-6 flex items-center justify-between gap-4">
@@ -136,6 +185,18 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
         <Link href={`/projects/${p.id}`} className="text-sm text-muted-foreground hover:text-foreground">
           View in projects
         </Link>
+      </div>
+
+      <div className="mb-6">
+        <ReviewHackatimeTools
+          projectId={p.id}
+          hackatimeUserId={
+            typeof p.creatorHackatimeUserId === "string" ? p.creatorHackatimeUserId : null
+          }
+          projectStartedAtIso={p.startedOnCarnivalAt ? p.startedOnCarnivalAt.toISOString() : null}
+          submittedAtIso={p.submittedAt ? p.submittedAt.toISOString() : null}
+          projectCreatedAtIso={p.createdAt.toISOString()}
+        />
       </div>
 
       <ReviewProjectClient
@@ -168,6 +229,8 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
             hackatimeStoppedAt: p.hackatimeStoppedAt ? p.hackatimeStoppedAt.toISOString() : null,
             createdAt: p.createdAt.toISOString(),
             submittedAt: p.submittedAt ? p.submittedAt.toISOString() : null,
+            bountyProjectId: p.bountyProjectId ?? null,
+            bountyProjectName: p.bountyProjectName ?? null,
           },
           reviews: reviews.map((r) => ({
             id: r.id,
@@ -194,6 +257,7 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
             reviewerEmail: a.reviewerEmail || "",
             createdAt: a.createdAt.toISOString(),
           })),
+          devlogs: devlogsForReview,
         }}
       />
     </AppShell>

@@ -5,11 +5,13 @@ import { shopItem, shopOrder, user } from "@/db/schema";
 import { generateId, getAuthUser, parseJsonBody, toCleanString } from "@/lib/api-utils";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
 import { getAppBaseUrl, sendShopOrderCreatedAdminEmail } from "@/lib/loops";
+import { calculateShopOrderTotal, parseShopOrderQuantity } from "@/lib/shop-shared";
 import { getTokenBalance } from "@/lib/wallet";
 
 type CreateOrderBody = {
   itemId?: unknown;
   orderNote?: unknown;
+  quantity?: unknown;
 };
 
 export async function GET() {
@@ -25,6 +27,8 @@ export async function GET() {
       itemImageUrl: shopOrder.itemImageSnapshot,
       itemDescription: shopOrder.itemDescriptionSnapshot,
       orderNote: shopOrder.orderNote,
+      quantity: shopOrder.quantity,
+      unitTokenCost: shopOrder.unitTokenCostSnapshot,
       tokenCost: shopOrder.tokenCostSnapshot,
       fulfillmentLink: shopOrder.fulfillmentLink,
       cancellationReason: shopOrder.cancellationReason,
@@ -71,6 +75,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "orderNote must be a string" }, { status: 400 });
   }
   const orderNote = toCleanString(body?.orderNote);
+  const quantity = parseShopOrderQuantity(body?.quantity);
+  if (quantity === null) {
+    return NextResponse.json(
+      { error: "Quantity must be a whole number between 1 and 99." },
+      { status: 400 },
+    );
+  }
 
   const rows = await db
     .select({
@@ -95,7 +106,9 @@ export async function POST(req: Request) {
   if (balance <= 0) {
     return NextResponse.json({ error: "You must have tokens to place an order" }, { status: 409 });
   }
-  if (balance < (item.tokenCost ?? 0)) {
+  const unitTokenCost = item.tokenCost ?? 0;
+  const totalTokenCost = calculateShopOrderTotal(unitTokenCost, quantity);
+  if (balance < totalTokenCost) {
     return NextResponse.json({ error: "Insufficient tokens" }, { status: 409 });
   }
 
@@ -111,7 +124,9 @@ export async function POST(req: Request) {
     itemImageSnapshot: item.imageUrl,
     itemDescriptionSnapshot: item.description ?? null,
     orderNote: orderNote || null,
-    tokenCostSnapshot: item.tokenCost ?? 0,
+    quantity,
+    unitTokenCostSnapshot: unitTokenCost,
+    tokenCostSnapshot: totalTokenCost,
     createdAt: now,
     updatedAt: now,
   });
@@ -151,10 +166,12 @@ export async function POST(req: Request) {
             item_name: item.name,
             item_description: item.description ?? "",
             item_image_url: item.imageUrl,
-            token_cost: item.tokenCost ?? 0,
+            token_cost: totalTokenCost,
             created_at: now.toISOString(),
             admin_orders_url: adminOrdersUrl,
-            order_note: orderNote || null,
+            order_note: orderNote
+              ? `Quantity: ${quantity}. ${orderNote}`
+              : `Quantity: ${quantity}.`,
           }),
         ),
     );

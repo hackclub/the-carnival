@@ -4,7 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import ShopClient, { type ShopItemDTO, type ShopLedgerDTO, type ShopOrderDTO } from "@/components/ShopClient";
 import { db } from "@/db";
-import { shopItem, shopOrder } from "@/db/schema";
+import { shopItem, shopItemSuggestion, shopOrder } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
 import { getLedgerForUser, getTokenBalance } from "@/lib/wallet";
 
@@ -17,7 +17,7 @@ export default async function ShopPage() {
   const role = (session?.user as { role?: unknown } | undefined)?.role;
   const isAdmin = role === "admin";
 
-  const [items, orders, balance, ledgerRows] = await Promise.all([
+  const [items, orders, suggestions, balance, ledgerRows] = await Promise.all([
     db
       .select({
         id: shopItem.id,
@@ -37,6 +37,8 @@ export default async function ShopPage() {
         itemName: shopOrder.itemNameSnapshot,
         itemImageUrl: shopOrder.itemImageSnapshot,
         orderNote: shopOrder.orderNote,
+        quantity: shopOrder.quantity,
+        unitTokenCost: shopOrder.unitTokenCostSnapshot,
         tokenCost: shopOrder.tokenCostSnapshot,
         fulfillmentLink: shopOrder.fulfillmentLink,
         fulfilledAt: shopOrder.fulfilledAt,
@@ -45,6 +47,24 @@ export default async function ShopPage() {
       .from(shopOrder)
       .where(eq(shopOrder.userId, userId))
       .orderBy(desc(shopOrder.createdAt)),
+    db
+      .select({
+        id: shopItemSuggestion.id,
+        status: shopItemSuggestion.status,
+        name: shopItemSuggestion.name,
+        description: shopItemSuggestion.description,
+        imageUrl: shopItemSuggestion.imageUrl,
+        referenceUrl: shopItemSuggestion.referenceUrl,
+        orderNoteRequired: shopItemSuggestion.orderNoteRequired,
+        approvedHoursNeeded: shopItemSuggestion.approvedHoursNeeded,
+        tokenCost: shopItemSuggestion.tokenCost,
+        rejectionReason: shopItemSuggestion.rejectionReason,
+        approvedShopItemId: shopItemSuggestion.approvedShopItemId,
+        createdAt: shopItemSuggestion.createdAt,
+      })
+      .from(shopItemSuggestion)
+      .where(eq(shopItemSuggestion.submittedByUserId, userId))
+      .orderBy(desc(shopItemSuggestion.createdAt)),
     getTokenBalance(db, userId),
     isAdmin ? getLedgerForUser(db, userId, 50) : Promise.resolve([]),
   ]);
@@ -67,6 +87,8 @@ export default async function ShopPage() {
     itemName: o.itemName,
     itemImageUrl: o.itemImageUrl,
     orderNote: o.orderNote ?? null,
+    quantity: o.quantity ?? 1,
+    unitTokenCost: o.unitTokenCost ?? o.tokenCost ?? 0,
     tokenCost: o.tokenCost ?? 0,
     fulfillmentLink: o.fulfillmentLink ?? null,
     fulfilledAt: o.fulfilledAt ? o.fulfilledAt.toISOString() : null,
@@ -87,7 +109,26 @@ export default async function ShopPage() {
     <AppShell title="Shop">
       <ShopClient
         canViewLedger={isAdmin}
-        initial={{ balance, items: initialItems, orders: initialOrders, ledger: initialLedger }}
+        initial={{
+          balance,
+          items: initialItems,
+          orders: initialOrders,
+          ledger: initialLedger,
+          suggestions: suggestions.map((s) => ({
+            id: s.id,
+            status: s.status,
+            name: s.name,
+            description: s.description ?? null,
+            imageUrl: s.imageUrl ?? null,
+            referenceUrl: s.referenceUrl ?? null,
+            orderNoteRequired: s.orderNoteRequired,
+            approvedHoursNeeded: s.approvedHoursNeeded,
+            tokenCost: s.tokenCost,
+            rejectionReason: s.rejectionReason ?? null,
+            approvedShopItemId: s.approvedShopItemId ?? null,
+            createdAt: s.createdAt.toISOString(),
+          })),
+        }}
       />
     </AppShell>
   );

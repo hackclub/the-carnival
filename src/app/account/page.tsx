@@ -21,6 +21,8 @@ export default async function AccountPage() {
       stateProvince: user.stateProvince,
       country: user.country,
       zipPostalCode: user.zipPostalCode,
+      hackatimeUserId: user.hackatimeUserId,
+      hackatimeConnectedAt: user.hackatimeConnectedAt,
     })
     .from(user)
     .where(eq(user.id, session.user.id))
@@ -34,12 +36,20 @@ export default async function AccountPage() {
     stateProvince: null,
     country: null,
     zipPostalCode: null,
+    hackatimeUserId: null,
+    hackatimeConnectedAt: null,
   };
 
   return (
     <AppShell title="Account settings">
-      <AccountProfileClient initial={initial} />
+      <AccountProfileClient
+        initial={{
+          ...initial,
+          hackatimeConnectedAt: initial.hackatimeConnectedAt
+            ? initial.hackatimeConnectedAt.toISOString()
+            : null,
+        }}
+      />
     </AppShell>
   );
 }
-

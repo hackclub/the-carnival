@@ -87,7 +87,7 @@ export default function GetInvolvedSection() {
               href="https://hackclub.slack.com/archives/C091ZRTMF16"
               target="_blank"
               rel="noreferrer"
-              className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-[3px] border-[#74210a] bg-[#f6a61c] px-4 py-2 text-center text-sm font-black uppercase tracking-[0.08em] text-[#fff7dc] shadow-[0_5px_0_#bf6216] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_#bf6216] active:scale-[0.96] sm:w-auto"
+              className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#f6a61c] px-4 py-2 text-center text-sm font-black uppercase tracking-[0.04em] text-[#fff7dc] transition-colors duration-200 hover:bg-[#ee9817] sm:w-auto"
             >
               Open #carnival on Slack
               <ArrowRight size={16} />
@@ -117,7 +117,7 @@ export default function GetInvolvedSection() {
             </p>
             <Link
               href="/projects/new"
-              className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-[3px] border-[#74210a] bg-[#fff7dc] px-4 py-2 text-center text-sm font-black uppercase tracking-[0.08em] text-[#74210a] shadow-[0_5px_0_#d78b22] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_#d78b22] active:scale-[0.96] sm:w-auto"
+              className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#fff7dc] px-4 py-2 text-center text-sm font-black uppercase tracking-[0.04em] text-[#74210a] transition-colors duration-200 hover:bg-[#fff0cf] sm:w-auto"
             >
               Start a project
               <ArrowRight size={16} />

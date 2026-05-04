@@ -2,9 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { desc, eq, inArray, sql } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
-import AdminShopClient, { type AdminShopItemDTO, type AdminShopOrderDTO } from "@/components/AdminShopClient";
+import AdminShopClient, {
+  type AdminShopItemDTO,
+  type AdminShopOrderDTO,
+  type AdminShopSuggestionDTO,
+} from "@/components/AdminShopClient";
 import { db } from "@/db";
-import { shopItem, shopOrder, tokenLedger, user } from "@/db/schema";
+import { shopItem, shopItemSuggestion, shopOrder, tokenLedger, user } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
 
 export default async function AdminShopPage() {
@@ -42,6 +46,8 @@ export default async function AdminShopPage() {
           itemDescription: shopOrder.itemDescriptionSnapshot,
           orderNote: shopOrder.orderNote,
           currentItemDescription: shopItem.description,
+          quantity: shopOrder.quantity,
+          unitTokenCost: shopOrder.unitTokenCostSnapshot,
           tokenCost: shopOrder.tokenCostSnapshot,
           fulfillmentLink: shopOrder.fulfillmentLink,
           cancellationReason: shopOrder.cancellationReason,
@@ -53,6 +59,30 @@ export default async function AdminShopPage() {
         .leftJoin(shopItem, eq(shopOrder.shopItemId, shopItem.id))
         .leftJoin(user, eq(shopOrder.userId, user.id))
         .orderBy(desc(shopOrder.createdAt))
+    : [];
+  const suggestions = isAdmin
+    ? await db
+        .select({
+          id: shopItemSuggestion.id,
+          submittedByUserId: shopItemSuggestion.submittedByUserId,
+          submitterName: user.name,
+          submitterEmail: user.email,
+          status: shopItemSuggestion.status,
+          name: shopItemSuggestion.name,
+          description: shopItemSuggestion.description,
+          imageUrl: shopItemSuggestion.imageUrl,
+          referenceUrl: shopItemSuggestion.referenceUrl,
+          orderNoteRequired: shopItemSuggestion.orderNoteRequired,
+          approvedHoursNeeded: shopItemSuggestion.approvedHoursNeeded,
+          tokenCost: shopItemSuggestion.tokenCost,
+          rejectionReason: shopItemSuggestion.rejectionReason,
+          approvedShopItemId: shopItemSuggestion.approvedShopItemId,
+          createdAt: shopItemSuggestion.createdAt,
+          reviewedAt: shopItemSuggestion.reviewedAt,
+        })
+        .from(shopItemSuggestion)
+        .leftJoin(user, eq(shopItemSuggestion.submittedByUserId, user.id))
+        .orderBy(desc(shopItemSuggestion.createdAt))
     : [];
 
   const orderUserIds = Array.from(new Set(orders.map((o) => o.userId)));
@@ -91,12 +121,32 @@ export default async function AdminShopPage() {
     itemImageUrl: o.itemImageUrl,
     itemDescription: o.itemDescription ?? o.currentItemDescription ?? null,
     orderNote: o.orderNote ?? null,
+    quantity: o.quantity ?? 1,
+    unitTokenCost: o.unitTokenCost ?? o.tokenCost ?? 0,
     tokenCost: o.tokenCost ?? 0,
     fulfillmentLink: o.fulfillmentLink ?? null,
     cancellationReason: o.cancellationReason ?? null,
     cancelledAt: o.cancelledAt ? o.cancelledAt.toISOString() : null,
     createdAt: o.createdAt.toISOString(),
     fulfilledAt: o.fulfilledAt ? o.fulfilledAt.toISOString() : null,
+  }));
+  const initialSuggestions: AdminShopSuggestionDTO[] = suggestions.map((s) => ({
+    id: s.id,
+    submittedByUserId: s.submittedByUserId,
+    submitterName: s.submitterName ?? s.submittedByUserId,
+    submitterEmail: s.submitterEmail ?? null,
+    status: s.status,
+    name: s.name,
+    description: s.description ?? null,
+    imageUrl: s.imageUrl ?? null,
+    referenceUrl: s.referenceUrl ?? null,
+    orderNoteRequired: s.orderNoteRequired,
+    approvedHoursNeeded: s.approvedHoursNeeded,
+    tokenCost: s.tokenCost,
+    rejectionReason: s.rejectionReason ?? null,
+    approvedShopItemId: s.approvedShopItemId ?? null,
+    createdAt: s.createdAt.toISOString(),
+    reviewedAt: s.reviewedAt ? s.reviewedAt.toISOString() : null,
   }));
 
   return (
@@ -105,13 +155,16 @@ export default async function AdminShopPage() {
         <div className="text-muted-foreground">Create/edit items and fulfill orders.</div>
         <Link
           href="/admin/shop/items/new"
-          className="bg-carnival-blue/20 hover:bg-carnival-blue/30 text-foreground px-5 py-3 rounded-full font-semibold transition-colors border border-border"
+          className="inline-flex min-h-11 items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-[#fff7dc] px-5 py-3 text-sm font-black uppercase tracking-[0.04em] text-foreground transition-colors hover:bg-[#fff0cf]"
         >
           New item
         </Link>
       </div>
 
-      <AdminShopClient initial={{ items: initialItems, orders: initialOrders }} canManageOrders={isAdmin} />
+      <AdminShopClient
+        initial={{ items: initialItems, orders: initialOrders, suggestions: initialSuggestions }}
+        canManageOrders={isAdmin}
+      />
     </AppShell>
   );
 }

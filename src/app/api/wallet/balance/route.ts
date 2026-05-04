@@ -8,6 +8,5 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const balance = await getTokenBalance(db, user.id);
-  return NextResponse.json({ balance });
+  return NextResponse.json({ balance, fetchedAt: new Date().toISOString() });
 }
-

@@ -5,26 +5,26 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
 import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
 import { MIN_CREATOR_ORIGINALITY_RATIONALE_LENGTH } from "@/lib/project-originality";
+import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
+import {
+  EDITOR_OPTIONS,
+  appendCsvToken,
+  cleanString,
+  formatHoursMinutes,
+  toDateInputValue,
+  toHoursMinutes,
+  type EditorOptionValue,
+  type HackatimeProjectOption,
+} from "@/lib/project-form-utils";
+import { DatePicker } from "@/components/ui/date-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-const EDITOR_OPTIONS = [
-  { value: "vscode", label: "VS Code" },
-  { value: "chrome", label: "Chrome" },
-  { value: "firefox", label: "Firefox" },
-  { value: "figma", label: "Figma" },
-  { value: "neovim", label: "Neovim" },
-  { value: "gnu-emacs", label: "GNU Emacs" },
-  { value: "jupyterlab", label: "JupyterLab" },
-  { value: "obsidian", label: "Obsidian" },
-  { value: "blender", label: "Blender" },
-  { value: "freecad", label: "FreeCAD" },
-  { value: "kicad", label: "KiCad" },
-  { value: "krita", label: "Krita" },
-  { value: "gimp", label: "GIMP" },
-  { value: "inkscape", label: "Inkscape" },
-  { value: "godot-engine", label: "Godot Engine" },
-  { value: "unity", label: "Unity" },
-  { value: "other", label: "Other" },
-] as const;
 const MIN_SCREENSHOTS = 3;
 
 type CreateProjectPayload = {
@@ -51,13 +51,6 @@ type CreateProjectPayload = {
   };
 };
 
-type HackatimeProjectOption = {
-  name: string;
-  startedAt: string | null;
-  stoppedAt: string | null;
-  totalSeconds: number;
-};
-
 type HackatimePreview = {
   hackatimeStartedAt: string | null;
   hackatimeStoppedAt: string | null;
@@ -65,51 +58,10 @@ type HackatimePreview = {
   hackatimeHours: { hours: number; minutes: number } | null;
 };
 
-function cleanString(value: FormDataEntryValue | null) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function appendCsvToken(csv: string, token: string) {
-  const normalized = token.trim();
-  if (!normalized) return csv;
-  const parts = csv
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  const seen = new Set(parts.map((part) => part.toLowerCase()));
-  if (!seen.has(normalized.toLowerCase())) {
-    parts.push(normalized);
-  }
-  return parts.join(", ");
-}
-
 function toLocalDateTime(value: string | null) {
   if (!value) return "—";
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
-}
-
-function toDateInputValue(value: string | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
-}
-
-function toHoursMinutes(totalSeconds: number | null) {
-  const safeTotalSeconds =
-    typeof totalSeconds === "number" && Number.isFinite(totalSeconds)
-      ? Math.max(0, Math.floor(totalSeconds))
-      : 0;
-  return {
-    hours: Math.floor(safeTotalSeconds / 3600),
-    minutes: Math.floor(safeTotalSeconds / 60) % 60,
-  };
-}
-
-function formatHoursMinutes(hours: number, minutes: number) {
-  const safeHours = Number.isFinite(hours) ? Math.max(0, Math.floor(hours)) : 0;
-  const safeMinutes = Number.isFinite(minutes) ? Math.max(0, Math.floor(minutes)) : 0;
-  return `${safeHours}h${String(safeMinutes).padStart(2, "0")}m`;
 }
 
 export default function CreateProjectModal({
@@ -135,10 +87,7 @@ export default function CreateProjectModal({
   const [hackatimeProjectName, setHackatimeProjectName] = useState("");
   const [consideredRangeStartDate, setConsideredRangeStartDate] = useState("");
   const [consideredRangeEndDate, setConsideredRangeEndDate] = useState("");
-  const [hackatimePreview, setHackatimePreview] = useState<HackatimePreview | null>(null);
-  const [hackatimePreviewLoading, setHackatimePreviewLoading] = useState(false);
-  const [hackatimePreviewError, setHackatimePreviewError] = useState<string | null>(null);
-  const [editor, setEditor] = useState<(typeof EDITOR_OPTIONS)[number]["value"]>("vscode");
+  const [editor, setEditor] = useState<EditorOptionValue>("vscode");
   const [category, setCategory] = useState("");
   const [tagsInput, setTagsInput] = useState("");
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>(
@@ -147,6 +96,9 @@ export default function CreateProjectModal({
   const [originalityDeclaration, setOriginalityDeclaration] = useState<"" | "original" | "overlap">("");
   const [duplicateExplanation, setDuplicateExplanation] = useState("");
   const [originalityRationale, setOriginalityRationale] = useState("");
+  const [bountyProjectId, setBountyProjectId] = useState("");
+  const [availableBounties, setAvailableBounties] = useState<Array<{ id: string; name: string; prizeUsd: number }>>([]);
+  const bountiesLoadingRef = useRef(false);
 
   const shouldBeOpen = useMemo(() => {
     const v = searchParams.get("new");
@@ -167,6 +119,28 @@ export default function CreateProjectModal({
     if (shouldBeOpen) {
       if (!d.open) d.showModal();
       document.body.style.overflow = "hidden";
+
+      if (availableBounties.length === 0 && !bountiesLoadingRef.current) {
+        bountiesLoadingRef.current = true;
+        fetch("/api/bounties")
+          .then((r) => r.json())
+          .then((data) => {
+            const projects = Array.isArray(data?.projects) ? data.projects : [];
+            setAvailableBounties(
+              projects
+                .filter((p: { completed?: boolean; status?: string }) => !p.completed && p.status === "approved")
+                .map((p: { id: string; name: string; prizeUsd: number }) => ({
+                  id: p.id,
+                  name: p.name,
+                  prizeUsd: p.prizeUsd,
+                })),
+            );
+          })
+          .catch(() => {})
+          .finally(() => {
+            bountiesLoadingRef.current = false;
+          });
+      }
     } else {
       if (d.open) d.close();
       document.body.style.overflow = "";
@@ -175,7 +149,7 @@ export default function CreateProjectModal({
     return () => {
       document.body.style.overflow = "";
     };
-  }, [shouldBeOpen]);
+  }, [shouldBeOpen, availableBounties.length]);
 
   useEffect(() => {
     const d = dialogRef.current;
@@ -194,9 +168,7 @@ export default function CreateProjectModal({
       setHackatimeProjectName("");
       setConsideredRangeStartDate("");
       setConsideredRangeEndDate("");
-      setHackatimePreview(null);
-      setHackatimePreviewLoading(false);
-      setHackatimePreviewError(null);
+      setBountyProjectId("");
       clearNewParam();
     };
 
@@ -219,110 +191,41 @@ export default function CreateProjectModal({
     [consideredRangeEndDate, consideredRangeStartDate],
   );
 
-  const hackatimeHoursLabel = useMemo(() => {
-    if (!hackatimePreview?.hackatimeHours) return "—";
-    return formatHoursMinutes(hackatimePreview.hackatimeHours.hours, hackatimePreview.hackatimeHours.minutes);
-  }, [hackatimePreview]);
-
-  useEffect(() => {
-    if (!hackatimeProjectName) {
-      setHackatimePreview(null);
-      setHackatimePreviewLoading(false);
-      setHackatimePreviewError(null);
-      return;
-    }
-
-    if (!consideredHackatimeRange.ok) {
-      setHackatimePreviewLoading(false);
-      setHackatimePreviewError(
-        consideredRangeStartDate || consideredRangeEndDate ? consideredHackatimeRange.error : null,
-      );
-      return;
-    }
-
+  const selectedHackatimePreview = useMemo<HackatimePreview | null>(() => {
+    if (!selectedHackatime || !consideredHackatimeRange.ok) return null;
     const selectedDefaultStartDate = toDateInputValue(selectedHackatime?.startedAt ?? null);
     const selectedDefaultEndDate = toDateInputValue(selectedHackatime?.stoppedAt ?? null);
-    if (
-      selectedHackatime &&
-      selectedHackatime.name === hackatimeProjectName &&
+    return selectedHackatime.name === hackatimeProjectName &&
       selectedDefaultStartDate === consideredHackatimeRange.value.startDate &&
       selectedDefaultEndDate === consideredHackatimeRange.value.endDate
-    ) {
-      setHackatimePreview({
+      ? {
         hackatimeStartedAt: selectedHackatime.startedAt,
         hackatimeStoppedAt: selectedHackatime.stoppedAt,
         hackatimeTotalSeconds: selectedHackatime.totalSeconds,
         hackatimeHours: toHoursMinutes(selectedHackatime.totalSeconds),
-      });
-      setHackatimePreviewLoading(false);
-      setHackatimePreviewError(null);
-      return;
-    }
-
-    let cancelled = false;
-    const timer = window.setTimeout(async () => {
-      setHackatimePreviewLoading(true);
-      setHackatimePreviewError(null);
-      try {
-        const res = await fetch("/api/hackatime/projects/preview", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            hackatimeProjectName,
-            consideredHackatimeRange: consideredHackatimeRange.value,
-          }),
-        });
-        const data = (await res.json().catch(() => null)) as
-          | {
-              project?: {
-                hackatimeStartedAt?: string | null;
-                hackatimeStoppedAt?: string | null;
-                hackatimeTotalSeconds?: number | null;
-                hackatimeHours?: { hours?: number; minutes?: number } | null;
-              };
-              error?: unknown;
-            }
-          | null;
-        if (cancelled) return;
-        if (!res.ok) {
-          const message =
-            typeof data?.error === "string" ? data.error : "Failed to refresh Hackatime hours.";
-          setHackatimePreviewError(message);
-          setHackatimePreviewLoading(false);
-          return;
-        }
-        const hours = data?.project?.hackatimeHours;
-        setHackatimePreview({
-          hackatimeStartedAt: data?.project?.hackatimeStartedAt ?? null,
-          hackatimeStoppedAt: data?.project?.hackatimeStoppedAt ?? null,
-          hackatimeTotalSeconds:
-            typeof data?.project?.hackatimeTotalSeconds === "number"
-              ? data.project.hackatimeTotalSeconds
-              : null,
-          hackatimeHours:
-            hours && typeof hours.hours === "number" && typeof hours.minutes === "number"
-              ? { hours: hours.hours, minutes: hours.minutes }
-              : null,
-        });
-        setHackatimePreviewLoading(false);
-      } catch {
-        if (cancelled) return;
-        setHackatimePreviewError("Failed to refresh Hackatime hours.");
-        setHackatimePreviewLoading(false);
       }
-    }, 400);
+      : null;
+  }, [consideredHackatimeRange, hackatimeProjectName, selectedHackatime]);
 
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [
-    consideredHackatimeRange,
-    consideredRangeEndDate,
-    consideredRangeStartDate,
-    hackatimeProjectName,
-    selectedHackatime,
-  ]);
+  const { preview: hackatimePreview, loading: hackatimePreviewLoading, error: hackatimePreviewError } =
+    useHackatimeRangePreview({
+      enabled: !!hackatimeProjectName,
+      endpoint: "/api/hackatime/projects/preview",
+      body:
+        hackatimeProjectName && consideredHackatimeRange.ok
+          ? { hackatimeProjectName, consideredHackatimeRange: consideredHackatimeRange.value }
+          : null,
+      rangeError:
+        hackatimeProjectName && !consideredHackatimeRange.ok && (consideredRangeStartDate || consideredRangeEndDate)
+          ? consideredHackatimeRange.error
+          : null,
+      localPreview: selectedHackatimePreview,
+    });
+
+  const hackatimeHoursLabel = useMemo(() => {
+    if (!hackatimePreview?.hackatimeHours) return "—";
+    return formatHoursMinutes(hackatimePreview.hackatimeHours.hours, hackatimePreview.hackatimeHours.minutes);
+  }, [hackatimePreview]);
 
   const onSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -382,7 +285,7 @@ export default function CreateProjectModal({
         return;
       }
 
-      const payload: CreateProjectPayload = {
+      const payload: CreateProjectPayload & { bountyProjectId?: string } = {
         name,
         description,
         editor: editorValue,
@@ -406,6 +309,7 @@ export default function CreateProjectModal({
           hackatimeProjectName && consideredHackatimeRange.ok
             ? consideredHackatimeRange.value
             : undefined,
+        ...(bountyProjectId ? { bountyProjectId } : {}),
       };
 
       try {
@@ -435,6 +339,7 @@ export default function CreateProjectModal({
     },
     [
       consideredHackatimeRange,
+      bountyProjectId,
       hackatimePreview,
       hackatimeProjectName,
       router,
@@ -542,20 +447,13 @@ export default function CreateProjectModal({
     setHackatimeProjectName(project.name);
     setConsideredRangeStartDate(toDateInputValue(project.startedAt));
     setConsideredRangeEndDate(toDateInputValue(project.stoppedAt));
-    setHackatimePreview({
-      hackatimeStartedAt: project.startedAt,
-      hackatimeStoppedAt: project.stoppedAt,
-      hackatimeTotalSeconds: project.totalSeconds,
-      hackatimeHours: toHoursMinutes(project.totalSeconds),
-    });
-    setHackatimePreviewError(null);
     hackatimeDetailsRef.current?.removeAttribute("open");
   }, []);
 
   return (
     <dialog
       ref={dialogRef}
-      className="carnival-dialog m-auto w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] rounded-3xl bg-card/95 backdrop-blur border border-border text-foreground p-0 overflow-hidden"
+      className="carnival-dialog m-auto w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] rounded-[var(--radius-2xl)] bg-card/95 backdrop-blur border border-border text-foreground p-0 overflow-hidden"
       onClick={onBackdropClick}
       aria-label="Create a new project"
     >
@@ -571,7 +469,7 @@ export default function CreateProjectModal({
             <button
               type="button"
               onClick={() => dialogRef.current?.close()}
-              className="h-10 w-10 rounded-full bg-muted hover:bg-muted/70 border border-border text-foreground flex items-center justify-center"
+              className="h-10 w-10 rounded-[var(--radius-xl)] bg-muted hover:bg-muted/70 border border-border text-foreground flex items-center justify-center"
               aria-label="Close"
             >
               ✕
@@ -584,12 +482,12 @@ export default function CreateProjectModal({
           className="flex-1 px-6 md:px-8 py-6 space-y-5 overflow-y-auto"
         >
           {error ? (
-            <div className="rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
+            <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
               {error}
             </div>
           ) : null}
 
-          <div className="rounded-2xl border border-border bg-muted px-4 py-4 text-sm text-foreground">
+          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4 text-sm text-foreground">
             <div className="font-semibold">Before you create a project</div>
             <ul className="mt-2 list-disc pl-5 space-y-1 text-muted-foreground">
               <li>
@@ -611,14 +509,14 @@ export default function CreateProjectModal({
             </ul>
           </div>
 
-          <div className="rounded-2xl border border-border bg-card px-4 py-4 space-y-3">
+          <div className="platform-surface-card px-4 py-4 space-y-3">
             <div className="text-sm font-semibold text-foreground">Originality declaration</div>
             <div className="text-xs text-muted-foreground">
               Confirm whether your project overlaps with prior submissions. If it does, explain what
               makes this one meaningfully different.
             </div>
             <div className="space-y-2">
-              <label className="flex items-start gap-3 rounded-xl border border-border bg-background px-3 py-2">
+              <label className="flex items-start gap-3 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-3 py-2">
                 <input
                   type="radio"
                   name="originalityDeclaration"
@@ -635,7 +533,7 @@ export default function CreateProjectModal({
                   I checked existing submissions and this project does not overlap.
                 </span>
               </label>
-              <label className="flex items-start gap-3 rounded-xl border border-border bg-background px-3 py-2">
+              <label className="flex items-start gap-3 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-3 py-2">
                 <input
                   type="radio"
                   name="originalityDeclaration"
@@ -661,7 +559,7 @@ export default function CreateProjectModal({
                     value={duplicateExplanation}
                     onChange={(e) => setDuplicateExplanation(e.target.value)}
                     rows={2}
-                    className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                    className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
                     placeholder="What existing project(s) are similar?"
                   />
                 </label>
@@ -674,7 +572,7 @@ export default function CreateProjectModal({
                     value={originalityRationale}
                     onChange={(e) => setOriginalityRationale(e.target.value)}
                     rows={3}
-                    className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                    className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
                     placeholder="Describe what is new/different in your implementation."
                   />
                   <div className="mt-2 text-xs text-muted-foreground">
@@ -696,18 +594,19 @@ export default function CreateProjectModal({
             <div className="text-sm text-muted-foreground font-medium mb-2">
               Editor / app <span className="font-normal">(optional)</span>
             </div>
-            <select
-              name="editor"
-              value={editor}
-              onChange={(e) => setEditor(e.target.value as (typeof EDITOR_OPTIONS)[number]["value"])}
-              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-            >
-              {EDITOR_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <input type="hidden" name="editor" value={editor} />
+            <Select value={editor} onValueChange={(v) => { if (v) setEditor(v as EditorOptionValue); }}>
+              <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
+                <SelectValue placeholder="Select editor" />
+              </SelectTrigger>
+              <SelectContent>
+                {EDITOR_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
 
           {editor === "other" ? (
@@ -718,7 +617,7 @@ export default function CreateProjectModal({
               <input
                 name="editorOther"
                 required
-                className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
                 placeholder="e.g. JetBrains, Sublime, ..."
               />
             </label>
@@ -734,7 +633,7 @@ export default function CreateProjectModal({
               name="name"
               required
               autoFocus
-              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="My awesome game"
             />
           </label>
@@ -749,7 +648,7 @@ export default function CreateProjectModal({
                 name="hackatimeProjectName"
                 readOnly
                 value={hackatimeProjectName}
-                className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
                 placeholder="Pick from the list below (or add later)"
               />
               <input type="hidden" name="hackatimeStartedAt" value={hackatimePreview?.hackatimeStartedAt ?? ""} />
@@ -767,25 +666,15 @@ export default function CreateProjectModal({
                 You can’t type here — choose a project from the dropdown below.
               </div>
               {hackatimeProjectName ? (
-                <div className="rounded-xl border border-border bg-muted px-3 py-3 space-y-3">
+                <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted px-3 py-3 space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <label className="block">
                       <div className="text-xs text-muted-foreground mb-1">Considered start date</div>
-                      <input
-                        type="date"
-                        value={consideredRangeStartDate}
-                        onChange={(e) => setConsideredRangeStartDate(e.target.value)}
-                        className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                      />
+                      <DatePicker value={consideredRangeStartDate} onChange={(v) => setConsideredRangeStartDate(v)} />
                     </label>
                     <label className="block">
                       <div className="text-xs text-muted-foreground mb-1">Considered end date</div>
-                      <input
-                        type="date"
-                        value={consideredRangeEndDate}
-                        onChange={(e) => setConsideredRangeEndDate(e.target.value)}
-                        className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                      />
+                      <DatePicker value={consideredRangeEndDate} onChange={(v) => setConsideredRangeEndDate(v)} />
                     </label>
                   </div>
                   {!consideredHackatimeRange.ok ? (
@@ -812,7 +701,7 @@ export default function CreateProjectModal({
 
               <details
                 ref={hackatimeDetailsRef}
-                className="rounded-2xl border border-border bg-muted overflow-hidden"
+                className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted overflow-hidden"
                 onToggle={onHackatimeToggle}
               >
                 <summary className="cursor-pointer select-none px-4 py-3 text-sm text-foreground flex items-center justify-between">
@@ -829,7 +718,7 @@ export default function CreateProjectModal({
                       </div>
                       <a
                         href={hackatimeConnectUrl}
-                        className="inline-flex items-center justify-center bg-carnival-blue hover:bg-carnival-blue/80 text-white px-4 py-2 rounded-full font-semibold transition-colors"
+                        className="inline-flex items-center justify-center bg-carnival-blue hover:bg-carnival-blue/80 text-white px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors"
                       >
                         Connect Hackatime
                       </a>
@@ -850,7 +739,7 @@ export default function CreateProjectModal({
                           key={p.name}
                           type="button"
                           onClick={() => pickHackatimeProject(p)}
-                          className="w-full text-left px-3 py-2 rounded-xl bg-background hover:bg-muted border border-border text-sm text-foreground"
+                          className="w-full text-left px-3 py-2 rounded-[var(--radius-xl)] bg-background hover:bg-muted border border-border text-sm text-foreground"
                         >
                           {p.name}
                         </button>
@@ -873,7 +762,7 @@ export default function CreateProjectModal({
               list="create-project-category-suggestions"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="e.g. Productivity, Game Dev"
             />
             <datalist id="create-project-category-suggestions">
@@ -894,7 +783,7 @@ export default function CreateProjectModal({
               name="tags"
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
-              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="e.g. ai, web, multiplayer"
             />
             {tagSuggestions.length > 0 ? (
@@ -904,7 +793,7 @@ export default function CreateProjectModal({
                     key={tag}
                     type="button"
                     onClick={() => setTagsInput((prev) => appendCsvToken(prev, tag))}
-                    className="rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-muted/70 transition-colors"
+                    className="rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-muted/70 transition-colors"
                   >
                     {tag}
                   </button>
@@ -914,6 +803,33 @@ export default function CreateProjectModal({
           </label>
         </div>
 
+        {availableBounties.length > 0 ? (
+          <div className="block">
+            <div className="text-sm text-muted-foreground font-medium mb-2">
+              Link to a bounty <span className="font-normal">(optional)</span>
+            </div>
+            <Select
+              value={bountyProjectId || "__none__"}
+              onValueChange={(v) => setBountyProjectId(v === "__none__" || !v ? "" : v)}
+            >
+              <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
+                <SelectValue placeholder="None" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None</SelectItem>
+                {availableBounties.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name} (${b.prizeUsd})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="mt-2 text-xs text-muted-foreground">
+              Attach a bounty to claim when this project gets granted.
+            </div>
+          </div>
+        ) : null}
+
         <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">
             Description
@@ -922,7 +838,7 @@ export default function CreateProjectModal({
             name="description"
             required
             rows={4}
-            className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+            className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
             placeholder="What are you building? What’s fun about it?"
           />
         </label>
@@ -935,7 +851,7 @@ export default function CreateProjectModal({
             <input
               name="videoUrl"
               required
-              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="https://youtu.be/... or https://..."
             />
           </label>
@@ -947,7 +863,7 @@ export default function CreateProjectModal({
             <input
               name="playableDemoUrl"
               required
-              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="https://mygame.example.com or https://itch.io/..."
             />
           </label>
@@ -957,7 +873,7 @@ export default function CreateProjectModal({
             <input
               name="codeUrl"
               required
-              className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
               placeholder="https://github.com/me/mygame"
             />
           </label>
@@ -970,13 +886,13 @@ export default function CreateProjectModal({
           </div>
           <div className="space-y-3">
             {screenshotUrls.map((value, idx) => (
-              <div key={idx} className="rounded-2xl border border-border bg-card p-4 space-y-3">
+              <div key={idx} className="platform-surface-card p-4 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm text-muted-foreground font-medium">Screenshot {idx + 1}</div>
                   <button
                     type="button"
                     onClick={() => removeScreenshotField(idx)}
-                    className="h-10 px-4 rounded-full bg-muted hover:bg-muted/70 border border-border text-foreground font-semibold disabled:opacity-60"
+                    className="h-10 px-4 rounded-[var(--radius-xl)] bg-muted hover:bg-muted/70 border border-border text-foreground font-semibold disabled:opacity-60"
                     disabled={screenshotUrls.length <= MIN_SCREENSHOTS}
                     aria-label="Remove screenshot"
                     title="Remove"
@@ -998,7 +914,7 @@ export default function CreateProjectModal({
             <button
               type="button"
               onClick={addScreenshotField}
-              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-full font-semibold transition-colors border border-border"
+              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
             >
               Add screenshot
             </button>
@@ -1009,14 +925,14 @@ export default function CreateProjectModal({
             <button
               type="button"
               onClick={() => dialogRef.current?.close()}
-              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-3 rounded-full font-semibold transition-colors border border-border"
+              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-3 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
               disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-full font-bold transition-colors"
+              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-[var(--radius-xl)] font-bold transition-colors"
               disabled={isSubmitting || !!hackatimeProjectName && !consideredHackatimeRange.ok}
             >
               {isSubmitting ? "Creating…" : "Create project"}

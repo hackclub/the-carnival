@@ -24,6 +24,7 @@ import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-acc
 import { approvedHoursWithinSnapshot } from "@/lib/review-rules";
 import { getServerSession } from "@/lib/server-session";
 import { notifyReviewDM } from "@/lib/slack";
+import { validateLinkableBountyProjectId } from "@/lib/bounties";
 
 type UpdateProjectBody = {
   name?: unknown;
@@ -45,6 +46,7 @@ type UpdateProjectBody = {
   creatorDuplicateExplanation?: unknown;
   creatorOriginalityRationale?: unknown;
   consideredHackatimeRange?: unknown;
+  bountyProjectId?: unknown;
   status?: unknown;
 };
 
@@ -148,6 +150,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       creatorDuplicateExplanation: project.creatorDuplicateExplanation,
       creatorOriginalityRationale: project.creatorOriginalityRationale,
       status: project.status,
+      bountyProjectId: project.bountyProjectId,
+      startedOnCarnivalAt: project.startedOnCarnivalAt,
+      submittedAt: project.submittedAt,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
     })
@@ -206,6 +211,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       creatorDeclaredOriginality: project.creatorDeclaredOriginality,
       creatorDuplicateExplanation: project.creatorDuplicateExplanation,
       creatorOriginalityRationale: project.creatorOriginalityRationale,
+      bountyProjectId: project.bountyProjectId,
       submittedAt: project.submittedAt,
       resubmissionBlocked: project.resubmissionBlocked,
       createdAt: project.createdAt,
@@ -255,6 +261,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     creatorOriginalityRationale: string | null;
     status: ProjectStatus;
     approvedHours: number | null;
+    bountyProjectId: string | null;
     submittedAt: Date;
     updatedAt: Date;
   }> = {};
@@ -503,6 +510,20 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     set.creatorOriginalityRationale = originalityDeclaration.value.creatorOriginalityRationale;
   }
 
+  if (body.bountyProjectId !== undefined) {
+    set.bountyProjectId =
+      typeof body.bountyProjectId === "string" && body.bountyProjectId.trim()
+        ? body.bountyProjectId.trim()
+        : null;
+    const bountyValidation = await validateLinkableBountyProjectId(
+      set.bountyProjectId,
+      current.bountyProjectId,
+    );
+    if (!bountyValidation.ok) {
+      return NextResponse.json({ error: bountyValidation.error }, { status: 400 });
+    }
+  }
+
   // Validate final editor/editorOther combination (using current values + pending updates).
   const nextEditor = (set.editor ?? current.editor) as ProjectEditor;
   const nextEditorOther =
@@ -729,6 +750,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       creatorDuplicateExplanation: project.creatorDuplicateExplanation,
       creatorOriginalityRationale: project.creatorOriginalityRationale,
       status: project.status,
+      bountyProjectId: project.bountyProjectId,
+      startedOnCarnivalAt: project.startedOnCarnivalAt,
+      submittedAt: project.submittedAt,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
     });

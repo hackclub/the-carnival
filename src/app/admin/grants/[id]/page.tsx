@@ -27,6 +27,7 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
       hackatimeStartedAt: project.hackatimeStartedAt,
       hackatimeStoppedAt: project.hackatimeStoppedAt,
       hackatimeTotalSeconds: project.hackatimeTotalSeconds,
+      hoursSpentSeconds: project.hoursSpentSeconds,
       videoUrl: project.videoUrl,
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
@@ -75,10 +76,15 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
     .where(eq(peerReview.projectId, p.id))
     .orderBy(asc(peerReview.createdAt), asc(peerReview.id));
 
-  const totalSeconds =
+  const devlogSeconds =
+    typeof p.hoursSpentSeconds === "number" && Number.isFinite(p.hoursSpentSeconds)
+      ? Math.max(0, Math.floor(p.hoursSpentSeconds))
+      : 0;
+  const legacySeconds =
     typeof p.hackatimeTotalSeconds === "number" && Number.isFinite(p.hackatimeTotalSeconds)
       ? Math.max(0, Math.floor(p.hackatimeTotalSeconds))
       : 0;
+  const totalSeconds = devlogSeconds > 0 ? devlogSeconds : legacySeconds;
   const hackatimeHours = { hours: Math.floor(totalSeconds / 3600), minutes: Math.floor(totalSeconds / 60) % 60 };
 
   return (

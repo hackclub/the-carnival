@@ -91,7 +91,7 @@ export default function AdminShopItemFormClient({
   }, [canSubmit, form, mode]);
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+    <div className="platform-surface-card p-6 space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div className="text-muted-foreground">
           {mode === "create" ? "Create a new shop item." : "Edit this shop item."}
@@ -123,7 +123,7 @@ export default function AdminShopItemFormClient({
         disabled={busy}
         helperText="This image is required and will be shown in the shop."
       />
-      <label className="flex items-start gap-3 rounded-2xl border border-border bg-muted px-4 py-3">
+      <label className="flex items-start gap-3 rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
         <input
           type="checkbox"
           className="mt-1 h-4 w-4 accent-carnival-blue"

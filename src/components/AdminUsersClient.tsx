@@ -2,6 +2,13 @@
 
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export type UserListItem = {
   id: string;
@@ -313,28 +320,28 @@ export default function AdminUsersClient({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="platform-surface-card p-4">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Total users</div>
           <div className="mt-1 text-2xl font-bold text-foreground">{totalUserCount}</div>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="platform-surface-card p-4">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Internal profiles</div>
           <div className="mt-1 text-2xl font-bold text-foreground">{internalStats.totalInternalUsers}</div>
           <div className="text-xs text-muted-foreground">reviewer/admin</div>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="platform-surface-card p-4">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Internal Slack linked</div>
           <div className="mt-1 text-xl font-bold text-foreground">
             {internalStats.withSlackId} ({toPercent(internalStats.withSlackId, internalStats.totalInternalUsers)})
           </div>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="platform-surface-card p-4">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Internal verified</div>
           <div className="mt-1 text-xl font-bold text-foreground">
             {internalStats.withVerificationStatus} ({toPercent(internalStats.withVerificationStatus, internalStats.totalInternalUsers)})
           </div>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="platform-surface-card p-4">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Internal frozen</div>
           <div className="mt-1 text-xl font-bold text-foreground">{internalStats.frozenInternalUsers}</div>
           <div className="text-xs text-muted-foreground">
@@ -343,7 +350,7 @@ export default function AdminUsersClient({
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+      <div className="platform-surface-card overflow-hidden">
         <div className="grid grid-cols-12 gap-3 px-5 py-3 border-b border-border text-xs text-muted-foreground uppercase tracking-wide">
           <div className="col-span-2">Name</div>
           <div className="col-span-2">Email</div>
@@ -376,24 +383,22 @@ export default function AdminUsersClient({
                   {u.verificationStatus || "—"}
                 </div>
                 <div className="col-span-1">
-                  <select
+                  <Select
                     value={u.role}
-                    onChange={(e) => updateRole(u.id, e.target.value as UserListItem["role"])}
+                    onValueChange={(v) => { if (v) updateRole(u.id, v as UserListItem["role"]); }}
                     disabled={isCurrentUser || isUpdating}
-                    className={`
-                      w-full px-2 py-1.5 text-sm rounded-lg border border-border bg-background
-                      text-foreground font-medium
-                      focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                      ${isUpdating ? "animate-pulse" : ""}
-                    `}
                   >
-                    {roleOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className={`w-full h-9 rounded-lg border-border bg-background px-2 text-sm text-foreground font-medium ${isUpdating ? "animate-pulse" : ""}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roleOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="col-span-2 text-sm">
                   {u.isFrozen ? (
@@ -412,7 +417,7 @@ export default function AdminUsersClient({
                     type="button"
                     onClick={() => updateFreezeState(u.id, !u.isFrozen)}
                     disabled={isCurrentUser || isUpdating}
-                    className="rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="rounded-[var(--radius-xl)] border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {u.isFrozen ? "Unfreeze" : "Freeze"}
                   </button>
@@ -427,7 +432,7 @@ export default function AdminUsersClient({
                       }
                       void loadLedger(u.id);
                     }}
-                    className="rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
+                    className="rounded-[var(--radius-xl)] border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
                   >
                     {activeLedgerUserId === u.id ? "Hide ledger" : "Ledger"}
                   </button>
@@ -439,7 +444,7 @@ export default function AdminUsersClient({
       </div>
 
       {activeLedgerUserId ? (
-        <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+        <div className="platform-surface-card p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-foreground text-lg font-semibold">Ledger inspection</div>
@@ -450,7 +455,7 @@ export default function AdminUsersClient({
             <button
               type="button"
               onClick={() => void loadLedger(activeLedgerUserId)}
-              className="rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
+              className="rounded-[var(--radius-xl)] border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
             >
               Refresh
             </button>
@@ -462,24 +467,25 @@ export default function AdminUsersClient({
             <div className="text-red-600 text-sm">{ledgerError}</div>
           ) : ledgerData ? (
             <>
-              <div className="rounded-xl border border-border bg-background px-4 py-3">
+              <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-4 py-3">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">Current balance</div>
                 <div className="text-2xl font-bold text-foreground mt-1">{ledgerData.balance} tokens</div>
               </div>
 
-              <div className="rounded-xl border border-border bg-background p-4 space-y-3">
+              <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background p-4 space-y-3">
                 <div className="text-sm font-semibold text-foreground">Guarded adjustment</div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <label className="flex flex-col gap-1 text-xs text-muted-foreground">
                     Type
-                    <select
-                      value={adjustmentType}
-                      onChange={(e) => setAdjustmentType(e.target.value as "issue" | "deduct")}
-                      className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
-                    >
-                      <option value="issue">Issue</option>
-                      <option value="deduct">Deduct</option>
-                    </select>
+                    <Select value={adjustmentType} onValueChange={(v) => { if (v) setAdjustmentType(v as "issue" | "deduct"); }}>
+                      <SelectTrigger className="w-full h-9 rounded-lg border-border bg-card px-3 text-sm text-foreground">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="issue">Issue</SelectItem>
+                        <SelectItem value="deduct">Deduct</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </label>
                   <label className="flex flex-col gap-1 text-xs text-muted-foreground">
                     Amount
@@ -489,7 +495,7 @@ export default function AdminUsersClient({
                       step={1}
                       value={adjustmentAmount}
                       onChange={(e) => setAdjustmentAmount(e.target.value)}
-                      className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+                      className="carnival-control px-3 py-2 text-sm text-foreground"
                     />
                   </label>
                   <label className="flex flex-col gap-1 text-xs text-muted-foreground md:col-span-2">
@@ -498,7 +504,7 @@ export default function AdminUsersClient({
                       value={adjustmentReason}
                       onChange={(e) => setAdjustmentReason(e.target.value)}
                       placeholder="Required reason for audit trail"
-                      className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+                      className="carnival-control px-3 py-2 text-sm text-foreground"
                     />
                   </label>
                 </div>
@@ -507,7 +513,7 @@ export default function AdminUsersClient({
                   <input
                     value={adjustmentConfirmation}
                     onChange={(e) => setAdjustmentConfirmation(e.target.value)}
-                    className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+                    className="carnival-control px-3 py-2 text-sm text-foreground"
                   />
                 </label>
                 <div className="flex justify-end">
@@ -515,7 +521,7 @@ export default function AdminUsersClient({
                     type="button"
                     onClick={() => void submitAdjustment()}
                     disabled={submittingAdjustment}
-                    className="rounded-full bg-carnival-red px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="rounded-[var(--radius-xl)] bg-carnival-red px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {submittingAdjustment ? "Applying…" : "Apply adjustment"}
                   </button>
@@ -531,7 +537,7 @@ export default function AdminUsersClient({
                     {ledgerData.ledger.map((row) => (
                       <div
                         key={row.id}
-                        className="rounded-xl border border-border bg-background px-4 py-3"
+                        className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-4 py-3"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="text-sm font-semibold text-foreground">

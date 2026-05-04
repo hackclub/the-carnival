@@ -102,7 +102,7 @@ export default function AdminAuditLogClient() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
+      <div className="platform-surface-card p-4 space-y-4">
         <div>
           <div className="text-foreground font-semibold text-lg">Audit filters</div>
           <div className="text-sm text-muted-foreground">
@@ -117,7 +117,7 @@ export default function AdminAuditLogClient() {
               value={formFilters.action}
               onChange={(e) => setFormFilters((prev) => ({ ...prev, action: e.target.value }))}
               placeholder="user_frozen"
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              className="rounded-lg  border-2 border-[var(--carnival-border)] bg-background px-3 py-2 text-sm text-foreground"
             />
           </label>
           <label className="text-xs text-muted-foreground flex flex-col gap-1">
@@ -125,7 +125,7 @@ export default function AdminAuditLogClient() {
             <input
               value={formFilters.actorId}
               onChange={(e) => setFormFilters((prev) => ({ ...prev, actorId: e.target.value }))}
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              className="rounded-lg  border-2 border-[var(--carnival-border)] bg-background px-3 py-2 text-sm text-foreground"
             />
           </label>
           <label className="text-xs text-muted-foreground flex flex-col gap-1">
@@ -133,7 +133,7 @@ export default function AdminAuditLogClient() {
             <input
               value={formFilters.targetUserId}
               onChange={(e) => setFormFilters((prev) => ({ ...prev, targetUserId: e.target.value }))}
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              className="rounded-lg  border-2 border-[var(--carnival-border)] bg-background px-3 py-2 text-sm text-foreground"
             />
           </label>
           <label className="text-xs text-muted-foreground flex flex-col gap-1">
@@ -142,7 +142,7 @@ export default function AdminAuditLogClient() {
               value={formFilters.from}
               onChange={(e) => setFormFilters((prev) => ({ ...prev, from: e.target.value }))}
               placeholder="2026-03-31T00:00:00Z"
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              className="rounded-lg  border-2 border-[var(--carnival-border)] bg-background px-3 py-2 text-sm text-foreground"
             />
           </label>
           <label className="text-xs text-muted-foreground flex flex-col gap-1">
@@ -151,7 +151,7 @@ export default function AdminAuditLogClient() {
               value={formFilters.to}
               onChange={(e) => setFormFilters((prev) => ({ ...prev, to: e.target.value }))}
               placeholder="2026-03-31T23:59:59Z"
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              className="rounded-lg  border-2 border-[var(--carnival-border)] bg-background px-3 py-2 text-sm text-foreground"
             />
           </label>
           <label className="text-xs text-muted-foreground flex flex-col gap-1">
@@ -162,7 +162,7 @@ export default function AdminAuditLogClient() {
               max={500}
               value={formFilters.limit}
               onChange={(e) => setFormFilters((prev) => ({ ...prev, limit: e.target.value }))}
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              className="rounded-lg  border-2 border-[var(--carnival-border)] bg-background px-3 py-2 text-sm text-foreground"
             />
           </label>
         </div>
@@ -180,7 +180,7 @@ export default function AdminAuditLogClient() {
                 limit: "100",
               })
             }
-            className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+            className="rounded-[var(--radius-xl)] border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
           >
             Clear form
           </button>
@@ -196,14 +196,14 @@ export default function AdminAuditLogClient() {
                 limit: "100",
               })
             }
-            className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+            className="rounded-[var(--radius-xl)] border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
           >
             Reset filters
           </button>
           <button
             type="button"
             onClick={() => setAppliedFilters(formFilters)}
-            className="rounded-full bg-carnival-red px-4 py-2 text-sm font-semibold text-white"
+            className="rounded-[var(--radius-xl)] bg-carnival-red px-4 py-2 text-sm font-semibold text-white"
           >
             Apply filters
           </button>
@@ -211,15 +211,15 @@ export default function AdminAuditLogClient() {
       </div>
 
       {loading ? (
-        <div className="rounded-2xl border border-border bg-card p-6 text-muted-foreground">Loading audit log…</div>
+        <div className="platform-surface-card p-6 text-muted-foreground">Loading audit log…</div>
       ) : error ? (
-        <div className="rounded-2xl border border-border bg-card p-6 text-red-600">{error}</div>
+        <div className="platform-surface-card p-6 text-red-600">{error}</div>
       ) : logs.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-card p-6 text-muted-foreground">No audit entries matched your filters.</div>
+        <div className="platform-surface-card p-6 text-muted-foreground">No audit entries matched your filters.</div>
       ) : (
         <div className="space-y-3">
           {logs.map((log) => (
-            <div key={log.id} className="rounded-2xl border border-border bg-card p-4 space-y-2">
+            <div key={log.id} className="platform-surface-card p-4 space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="font-semibold text-foreground">{log.action}</div>
                 <div className="text-xs text-muted-foreground">{new Date(log.createdAt).toLocaleString()}</div>
@@ -232,7 +232,7 @@ export default function AdminAuditLogClient() {
                   Target: <span className="text-foreground">{displayUser(log.targetUser)}</span>
                 </div>
               </div>
-              <pre className="mt-2 overflow-auto rounded-xl bg-background p-3 text-xs text-foreground border border-border">
+              <pre className="mt-2 overflow-auto rounded-[var(--radius-xl)] bg-background p-3 text-xs text-foreground border border-border">
                 {JSON.stringify(log.details ?? {}, null, 2)}
               </pre>
             </div>

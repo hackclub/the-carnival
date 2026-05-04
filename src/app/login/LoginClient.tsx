@@ -62,9 +62,9 @@ export default function LoginClient() {
       <Header showSectionLinks={false} />
 
       <div className="relative z-10 min-h-screen flex items-center justify-center px-6 py-16">
-        <div className="w-full max-w-lg bg-card/90 backdrop-blur rounded-3xl p-10 card-glow border border-border">
+        <div className="platform-surface-card w-full max-w-lg p-10">
           <div className="flex items-center gap-3 mb-6">
-            <div className="h-12 w-12 rounded-2xl bg-carnival-red/20 flex items-center justify-center text-2xl">
+            <div className="h-12 w-12 rounded-[var(--radius-2xl)] bg-carnival-red/20 flex items-center justify-center text-2xl">
               🎪
             </div>
             <div>
@@ -78,7 +78,7 @@ export default function LoginClient() {
           </div>
 
           {errorText ? (
-            <div className="mb-6 rounded-2xl border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
+            <div className="mb-6 rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
               {errorText}
             </div>
           ) : null}
@@ -87,7 +87,7 @@ export default function LoginClient() {
             type="button"
             onClick={startAuth}
             disabled={isLoading}
-            className="w-full bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-4 rounded-full font-bold text-lg transition-all carnival-glow hover:scale-[1.02]"
+            className="w-full bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-4 rounded-[var(--radius-xl)] font-bold text-lg transition-all carnival-glow hover:scale-[1.02]"
           >
             {isLoading ? "Opening Hack Club Identity…" : "Continue with Hack Club"}
           </button>
@@ -100,5 +100,4 @@ export default function LoginClient() {
     </div>
   );
 }
-
 

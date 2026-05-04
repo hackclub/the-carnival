@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import { getServerSession } from "@/lib/server-session";
 import { db } from "@/db";
-import { bountyClaim, bountyProject } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { bountyClaim, bountyProject, user } from "@/db/schema";
+import { desc, eq, or } from "drizzle-orm";
 import BountiesClient, { type BountyListItem } from "@/components/BountiesClient";
 
 function toHelpfulLinks(value: unknown): BountyListItem["helpfulLinks"] {
@@ -34,11 +34,22 @@ export default async function BountiesPage() {
       name: bountyProject.name,
       description: bountyProject.description,
       prizeUsd: bountyProject.prizeUsd,
+      status: bountyProject.status,
+      previewImageUrl: bountyProject.previewImageUrl,
+      requirements: bountyProject.requirements,
+      examples: bountyProject.examples,
       helpfulLinks: bountyProject.helpfulLinks,
       completed: bountyProject.completed,
+      createdById: bountyProject.createdById,
+      authorName: user.name,
+      reviewedById: bountyProject.reviewedById,
+      reviewedAt: bountyProject.reviewedAt,
+      rejectionReason: bountyProject.rejectionReason,
       createdAt: bountyProject.createdAt,
     })
     .from(bountyProject)
+    .leftJoin(user, eq(bountyProject.createdById, user.id))
+    .where(isAdmin ? undefined : or(eq(bountyProject.status, "approved"), eq(bountyProject.createdById, session.user.id)))
     .orderBy(desc(bountyProject.createdAt));
 
   const claims = await db
@@ -61,11 +72,21 @@ export default async function BountiesPage() {
       id: p.id,
       name: p.name,
       description: p.description,
+      status: p.status,
       prizeUsd: p.prizeUsd,
+      previewImageUrl: p.previewImageUrl ?? null,
+      requirements: p.requirements ?? "",
+      examples: p.examples ?? "",
       helpfulLinks: toHelpfulLinks(p.helpfulLinks),
       claimedCount: set.size,
       claimedByMe: set.has(session.user.id),
       completed: p.completed,
+      createdById: p.createdById ?? null,
+      authorName: p.authorName ?? null,
+      reviewedById: p.reviewedById ?? null,
+      reviewedAt: p.reviewedAt ? p.reviewedAt.toISOString() : null,
+      rejectionReason: p.rejectionReason ?? null,
+      createdAt: p.createdAt.toISOString(),
     };
   });
 

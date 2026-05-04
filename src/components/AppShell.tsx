@@ -1,10 +1,37 @@
-import Header from "@/components/Header";
 import AppSidebar from "@/components/AppSidebar";
-import { unstable_noStore as noStore } from "next/cache";
-import { getServerSession } from "@/lib/server-session";
+import DashboardTopBar from "@/components/DashboardTopBar";
+import { SidebarProvider } from "@/components/SidebarContext";
+import { PlatformContent, PlatformShell } from "@/components/ui/platform";
 import { db } from "@/db";
+import { getServerSession } from "@/lib/server-session";
 import { getTokenBalance } from "@/lib/wallet";
-import { PlatformContent, PlatformPageHeading, PlatformShell } from "@/components/ui/platform";
+
+type SafeShellUser = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  image: string | null;
+  role: string | null;
+};
+
+function toSafeShellUser(value: unknown): SafeShellUser | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as {
+    id?: unknown;
+    name?: unknown;
+    email?: unknown;
+    image?: unknown;
+    role?: unknown;
+  };
+  if (typeof row.id !== "string" || !row.id.trim()) return null;
+  return {
+    id: row.id,
+    name: typeof row.name === "string" ? row.name : null,
+    email: typeof row.email === "string" ? row.email : null,
+    image: typeof row.image === "string" ? row.image : null,
+    role: typeof row.role === "string" ? row.role : null,
+  };
+}
 
 export default async function AppShell({
   title,
@@ -13,34 +40,30 @@ export default async function AppShell({
   title: string;
   children: React.ReactNode;
 }) {
-  // Prevent Next from trying to prerender/cache DB-backed pages during `next build`
-  // (important for Docker builds where the DB isn't reachable).
-  noStore();
-
   const session = await getServerSession({ disableCookieCache: true });
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  const initialWalletBalance = userId ? await getTokenBalance(db, userId) : null;
+  const shellUser = toSafeShellUser(session?.user ?? null);
+  const walletBalance = shellUser ? await getTokenBalance(db, shellUser.id) : null;
+  const walletFetchedAt = new Date().toISOString();
 
   return (
     <PlatformShell>
-      <div className="flex flex-col md:flex-row min-h-screen">
-        <AppSidebar />
+      <SidebarProvider>
+        <div className="flex min-h-screen">
+          <AppSidebar
+            user={shellUser}
+            initialWalletBalance={walletBalance}
+            walletFetchedAt={walletFetchedAt}
+          />
 
-        <main className="flex-1">
-          <div className="px-4 pt-4 md:px-6 md:pt-5">
-            <div className="max-w-6xl mx-auto platform-topbar-surface">
-              <Header showSectionLinks={false} initialWalletBalance={initialWalletBalance} />
-            </div>
-          </div>
+          <main className="flex-1 min-w-0">
+            <DashboardTopBar title={title} />
 
-          <PlatformContent>
-            <PlatformPageHeading title={title} />
-
-            {children}
-          </PlatformContent>
-        </main>
-      </div>
+            <PlatformContent className="pt-6 md:pt-8">
+              {children}
+            </PlatformContent>
+          </main>
+        </div>
+      </SidebarProvider>
     </PlatformShell>
   );
 }
-

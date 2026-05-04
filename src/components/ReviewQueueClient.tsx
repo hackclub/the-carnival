@@ -11,6 +11,13 @@ import {
   normalizeCategory,
   normalizeTag,
 } from "@/lib/project-taxonomy";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export type ReviewQueueProject = {
   id: string;
@@ -224,7 +231,7 @@ export default function ReviewQueueClient() {
 
   if (projects === null) {
     return (
-      <div className="bg-card border border-border rounded-2xl p-8">
+      <div className="platform-surface-card p-8">
         <div className="text-foreground font-semibold text-lg">Loading projects…</div>
         <div className="text-muted-foreground mt-1">Fetching the latest review queue.</div>
       </div>
@@ -233,7 +240,7 @@ export default function ReviewQueueClient() {
 
   if (error) {
     return (
-      <div className="bg-card border border-border rounded-2xl p-8">
+      <div className="platform-surface-card p-8">
         <div className="text-foreground font-semibold text-lg">Could not load projects</div>
         <div className="text-muted-foreground mt-1">{error}</div>
       </div>
@@ -242,7 +249,7 @@ export default function ReviewQueueClient() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-card border border-border rounded-2xl p-4 md:p-5">
+      <div className="platform-surface-card p-4 md:p-5">
         <form onSubmit={onSearchSubmit} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
           <label className="xl:col-span-2">
             <span className="block text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">
@@ -252,49 +259,53 @@ export default function ReviewQueueClient() {
               value={queryDraft}
               onChange={(event) => setQueryDraft(event.target.value)}
               placeholder="Project, description, creator…"
-              className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              className="w-full bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
             />
           </label>
-          <label>
+          <div>
             <span className="block text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">
               Sort
             </span>
-            <select
+            <Select
               value={activeSort}
-              onChange={(event) =>
-                replaceParams((params) => params.set("sort", event.target.value))
-              }
-              className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              onValueChange={(v) => { if (v) replaceParams((params) => params.set("sort", v)); }}
             >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
+              <SelectTrigger className="w-full h-11 rounded-[var(--radius-xl)] border-input bg-background px-3 text-sm text-foreground">
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
             <span className="block text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">
               Assignment
             </span>
-            <select
+            <Select
               value={activeAssignment}
-              onChange={(event) =>
-                replaceParams((params) => params.set("assignment", event.target.value))
-              }
-              className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              onValueChange={(v) => { if (v) replaceParams((params) => params.set("assignment", v)); }}
             >
-              {ASSIGNMENT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+              <SelectTrigger className="w-full h-11 rounded-[var(--radius-xl)] border-input bg-background px-3 text-sm text-foreground">
+                <SelectValue placeholder="Assignment" />
+              </SelectTrigger>
+              <SelectContent>
+                {ASSIGNMENT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex items-end">
             <button
               type="submit"
-              className="w-full inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 text-white px-4 py-2.5 rounded-xl font-semibold transition-colors"
+              className="w-full inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 text-white px-4 py-2.5 rounded-[var(--radius-xl)] font-semibold transition-colors"
             >
               Apply
             </button>
@@ -302,57 +313,65 @@ export default function ReviewQueueClient() {
         </form>
 
         <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label>
+          <div>
             <span className="block text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">
               Category
             </span>
-            <select
-              value={activeCategory ?? ""}
-              onChange={(event) =>
+            <Select
+              value={activeCategory ?? "__all__"}
+              onValueChange={(v) => {
+                if (!v) return;
                 replaceParams((params) => {
-                  const next = event.target.value;
-                  if (next) params.set("category", next);
-                  else params.delete("category");
-                })
-              }
-              className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  if (v === "__all__") params.delete("category");
+                  else params.set("category", v);
+                });
+              }}
             >
-              <option value="">All categories</option>
-              {availableCategories.map((value) => (
-                <option key={value} value={value}>
-                  {formatCategoryLabel(value) ?? value}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
+              <SelectTrigger className="w-full h-11 rounded-[var(--radius-xl)] border-input bg-background px-3 text-sm text-foreground">
+                <SelectValue placeholder="All categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All categories</SelectItem>
+                {availableCategories.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {formatCategoryLabel(value) ?? value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
             <span className="block text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">
               Tag
             </span>
-            <select
-              value={activeTag ?? ""}
-              onChange={(event) =>
+            <Select
+              value={activeTag ?? "__all__"}
+              onValueChange={(v) => {
+                if (!v) return;
                 replaceParams((params) => {
-                  const next = event.target.value;
-                  if (next) params.set("tag", next);
-                  else params.delete("tag");
-                })
-              }
-              className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  if (v === "__all__") params.delete("tag");
+                  else params.set("tag", v);
+                });
+              }}
             >
-              <option value="">All tags</option>
-              {availableTags.map((value) => (
-                <option key={value} value={value}>
-                  {formatTagLabel(value) ?? value}
-                </option>
-              ))}
-            </select>
-          </label>
+              <SelectTrigger className="w-full h-11 rounded-[var(--radius-xl)] border-input bg-background px-3 text-sm text-foreground">
+                <SelectValue placeholder="All tags" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All tags</SelectItem>
+                {availableTags.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {formatTagLabel(value) ?? value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
       {projects.length === 0 ? (
-        <div className="bg-card border border-border rounded-2xl p-8">
+        <div className="platform-surface-card p-8">
           <div className="text-foreground font-semibold text-lg">No projects match these filters</div>
           <div className="text-muted-foreground mt-1">
             Adjust search, assignment, category, or tag filters to broaden the queue.
@@ -370,7 +389,7 @@ export default function ReviewQueueClient() {
               <Link
                 key={projectRow.id}
                 href={`/review/${projectRow.id}`}
-                className="bg-card border border-border rounded-2xl p-5 card-glow transition-all hover:bg-muted block h-full min-h-[340px]"
+                className="platform-surface-card p-5 card-glow transition-all hover:bg-muted block h-full min-h-[340px]"
                 aria-label={`Review ${projectRow.name}`}
               >
                 <div className="flex h-full flex-col">
@@ -415,14 +434,14 @@ export default function ReviewQueueClient() {
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     {categoryLabel ? (
-                      <span className="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+                      <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-muted px-2.5 py-1 text-xs text-foreground">
                         {categoryLabel}
                       </span>
                     ) : null}
                     {tagLabels.slice(0, 3).map((tag) => (
                       <span
                         key={`${projectRow.id}-${tag}`}
-                        className="inline-flex items-center rounded-full border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                        className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-background px-2 py-1 text-[11px] text-muted-foreground"
                       >
                         #{tag}
                       </span>
