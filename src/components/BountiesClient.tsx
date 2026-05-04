@@ -621,7 +621,7 @@ export default function BountiesClient({
               >
                 <Link href={`/bounties/${encodeURIComponent(b.id)}`} className="block -mx-1 -mt-1 rounded-[var(--radius-xl)] p-1 hover:bg-background/40">
                   {b.previewImageUrl ? (
-                    <div className="mb-4 h-40 overflow-hidden rounded-[var(--radius-xl)] border border-border bg-muted">
+                    <div className="mb-4 h-40 overflow-hidden rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={b.previewImageUrl}
@@ -651,7 +651,7 @@ export default function BountiesClient({
                     </div>
                     <RichTextContent value={b.description} className="mt-2 text-muted-foreground" clamp />
                     {b.requirements ? (
-                      <div className="mt-3 rounded-[var(--radius-xl)] border border-border bg-muted/40 px-3 py-2 text-sm">
+                      <div className="mt-3 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted/40 px-3 py-2 text-sm">
                         <div className="font-semibold text-foreground">Requirements</div>
                         <RichTextContent value={b.requirements} className="mt-1 text-muted-foreground" clamp />
                       </div>
@@ -680,7 +680,7 @@ export default function BountiesClient({
 
                 {isOfficial ? (
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-[var(--radius-2xl)] border border-border bg-muted/40 px-4 py-3">
+                    <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted/40 px-4 py-3">
                       <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
                         Hours Equivalent
                       </div>
@@ -688,7 +688,7 @@ export default function BountiesClient({
                         {formatHoursLabel(equivalentHours)}
                       </div>
                     </div>
-                    <div className="rounded-[var(--radius-2xl)] border border-border bg-muted/40 px-4 py-3">
+                    <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted/40 px-4 py-3">
                       <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
                         Minimum Hours
                       </div>

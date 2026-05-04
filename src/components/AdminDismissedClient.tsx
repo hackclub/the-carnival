@@ -92,7 +92,7 @@ export default function AdminDismissedClient({
 
   return (
     <div className="space-y-6">
-      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6">
+      <div className="platform-surface-card p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="text-foreground font-bold text-2xl truncate">{project.name}</div>
@@ -108,7 +108,7 @@ export default function AdminDismissedClient({
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-4">
+      <div className="platform-surface-card p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Dismissal</div>
         {project.resubmissionBlocked ? (
           <>
@@ -119,14 +119,14 @@ export default function AdminDismissedClient({
                 resubmission.
               </div>
             </div>
-            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-sm">
+            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 text-sm">
               <div className="text-muted-foreground mb-1">Reason shown to the creator</div>
               <div className="text-foreground whitespace-pre-wrap">
                 {project.resubmissionBlockedReason?.trim() || "(no reason provided)"}
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
+              <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
                 <div className="text-muted-foreground mb-1">Dismissed at</div>
                 <div className="text-foreground font-medium">
                   {project.resubmissionBlockedAt
@@ -134,7 +134,7 @@ export default function AdminDismissedClient({
                     : "—"}
                 </div>
               </div>
-              <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
+              <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
                 <div className="text-muted-foreground mb-1">Dismissed by</div>
                 <div className="text-foreground font-medium">
                   {initial.dismissedBy ? initial.dismissedBy.name : "Unknown admin"}
@@ -158,7 +158,7 @@ export default function AdminDismissedClient({
             </div>
           </>
         ) : (
-          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 text-sm text-muted-foreground">
             This project is not currently blocked from resubmission.{" "}
             <Link href="/admin/dismissed" className="text-foreground font-semibold underline">
               Back to dismissed projects
@@ -169,7 +169,7 @@ export default function AdminDismissedClient({
       </div>
 
       {initial.latestRejection ? (
-        <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-3">
+        <div className="platform-surface-card p-6 space-y-3">
           <div className="text-foreground font-semibold text-lg">Most recent review</div>
           <div className="text-sm text-muted-foreground">
             {initial.latestRejection.reviewerName}
@@ -178,13 +178,13 @@ export default function AdminDismissedClient({
             ) : null}
             <span> &middot; {new Date(initial.latestRejection.createdAt).toLocaleString()}</span>
           </div>
-          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-sm text-foreground whitespace-pre-wrap">
+          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 text-sm text-foreground whitespace-pre-wrap">
             {initial.latestRejection.reviewComment || "(no comment)"}
           </div>
         </div>
       ) : null}
 
-      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-2">
+      <div className="platform-surface-card p-6 space-y-2">
         <div className="text-foreground font-semibold text-lg">Project</div>
         <div className="text-muted-foreground whitespace-pre-wrap leading-7">
           {project.description}
@@ -208,7 +208,7 @@ export default function AdminDismissedClient({
         maxWidth="md"
       >
         <div className="space-y-4">
-          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 text-sm text-muted-foreground">
             Re-enabling does not change the project&rsquo;s current status. The creator will still
             need to address any feedback from prior reviews before resubmitting.
           </div>
@@ -220,7 +220,7 @@ export default function AdminDismissedClient({
                 setConfirmOpen(false);
               }}
               disabled={saving}
-              className="inline-flex items-center justify-center rounded-[var(--radius-xl)] border border-border bg-background px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center justify-center rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
               Cancel
             </button>

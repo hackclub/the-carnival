@@ -737,7 +737,7 @@ export default function ManageProjectClient({
         if (code === "missing_profile_address") {
           toast.custom(
             (t) => (
-              <div className="bg-card border border-border rounded-[var(--radius-2xl)] px-4 py-3 shadow-xl max-w-[520px]">
+              <div className="platform-surface-card px-4 py-3 shadow-xl max-w-[520px]">
                 <div className="text-foreground font-semibold">Shipping address required</div>
                 <div className="text-muted-foreground text-sm mt-1">{message}</div>
                 <div className="mt-3 flex items-center justify-end gap-3">
@@ -835,7 +835,7 @@ export default function ManageProjectClient({
 
   return (
     <div className="space-y-6">
-      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6">
+      <div className="platform-surface-card p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="text-foreground font-bold text-2xl truncate">{name || "Project"}</div>
@@ -858,7 +858,7 @@ export default function ManageProjectClient({
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-4">
+      <div className="platform-surface-card p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Status</div>
         {isGranted ? (
           <div className="text-sm text-muted-foreground">This project has been granted. Editing is locked.</div>
@@ -905,9 +905,9 @@ export default function ManageProjectClient({
         )}
       </div>
 
-      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-4">
+      <div className="platform-surface-card p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Originality declaration</div>
-        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 space-y-3">
+        <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4 space-y-3">
           <div className="text-sm text-muted-foreground">Creator statement</div>
           <div className="text-foreground font-semibold">
             {creatorDeclaredOriginality
@@ -933,14 +933,14 @@ export default function ManageProjectClient({
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-4">
+      <div className="platform-surface-card p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Reviewer comments</div>
         {reviews.length === 0 ? (
           <div className="text-muted-foreground">No comments yet.</div>
         ) : (
           <div className="space-y-3">
             {reviews.map((r) => (
-              <div key={r.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
+              <div key={r.id} className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-foreground font-semibold truncate">
@@ -965,7 +965,7 @@ export default function ManageProjectClient({
         )}
       </div>
 
-      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-5">
+      <div className="platform-surface-card p-6 space-y-5">
         <div className="text-foreground font-semibold text-lg">Project details</div>
 
         <fieldset disabled={saving || isGranted} className={isGranted ? "opacity-60" : ""}>
@@ -1070,7 +1070,7 @@ export default function ManageProjectClient({
               </div>
             </div>
             {hackatimeProjectName ? (
-              <div className="rounded-[var(--radius-xl)] border border-border bg-muted px-3 py-3 space-y-3">
+              <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted px-3 py-3 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="block">
                     <div className="text-xs text-muted-foreground mb-1">Considered start date</div>
@@ -1158,7 +1158,7 @@ export default function ManageProjectClient({
                     key={tag}
                     type="button"
                     onClick={() => setTagsInput((prev) => appendCsvToken(prev, tag))}
-                    className="rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-muted/70 transition-colors"
+                    className="rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-muted/70 transition-colors"
                   >
                     {tag}
                   </button>
@@ -1247,7 +1247,7 @@ export default function ManageProjectClient({
           </div>
           <div className="space-y-3">
             {screenshotUrls.map((value, idx) => (
-              <div key={idx} className="rounded-[var(--radius-2xl)] border border-border bg-card p-4 space-y-3">
+              <div key={idx} className="platform-surface-card p-4 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm text-muted-foreground font-medium">Screenshot {idx + 1}</div>
                   <button
@@ -1305,7 +1305,7 @@ export default function ManageProjectClient({
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 space-y-3">
+      <div className="platform-surface-card p-6 space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
             <div className="text-foreground font-semibold text-lg">Delete project</div>
@@ -1346,12 +1346,12 @@ export default function ManageProjectClient({
       >
         {submitStep === 0 ? (
           <div className="space-y-4">
-            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
+            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4 text-sm text-muted-foreground">
               You can’t submit until these are set: GitHub URL, video link, playable demo link, Hackatime project name, considered Hackatime range, and at least one screenshot.
             </div>
 
             <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
+              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">GitHub URL</div>
                 <div
                   className={[
@@ -1364,7 +1364,7 @@ export default function ManageProjectClient({
                   {submitRequirements.githubOk ? "Set" : "Missing/invalid"}
                 </div>
               </div>
-              <div className="flex items-center justify-between border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
+              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
               <div className="text-foreground">Video link</div>
               <div
                 className={[
@@ -1377,7 +1377,7 @@ export default function ManageProjectClient({
                 {submitRequirements.demoOk ? "Set" : "Missing/invalid"}
               </div>
             </div>
-            <div className="flex items-center justify-between border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
+            <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">Playable demo link</div>
                 <div
                   className={[
@@ -1390,7 +1390,7 @@ export default function ManageProjectClient({
                   {submitRequirements.playableOk ? "Set" : "Missing/invalid"}
                 </div>
               </div>
-              <div className="flex items-center justify-between border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
+              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">Hackatime project name</div>
                 <div
                   className={[
@@ -1403,7 +1403,7 @@ export default function ManageProjectClient({
                   {submitRequirements.hackatimeOk ? "Set" : "Missing"}
                 </div>
               </div>
-              <div className="flex items-center justify-between border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
+              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">Considered Hackatime range</div>
                 <div
                   className={[
@@ -1416,7 +1416,7 @@ export default function ManageProjectClient({
                   {submitConsideredRange.ok ? "Set" : "Missing/invalid"}
                 </div>
               </div>
-              <div className="flex items-center justify-between border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
+              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">Screenshots</div>
                 <div
                   className={[
@@ -1430,7 +1430,7 @@ export default function ManageProjectClient({
                 </div>
               </div>
               {editor === "other" ? (
-                <div className="flex items-center justify-between border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
+                <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
                   <div className="text-foreground">Other editor name</div>
                   <div
                     className={[
@@ -1446,7 +1446,7 @@ export default function ManageProjectClient({
               ) : null}
             </div>
 
-            <div className="rounded-[var(--radius-2xl)] border border-border bg-background px-4 py-4 space-y-3">
+            <div className="rounded-[var(--radius-2xl)]  border-2 border-[var(--carnival-border)] bg-background px-4 py-4 space-y-3">
               <div>
                 <div className="text-foreground font-semibold">Considered Hackatime range</div>
                 <div className="text-sm text-muted-foreground mt-1">
@@ -1490,7 +1490,7 @@ export default function ManageProjectClient({
         ) : (
           isReReview ? (
             <div className="space-y-4">
-              <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
+              <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4">
                 <div className="text-sm text-foreground font-semibold">Most recent rejection feedback</div>
                 <div className="text-xs text-muted-foreground mt-1">
                   {latestRejectedReview
@@ -1540,7 +1540,7 @@ export default function ManageProjectClient({
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
+              <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 text-xs text-muted-foreground">
                 Required items must be checked. Optional items are recorded for reviewer context.
               </div>
               <div className="space-y-3">

@@ -495,7 +495,7 @@ export default function NewDevlogForm({
           </div>
 
           {!canEditWindow ? (
-            <div className="rounded-[var(--radius-xl)] border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+            <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted px-3 py-2 text-sm text-muted-foreground">
               {windowLockedReason ??
                 "The time window for this devlog is locked because newer devlogs exist. Edit title, description, attachments, or AI declaration only."}
             </div>
@@ -526,7 +526,7 @@ export default function NewDevlogForm({
                 {windowError}
               </div>
             ) : (
-              <div className="rounded-[var(--radius-xl)] border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+              <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted px-3 py-2 text-sm text-muted-foreground">
                 {previewLabel}
               </div>
             )

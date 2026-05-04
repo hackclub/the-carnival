@@ -267,7 +267,7 @@ export default function AdminShopClient({
             ) : (
               <div className="flex flex-col gap-3">
                 {pendingSuggestions.map((s) => (
-                  <Card key={s.id}>
+                  <Card key={s.id} variant="flat">
                     <CardContent className="pt-5">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="min-w-0">
@@ -343,13 +343,13 @@ export default function AdminShopClient({
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
               {initial.items.map((i) => (
-                <Card key={i.id}>
+                <Card key={i.id} variant="flat">
                   <CardContent className="pt-5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={i.imageUrl}
                       alt=""
-                      className="h-40 w-full rounded-[var(--radius-xl)] border border-border bg-background object-cover"
+                      className="h-40 w-full rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background object-cover"
                       referrerPolicy="no-referrer"
                     />
                     <div className="mt-3">
@@ -430,7 +430,7 @@ export default function AdminShopClient({
             ) : (
               <div className="mt-4 flex flex-col gap-3">
                 {filteredOrders.map((o) => (
-                  <Card key={o.id}>
+                  <Card key={o.id} variant="flat">
                     <CardContent className="pt-5">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex min-w-0 items-start gap-3">
@@ -438,7 +438,7 @@ export default function AdminShopClient({
                           <img
                             src={o.itemImageUrl}
                             alt={o.itemName}
-                            className="h-16 w-16 shrink-0 rounded-lg border border-border bg-background object-cover"
+                            className="h-16 w-16 shrink-0 rounded-lg  border-2 border-[var(--carnival-border)] bg-background object-cover"
                             referrerPolicy="no-referrer"
                           />
                           <div className="min-w-0">
@@ -480,14 +480,14 @@ export default function AdminShopClient({
       >
         {selectedOrder ? (
           <div className="flex flex-col gap-6">
-            <Card>
+            <Card variant="flat">
               <CardContent className="pt-5">
                 <div className="flex flex-col gap-4 md:flex-row">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={selectedOrder.itemImageUrl}
                     alt={selectedOrder.itemName}
-                    className="h-48 w-full shrink-0 rounded-[var(--radius-xl)] border border-border bg-background object-cover md:w-48"
+                    className="h-48 w-full shrink-0 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background object-cover md:w-48"
                     referrerPolicy="no-referrer"
                   />
                   <div className="min-w-0">

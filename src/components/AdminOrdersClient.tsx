@@ -160,7 +160,7 @@ export default function AdminOrdersClient({
 
   return (
     <div className="space-y-8">
-      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-6">
+      <div className="platform-surface-card p-6">
         <div className="mb-4 flex flex-wrap gap-2">
           {ORDER_FILTERS.map((f) => {
             const isActive = f.value === activeFilter;
@@ -216,14 +216,14 @@ export default function AdminOrdersClient({
         ) : (
           <div className="space-y-3 mt-4">
             {filteredOrders.map((o) => (
-              <div key={o.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
+              <div key={o.id} className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div className="min-w-0 flex items-start gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={o.itemImageUrl}
                       alt={o.itemName}
-                      className="w-16 h-16 object-cover rounded-lg border border-border bg-background shrink-0"
+                      className="w-16 h-16 object-cover rounded-lg  border-2 border-[var(--carnival-border)] bg-background shrink-0"
                       referrerPolicy="no-referrer"
                     />
                     <div className="min-w-0">
@@ -273,13 +273,13 @@ export default function AdminOrdersClient({
       >
         {selectedOrder ? (
           <div className="space-y-6">
-            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted p-4">
+            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted p-4">
               <div className="flex flex-col md:flex-row gap-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={selectedOrder.itemImageUrl}
                   alt={selectedOrder.itemName}
-                  className="w-full md:w-48 h-48 object-cover rounded-[var(--radius-xl)] border border-border bg-background shrink-0"
+                  className="w-full md:w-48 h-48 object-cover rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background shrink-0"
                   referrerPolicy="no-referrer"
                 />
                 <div className="min-w-0">

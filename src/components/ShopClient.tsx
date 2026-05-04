@@ -254,13 +254,13 @@ export default function ShopClient({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-6">
             {items.map((i) => (
-              <Card key={i.id}>
+              <Card key={i.id} variant="flat">
                 <CardContent className="pt-5">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={i.imageUrl}
                   alt=""
-                  className="h-44 w-full rounded-[var(--radius-xl)] border border-border bg-background object-cover"
+                  className="h-44 w-full rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background object-cover"
                   referrerPolicy="no-referrer"
                 />
                 <div className="mt-4 flex flex-col gap-1">
@@ -307,7 +307,7 @@ export default function ShopClient({
         ) : (
           <div className="flex flex-col gap-3">
             {initial.orders.map((o) => (
-              <Card key={o.id}>
+              <Card key={o.id} variant="flat">
                 <CardContent className="pt-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
@@ -372,7 +372,7 @@ export default function ShopClient({
               onChange={(e) => setQuantity(e.target.value)}
               disabled={busyItemId === selectedItem.id}
             />
-            <div className="rounded-[var(--radius-xl)] border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+            <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted px-3 py-2 text-sm text-muted-foreground">
               Total:{" "}
               <span className="font-semibold text-foreground">
                 {calculateShopOrderTotal(selectedItem.tokenCost, Number(quantity) || 1)} tokens
@@ -447,7 +447,7 @@ export default function ShopClient({
             placeholder="https://..."
             disabled={suggestBusy}
           />
-          <label className="flex items-start gap-3 rounded-[var(--radius-xl)] border border-border bg-muted px-4 py-3">
+          <label className="flex items-start gap-3 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
             <input
               type="checkbox"
               className="mt-1 h-4 w-4 accent-carnival-blue"
@@ -503,7 +503,7 @@ export default function ShopClient({
         ) : (
           <div className="flex flex-col gap-3">
             {initial.suggestions.map((s) => (
-              <Card key={s.id}>
+              <Card key={s.id} variant="flat">
                 <CardContent className="pt-5">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
@@ -540,7 +540,7 @@ export default function ShopClient({
           ) : (
             <div className="space-y-3">
               {initial.ledger.map((l) => (
-                <div key={l.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
+                <div key={l.id} className="platform-nested-surface px-4 py-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="text-foreground font-semibold truncate">{l.reason}</div>

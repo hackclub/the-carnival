@@ -141,7 +141,7 @@ export default function ReviewHackatimeTools({
         </div>
 
         {/* Outbound review tool links */}
-        <div className="rounded-[var(--radius-xl)] border border-border bg-muted/30 p-4">
+        <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted/30 p-4">
           <div className="text-sm font-semibold text-foreground mb-3">
             Open in external review tools
           </div>
@@ -167,7 +167,7 @@ export default function ReviewHackatimeTools({
         </div>
 
         {/* Inline live Hackatime stats */}
-        <div className="rounded-[var(--radius-xl)] border border-border bg-muted/30 p-4">
+        <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted/30 p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm font-semibold text-foreground">
               Live Hackatime stats
@@ -224,7 +224,7 @@ export default function ReviewHackatimeTools({
                 </span>
               </div>
 
-              <div className="rounded-lg border border-border bg-background/50 p-3">
+              <div className="rounded-lg  border-2 border-[var(--carnival-border)] bg-background/50 p-3">
                 <div className="text-xs text-muted-foreground">
                   Hackatime project:{" "}
                   <code className="text-foreground">

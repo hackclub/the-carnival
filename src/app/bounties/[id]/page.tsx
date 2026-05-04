@@ -96,7 +96,7 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           {bounty.previewImageUrl ? (
-            <div className="overflow-hidden rounded-[var(--radius-2xl)] border border-border bg-muted">
+            <div className="overflow-hidden rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={bounty.previewImageUrl}
@@ -107,7 +107,7 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
             </div>
           ) : null}
 
-          <div className="rounded-[var(--radius-2xl)] border border-border bg-card p-6">
+          <div className="platform-surface-card p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -153,7 +153,7 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
                       href={link.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-full border border-border bg-muted px-3 py-1 text-sm font-semibold text-carnival-blue hover:bg-muted/70"
+                      className="rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-muted px-3 py-1 text-sm font-semibold text-carnival-blue hover:bg-muted/70"
                     >
                       {link.label}
                     </Link>
@@ -169,7 +169,7 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
             ) : null}
           </div>
 
-          <section className="rounded-[var(--radius-2xl)] border border-border bg-card p-6">
+          <section className="platform-surface-card p-6">
             <div className="flex items-center justify-between gap-4">
               <h2 className="text-xl font-semibold text-foreground">Projects that made it</h2>
               <div className="text-sm text-muted-foreground">{acceptedProjects.length} granted</div>
@@ -182,9 +182,9 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
                 {acceptedProjects.map((p) => {
                   const firstScreenshot = p.screenshots.find((url) => url.trim().length > 0);
                   return (
-                    <article key={p.id} className="rounded-[var(--radius-xl)] border border-border bg-muted/40 p-4">
+                    <article key={p.id} className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted/40 p-4">
                       {firstScreenshot ? (
-                        <div className="mb-3 h-32 overflow-hidden rounded-[var(--radius-lg)] border border-border bg-muted">
+                        <div className="mb-3 h-32 overflow-hidden rounded-[var(--radius-lg)]  border-2 border-[var(--carnival-border)] bg-muted">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={firstScreenshot}
@@ -215,7 +215,7 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
                             href={p.playableDemoUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="rounded-[var(--radius-xl)] border border-border bg-background px-3 py-1.5 text-sm font-semibold text-foreground hover:bg-muted"
+                            className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-3 py-1.5 text-sm font-semibold text-foreground hover:bg-muted"
                           >
                             Play
                           </Link>
@@ -224,7 +224,7 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
                           href={p.codeUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="rounded-[var(--radius-xl)] border border-border bg-background px-3 py-1.5 text-sm font-semibold text-foreground hover:bg-muted"
+                          className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-3 py-1.5 text-sm font-semibold text-foreground hover:bg-muted"
                         >
                           Code
                         </Link>
@@ -237,7 +237,7 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
           </section>
         </div>
 
-        <aside className="h-fit rounded-[var(--radius-2xl)] border border-border bg-card p-6">
+        <aside className="h-fit platform-surface-card p-6">
           <div className="text-sm text-muted-foreground">Claims</div>
           <div className="mt-1 text-2xl font-bold text-foreground">{claimedUserIds.size}/2</div>
           <div className="mt-4 text-sm text-muted-foreground">

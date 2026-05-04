@@ -170,7 +170,7 @@ function DevlogItem({
   }
 
   return (
-    <li className="rounded-[var(--radius-xl)] border border-border bg-background/60 p-4 space-y-3">
+    <li className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background/60 p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -229,7 +229,7 @@ function DevlogItem({
               href={url}
               target="_blank"
               rel="noreferrer noopener"
-              className="block overflow-hidden rounded-lg border border-border bg-muted"
+              className="block overflow-hidden rounded-lg  border-2 border-[var(--carnival-border)] bg-muted"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

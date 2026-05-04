@@ -143,7 +143,7 @@ export function DevlogAttachmentsInput({
           {value.map((url, idx) => (
             <div
               key={`${url}-${idx}`}
-              className="relative rounded-[var(--radius-xl)] border border-border bg-muted overflow-hidden"
+              className="relative rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted overflow-hidden"
             >
               <div className="aspect-square">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -161,7 +161,7 @@ export default async function PublicProjectPage(props: {
                   href={p.codeUrl}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
+                  className="rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
                 >
                   Code
                 </a>
@@ -171,7 +171,7 @@ export default async function PublicProjectPage(props: {
                   href={p.playableDemoUrl}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
+                  className="rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
                 >
                   Playable demo
                 </a>
@@ -181,7 +181,7 @@ export default async function PublicProjectPage(props: {
                   href={p.videoUrl}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
+                  className="rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
                 >
                   Demo video
                 </a>
@@ -264,7 +264,7 @@ export default async function PublicProjectPage(props: {
                               href={url}
                               target="_blank"
                               rel="noreferrer noopener"
-                              className="block overflow-hidden rounded-lg border border-border bg-muted"
+                              className="block overflow-hidden rounded-lg  border-2 border-[var(--carnival-border)] bg-muted"
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img

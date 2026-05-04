@@ -622,7 +622,7 @@ export default function CreateProjectModal({
             </div>
           ) : null}
 
-          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 text-sm text-foreground">
+          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4 text-sm text-foreground">
             <div className="font-semibold">Before you create a project</div>
             <ul className="mt-2 list-disc pl-5 space-y-1 text-muted-foreground">
               <li>
@@ -644,14 +644,14 @@ export default function CreateProjectModal({
             </ul>
           </div>
 
-          <div className="rounded-[var(--radius-2xl)] border border-border bg-card px-4 py-4 space-y-3">
+          <div className="platform-surface-card px-4 py-4 space-y-3">
             <div className="text-sm font-semibold text-foreground">Originality declaration</div>
             <div className="text-xs text-muted-foreground">
               Confirm whether your project overlaps with prior submissions. If it does, explain what
               makes this one meaningfully different.
             </div>
             <div className="space-y-2">
-              <label className="flex items-start gap-3 rounded-[var(--radius-xl)] border border-border bg-background px-3 py-2">
+              <label className="flex items-start gap-3 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-3 py-2">
                 <input
                   type="radio"
                   name="originalityDeclaration"
@@ -668,7 +668,7 @@ export default function CreateProjectModal({
                   I checked existing submissions and this project does not overlap.
                 </span>
               </label>
-              <label className="flex items-start gap-3 rounded-[var(--radius-xl)] border border-border bg-background px-3 py-2">
+              <label className="flex items-start gap-3 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-3 py-2">
                 <input
                   type="radio"
                   name="originalityDeclaration"
@@ -801,7 +801,7 @@ export default function CreateProjectModal({
                 You can’t type here — choose a project from the dropdown below.
               </div>
               {hackatimeProjectName ? (
-                <div className="rounded-[var(--radius-xl)] border border-border bg-muted px-3 py-3 space-y-3">
+                <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted px-3 py-3 space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <label className="block">
                       <div className="text-xs text-muted-foreground mb-1">Considered start date</div>
@@ -836,7 +836,7 @@ export default function CreateProjectModal({
 
               <details
                 ref={hackatimeDetailsRef}
-                className="rounded-[var(--radius-2xl)] border border-border bg-muted overflow-hidden"
+                className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted overflow-hidden"
                 onToggle={onHackatimeToggle}
               >
                 <summary className="cursor-pointer select-none px-4 py-3 text-sm text-foreground flex items-center justify-between">
@@ -928,7 +928,7 @@ export default function CreateProjectModal({
                     key={tag}
                     type="button"
                     onClick={() => setTagsInput((prev) => appendCsvToken(prev, tag))}
-                    className="rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-muted/70 transition-colors"
+                    className="rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-muted/70 transition-colors"
                   >
                     {tag}
                   </button>
@@ -1021,7 +1021,7 @@ export default function CreateProjectModal({
           </div>
           <div className="space-y-3">
             {screenshotUrls.map((value, idx) => (
-              <div key={idx} className="rounded-[var(--radius-2xl)] border border-border bg-card p-4 space-y-3">
+              <div key={idx} className="platform-surface-card p-4 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm text-muted-foreground font-medium">Screenshot {idx + 1}</div>
                   <button

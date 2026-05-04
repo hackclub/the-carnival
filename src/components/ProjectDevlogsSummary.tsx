@@ -106,7 +106,7 @@ export default function ProjectDevlogsSummary({
                 <li key={d.id}>
                   <Link
                     href={`/projects/${projectId}/devlogs/${d.id}`}
-                    className="block rounded-[var(--radius-xl)] border border-border bg-background/60 px-4 py-3 transition-colors hover:bg-muted"
+                    className="block rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background/60 px-4 py-3 transition-colors hover:bg-muted"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">

@@ -296,9 +296,9 @@ export default function ResourcesClient({
               <div className="flex items-center gap-3">
                 {ed.iconUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={ed.iconUrl} alt="" className="h-10 w-10 rounded-[var(--radius-xl)] border border-border bg-muted object-cover" />
+                  <img src={ed.iconUrl} alt="" className="h-10 w-10 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted object-cover" />
                 ) : (
-                  <div className="h-10 w-10 rounded-[var(--radius-xl)] border border-border bg-muted" />
+                  <div className="h-10 w-10 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted" />
                 )}
                 <div className="text-foreground font-bold text-xl truncate">{ed.name}</div>
               </div>
@@ -325,7 +325,7 @@ export default function ResourcesClient({
         >
           <div className="space-y-6">
             {isAdmin ? (
-              <div className="rounded-[var(--radius-2xl)] border border-border bg-card p-4">
+              <div className="platform-surface-card p-4">
                 <R2ImageUpload
                   label="Editor icon (optional)"
                   value={selectedEditorIconUrl}

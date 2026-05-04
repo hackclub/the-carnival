@@ -195,7 +195,7 @@ export default async function ExplorePage({
 
   return (
     <AppShell title="Explore">
-      <div className="mb-6 flex flex-wrap gap-2 rounded-[var(--radius-2xl)] border border-border bg-card p-2">
+      <div className="mb-6 flex flex-wrap gap-2 platform-surface-card p-2">
         <Link
           href="/explore?tab=devlogs"
           className={`rounded-[var(--radius-xl)] px-4 py-2 text-sm font-semibold transition-colors ${
@@ -220,7 +220,7 @@ export default async function ExplorePage({
 
       {activeTab === "devlogs" ? (
         latestDevlogs.length === 0 ? (
-          <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-8">
+          <div className="platform-surface-card p-8">
             <div className="text-foreground font-semibold text-lg">No devlogs yet</div>
             <div className="text-muted-foreground mt-1">
               When people post devlogs, the latest updates will show up here.
@@ -236,11 +236,11 @@ export default async function ExplorePage({
                 <Link
                   key={devlogRow.id}
                   href={`/projects/${devlogRow.projectId}/devlogs/${devlogRow.id}`}
-                  className="block rounded-[var(--radius-2xl)] border border-border bg-card p-5 transition-colors hover:bg-muted"
+                  className="block platform-surface-card p-5 transition-colors hover:bg-muted"
                 >
                   <div className="flex gap-4">
                     {firstAttachment ? (
-                      <div className="hidden h-24 w-32 shrink-0 overflow-hidden rounded-[var(--radius-xl)] border border-border bg-muted sm:block">
+                      <div className="hidden h-24 w-32 shrink-0 overflow-hidden rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted sm:block">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={firstAttachment}
@@ -268,7 +268,7 @@ export default async function ExplorePage({
                         {devlogRow.content}
                       </div>
                       <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center rounded-full border border-border bg-background px-2.5 py-1 text-xs font-semibold text-foreground">
+                        <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-background px-2.5 py-1 text-xs font-semibold text-foreground">
                           {duration.label}
                         </span>
                         {devlogRow.usedAi ? (
@@ -289,7 +289,7 @@ export default async function ExplorePage({
         )
       ) : (
         <>
-          <form className="mb-6 bg-card border border-border rounded-[var(--radius-2xl)] p-4 md:p-5">
+          <form className="mb-6 platform-surface-card p-4 md:p-5">
             <input type="hidden" name="tab" value="projects" />
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
               <label className="xl:col-span-2">
@@ -341,7 +341,7 @@ export default async function ExplorePage({
           </form>
 
           {projects.length === 0 ? (
-            <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-8">
+            <div className="platform-surface-card p-8">
               <div className="text-foreground font-semibold text-lg">No projects match these filters</div>
               <div className="text-muted-foreground mt-1">
                 Try removing one or more filters to broaden results.
@@ -359,11 +359,11 @@ export default async function ExplorePage({
                 return (
                   <div
                     key={projectRow.id}
-                    className="bg-card border border-border rounded-[var(--radius-2xl)] p-6 card-glow transition-all hover:bg-muted h-full min-h-[380px]"
+                    className="platform-surface-card p-6 card-glow transition-all hover:bg-muted h-full min-h-[380px]"
                   >
                     <div className="flex h-full flex-col">
                       {firstScreenshot ? (
-                        <div className="mb-4 overflow-hidden rounded-[var(--radius-xl)] border border-border bg-muted">
+                        <div className="mb-4 overflow-hidden rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={firstScreenshot}
@@ -374,7 +374,7 @@ export default async function ExplorePage({
                           />
                         </div>
                       ) : (
-                        <div className="mb-4 flex h-40 w-full items-center justify-center rounded-[var(--radius-xl)] border border-border bg-muted text-sm text-muted-foreground">
+                        <div className="mb-4 flex h-40 w-full items-center justify-center rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted text-sm text-muted-foreground">
                           No screenshot
                         </div>
                       )}
@@ -397,14 +397,14 @@ export default async function ExplorePage({
 
                       <div className="mt-3 flex flex-wrap gap-2">
                         {categoryLabel ? (
-                          <span className="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+                          <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-muted px-2.5 py-1 text-xs text-foreground">
                             {categoryLabel}
                           </span>
                         ) : null}
                         {tagLabels.slice(0, 3).map((tag) => (
                           <span
                             key={`${projectRow.id}-${tag}`}
-                            className="inline-flex items-center rounded-full border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                            className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-background px-2 py-1 text-[11px] text-muted-foreground"
                           >
                             #{tag}
                           </span>

@@ -131,7 +131,7 @@ export default async function ProjectDevlogListPage(props: {
               <li key={row.id}>
                 <Link
                   href={`/projects/${p.id}/devlogs/${row.id}`}
-                  className="block rounded-[var(--radius-2xl)] border border-border bg-card px-5 py-4 transition-colors hover:bg-muted"
+                  className="block platform-surface-card px-5 py-4 transition-colors hover:bg-muted"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">

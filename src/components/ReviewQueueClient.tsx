@@ -231,7 +231,7 @@ export default function ReviewQueueClient() {
 
   if (projects === null) {
     return (
-      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-8">
+      <div className="platform-surface-card p-8">
         <div className="text-foreground font-semibold text-lg">Loading projects…</div>
         <div className="text-muted-foreground mt-1">Fetching the latest review queue.</div>
       </div>
@@ -240,7 +240,7 @@ export default function ReviewQueueClient() {
 
   if (error) {
     return (
-      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-8">
+      <div className="platform-surface-card p-8">
         <div className="text-foreground font-semibold text-lg">Could not load projects</div>
         <div className="text-muted-foreground mt-1">{error}</div>
       </div>
@@ -249,7 +249,7 @@ export default function ReviewQueueClient() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-4 md:p-5">
+      <div className="platform-surface-card p-4 md:p-5">
         <form onSubmit={onSearchSubmit} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
           <label className="xl:col-span-2">
             <span className="block text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">
@@ -371,7 +371,7 @@ export default function ReviewQueueClient() {
       </div>
 
       {projects.length === 0 ? (
-        <div className="bg-card border border-border rounded-[var(--radius-2xl)] p-8">
+        <div className="platform-surface-card p-8">
           <div className="text-foreground font-semibold text-lg">No projects match these filters</div>
           <div className="text-muted-foreground mt-1">
             Adjust search, assignment, category, or tag filters to broaden the queue.
@@ -389,7 +389,7 @@ export default function ReviewQueueClient() {
               <Link
                 key={projectRow.id}
                 href={`/review/${projectRow.id}`}
-                className="bg-card border border-border rounded-[var(--radius-2xl)] p-5 card-glow transition-all hover:bg-muted block h-full min-h-[340px]"
+                className="platform-surface-card p-5 card-glow transition-all hover:bg-muted block h-full min-h-[340px]"
                 aria-label={`Review ${projectRow.name}`}
               >
                 <div className="flex h-full flex-col">
@@ -434,14 +434,14 @@ export default function ReviewQueueClient() {
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     {categoryLabel ? (
-                      <span className="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+                      <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-muted px-2.5 py-1 text-xs text-foreground">
                         {categoryLabel}
                       </span>
                     ) : null}
                     {tagLabels.slice(0, 3).map((tag) => (
                       <span
                         key={`${projectRow.id}-${tag}`}
-                        className="inline-flex items-center rounded-full border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                        className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-background px-2 py-1 text-[11px] text-muted-foreground"
                       >
                         #{tag}
                       </span>
