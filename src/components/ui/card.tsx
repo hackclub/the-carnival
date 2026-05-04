@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 type CardProps = React.HTMLAttributes<HTMLDivElement> & {
   interactive?: boolean;
   muted?: boolean;
+  variant?: "default" | "flat";
 };
 
 export function Card({
@@ -11,15 +12,18 @@ export function Card({
   className,
   interactive = false,
   muted = false,
+  variant = "default",
   ...props
 }: CardProps) {
   return (
     <div
       data-slot="card"
       className={cn(
-        "platform-surface-card overflow-hidden text-card-foreground",
+        variant === "flat"
+          ? "platform-nested-surface overflow-hidden text-card-foreground"
+          : "platform-surface-card overflow-hidden text-card-foreground",
         interactive &&
-          "card-glow cursor-pointer transition-[background-color,box-shadow,transform] hover:-translate-y-0.5 hover:bg-[var(--platform-surface-soft)]",
+          "cursor-pointer transition-colors hover:bg-[var(--platform-surface-soft)]",
         muted && "opacity-50",
         className,
       )}
@@ -45,11 +49,11 @@ export function CardFooter({ className, ...props }: CardSectionProps) {
 }
 
 export function CardTitle({ className, ...props }: CardSectionProps) {
-  return <div data-slot="card-title" className={cn("text-base font-semibold leading-snug", className)} {...props} />;
+  return <div data-slot="card-title" className={cn("text-base font-black uppercase tracking-[0.04em] leading-snug text-[var(--platform-ink)]", className)} {...props} />;
 }
 
 export function CardDescription({ className, ...props }: CardSectionProps) {
-  return <div data-slot="card-description" className={cn("text-sm text-muted-foreground", className)} {...props} />;
+  return <div data-slot="card-description" className={cn("text-sm font-semibold leading-6 text-muted-foreground", className)} {...props} />;
 }
 
 export function CardAction({ className, ...props }: CardSectionProps) {

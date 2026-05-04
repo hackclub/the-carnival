@@ -48,8 +48,8 @@ export function DatePicker({
       <PopoverTrigger
         disabled={disabled}
         className={cn(
-          "flex h-11 w-full items-center gap-2 rounded-[var(--radius-xl)] border border-input bg-background px-4 py-3 text-sm text-foreground transition-colors",
-          "hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+          "carnival-control flex h-11 w-full items-center gap-2 px-4 py-3 text-sm font-bold text-foreground transition-[box-shadow,background-color]",
+          "hover:bg-[#fffdf2]",
           "disabled:cursor-not-allowed disabled:opacity-50",
           !value && "text-muted-foreground",
           className,
@@ -107,8 +107,6 @@ export function DateTimePicker({
   disabled = false,
   placeholder = "Pick date & time",
   className,
-  min,
-  max,
 }: DateTimePickerProps) {
   const [open, setOpen] = React.useState(false);
   const dtLocal = toDatetimeLocalValue(value);
@@ -153,8 +151,8 @@ export function DateTimePicker({
       <PopoverTrigger
         disabled={disabled}
         className={cn(
-          "flex h-11 w-full items-center gap-2 rounded-[var(--radius-xl)] border border-input bg-background px-4 py-3 text-sm text-foreground transition-colors",
-          "hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+          "carnival-control flex h-11 w-full items-center gap-2 px-4 py-3 text-sm font-bold text-foreground transition-[box-shadow,background-color]",
+          "hover:bg-[#fffdf2]",
           "disabled:cursor-not-allowed disabled:opacity-50",
           !value && "text-muted-foreground",
           className,
@@ -174,15 +172,15 @@ export function DateTimePicker({
           onSelect={handleDaySelect}
           defaultMonth={selected}
         />
-        <div className="border-t border-border px-3 py-2">
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="border-t-[3px] border-[var(--carnival-border)]/25 px-3 py-2">
+          <label className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
             Time
             <input
               ref={timeRef}
               type="time"
               value={currentTime}
               onChange={handleTimeChange}
-              className="rounded-[var(--radius-lg)] border border-input bg-background px-2 py-1 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="carnival-control px-2 py-1 text-sm text-foreground"
             />
           </label>
         </div>

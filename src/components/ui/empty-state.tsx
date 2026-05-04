@@ -1,5 +1,3 @@
-import { Card } from "./card";
-
 type EmptyStateProps = {
   title: string;
   description?: string;
@@ -8,13 +6,12 @@ type EmptyStateProps = {
 
 export function EmptyState({ title, description, action }: EmptyStateProps) {
   return (
-    <Card className="p-8">
-      <div className="text-foreground font-semibold text-lg">{title}</div>
+    <div className="platform-nested-surface p-8">
+      <div className="text-lg font-black uppercase tracking-[0.06em] text-foreground">{title}</div>
       {description && (
-        <div className="text-muted-foreground mt-1">{description}</div>
+        <div className="mt-2 font-semibold leading-6 text-muted-foreground">{description}</div>
       )}
       {action && <div className="mt-6">{action}</div>}
-    </Card>
+    </div>
   );
 }
-

@@ -8,16 +8,16 @@ import { cn } from "@/lib/utils";
 // ============================================================================
 
 const baseInputStyles = [
-  "min-h-11 rounded-[var(--radius-xl)] bg-background px-4 py-3",
-  "text-foreground placeholder:text-muted-foreground",
-  "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+  "carnival-control min-h-11 px-4 py-3",
+  "text-sm font-bold text-foreground placeholder:text-muted-foreground",
+  "transition-[box-shadow,transform,background-color] hover:bg-[#fffdf2]",
   "disabled:opacity-50 disabled:cursor-not-allowed",
 ].join(" ");
 
 const smallInputStyles = [
-  "min-h-9 rounded-[var(--radius-lg)] bg-background px-3 py-2 text-sm",
-  "text-foreground placeholder:text-muted-foreground",
-  "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+  "carnival-control min-h-9 px-3 py-2 text-sm",
+  "font-bold text-foreground placeholder:text-muted-foreground",
+  "transition-[box-shadow,transform,background-color] hover:bg-[#fffdf2]",
   "disabled:opacity-50 disabled:cursor-not-allowed",
 ].join(" ");
 
@@ -34,7 +34,7 @@ type FormLabelProps = {
 export function FormLabel({ children, className = "", size = "default" }: FormLabelProps) {
   const sizeClass = size === "small" ? "text-xs" : "text-sm";
   return (
-    <div className={cn(sizeClass, "mb-2 font-medium text-muted-foreground", className)}>
+    <div className={cn(sizeClass, "carnival-label mb-2", className)}>
       {children}
     </div>
   );
@@ -114,7 +114,7 @@ export const NativeSelect = forwardRef<HTMLSelectElement, NativeSelectProps>(
       return (
         <label className="block">
           <FormLabel size={size}>{label}</FormLabel>
-          <select ref={ref} className={cn(inputClass, "border border-input outline-none", className)} {...props}>
+          <select ref={ref} className={cn(inputClass, "outline-none", className)} {...props}>
             {children}
           </select>
         </label>
@@ -122,7 +122,7 @@ export const NativeSelect = forwardRef<HTMLSelectElement, NativeSelectProps>(
     }
 
     return (
-      <select ref={ref} className={cn(inputClass, "border border-input outline-none", className)} {...props}>
+      <select ref={ref} className={cn(inputClass, "outline-none", className)} {...props}>
         {children}
       </select>
     );
@@ -147,4 +147,3 @@ export {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
