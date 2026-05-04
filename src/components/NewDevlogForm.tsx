@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatDurationHM } from "@/lib/devlog-shared";
+import { formatDurationHM, parseDevlogWindow } from "@/lib/devlog-shared";
 
 type DevlogFormMode = "create" | "edit";
 
@@ -114,6 +114,21 @@ export default function NewDevlogForm({
 
   const startedIso = useMemo(() => fromDatetimeLocalValue(startedAt), [startedAt]);
   const endedIso = useMemo(() => fromDatetimeLocalValue(endedAt), [endedAt]);
+  const parsedWindow = useMemo(() => {
+    if (!canEditWindow || !startedIso || !endedIso) return null;
+    const floor = new Date(floorIso);
+    const ceiling = new Date(ceilingIso);
+    if (Number.isNaN(floor.getTime()) || Number.isNaN(ceiling.getTime())) {
+      return { ok: false as const, error: "Choose valid start and end times." };
+    }
+    return parseDevlogWindow({
+      startedAt: startedIso,
+      endedAt: endedIso,
+      floor,
+      ceiling,
+    });
+  }, [canEditWindow, ceilingIso, endedIso, floorIso, startedIso]);
+  const effectiveStartedIso = parsedWindow?.ok ? parsedWindow.startedAt.toISOString() : startedIso;
   const hackatimeProjectOptions = useMemo(() => {
     const seen = new Set<string>();
     const options: Array<{ name: string; source: "linked" | "account"; label: string }> = [];
@@ -201,22 +216,17 @@ export default function NewDevlogForm({
   }, [refreshHackatimeProjects]);
 
   const windowError = useMemo(() => {
-    if (!canEditWindow) return null;
-    if (!startedIso || !endedIso) return null;
-    const s = new Date(startedIso).getTime();
-    const e = new Date(endedIso).getTime();
-    const floor = new Date(floorIso).getTime();
-    const ceiling = new Date(ceilingIso).getTime();
-    if (!Number.isFinite(s) || !Number.isFinite(e)) return "Choose valid start and end times.";
-    if (e <= s) return "End time must be after start time.";
-    if (s < floor - 1000) {
-      return `Start can't be earlier than ${new Date(floor).toLocaleString()} (end of your last devlog or project start).`;
+    if (!parsedWindow || parsedWindow.ok) return null;
+    if (parsedWindow.error === "Devlog end must be after start.") {
+      return "End time must be after start time.";
     }
-    if (e > ceiling + 1000) {
-      return "End can't be later than now.";
+    if (parsedWindow.error.startsWith("Devlog start can't")) {
+      return `Start can't be earlier than ${new Date(floorIso).toLocaleString()} (end of your last devlog or project start).`;
     }
-    return null;
-  }, [canEditWindow, ceilingIso, endedIso, floorIso, startedIso]);
+    if (parsedWindow.error.startsWith("Devlog end can't")) return "End can't be later than now.";
+    if (parsedWindow.error.startsWith("Invalid devlog")) return "Choose valid start and end times.";
+    return parsedWindow.error;
+  }, [floorIso, parsedWindow]);
 
   useEffect(() => {
     if (!canEditWindow) {
@@ -225,7 +235,7 @@ export default function NewDevlogForm({
       setPreviewLoading(false);
       return;
     }
-    if (!selectedHackatimeProjectName.trim() || !startedIso || !endedIso || windowError) {
+    if (!selectedHackatimeProjectName.trim() || !effectiveStartedIso || !endedIso || windowError) {
       setPreviewSeconds(null);
       setPreviewError(null);
       setPreviewLoading(false);
@@ -241,7 +251,7 @@ export default function NewDevlogForm({
           `/api/projects/${encodeURIComponent(projectId)}/devlogs/preview`,
           window.location.origin,
         );
-        url.searchParams.set("startedAt", startedIso);
+        url.searchParams.set("startedAt", effectiveStartedIso);
         url.searchParams.set("endedAt", endedIso);
         url.searchParams.set("hackatimeProjectName", selectedHackatimeProjectName);
         const res = await fetch(url.toString());
@@ -271,13 +281,13 @@ export default function NewDevlogForm({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [canEditWindow, endedIso, projectId, selectedHackatimeProjectName, startedIso, windowError]);
+  }, [canEditWindow, effectiveStartedIso, endedIso, projectId, selectedHackatimeProjectName, windowError]);
 
   const canSubmit = useMemo(() => {
     if (submitting) return false;
     if (!title.trim() || !content.trim()) return false;
     if ((!isEdit || canEditWindow) && !selectedHackatimeProjectName.trim()) return false;
-    if (canEditWindow && (!startedIso || !endedIso)) return false;
+    if (canEditWindow && (!effectiveStartedIso || !endedIso)) return false;
     if (windowError) return false;
     if (attachments.length < 1) return false;
     if (usedAi && !aiDesc.trim()) return false;
@@ -289,7 +299,7 @@ export default function NewDevlogForm({
     content,
     endedIso,
     isEdit,
-    startedIso,
+    effectiveStartedIso,
     submitting,
     selectedHackatimeProjectName,
     title,
@@ -320,7 +330,7 @@ export default function NewDevlogForm({
         body.hackatimeProjectName = selectedHackatimeProjectName.trim();
       }
       if (canEditWindow) {
-        body.startedAt = startedIso;
+        body.startedAt = effectiveStartedIso;
         body.endedAt = endedIso;
       }
       const res = await fetch(url, {
@@ -369,7 +379,7 @@ export default function NewDevlogForm({
     projectId,
     router,
     selectedHackatimeProjectName,
-    startedIso,
+    effectiveStartedIso,
     title,
     usedAi,
   ]);
