@@ -62,7 +62,7 @@ export default function LoginClient() {
       <Header showSectionLinks={false} />
 
       <div className="relative z-10 min-h-screen flex items-center justify-center px-6 py-16">
-        <div className="w-full max-w-lg bg-card/90 backdrop-blur rounded-[var(--radius-2xl)] p-10 card-glow border border-border">
+        <div className="platform-surface-card w-full max-w-lg p-10">
           <div className="flex items-center gap-3 mb-6">
             <div className="h-12 w-12 rounded-[var(--radius-2xl)] bg-carnival-red/20 flex items-center justify-center text-2xl">
               🎪
@@ -100,5 +100,4 @@ export default function LoginClient() {
     </div>
   );
 }
-
 

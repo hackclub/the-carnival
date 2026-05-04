@@ -1,4 +1,5 @@
 import type { ProjectEditor } from "@/db/schema";
+import { Badge } from "@/components/ui/badge";
 
 const LABELS: Record<ProjectEditor, string> = {
   vscode: "VS Code",
@@ -31,10 +32,7 @@ export default function ProjectEditorBadge({
   const label = editor === "other" && other ? `Other: ${other}` : LABELS[editor];
 
   return (
-    <span className="inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-semibold whitespace-nowrap bg-muted text-foreground border-border">
-      {label}
-    </span>
+    <Badge className="whitespace-nowrap px-4 py-1.5 text-sm">{label}</Badge>
   );
 }
-
 

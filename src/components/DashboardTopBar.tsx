@@ -15,12 +15,12 @@ export default function DashboardTopBar({ title }: DashboardTopBarProps) {
       <button
         type="button"
         onClick={() => setMobileOpen(true)}
-        className="inline-flex items-center justify-center rounded-[var(--radius-xl)] p-2 text-[var(--platform-ink-muted)] transition-colors hover:bg-[rgba(255,240,207,0.8)] hover:text-[var(--platform-ink)] md:hidden"
+        className="inline-flex items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-[#fff7dc] p-2 text-[var(--platform-ink-muted)] transition-colors hover:bg-[#fff0cf] hover:text-[var(--platform-ink)] md:hidden"
         aria-label="Open navigation"
       >
         <Menu size={22} />
       </button>
-      <h1 className="text-lg font-black tracking-[0.02em] text-[var(--platform-ink)] truncate">
+      <h1 className="truncate text-lg font-black uppercase tracking-[0.08em] text-[var(--platform-ink)]">
         {title}
       </h1>
     </header>
