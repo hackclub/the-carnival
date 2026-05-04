@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type {
   ProjectEditor,
   ProjectStatus,
@@ -20,6 +20,12 @@ import {
   getProjectConsideredHackatimeRange,
   parseConsideredHackatimeRange,
 } from "@/lib/hackatime-range";
+import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
+import {
+  formatHoursMinutes,
+  toDateInputValue,
+  type HackatimeRangePreview,
+} from "@/lib/project-form-utils";
 import toast from "react-hot-toast";
 
 type GrantProject = {
@@ -63,18 +69,6 @@ type GrantReviewItem = {
   reviewerEmail: string;
 };
 
-function formatHoursMinutes(hours: number, minutes: number) {
-  const h = Number.isFinite(hours) ? Math.max(0, Math.floor(hours)) : 0;
-  const m = Number.isFinite(minutes) ? Math.max(0, Math.floor(minutes)) : 0;
-  return `${h}h${String(m).padStart(2, "0")}m`;
-}
-
-function toDateInputValue(value: string | null) {
-  if (!value) return "";
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
-}
-
 export default function AdminGrantClient({
   initial,
 }: {
@@ -105,12 +99,6 @@ export default function AdminGrantClient({
   );
   const [rangeStartDate, setRangeStartDate] = useState(canonicalProjectRange?.startDate ?? "");
   const [rangeEndDate, setRangeEndDate] = useState(canonicalProjectRange?.endDate ?? "");
-  const [rangePreview, setRangePreview] = useState<{
-    hackatimeTotalSeconds: number | null;
-    hackatimeHours: { hours: number; minutes: number } | null;
-  } | null>(null);
-  const [rangePreviewLoading, setRangePreviewLoading] = useState(false);
-  const [rangePreviewError, setRangePreviewError] = useState<string | null>(null);
   const [rangeSaving, setRangeSaving] = useState(false);
 
   const editableRange = useMemo(
@@ -122,89 +110,31 @@ export default function AdminGrantClient({
     [rangeEndDate, rangeStartDate],
   );
 
-  useEffect(() => {
-    if (project.status === "granted" || !project.hackatimeProjectName.trim()) {
-      setRangePreview(null);
-      setRangePreviewLoading(false);
-      setRangePreviewError(null);
-      return;
-    }
-
-    if (!editableRange.ok) {
-      setRangePreviewLoading(false);
-      setRangePreviewError(rangeStartDate || rangeEndDate ? editableRange.error : null);
-      return;
-    }
-
+  const localRangePreview = useMemo<HackatimeRangePreview | null>(() => {
     if (
-      canonicalProjectRange &&
-      canonicalProjectRange.startDate === editableRange.value.startDate &&
-      canonicalProjectRange.endDate === editableRange.value.endDate
+      !editableRange.ok ||
+      !canonicalProjectRange ||
+      canonicalProjectRange.startDate !== editableRange.value.startDate ||
+      canonicalProjectRange.endDate !== editableRange.value.endDate
     ) {
-      setRangePreview({
+      return null;
+    }
+    return {
         hackatimeTotalSeconds: project.hackatimeHours
           ? project.hackatimeHours.hours * 3600 + project.hackatimeHours.minutes * 60
           : null,
         hackatimeHours: project.hackatimeHours,
-      });
-      setRangePreviewLoading(false);
-      setRangePreviewError(null);
-      return;
-    }
-
-    let cancelled = false;
-    const timer = window.setTimeout(async () => {
-      setRangePreviewLoading(true);
-      setRangePreviewError(null);
-      try {
-        const res = await fetch(`/api/admin/projects/${encodeURIComponent(project.id)}/hackatime-preview`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            consideredHackatimeRange: editableRange.value,
-          }),
-        });
-        const data = (await res.json().catch(() => null)) as
-          | {
-              project?: {
-                hackatimeTotalSeconds?: number | null;
-                hackatimeHours?: { hours?: number; minutes?: number } | null;
-              };
-              error?: unknown;
-            }
-          | null;
-        if (cancelled) return;
-        if (!res.ok) {
-          const message =
-            typeof data?.error === "string" ? data.error : "Failed to refresh Hackatime hours.";
-          setRangePreviewError(message);
-          setRangePreviewLoading(false);
-          return;
-        }
-        const hours = data?.project?.hackatimeHours;
-        setRangePreview({
-          hackatimeTotalSeconds:
-            typeof data?.project?.hackatimeTotalSeconds === "number"
-              ? data.project.hackatimeTotalSeconds
-              : null,
-          hackatimeHours:
-            hours && typeof hours.hours === "number" && typeof hours.minutes === "number"
-              ? { hours: hours.hours, minutes: hours.minutes }
-              : null,
-        });
-        setRangePreviewLoading(false);
-      } catch {
-        if (cancelled) return;
-        setRangePreviewError("Failed to refresh Hackatime hours.");
-        setRangePreviewLoading(false);
-      }
-    }, 400);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
     };
-  }, [canonicalProjectRange, editableRange, project.hackatimeHours, project.hackatimeProjectName, project.id, project.status, rangeEndDate, rangeStartDate]);
+  }, [canonicalProjectRange, editableRange, project.hackatimeHours]);
+
+  const { preview: rangePreview, loading: rangePreviewLoading, error: rangePreviewError } =
+    useHackatimeRangePreview({
+      enabled: project.status !== "granted" && !!project.hackatimeProjectName.trim(),
+      endpoint: `/api/admin/projects/${encodeURIComponent(project.id)}/hackatime-preview`,
+      body: editableRange.ok ? { consideredHackatimeRange: editableRange.value } : null,
+      rangeError: !editableRange.ok && (rangeStartDate || rangeEndDate) ? editableRange.error : null,
+      localPreview: localRangePreview,
+    });
 
   const previewHoursLabel = useMemo(() => {
     if (rangePreview?.hackatimeHours) {

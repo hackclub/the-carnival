@@ -5,6 +5,17 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
 import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
 import { MIN_CREATOR_ORIGINALITY_RATIONALE_LENGTH } from "@/lib/project-originality";
+import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
+import {
+  EDITOR_OPTIONS,
+  appendCsvToken,
+  cleanString,
+  formatHoursMinutes,
+  toDateInputValue,
+  toHoursMinutes,
+  type EditorOptionValue,
+  type HackatimeProjectOption,
+} from "@/lib/project-form-utils";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
@@ -14,25 +25,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const EDITOR_OPTIONS = [
-  { value: "vscode", label: "VS Code" },
-  { value: "chrome", label: "Chrome" },
-  { value: "firefox", label: "Firefox" },
-  { value: "figma", label: "Figma" },
-  { value: "neovim", label: "Neovim" },
-  { value: "gnu-emacs", label: "GNU Emacs" },
-  { value: "jupyterlab", label: "JupyterLab" },
-  { value: "obsidian", label: "Obsidian" },
-  { value: "blender", label: "Blender" },
-  { value: "freecad", label: "FreeCAD" },
-  { value: "kicad", label: "KiCad" },
-  { value: "krita", label: "Krita" },
-  { value: "gimp", label: "GIMP" },
-  { value: "inkscape", label: "Inkscape" },
-  { value: "godot-engine", label: "Godot Engine" },
-  { value: "unity", label: "Unity" },
-  { value: "other", label: "Other" },
-] as const;
 const MIN_SCREENSHOTS = 3;
 
 type CreateProjectPayload = {
@@ -59,13 +51,6 @@ type CreateProjectPayload = {
   };
 };
 
-type HackatimeProjectOption = {
-  name: string;
-  startedAt: string | null;
-  stoppedAt: string | null;
-  totalSeconds: number;
-};
-
 type HackatimePreview = {
   hackatimeStartedAt: string | null;
   hackatimeStoppedAt: string | null;
@@ -73,51 +58,10 @@ type HackatimePreview = {
   hackatimeHours: { hours: number; minutes: number } | null;
 };
 
-function cleanString(value: FormDataEntryValue | null) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function appendCsvToken(csv: string, token: string) {
-  const normalized = token.trim();
-  if (!normalized) return csv;
-  const parts = csv
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  const seen = new Set(parts.map((part) => part.toLowerCase()));
-  if (!seen.has(normalized.toLowerCase())) {
-    parts.push(normalized);
-  }
-  return parts.join(", ");
-}
-
 function toLocalDateTime(value: string | null) {
   if (!value) return "—";
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
-}
-
-function toDateInputValue(value: string | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
-}
-
-function toHoursMinutes(totalSeconds: number | null) {
-  const safeTotalSeconds =
-    typeof totalSeconds === "number" && Number.isFinite(totalSeconds)
-      ? Math.max(0, Math.floor(totalSeconds))
-      : 0;
-  return {
-    hours: Math.floor(safeTotalSeconds / 3600),
-    minutes: Math.floor(safeTotalSeconds / 60) % 60,
-  };
-}
-
-function formatHoursMinutes(hours: number, minutes: number) {
-  const safeHours = Number.isFinite(hours) ? Math.max(0, Math.floor(hours)) : 0;
-  const safeMinutes = Number.isFinite(minutes) ? Math.max(0, Math.floor(minutes)) : 0;
-  return `${safeHours}h${String(safeMinutes).padStart(2, "0")}m`;
 }
 
 export default function CreateProjectModal({
@@ -143,10 +87,7 @@ export default function CreateProjectModal({
   const [hackatimeProjectName, setHackatimeProjectName] = useState("");
   const [consideredRangeStartDate, setConsideredRangeStartDate] = useState("");
   const [consideredRangeEndDate, setConsideredRangeEndDate] = useState("");
-  const [hackatimePreview, setHackatimePreview] = useState<HackatimePreview | null>(null);
-  const [hackatimePreviewLoading, setHackatimePreviewLoading] = useState(false);
-  const [hackatimePreviewError, setHackatimePreviewError] = useState<string | null>(null);
-  const [editor, setEditor] = useState<(typeof EDITOR_OPTIONS)[number]["value"]>("vscode");
+  const [editor, setEditor] = useState<EditorOptionValue>("vscode");
   const [category, setCategory] = useState("");
   const [tagsInput, setTagsInput] = useState("");
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>(
@@ -157,7 +98,7 @@ export default function CreateProjectModal({
   const [originalityRationale, setOriginalityRationale] = useState("");
   const [bountyProjectId, setBountyProjectId] = useState("");
   const [availableBounties, setAvailableBounties] = useState<Array<{ id: string; name: string; prizeUsd: number }>>([]);
-  const [bountiesLoading, setBountiesLoading] = useState(false);
+  const bountiesLoadingRef = useRef(false);
 
   const shouldBeOpen = useMemo(() => {
     const v = searchParams.get("new");
@@ -179,8 +120,8 @@ export default function CreateProjectModal({
       if (!d.open) d.showModal();
       document.body.style.overflow = "hidden";
 
-      if (availableBounties.length === 0 && !bountiesLoading) {
-        setBountiesLoading(true);
+      if (availableBounties.length === 0 && !bountiesLoadingRef.current) {
+        bountiesLoadingRef.current = true;
         fetch("/api/bounties")
           .then((r) => r.json())
           .then((data) => {
@@ -196,7 +137,9 @@ export default function CreateProjectModal({
             );
           })
           .catch(() => {})
-          .finally(() => setBountiesLoading(false));
+          .finally(() => {
+            bountiesLoadingRef.current = false;
+          });
       }
     } else {
       if (d.open) d.close();
@@ -206,7 +149,7 @@ export default function CreateProjectModal({
     return () => {
       document.body.style.overflow = "";
     };
-  }, [shouldBeOpen, availableBounties.length, bountiesLoading]);
+  }, [shouldBeOpen, availableBounties.length]);
 
   useEffect(() => {
     const d = dialogRef.current;
@@ -225,9 +168,6 @@ export default function CreateProjectModal({
       setHackatimeProjectName("");
       setConsideredRangeStartDate("");
       setConsideredRangeEndDate("");
-      setHackatimePreview(null);
-      setHackatimePreviewLoading(false);
-      setHackatimePreviewError(null);
       setBountyProjectId("");
       clearNewParam();
     };
@@ -251,110 +191,41 @@ export default function CreateProjectModal({
     [consideredRangeEndDate, consideredRangeStartDate],
   );
 
-  const hackatimeHoursLabel = useMemo(() => {
-    if (!hackatimePreview?.hackatimeHours) return "—";
-    return formatHoursMinutes(hackatimePreview.hackatimeHours.hours, hackatimePreview.hackatimeHours.minutes);
-  }, [hackatimePreview]);
-
-  useEffect(() => {
-    if (!hackatimeProjectName) {
-      setHackatimePreview(null);
-      setHackatimePreviewLoading(false);
-      setHackatimePreviewError(null);
-      return;
-    }
-
-    if (!consideredHackatimeRange.ok) {
-      setHackatimePreviewLoading(false);
-      setHackatimePreviewError(
-        consideredRangeStartDate || consideredRangeEndDate ? consideredHackatimeRange.error : null,
-      );
-      return;
-    }
-
+  const selectedHackatimePreview = useMemo<HackatimePreview | null>(() => {
+    if (!selectedHackatime || !consideredHackatimeRange.ok) return null;
     const selectedDefaultStartDate = toDateInputValue(selectedHackatime?.startedAt ?? null);
     const selectedDefaultEndDate = toDateInputValue(selectedHackatime?.stoppedAt ?? null);
-    if (
-      selectedHackatime &&
-      selectedHackatime.name === hackatimeProjectName &&
+    return selectedHackatime.name === hackatimeProjectName &&
       selectedDefaultStartDate === consideredHackatimeRange.value.startDate &&
       selectedDefaultEndDate === consideredHackatimeRange.value.endDate
-    ) {
-      setHackatimePreview({
+      ? {
         hackatimeStartedAt: selectedHackatime.startedAt,
         hackatimeStoppedAt: selectedHackatime.stoppedAt,
         hackatimeTotalSeconds: selectedHackatime.totalSeconds,
         hackatimeHours: toHoursMinutes(selectedHackatime.totalSeconds),
-      });
-      setHackatimePreviewLoading(false);
-      setHackatimePreviewError(null);
-      return;
-    }
-
-    let cancelled = false;
-    const timer = window.setTimeout(async () => {
-      setHackatimePreviewLoading(true);
-      setHackatimePreviewError(null);
-      try {
-        const res = await fetch("/api/hackatime/projects/preview", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            hackatimeProjectName,
-            consideredHackatimeRange: consideredHackatimeRange.value,
-          }),
-        });
-        const data = (await res.json().catch(() => null)) as
-          | {
-              project?: {
-                hackatimeStartedAt?: string | null;
-                hackatimeStoppedAt?: string | null;
-                hackatimeTotalSeconds?: number | null;
-                hackatimeHours?: { hours?: number; minutes?: number } | null;
-              };
-              error?: unknown;
-            }
-          | null;
-        if (cancelled) return;
-        if (!res.ok) {
-          const message =
-            typeof data?.error === "string" ? data.error : "Failed to refresh Hackatime hours.";
-          setHackatimePreviewError(message);
-          setHackatimePreviewLoading(false);
-          return;
-        }
-        const hours = data?.project?.hackatimeHours;
-        setHackatimePreview({
-          hackatimeStartedAt: data?.project?.hackatimeStartedAt ?? null,
-          hackatimeStoppedAt: data?.project?.hackatimeStoppedAt ?? null,
-          hackatimeTotalSeconds:
-            typeof data?.project?.hackatimeTotalSeconds === "number"
-              ? data.project.hackatimeTotalSeconds
-              : null,
-          hackatimeHours:
-            hours && typeof hours.hours === "number" && typeof hours.minutes === "number"
-              ? { hours: hours.hours, minutes: hours.minutes }
-              : null,
-        });
-        setHackatimePreviewLoading(false);
-      } catch {
-        if (cancelled) return;
-        setHackatimePreviewError("Failed to refresh Hackatime hours.");
-        setHackatimePreviewLoading(false);
       }
-    }, 400);
+      : null;
+  }, [consideredHackatimeRange, hackatimeProjectName, selectedHackatime]);
 
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [
-    consideredHackatimeRange,
-    consideredRangeEndDate,
-    consideredRangeStartDate,
-    hackatimeProjectName,
-    selectedHackatime,
-  ]);
+  const { preview: hackatimePreview, loading: hackatimePreviewLoading, error: hackatimePreviewError } =
+    useHackatimeRangePreview({
+      enabled: !!hackatimeProjectName,
+      endpoint: "/api/hackatime/projects/preview",
+      body:
+        hackatimeProjectName && consideredHackatimeRange.ok
+          ? { hackatimeProjectName, consideredHackatimeRange: consideredHackatimeRange.value }
+          : null,
+      rangeError:
+        hackatimeProjectName && !consideredHackatimeRange.ok && (consideredRangeStartDate || consideredRangeEndDate)
+          ? consideredHackatimeRange.error
+          : null,
+      localPreview: selectedHackatimePreview,
+    });
+
+  const hackatimeHoursLabel = useMemo(() => {
+    if (!hackatimePreview?.hackatimeHours) return "—";
+    return formatHoursMinutes(hackatimePreview.hackatimeHours.hours, hackatimePreview.hackatimeHours.minutes);
+  }, [hackatimePreview]);
 
   const onSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -468,6 +339,7 @@ export default function CreateProjectModal({
     },
     [
       consideredHackatimeRange,
+      bountyProjectId,
       hackatimePreview,
       hackatimeProjectName,
       router,
@@ -575,13 +447,6 @@ export default function CreateProjectModal({
     setHackatimeProjectName(project.name);
     setConsideredRangeStartDate(toDateInputValue(project.startedAt));
     setConsideredRangeEndDate(toDateInputValue(project.stoppedAt));
-    setHackatimePreview({
-      hackatimeStartedAt: project.startedAt,
-      hackatimeStoppedAt: project.stoppedAt,
-      hackatimeTotalSeconds: project.totalSeconds,
-      hackatimeHours: toHoursMinutes(project.totalSeconds),
-    });
-    setHackatimePreviewError(null);
     hackatimeDetailsRef.current?.removeAttribute("open");
   }, []);
 
@@ -730,7 +595,7 @@ export default function CreateProjectModal({
               Editor / app <span className="font-normal">(optional)</span>
             </div>
             <input type="hidden" name="editor" value={editor} />
-            <Select value={editor} onValueChange={(v) => { if (v) setEditor(v as (typeof EDITOR_OPTIONS)[number]["value"]); }}>
+            <Select value={editor} onValueChange={(v) => { if (v) setEditor(v as EditorOptionValue); }}>
               <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
                 <SelectValue placeholder="Select editor" />
               </SelectTrigger>

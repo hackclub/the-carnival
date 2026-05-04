@@ -30,27 +30,17 @@ import {
   getProjectConsideredHackatimeRange,
   parseConsideredHackatimeRange,
 } from "@/lib/hackatime-range";
+import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
+import {
+  EDITOR_OPTIONS,
+  appendCsvToken,
+  cleanList,
+  formatTotalSeconds,
+  toDateInputValue,
+  type HackatimeProjectOption,
+  type HackatimeRangePreview,
+} from "@/lib/project-form-utils";
 import toast from "react-hot-toast";
-
-const EDITOR_OPTIONS = [
-  { value: "vscode", label: "VS Code" },
-  { value: "chrome", label: "Chrome" },
-  { value: "firefox", label: "Firefox" },
-  { value: "figma", label: "Figma" },
-  { value: "neovim", label: "Neovim" },
-  { value: "gnu-emacs", label: "GNU Emacs" },
-  { value: "jupyterlab", label: "JupyterLab" },
-  { value: "obsidian", label: "Obsidian" },
-  { value: "blender", label: "Blender" },
-  { value: "freecad", label: "FreeCAD" },
-  { value: "kicad", label: "KiCad" },
-  { value: "krita", label: "Krita" },
-  { value: "gimp", label: "GIMP" },
-  { value: "inkscape", label: "Inkscape" },
-  { value: "godot-engine", label: "Godot Engine" },
-  { value: "unity", label: "Unity" },
-  { value: "other", label: "Other" },
-] as const;
 
 export type ManageProjectInitial = {
   id: string;
@@ -89,47 +79,6 @@ export type ManageProjectInitial = {
 };
 
 type ApiProject = ManageProjectInitial;
-type HackatimeProjectOption = {
-  name: string;
-  startedAt: string | null;
-  stoppedAt: string | null;
-  totalSeconds: number;
-};
-
-function cleanList(values: string[]) {
-  return values.map((v) => v.trim()).filter(Boolean);
-}
-
-function appendCsvToken(csv: string, token: string) {
-  const normalized = token.trim();
-  if (!normalized) return csv;
-  const parts = csv
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  const seen = new Set(parts.map((part) => part.toLowerCase()));
-  if (!seen.has(normalized.toLowerCase())) {
-    parts.push(normalized);
-  }
-  return parts.join(", ");
-}
-
-function toDateInputValue(value: string | null) {
-  if (!value) return "";
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
-}
-
-function formatHoursMinutes(totalSeconds: number | null) {
-  const safeTotalSeconds =
-    typeof totalSeconds === "number" && Number.isFinite(totalSeconds)
-      ? Math.max(0, Math.floor(totalSeconds))
-      : 0;
-  const hours = Math.floor(safeTotalSeconds / 3600);
-  const minutes = Math.floor(safeTotalSeconds / 60) % 60;
-  return `${hours}h${String(minutes).padStart(2, "0")}m`;
-}
-
 export default function ManageProjectClient({
   initial,
   categorySuggestions = [],
@@ -206,14 +155,10 @@ export default function ManageProjectClient({
     initial.creatorOriginalityRationale,
   );
   const reviews = initial.reviews;
-  const [hackatimePreviewLoading, setHackatimePreviewLoading] = useState(false);
-  const [hackatimePreviewError, setHackatimePreviewError] = useState<string | null>(null);
   const [bountyProjectId, setBountyProjectId] = useState<string | null>(initial.bountyProjectId ?? null);
   const [availableBounties, setAvailableBounties] = useState<Array<{ id: string; name: string; prizeUsd: number }>>([]);
-  const [bountiesLoading, setBountiesLoading] = useState(false);
 
   useEffect(() => {
-    setBountiesLoading(true);
     fetch("/api/bounties")
       .then((r) => r.json())
       .then((data) => {
@@ -231,8 +176,7 @@ export default function ManageProjectClient({
             })),
         );
       })
-      .catch(() => {})
-      .finally(() => setBountiesLoading(false));
+      .catch(() => {});
   }, [initial.bountyProjectId]);
 
   const isGranted = status === "granted";
@@ -259,25 +203,68 @@ export default function ManageProjectClient({
     !isGranted && !isInReview && !isShipped && status === "work-in-progress" && !!latestRejectedReview;
 
   const screenshots = useMemo(() => cleanList(screenshotUrls), [screenshotUrls]);
+  const submitConsideredRange = useMemo(
+    () =>
+      parseConsideredHackatimeRange({
+        startDate: submitRangeStartDate,
+        endDate: submitRangeEndDate,
+      }),
+    [submitRangeEndDate, submitRangeStartDate],
+  );
   const selectedHackatimeProject = useMemo(
     () => (hackatimeProjects ?? []).find((p) => p.name === hackatimeProjectName) ?? null,
     [hackatimeProjectName, hackatimeProjects],
   );
+  const selectedHackatimePreview = useMemo<HackatimeRangePreview | null>(() => {
+    if (!selectedHackatimeProject || !submitConsideredRange.ok) return null;
+    const selectedDefaultStartDate = toDateInputValue(selectedHackatimeProject.startedAt);
+    const selectedDefaultEndDate = toDateInputValue(selectedHackatimeProject.stoppedAt);
+    return selectedHackatimeProject.name === hackatimeProjectName &&
+      selectedDefaultStartDate === submitConsideredRange.value.startDate &&
+      selectedDefaultEndDate === submitConsideredRange.value.endDate
+      ? {
+        hackatimeStartedAt: selectedHackatimeProject.startedAt,
+        hackatimeStoppedAt: selectedHackatimeProject.stoppedAt,
+        hackatimeTotalSeconds: selectedHackatimeProject.totalSeconds,
+        hackatimeHours: null,
+      }
+      : null;
+  }, [hackatimeProjectName, selectedHackatimeProject, submitConsideredRange]);
+  const { preview: hackatimePreview, loading: hackatimePreviewLoading, error: hackatimePreviewError } =
+    useHackatimeRangePreview({
+      enabled: !!hackatimeProjectName.trim(),
+      endpoint: "/api/hackatime/projects/preview",
+      body:
+        hackatimeProjectName.trim() && submitConsideredRange.ok
+          ? {
+            hackatimeProjectName,
+            consideredHackatimeRange: submitConsideredRange.value,
+          }
+          : null,
+      rangeError:
+        hackatimeProjectName.trim() && !submitConsideredRange.ok && (submitRangeStartDate || submitRangeEndDate)
+          ? submitConsideredRange.error
+          : null,
+      localPreview: selectedHackatimePreview,
+    });
+  const effectiveHackatimeStartedAt = hackatimePreview?.hackatimeStartedAt ?? hackatimeStartedAt;
+  const effectiveHackatimeStoppedAt = hackatimePreview?.hackatimeStoppedAt ?? hackatimeStoppedAt;
+  const effectiveHackatimeTotalSeconds = hackatimePreview?.hackatimeTotalSeconds ?? hackatimeTotalSeconds;
   const currentConsideredRange = useMemo(
     () =>
       getProjectConsideredHackatimeRange({
-        hackatimeStartedAt,
-        hackatimeStoppedAt,
+        hackatimeStartedAt: effectiveHackatimeStartedAt,
+        hackatimeStoppedAt: effectiveHackatimeStoppedAt,
       }),
-    [hackatimeStartedAt, hackatimeStoppedAt],
+    [effectiveHackatimeStartedAt, effectiveHackatimeStoppedAt],
   );
   const currentConsideredRangeLabel = useMemo(
     () => formatConsideredHackatimeRangeLabel(currentConsideredRange),
     [currentConsideredRange],
   );
   const currentHackatimeHoursLabel = useMemo(
-    () => formatHoursMinutes(hackatimeTotalSeconds),
-    [hackatimeTotalSeconds],
+    () => formatTotalSeconds(effectiveHackatimeTotalSeconds),
+    [effectiveHackatimeTotalSeconds],
   );
 
   function isValidUrlString(value: string) {
@@ -331,104 +318,6 @@ export default function ManageProjectClient({
     () => hasRequiredProjectSubmissionChecklistAnswers(submissionChecklist),
     [submissionChecklist],
   );
-  const submitConsideredRange = useMemo(
-    () =>
-      parseConsideredHackatimeRange({
-        startDate: submitRangeStartDate,
-        endDate: submitRangeEndDate,
-      }),
-    [submitRangeEndDate, submitRangeStartDate],
-  );
-
-  useEffect(() => {
-    if (!hackatimeProjectName.trim()) {
-      setHackatimePreviewLoading(false);
-      setHackatimePreviewError(null);
-      return;
-    }
-
-    if (!submitConsideredRange.ok) {
-      setHackatimePreviewLoading(false);
-      setHackatimePreviewError(
-        submitRangeStartDate || submitRangeEndDate ? submitConsideredRange.error : null,
-      );
-      return;
-    }
-
-    const selectedDefaultStartDate = toDateInputValue(selectedHackatimeProject?.startedAt ?? null);
-    const selectedDefaultEndDate = toDateInputValue(selectedHackatimeProject?.stoppedAt ?? null);
-    if (
-      selectedHackatimeProject &&
-      selectedHackatimeProject.name === hackatimeProjectName &&
-      selectedDefaultStartDate === submitConsideredRange.value.startDate &&
-      selectedDefaultEndDate === submitConsideredRange.value.endDate
-    ) {
-      setHackatimeStartedAt(selectedHackatimeProject.startedAt);
-      setHackatimeStoppedAt(selectedHackatimeProject.stoppedAt);
-      setHackatimeTotalSeconds(selectedHackatimeProject.totalSeconds);
-      setHackatimePreviewLoading(false);
-      setHackatimePreviewError(null);
-      return;
-    }
-
-    let cancelled = false;
-    const timer = window.setTimeout(async () => {
-      setHackatimePreviewLoading(true);
-      setHackatimePreviewError(null);
-      try {
-        const res = await fetch("/api/hackatime/projects/preview", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            hackatimeProjectName,
-            consideredHackatimeRange: submitConsideredRange.value,
-          }),
-        });
-        const data = (await res.json().catch(() => null)) as
-          | {
-              project?: {
-                hackatimeStartedAt?: string | null;
-                hackatimeStoppedAt?: string | null;
-                hackatimeTotalSeconds?: number | null;
-              };
-              error?: unknown;
-            }
-          | null;
-        if (cancelled) return;
-        if (!res.ok) {
-          const message =
-            typeof data?.error === "string" ? data.error : "Failed to refresh Hackatime hours.";
-          setHackatimePreviewError(message);
-          setHackatimePreviewLoading(false);
-          return;
-        }
-        setHackatimeStartedAt(data?.project?.hackatimeStartedAt ?? null);
-        setHackatimeStoppedAt(data?.project?.hackatimeStoppedAt ?? null);
-        setHackatimeTotalSeconds(
-          typeof data?.project?.hackatimeTotalSeconds === "number"
-            ? data.project.hackatimeTotalSeconds
-            : null,
-        );
-        setHackatimePreviewLoading(false);
-      } catch {
-        if (cancelled) return;
-        setHackatimePreviewError("Failed to refresh Hackatime hours.");
-        setHackatimePreviewLoading(false);
-      }
-    }, 400);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [
-    hackatimeProjectName,
-    selectedHackatimeProject,
-    submitConsideredRange,
-    submitRangeEndDate,
-    submitRangeStartDate,
-  ]);
-
   const setChecklistValue = useCallback(
     (key: keyof ProjectSubmissionChecklist, checked: boolean) => {
       if (key === "readmeInstructions") setCheckReadme(checked);
@@ -551,9 +440,9 @@ export default function ManageProjectClient({
       editor,
       editorOther: editor === "other" ? editorOther.trim() : "",
       hackatimeProjectName: hackatimeProjectName.trim(),
-      hackatimeStartedAt,
-      hackatimeStoppedAt,
-      hackatimeTotalSeconds,
+      hackatimeStartedAt: effectiveHackatimeStartedAt,
+      hackatimeStoppedAt: effectiveHackatimeStoppedAt,
+      hackatimeTotalSeconds: effectiveHackatimeTotalSeconds,
       videoUrl: videoUrl.trim(),
       playableDemoUrl: playableDemoUrl.trim(),
       codeUrl: codeUrl.trim(),
@@ -704,9 +593,9 @@ export default function ManageProjectClient({
       editor,
       editorOther: editor === "other" ? editorOther.trim() : "",
       hackatimeProjectName: hackatimeProjectName.trim(),
-      hackatimeStartedAt,
-      hackatimeStoppedAt,
-      hackatimeTotalSeconds,
+      hackatimeStartedAt: effectiveHackatimeStartedAt,
+      hackatimeStoppedAt: effectiveHackatimeStoppedAt,
+      hackatimeTotalSeconds: effectiveHackatimeTotalSeconds,
       videoUrl: videoUrl.trim(),
       playableDemoUrl: playableDemoUrl.trim(),
       codeUrl: codeUrl.trim(),
@@ -1024,7 +913,6 @@ export default function ManageProjectClient({
                 setHackatimeTotalSeconds(selected?.totalSeconds ?? null);
                 setSubmitRangeStartDate(toDateInputValue(selected?.startedAt ?? null));
                 setSubmitRangeEndDate(toDateInputValue(selected?.stoppedAt ?? null));
-                setHackatimePreviewError(null);
               }}
               disabled={hackatimeLoading || (hackatimeProjects?.length ?? 0) === 0}
             >
@@ -1052,7 +940,6 @@ export default function ManageProjectClient({
                     setHackatimeTotalSeconds(null);
                     setSubmitRangeStartDate("");
                     setSubmitRangeEndDate("");
-                    setHackatimePreviewError(null);
                   }}
                   className="font-semibold hover:text-foreground hover:underline disabled:opacity-60"
                   disabled={!hackatimeProjectName}

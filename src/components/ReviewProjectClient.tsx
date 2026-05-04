@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
+import { useCallback, useMemo, useRef, useState, type SetStateAction } from "react";
 import type {
   ProjectEditor,
   ProjectStatus,
@@ -41,6 +41,11 @@ import {
   parseConsideredHackatimeRange,
   type ConsideredHackatimeRange,
 } from "@/lib/hackatime-range";
+import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
+import {
+  formatHoursMinutes,
+  type HackatimeRangePreview,
+} from "@/lib/project-form-utils";
 import toast from "react-hot-toast";
 
 type ReviewItem = {
@@ -100,12 +105,6 @@ function toHackatimeHours(totalSeconds: number | null | undefined) {
     hours: Math.floor(safeTotalSeconds / 3600),
     minutes: Math.floor(safeTotalSeconds / 60) % 60,
   };
-}
-
-function formatHoursMinutes(hours: number, minutes: number) {
-  const safeHours = Number.isFinite(hours) ? Math.max(0, Math.floor(hours)) : 0;
-  const safeMinutes = Number.isFinite(minutes) ? Math.max(0, Math.floor(minutes)) : 0;
-  return `${safeHours}h${String(safeMinutes).padStart(2, "0")}m`;
 }
 
 export default function ReviewProjectClient({
@@ -187,12 +186,6 @@ export default function ReviewProjectClient({
   });
   const reviewJustificationDraftRef = useRef(reviewJustificationDraft);
   const [modalError, setModalError] = useState<string | null>(null);
-  const [adminHackatimePreview, setAdminHackatimePreview] = useState<{
-    hackatimeTotalSeconds: number | null;
-    hackatimeHours: { hours: number; minutes: number } | null;
-  } | null>(null);
-  const [adminHackatimePreviewLoading, setAdminHackatimePreviewLoading] = useState(false);
-  const [adminHackatimePreviewError, setAdminHackatimePreviewError] = useState<string | null>(null);
   const adminApprovalRange = useMemo(
     () => parseConsideredHackatimeRange(approvalProjectRange),
     [approvalProjectRange],
@@ -260,100 +253,37 @@ export default function ReviewProjectClient({
     return formatHoursMinutes(project.hackatimeHours.hours, project.hackatimeHours.minutes);
   }, [project.hackatimeHours]);
 
-  useEffect(() => {
-    if (!isAdmin || decision !== "approved") {
-      setAdminHackatimePreview(null);
-      setAdminHackatimePreviewLoading(false);
-      setAdminHackatimePreviewError(null);
-      return;
-    }
-
-    if (!adminApprovalRange.ok) {
-      setAdminHackatimePreviewLoading(false);
-      setAdminHackatimePreviewError(
-        approvalProjectRange.startDate || approvalProjectRange.endDate ? adminApprovalRange.error : null,
-      );
-      return;
-    }
-
+  const localAdminHackatimePreview = useMemo<HackatimeRangePreview | null>(() => {
     if (
-      canonicalProjectRange &&
-      canonicalProjectRange.startDate === adminApprovalRange.value.startDate &&
-      canonicalProjectRange.endDate === adminApprovalRange.value.endDate
+      !adminApprovalRange.ok ||
+      !canonicalProjectRange ||
+      canonicalProjectRange.startDate !== adminApprovalRange.value.startDate ||
+      canonicalProjectRange.endDate !== adminApprovalRange.value.endDate
     ) {
-      setAdminHackatimePreview({
+      return null;
+    }
+    return {
         hackatimeTotalSeconds: project.hackatimeHours
           ? project.hackatimeHours.hours * 3600 + project.hackatimeHours.minutes * 60
           : null,
         hackatimeHours: project.hackatimeHours,
-      });
-      setAdminHackatimePreviewLoading(false);
-      setAdminHackatimePreviewError(null);
-      return;
-    }
-
-    let cancelled = false;
-    const timer = window.setTimeout(async () => {
-      setAdminHackatimePreviewLoading(true);
-      setAdminHackatimePreviewError(null);
-      try {
-        const res = await fetch(`/api/admin/projects/${encodeURIComponent(project.id)}/hackatime-preview`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            consideredHackatimeRange: adminApprovalRange.value,
-          }),
-        });
-        const data = (await res.json().catch(() => null)) as
-          | {
-              project?: {
-                hackatimeTotalSeconds?: number | null;
-                hackatimeHours?: { hours?: number; minutes?: number } | null;
-              };
-              error?: unknown;
-            }
-          | null;
-        if (cancelled) return;
-        if (!res.ok) {
-          const message =
-            typeof data?.error === "string" ? data.error : "Failed to refresh Hackatime hours.";
-          setAdminHackatimePreviewError(message);
-          setAdminHackatimePreviewLoading(false);
-          return;
-        }
-        const hours = data?.project?.hackatimeHours;
-        setAdminHackatimePreview({
-          hackatimeTotalSeconds:
-            typeof data?.project?.hackatimeTotalSeconds === "number"
-              ? data.project.hackatimeTotalSeconds
-              : null,
-          hackatimeHours:
-            hours && typeof hours.hours === "number" && typeof hours.minutes === "number"
-              ? { hours: hours.hours, minutes: hours.minutes }
-              : null,
-        });
-        setAdminHackatimePreviewLoading(false);
-      } catch {
-        if (cancelled) return;
-        setAdminHackatimePreviewError("Failed to refresh Hackatime hours.");
-        setAdminHackatimePreviewLoading(false);
-      }
-    }, 400);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
     };
-  }, [
-    adminApprovalRange,
-    approvalProjectRange.endDate,
-    approvalProjectRange.startDate,
-    canonicalProjectRange,
-    decision,
-    isAdmin,
-    project.hackatimeHours,
-    project.id,
-  ]);
+  }, [adminApprovalRange, canonicalProjectRange, project.hackatimeHours]);
+
+  const {
+    preview: adminHackatimePreview,
+    loading: adminHackatimePreviewLoading,
+    error: adminHackatimePreviewError,
+  } = useHackatimeRangePreview({
+    enabled: isAdmin && decision === "approved",
+    endpoint: `/api/admin/projects/${encodeURIComponent(project.id)}/hackatime-preview`,
+    body: adminApprovalRange.ok ? { consideredHackatimeRange: adminApprovalRange.value } : null,
+    rangeError:
+      !adminApprovalRange.ok && (approvalProjectRange.startDate || approvalProjectRange.endDate)
+        ? adminApprovalRange.error
+        : null,
+    localPreview: localAdminHackatimePreview,
+  });
 
   const approvalHackatimeHoursValue = useMemo(() => {
     if (
@@ -420,7 +350,7 @@ export default function ReviewProjectClient({
       endDate: defaultReviewEndDate,
     });
     setModalError(null);
-  }, [defaultReviewEndDate, defaultReviewStartDate, project.hackatimeProjectName]);
+  }, [defaultReviewEndDate, defaultReviewStartDate, project.hackatimeProjectName, setReviewJustificationDraft]);
 
   const submitReview = useCallback(async (input: {
     requestReviewJustification: ReviewJustificationDraft | null;
@@ -622,7 +552,7 @@ export default function ReviewProjectClient({
       },
     }));
     setModalError(null);
-  }, []);
+  }, [setReviewJustificationDraft]);
 
   const onToggleDeflationReason = useCallback((reason: ReviewDeflationReason) => {
     setReviewJustificationDraft((prev) => {
@@ -633,7 +563,7 @@ export default function ReviewProjectClient({
       return { ...prev, deflationReasons: nextReasons };
     });
     setModalError(null);
-  }, []);
+  }, [setReviewJustificationDraft]);
 
   const onDecisionChange = useCallback((nextDecision: ReviewDecision) => {
     setDecision(nextDecision);
