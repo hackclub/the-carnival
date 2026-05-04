@@ -292,7 +292,7 @@ function DevlogItem({
               />
             </label>
             <div className="self-end text-xs text-muted-foreground">
-              Can't exceed the devlog's logged time ({duration.label}).
+              Can&apos;t exceed the devlog&apos;s logged time ({duration.label}).
             </div>
           </div>
         ) : null}

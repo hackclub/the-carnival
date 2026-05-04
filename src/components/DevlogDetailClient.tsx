@@ -134,7 +134,6 @@ export default function DevlogDetailClient({
             <div className="font-semibold text-foreground mb-3">Attachments</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {devlog.attachments.map((url, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
                 <a
                   key={`${url}-${i}`}
                   href={url}
@@ -142,6 +141,7 @@ export default function DevlogDetailClient({
                   rel="noreferrer"
                   className="block"
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={url}
                     alt=""

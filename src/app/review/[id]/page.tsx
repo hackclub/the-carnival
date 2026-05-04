@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import type { ReviewDevlogFull } from "@/components/DevlogAssessmentPanel";
 import ReviewHackatimeTools from "@/components/ReviewHackatimeTools";

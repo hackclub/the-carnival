@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { peerReview, project } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
@@ -95,4 +95,3 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     },
   });
 }
-
