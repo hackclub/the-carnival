@@ -134,3 +134,10 @@ export function computeWindowCeiling(submittedAt: Date | null) {
   if (submittedAt && submittedAt.getTime() < now.getTime()) return submittedAt;
   return now;
 }
+
+export function computeDevlogWindowCeiling(input: {
+  projectStatus: unknown;
+  submittedAt: Date | null;
+}) {
+  return computeWindowCeiling(input.projectStatus === "work-in-progress" ? null : input.submittedAt);
+}

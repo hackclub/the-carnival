@@ -7,6 +7,7 @@ const {
 const {
   DEVLOG_AI_DESCRIPTION_MAX_LENGTH,
   DEVLOG_MAX_ATTACHMENTS,
+  computeDevlogWindowCeiling,
   computeWindowCeiling,
   formatDurationHM,
   parseAttachmentUrls,
@@ -210,5 +211,29 @@ describe("computeWindowCeiling", () => {
   test("returns submittedAt when it is in the past", () => {
     const past = new Date("2026-01-01T00:00:00Z");
     expect(computeWindowCeiling(past).getTime()).toBe(past.getTime());
+  });
+});
+
+describe("computeDevlogWindowCeiling", () => {
+  test("ignores historical submittedAt after a project returns to work-in-progress", () => {
+    const past = new Date("2026-01-01T00:00:00Z");
+    const before = Date.now();
+    const d = computeDevlogWindowCeiling({
+      projectStatus: "work-in-progress",
+      submittedAt: past,
+    });
+    const after = Date.now();
+    expect(d.getTime()).toBeGreaterThanOrEqual(before - 1);
+    expect(d.getTime()).toBeLessThanOrEqual(after + 1);
+  });
+
+  test("uses submittedAt as the ceiling while the project is in review", () => {
+    const submittedAt = new Date("2026-01-01T00:00:00Z");
+    expect(
+      computeDevlogWindowCeiling({
+        projectStatus: "in-review",
+        submittedAt,
+      }).getTime(),
+    ).toBe(submittedAt.getTime());
   });
 });
