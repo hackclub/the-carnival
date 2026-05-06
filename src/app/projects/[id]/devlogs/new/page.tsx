@@ -6,7 +6,7 @@ import NewDevlogForm from "@/components/NewDevlogForm";
 import { Card, CardContent } from "@/components/ui";
 import { db } from "@/db";
 import { project } from "@/db/schema";
-import { computeWindowCeiling } from "@/lib/devlog-shared";
+import { computeDevlogWindowCeiling } from "@/lib/devlog-shared";
 import { listProjectHackatimeProjects, getDevlogWindowFloor } from "@/lib/devlogs";
 import { getServerSession } from "@/lib/server-session";
 
@@ -40,7 +40,7 @@ export default async function NewDevlogPage(props: {
 
   const hackatimeProjectName = (p.hackatimeProjectName ?? "").trim();
 
-  if (p.status !== "work-in-progress" || p.submittedAt) {
+  if (p.status !== "work-in-progress") {
     return (
       <AppShell title="New devlog">
         <div className="mb-6">
@@ -66,7 +66,10 @@ export default async function NewDevlogPage(props: {
 
   const floorBase = p.startedOnCarnivalAt ?? p.createdAt;
   const floor = await getDevlogWindowFloor(p.id, floorBase);
-  const ceiling = computeWindowCeiling(p.submittedAt ?? null);
+  const ceiling = computeDevlogWindowCeiling({
+    projectStatus: p.status,
+    submittedAt: p.submittedAt ?? null,
+  });
   const linkedHackatimeProjects = await listProjectHackatimeProjects(p.id);
 
   return (

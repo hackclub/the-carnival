@@ -58,7 +58,7 @@ export default async function DevlogDetailPage(props: {
   const isAuthor = row.userId === session.user.id;
   if (!canView(role, isCreator)) notFound();
 
-  const projectEditable = row.projectStatus === "work-in-progress" && !row.projectSubmittedAt;
+  const projectEditable = row.projectStatus === "work-in-progress";
   const canEdit = isAuthor && projectEditable;
   const canDelete = canEdit || role === "admin";
 

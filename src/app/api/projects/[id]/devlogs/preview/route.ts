@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { project } from "@/db/schema";
-import { computeWindowCeiling, parseDevlogWindow } from "@/lib/devlog-shared";
+import { computeDevlogWindowCeiling, parseDevlogWindow } from "@/lib/devlog-shared";
 import {
   countProjectDevlogs,
   getDevlogWindowFloor,
@@ -52,7 +52,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
   const floorBase = p.startedOnCarnivalAt ?? p.createdAt;
   const floor = await getDevlogWindowFloor(projectId, floorBase);
-  const ceiling = computeWindowCeiling(p.submittedAt ?? null);
+  const ceiling = computeDevlogWindowCeiling({
+    projectStatus: p.status,
+    submittedAt: p.submittedAt ?? null,
+  });
   const priorDevlogCount = await countProjectDevlogs(projectId);
   let hackatimeProjectName = "";
   try {

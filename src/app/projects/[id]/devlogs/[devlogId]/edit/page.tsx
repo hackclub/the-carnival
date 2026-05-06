@@ -6,7 +6,7 @@ import NewDevlogForm from "@/components/NewDevlogForm";
 import { Card, CardContent } from "@/components/ui";
 import { db } from "@/db";
 import { devlog, project } from "@/db/schema";
-import { computeWindowCeiling } from "@/lib/devlog-shared";
+import { computeDevlogWindowCeiling } from "@/lib/devlog-shared";
 import { getDevlogWindowFloor, listProjectHackatimeProjects } from "@/lib/devlogs";
 import { getServerSession } from "@/lib/server-session";
 
@@ -56,7 +56,7 @@ export default async function EditDevlogPage(props: {
     (row.hackatimeProjectNameSnapshot ?? "").trim() ||
     (row.projectHackatimeProjectName ?? "").trim();
 
-  if (row.projectStatus !== "work-in-progress" || row.projectSubmittedAt) {
+  if (row.projectStatus !== "work-in-progress") {
     return (
       <AppShell title="Edit devlog">
         <div className="mb-6">
@@ -115,7 +115,10 @@ export default async function EditDevlogPage(props: {
 
   const floorBase = row.projectStartedOnCarnivalAt ?? row.projectCreatedAt ?? new Date(0);
   const floor = await getDevlogWindowFloor(id, floorBase, row.id);
-  const ceiling = computeWindowCeiling(row.projectSubmittedAt ?? null);
+  const ceiling = computeDevlogWindowCeiling({
+    projectStatus: row.projectStatus,
+    submittedAt: row.projectSubmittedAt ?? null,
+  });
   const linkedHackatimeProjects = await listProjectHackatimeProjects(id);
 
   return (

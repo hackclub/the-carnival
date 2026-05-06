@@ -78,7 +78,7 @@ export default async function ProjectDevlogListPage(props: {
     .where(and(eq(devlog.projectId, id)))
     .orderBy(desc(devlog.endedAt), asc(devlog.id));
 
-  const canWrite = isCreator && p.status === "work-in-progress" && !p.submittedAt;
+  const canWrite = isCreator && p.status === "work-in-progress";
   const totalHours = formatDurationHM(p.hoursSpentSeconds ?? 0);
 
   return (

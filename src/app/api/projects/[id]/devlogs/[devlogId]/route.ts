@@ -6,7 +6,7 @@ import {
   DEVLOG_AI_DESCRIPTION_MAX_LENGTH,
   DEVLOG_MAX_CONTENT_LENGTH,
   DEVLOG_MAX_TITLE_LENGTH,
-  computeWindowCeiling,
+  computeDevlogWindowCeiling,
   parseAttachmentUrls,
   parseDevlogWindow,
   parseOptionalTrimmedString,
@@ -149,10 +149,10 @@ export async function PATCH(
       { status: 403 },
     );
   }
-  if (row.projectStatus !== "work-in-progress" || row.projectSubmittedAt) {
+  if (row.projectStatus !== "work-in-progress") {
     return NextResponse.json(
       {
-        error: "Devlogs are frozen once the project is submitted for review.",
+        error: "Devlogs are frozen unless the project is work-in-progress.",
         code: "devlog_frozen",
       },
       { status: 409 },
@@ -274,7 +274,10 @@ export async function PATCH(
 
     const floorBase = row.projectStartedOnCarnivalAt ?? row.projectCreatedAt ?? row.createdAt;
     const floor = await getDevlogWindowFloor(projectId, floorBase, row.id);
-    const ceiling = computeWindowCeiling(row.projectSubmittedAt ?? null);
+    const ceiling = computeDevlogWindowCeiling({
+      projectStatus: row.projectStatus,
+      submittedAt: row.projectSubmittedAt ?? null,
+    });
 
     const window = parseDevlogWindow({
       startedAt: body.startedAt ?? row.startedAt.toISOString(),
@@ -395,10 +398,10 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (isAuthor && !isAdmin) {
-    if (row.projectStatus !== "work-in-progress" || row.projectSubmittedAt) {
+    if (row.projectStatus !== "work-in-progress") {
       return NextResponse.json(
         {
-          error: "Devlogs are frozen once the project is submitted for review.",
+          error: "Devlogs are frozen unless the project is work-in-progress.",
           code: "devlog_frozen",
         },
         { status: 409 },

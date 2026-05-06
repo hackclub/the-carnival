@@ -132,18 +132,16 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
     };
   });
 
-  const canWriteDevlog = p.status === "work-in-progress" && !p.submittedAt;
+  const canWriteDevlog = p.status === "work-in-progress";
   const writeBlockedReason = canWriteDevlog
     ? null
-    : p.submittedAt
-      ? "Devlogs are frozen after submitting the project for review."
-      : p.status === "in-review"
-        ? "Devlogs are frozen while the project is in review."
-        : p.status === "shipped"
-          ? "This project is shipped; no more devlogs can be added."
-          : p.status === "granted"
-            ? "This project has been granted and is immutable."
-            : "Devlogs can only be posted while a project is work-in-progress.";
+    : p.status === "in-review"
+      ? "Devlogs are frozen while the project is in review."
+      : p.status === "shipped"
+        ? "This project is shipped; no more devlogs can be added."
+        : p.status === "granted"
+          ? "This project has been granted and is immutable."
+          : "Devlogs can only be posted while a project is work-in-progress.";
   const totalHoursSeconds = p.hoursSpentSeconds ?? 0;
 
   return (

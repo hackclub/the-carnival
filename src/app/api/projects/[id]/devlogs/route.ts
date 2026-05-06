@@ -7,7 +7,7 @@ import {
   DEVLOG_AI_DESCRIPTION_MAX_LENGTH,
   DEVLOG_MAX_CONTENT_LENGTH,
   DEVLOG_MAX_TITLE_LENGTH,
-  computeWindowCeiling,
+  computeDevlogWindowCeiling,
   parseAttachmentUrls,
   parseDevlogWindow,
   parseOptionalTrimmedString,
@@ -166,12 +166,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       { status: 409 },
     );
   }
-  if (p.submittedAt) {
-    return NextResponse.json(
-      { error: "This project has been submitted for review; devlogs are frozen." },
-      { status: 409 },
-    );
-  }
   let body: CreateDevlogBody;
   try {
     body = (await req.json()) as CreateDevlogBody;
@@ -233,7 +227,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const floorStart = p.startedOnCarnivalAt ?? p.createdAt;
   const floor = await getDevlogWindowFloor(projectId, floorStart);
-  const ceiling = computeWindowCeiling(p.submittedAt ?? null);
+  const ceiling = computeDevlogWindowCeiling({
+    projectStatus: p.status,
+    submittedAt: p.submittedAt ?? null,
+  });
   const priorDevlogCount = await countProjectDevlogs(projectId);
   let hackatimeProjectName = "";
   try {
