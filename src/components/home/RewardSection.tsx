@@ -52,7 +52,7 @@ export default function RewardSection() {
         )}
       >
         <div className="relative z-10 text-center">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#8f4a18]">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#8f4a18]">
             Upgrade your setup
           </p>
           <h2
@@ -78,7 +78,7 @@ export default function RewardSection() {
                 key={card.title}
                 className={cx(carnivalCardClassName, "px-5 py-6 sm:px-6")}
               >
-                <h3 className="flex items-center gap-3 text-2xl font-black text-[#5b1f0a] sm:text-[1.75rem]">
+                <h3 className="flex items-center gap-3 text-2xl font-bold text-[#5b1f0a] sm:text-[1.75rem]">
                   <span className="text-[2rem]" role="img" aria-hidden="true">
                     {card.icon}
                   </span>

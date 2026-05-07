@@ -459,37 +459,37 @@ export default function AdminGrantClient({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
               <div className="text-sm text-muted-foreground">Hackatime project</div>
               <div className="text-foreground font-semibold truncate">
                 <span className="font-mono">{project.hackatimeProjectName || "—"}</span>
               </div>
             </div>
-            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
               <div className="text-sm text-muted-foreground">Hackatime user_id</div>
               <div className="text-foreground font-semibold truncate">
                 <span className="font-mono">{project.hackatimeUserId || "—"}</span>
               </div>
             </div>
-            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
               <div className="text-sm text-muted-foreground">Hours logged (Hackatime)</div>
               <div className="text-foreground font-semibold">
                 {project.hackatimeHours ? formatHoursMinutes(project.hackatimeHours.hours, project.hackatimeHours.minutes) : "—"}
               </div>
             </div>
-            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
               <div className="text-sm text-muted-foreground">Approved hours</div>
               <div className="text-foreground font-semibold">
                 {project.approvedHours !== null && project.approvedHours !== undefined ? `${project.approvedHours}h` : "—"}
               </div>
             </div>
-            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 md:col-span-2">
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 md:col-span-2">
               <div className="text-sm text-muted-foreground">Considered Hackatime range</div>
               <div className="text-foreground font-semibold">{canonicalProjectRangeLabel}</div>
             </div>
           </div>
 
-          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4 space-y-3">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 space-y-3">
             <div>
               <div className="text-foreground font-semibold">Edit considered Hackatime range</div>
               <div className="text-sm text-muted-foreground mt-1">
@@ -535,7 +535,7 @@ export default function AdminGrantClient({
             ) : null}
           </div>
 
-          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4 space-y-3">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 space-y-3">
             <div className="text-foreground font-semibold">Submission checklist</div>
             {project.submissionChecklist ? (
               <div className="space-y-2">
@@ -580,7 +580,7 @@ export default function AdminGrantClient({
               href={project.playableDemoUrl}
               target="_blank"
               rel="noreferrer"
-              className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
+              className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
             >
               <div className="text-sm text-muted-foreground">Playable demo link</div>
               <div className="text-foreground font-semibold truncate">{project.playableDemoUrl}</div>
@@ -589,7 +589,7 @@ export default function AdminGrantClient({
               href={project.videoUrl}
               target="_blank"
               rel="noreferrer"
-              className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
+              className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
             >
               <div className="text-sm text-muted-foreground">Video</div>
               <div className="text-foreground font-semibold truncate">{project.videoUrl}</div>
@@ -598,7 +598,7 @@ export default function AdminGrantClient({
               href={project.codeUrl}
               target="_blank"
               rel="noreferrer"
-              className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
+              className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
             >
               <div className="text-sm text-muted-foreground">GitHub</div>
               <div className="text-foreground font-semibold truncate">{project.codeUrl}</div>
@@ -745,7 +745,7 @@ export default function AdminGrantClient({
         ) : (
           <div className="space-y-3">
             {initial.reviews.map((r) => (
-              <div key={r.id} className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4">
+              <div key={r.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-foreground font-semibold truncate">
@@ -817,7 +817,7 @@ export default function AdminGrantClient({
             <img
               src={activeScreenshot}
               alt=""
-              className="w-full max-h-[70vh] object-contain rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted"
+              className="w-full max-h-[70vh] object-contain rounded-[var(--radius-2xl)] border border-border bg-muted"
               referrerPolicy="no-referrer"
             />
           </div>

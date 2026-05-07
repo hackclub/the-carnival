@@ -172,7 +172,7 @@ export function DateTimePicker({
           onSelect={handleDaySelect}
           defaultMonth={selected}
         />
-        <div className="border-t-[3px] border-[var(--carnival-border)]/25 px-3 py-2">
+        <div className="border-t-[3px] border-border/25 px-3 py-2">
           <label className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
             Time
             <input

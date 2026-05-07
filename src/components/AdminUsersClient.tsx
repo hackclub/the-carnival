@@ -467,12 +467,12 @@ export default function AdminUsersClient({
             <div className="text-red-600 text-sm">{ledgerError}</div>
           ) : ledgerData ? (
             <>
-              <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-4 py-3">
+              <div className="rounded-[var(--radius-xl)]  border border-border bg-background px-4 py-3">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">Current balance</div>
                 <div className="text-2xl font-bold text-foreground mt-1">{ledgerData.balance} tokens</div>
               </div>
 
-              <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background p-4 space-y-3">
+              <div className="rounded-[var(--radius-xl)]  border border-border bg-background p-4 space-y-3">
                 <div className="text-sm font-semibold text-foreground">Guarded adjustment</div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <label className="flex flex-col gap-1 text-xs text-muted-foreground">
@@ -537,7 +537,7 @@ export default function AdminUsersClient({
                     {ledgerData.ledger.map((row) => (
                       <div
                         key={row.id}
-                        className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-4 py-3"
+                        className="rounded-[var(--radius-xl)]  border border-border bg-background px-4 py-3"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="text-sm font-semibold text-foreground">

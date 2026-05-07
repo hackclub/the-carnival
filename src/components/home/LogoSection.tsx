@@ -37,7 +37,7 @@ export default function LogoSection() {
               size={20}
             />
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.18em] text-[#8d1a2b]">
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#8d1a2b]">
                 Time tracking warning
               </p>
               <p className="mt-2 text-sm leading-6 text-[#74210a] sm:text-base sm:leading-7">
@@ -77,13 +77,13 @@ export default function LogoSection() {
               </div>
             </div>
 
-            <p className="mt-5 max-w-4xl text-center text-[clamp(1.9rem,4.8vw,4.4rem)] font-black leading-[0.95] text-[#5b1f0a] [text-wrap:balance]">
+            <p className="mt-5 max-w-4xl text-center text-[clamp(1.9rem,4.8vw,4.4rem)] font-bold leading-[0.95] text-[#5b1f0a] [text-wrap:balance]">
               Make projects, not excuses, and earn rewards with Carnival.
             </p>
             <p className="mt-4 max-w-3xl text-center text-base leading-7 text-[#6d3510] [text-wrap:pretty] sm:text-lg">
               Build an extension, plugin, or widget for the tools you already
               use. Every honest hour you track turns into{" "}
-              <span className="font-black">$4/hr</span> toward your dev setup.
+              <span className="font-bold">$4/hr</span> toward your dev setup.
             </p>
 
             <div
@@ -92,7 +92,7 @@ export default function LogoSection() {
                 "carnival-card-soft mt-7 w-full max-w-4xl px-5 py-4 sm:px-6",
               )}
             >
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8f4a18]">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8f4a18]">
                 Spin up a ride like
               </p>
               <div className="mt-2 min-h-[3.75rem] text-lg font-semibold leading-7 text-[#5b1f0a] [text-wrap:balance] sm:text-xl">
@@ -105,7 +105,7 @@ export default function LogoSection() {
         </div>
 
         <div className={cx(carnivalCardClassName, "mt-6 px-5 py-5 sm:px-6")}>
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8f4a18]">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8f4a18]">
             Submission baseline
           </p>
           <ul className="mt-4 grid gap-3 lg:grid-cols-2">

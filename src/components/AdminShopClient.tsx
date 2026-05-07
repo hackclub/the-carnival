@@ -349,7 +349,7 @@ export default function AdminShopClient({
                     <img
                       src={i.imageUrl}
                       alt=""
-                      className="h-40 w-full rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background object-cover"
+                      className="h-40 w-full rounded-[var(--radius-xl)]  border border-border bg-background object-cover"
                       referrerPolicy="no-referrer"
                     />
                     <div className="mt-3">
@@ -438,7 +438,7 @@ export default function AdminShopClient({
                           <img
                             src={o.itemImageUrl}
                             alt={o.itemName}
-                            className="h-16 w-16 shrink-0 rounded-lg  border-2 border-[var(--carnival-border)] bg-background object-cover"
+                            className="h-16 w-16 shrink-0 rounded-lg  border border-border bg-background object-cover"
                             referrerPolicy="no-referrer"
                           />
                           <div className="min-w-0">
@@ -487,7 +487,7 @@ export default function AdminShopClient({
                   <img
                     src={selectedOrder.itemImageUrl}
                     alt={selectedOrder.itemName}
-                    className="h-48 w-full shrink-0 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background object-cover md:w-48"
+                    className="h-48 w-full shrink-0 rounded-[var(--radius-xl)]  border border-border bg-background object-cover md:w-48"
                     referrerPolicy="no-referrer"
                   />
                   <div className="min-w-0">

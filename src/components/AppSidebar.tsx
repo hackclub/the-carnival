@@ -253,7 +253,7 @@ export default function AppSidebar({
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <span className="text-xl leading-none">🎪</span>
             {(!collapsed || isMobile) && (
-              <span className="sidebar-branding-text text-sm font-black uppercase tracking-[0.08em] text-[var(--platform-ink)]">
+              <span className="sidebar-branding-text text-sm font-bold uppercase tracking-[0.08em] text-[var(--platform-ink)]">
                 Carnival
               </span>
             )}
@@ -262,7 +262,7 @@ export default function AppSidebar({
             <button
               type="button"
               onClick={toggleCollapsed}
-              className="ml-auto inline-flex items-center justify-center rounded-full border-2 border-transparent p-1.5 text-[var(--platform-ink-muted)] transition-colors hover:border-[var(--carnival-border)] hover:bg-[#fff0cf] hover:text-[var(--platform-ink)]"
+              className="ml-auto inline-flex items-center justify-center rounded-full border-2 border-transparent p-1.5 text-[var(--platform-ink-muted)] transition-colors hover:border-border hover:bg-[#fff0cf] hover:text-[var(--platform-ink)]"
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -304,7 +304,7 @@ export default function AppSidebar({
             className={
               collapsed && !isMobile
                 ? "flex flex-col items-center gap-2"
-                : "rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-[#fff0cf] p-2"
+                : "rounded-[var(--carnival-squircle-radius)] border border-border bg-[#fff0cf] p-2"
             }
           >
             <div className={collapsed && !isMobile ? "flex flex-col items-center gap-2" : "flex items-center gap-2.5"}>
@@ -315,11 +315,11 @@ export default function AppSidebar({
                     <img
                       src={sessionUser.image}
                       alt=""
-                      className="h-10 w-10 rounded-full border-2 border-[var(--carnival-border)] object-cover"
+                      className="h-10 w-10 rounded-full border border-border object-cover"
                       referrerPolicy="no-referrer"
                     />
                   ) : (
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[var(--carnival-border)] bg-[var(--platform-accent)] text-sm font-black text-[#fff7dc]">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-[var(--platform-accent)] text-sm font-bold text-[#fff7dc]">
                       {avatarText}
                     </span>
                   )}
@@ -349,7 +349,7 @@ export default function AppSidebar({
                     <Link
                     href="/account"
                     onClick={isMobile ? () => setMobileOpen(false) : undefined}
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-transparent text-[var(--platform-ink-muted)] transition-colors hover:border-[var(--carnival-border)] hover:bg-[#fff7dc] hover:text-[var(--platform-ink)]"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-transparent text-[var(--platform-ink-muted)] transition-colors hover:border-border hover:bg-[#fff7dc] hover:text-[var(--platform-ink)]"
                     aria-label="Account settings"
                   >
                     <Settings size={17} />

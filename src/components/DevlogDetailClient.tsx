@@ -145,7 +145,7 @@ export default function DevlogDetailClient({
                   <img
                     src={url}
                     alt=""
-                    className="w-full rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted object-cover"
+                    className="w-full rounded-[var(--radius-xl)]  border border-border bg-muted object-cover"
                     referrerPolicy="no-referrer"
                   />
                 </a>

@@ -113,7 +113,7 @@ export default function WorkSection() {
               )}
             >
               <div className="flex items-start gap-4">
-                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-[3px] border-[#74210a] bg-[#f6a61c] text-lg font-black text-[#fff7dc] shadow-[0_4px_0_#bf6216]">
+                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-[3px] border-[#74210a] bg-[#f6a61c] text-lg font-bold text-[#fff7dc] shadow-[0_4px_0_#bf6216]">
                   {index + 1}
                 </span>
                 <div className="min-w-0">

@@ -240,7 +240,7 @@ export default async function ExplorePage({
                 >
                   <div className="flex gap-4">
                     {firstAttachment ? (
-                      <div className="hidden h-24 w-32 shrink-0 overflow-hidden rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted sm:block">
+                      <div className="hidden h-24 w-32 shrink-0 overflow-hidden rounded-[var(--radius-xl)]  border border-border bg-muted sm:block">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={firstAttachment}
@@ -268,7 +268,7 @@ export default async function ExplorePage({
                         {devlogRow.content}
                       </div>
                       <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-background px-2.5 py-1 text-xs font-semibold text-foreground">
+                        <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border border-border bg-background px-2.5 py-1 text-xs font-semibold text-foreground">
                           {duration.label}
                         </span>
                         {devlogRow.usedAi ? (
@@ -363,7 +363,7 @@ export default async function ExplorePage({
                   >
                     <div className="flex h-full flex-col">
                       {firstScreenshot ? (
-                        <div className="mb-4 overflow-hidden rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted">
+                        <div className="mb-4 overflow-hidden rounded-[var(--radius-xl)]  border border-border bg-muted">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={firstScreenshot}
@@ -374,7 +374,7 @@ export default async function ExplorePage({
                           />
                         </div>
                       ) : (
-                        <div className="mb-4 flex h-40 w-full items-center justify-center rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted text-sm text-muted-foreground">
+                        <div className="mb-4 flex h-40 w-full items-center justify-center rounded-[var(--radius-xl)]  border border-border bg-muted text-sm text-muted-foreground">
                           No screenshot
                         </div>
                       )}
@@ -397,14 +397,14 @@ export default async function ExplorePage({
 
                       <div className="mt-3 flex flex-wrap gap-2">
                         {categoryLabel ? (
-                          <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-muted px-2.5 py-1 text-xs text-foreground">
+                          <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
                             {categoryLabel}
                           </span>
                         ) : null}
                         {tagLabels.slice(0, 3).map((tag) => (
                           <span
                             key={`${projectRow.id}-${tag}`}
-                            className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                            className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
                           >
                             #{tag}
                           </span>

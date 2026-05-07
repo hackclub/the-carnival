@@ -57,7 +57,7 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
           href="/"
           className={
             isLandingHeader
-              ? "text-xl font-black uppercase tracking-[0.08em] text-[#5b1f0a]"
+              ? "text-xl font-bold uppercase tracking-[0.08em] text-[#5b1f0a]"
               : "text-xl font-bold text-foreground"
           }
         >
@@ -74,19 +74,19 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
           <div className="hidden items-center gap-1 rounded-[var(--carnival-squircle-radius)] border border-[#74210a]/20 bg-[#fff7dc]/80 p-1 backdrop-blur sm:flex">
             <Link
               href="#about"
-              className="rounded-[calc(var(--carnival-squircle-radius)*0.75)] px-4 py-2 text-sm font-black uppercase tracking-[0.06em] text-[#7b240a] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc]"
+              className="rounded-[calc(var(--carnival-squircle-radius)*0.75)] px-4 py-2 text-sm font-bold uppercase tracking-[0.06em] text-[#7b240a] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc]"
             >
               How It Works
             </Link>
             <Link
               href="#rewards"
-              className="rounded-[calc(var(--carnival-squircle-radius)*0.75)] px-4 py-2 text-sm font-black uppercase tracking-[0.06em] text-[#7b240a] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc]"
+              className="rounded-[calc(var(--carnival-squircle-radius)*0.75)] px-4 py-2 text-sm font-bold uppercase tracking-[0.06em] text-[#7b240a] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc]"
             >
               Rewards
             </Link>
             <Link
               href="#faq"
-              className="rounded-[calc(var(--carnival-squircle-radius)*0.75)] px-4 py-2 text-sm font-black uppercase tracking-[0.06em] text-[#7b240a] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc]"
+              className="rounded-[calc(var(--carnival-squircle-radius)*0.75)] px-4 py-2 text-sm font-bold uppercase tracking-[0.06em] text-[#7b240a] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc]"
             >
               FAQ
             </Link>
@@ -99,14 +99,14 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
           showDashboardLink ? (
             <Link
               href="/projects"
-              className="rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-[#fff7dc] px-5 py-2.5 text-base font-black tracking-[0.02em] text-foreground transition-colors hover:bg-[#fff0cf]"
+              className="rounded-[var(--carnival-squircle-radius)] border border-border bg-[#fff7dc] px-5 py-2.5 text-base font-bold tracking-[0.02em] text-foreground transition-colors hover:bg-[#fff0cf]"
             >
               Dashboard
             </Link>
           ) : (
             <Link
               href="/projects"
-              className="rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-[#fff7dc] px-5 py-2.5 text-base font-black tracking-[0.02em] text-foreground transition-colors hover:bg-[#fff0cf]"
+              className="rounded-[var(--carnival-squircle-radius)] border border-border bg-[#fff7dc] px-5 py-2.5 text-base font-bold tracking-[0.02em] text-foreground transition-colors hover:bg-[#fff0cf]"
             >
               Dashboard
             </Link>
@@ -119,7 +119,7 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
             className={`rounded-[var(--carnival-squircle-radius)] px-5 py-3 text-base leading-none font-bold transition-colors sm:px-7 sm:py-3.5 sm:text-lg ${
               isLandingHeader
                 ? "border-2 border-[#74210a] bg-[#f6a61c] text-[#fff7dc] hover:bg-[#ee9817]"
-                : "border-2 border-[var(--carnival-border)] bg-[#f6a61c] text-[#fff7dc] hover:bg-[#ee9817]"
+                : "border border-border bg-[#f6a61c] text-[#fff7dc] hover:bg-[#ee9817]"
             } disabled:bg-[#d69840] disabled:cursor-not-allowed`}
           >
             {authLoading ? "Opening Identity…" : "Join Carnival"}

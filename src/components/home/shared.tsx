@@ -15,7 +15,7 @@ export const carnivalCardClassName = "carnival-card";
 export const carnivalCopyClassName =
   "text-sm leading-6 text-[#6d3510] sm:text-base sm:leading-7 [text-wrap:pretty]";
 export const carnivalHeadingClassName =
-  "font-black uppercase tracking-[0.08em] text-[#5b1f0a] [text-wrap:balance]";
+  "font-bold uppercase tracking-[0.08em] text-[#5b1f0a] [text-wrap:balance]";
 
 export function SectionBanner({ title, id, className }: SectionBannerProps) {
   return (
@@ -50,7 +50,7 @@ export function SectionBanner({ title, id, className }: SectionBannerProps) {
         />
 
         <div className="absolute left-1/2 top-1/2 w-full max-w-[88vw] -translate-x-1/2 -translate-y-[44%] px-3 sm:max-w-none sm:px-0">
-          <span className="inline-flex min-h-10 w-full items-center justify-center rounded-[var(--carnival-squircle-radius)] border-[3px] border-[#74210a] bg-[#f6a61c] px-3 py-1.5 text-center text-sm font-black text-[#fff7dc] shadow-[0_5px_0_#bf6216,0_14px_24px_rgba(120,53,15,0.16)] sm:w-auto sm:px-6 sm:py-3 sm:text-2xl">
+          <span className="inline-flex min-h-10 w-full items-center justify-center rounded-[var(--carnival-squircle-radius)] border-[3px] border-[#74210a] bg-[#f6a61c] px-3 py-1.5 text-center text-sm font-bold text-[#fff7dc] shadow-[0_5px_0_#bf6216,0_14px_24px_rgba(120,53,15,0.16)] sm:w-auto sm:px-6 sm:py-3 sm:text-2xl">
             {title}
           </span>
         </div>

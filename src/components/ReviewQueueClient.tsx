@@ -434,14 +434,14 @@ export default function ReviewQueueClient() {
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     {categoryLabel ? (
-                      <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-muted px-2.5 py-1 text-xs text-foreground">
+                      <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
                         {categoryLabel}
                       </span>
                     ) : null}
                     {tagLabels.slice(0, 3).map((tag) => (
                       <span
                         key={`${projectRow.id}-${tag}`}
-                        className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                        className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
                       >
                         #{tag}
                       </span>

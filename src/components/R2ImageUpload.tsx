@@ -148,14 +148,14 @@ export function R2ImageUpload({
         }}
         onDrop={onDrop}
         className={[
-          "rounded-[var(--radius-2xl)]  border-2 border-[var(--carnival-border)] bg-background p-4",
+          "rounded-[var(--radius-2xl)] border border-border bg-background p-4",
           "transition-colors",
           dragOver ? "border-carnival-blue/70 bg-carnival-blue/10" : "",
           disabled ? "opacity-60" : "",
         ].join(" ")}
       >
         <div className="flex items-start gap-4">
-          <div className="h-20 w-20 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted overflow-hidden flex items-center justify-center">
+          <div className="h-20 w-20 rounded-[var(--radius-xl)] border border-border bg-muted overflow-hidden flex items-center justify-center">
             {previewOk ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={value} alt="" className="h-full w-full object-cover" />

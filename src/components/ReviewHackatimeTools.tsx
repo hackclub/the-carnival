@@ -224,7 +224,7 @@ export default function ReviewHackatimeTools({
                 </span>
               </div>
 
-              <div className="rounded-lg  border-2 border-[var(--carnival-border)] bg-background/50 p-3">
+              <div className="rounded-lg  border border-border bg-background/50 p-3">
                 <div className="text-xs text-muted-foreground">
                   Hackatime project:{" "}
                   <code className="text-foreground">

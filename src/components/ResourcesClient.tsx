@@ -296,9 +296,9 @@ export default function ResourcesClient({
               <div className="flex items-center gap-3">
                 {ed.iconUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={ed.iconUrl} alt="" className="h-10 w-10 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted object-cover" />
+                  <img src={ed.iconUrl} alt="" className="h-10 w-10 rounded-[var(--radius-xl)]  border border-border bg-muted object-cover" />
                 ) : (
-                  <div className="h-10 w-10 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted" />
+                  <div className="h-10 w-10 rounded-[var(--radius-xl)]  border border-border bg-muted" />
                 )}
                 <div className="text-foreground font-bold text-xl truncate">{ed.name}</div>
               </div>

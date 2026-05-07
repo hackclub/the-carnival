@@ -96,7 +96,7 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           {bounty.previewImageUrl ? (
-            <div className="overflow-hidden rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted">
+            <div className="overflow-hidden rounded-[var(--radius-2xl)] border border-border bg-muted">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={bounty.previewImageUrl}
@@ -153,7 +153,7 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
                       href={link.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-muted px-3 py-1 text-sm font-semibold text-carnival-blue hover:bg-muted/70"
+                      className="rounded-[var(--carnival-squircle-radius)] border border-border bg-muted px-3 py-1 text-sm font-semibold text-carnival-blue hover:bg-muted/70"
                     >
                       {link.label}
                     </Link>
@@ -182,9 +182,9 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
                 {acceptedProjects.map((p) => {
                   const firstScreenshot = p.screenshots.find((url) => url.trim().length > 0);
                   return (
-                    <article key={p.id} className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted/40 p-4">
+                    <article key={p.id} className="rounded-[var(--radius-xl)]  border border-border bg-muted/40 p-4">
                       {firstScreenshot ? (
-                        <div className="mb-3 h-32 overflow-hidden rounded-[var(--radius-lg)]  border-2 border-[var(--carnival-border)] bg-muted">
+                        <div className="mb-3 h-32 overflow-hidden rounded-[var(--radius-lg)]  border border-border bg-muted">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={firstScreenshot}
@@ -215,7 +215,7 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
                             href={p.playableDemoUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-3 py-1.5 text-sm font-semibold text-foreground hover:bg-muted"
+                            className="rounded-[var(--radius-xl)]  border border-border bg-background px-3 py-1.5 text-sm font-semibold text-foreground hover:bg-muted"
                           >
                             Play
                           </Link>
@@ -224,7 +224,7 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
                           href={p.codeUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-3 py-1.5 text-sm font-semibold text-foreground hover:bg-muted"
+                          className="rounded-[var(--radius-xl)]  border border-border bg-background px-3 py-1.5 text-sm font-semibold text-foreground hover:bg-muted"
                         >
                           Code
                         </Link>

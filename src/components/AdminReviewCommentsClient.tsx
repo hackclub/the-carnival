@@ -218,7 +218,7 @@ export default function AdminReviewCommentsClient() {
                     {reviewer.projects.map((project) => (
                       <div
                         key={project.projectId}
-                        className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3"
+                        className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3"
                       >
                         <div className="text-foreground font-semibold truncate">{project.projectName}</div>
                         <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">

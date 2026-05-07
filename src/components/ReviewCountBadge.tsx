@@ -11,7 +11,7 @@ export default function ReviewCountBadge({ count, className = "" }: ReviewCountB
   return (
     <span
       className={[
-        "inline-flex items-center gap-1.5 rounded-[var(--carnival-squircle-radius)] border-2 px-2.5 py-1 text-xs font-black uppercase tracking-[0.04em]",
+        "inline-flex items-center gap-1.5 rounded-[var(--carnival-squircle-radius)] border-2 px-2.5 py-1 text-xs font-bold uppercase tracking-[0.04em]",
         "border-[#2363b8] bg-[#dbeafe] text-[#174582]",
         className,
       ].join(" ")}

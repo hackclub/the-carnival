@@ -798,7 +798,7 @@ export default function ManageProjectClient({
 
       <div className="platform-surface-card p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Originality declaration</div>
-        <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4 space-y-3">
+        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 space-y-3">
           <div className="text-sm text-muted-foreground">Creator statement</div>
           <div className="text-foreground font-semibold">
             {creatorDeclaredOriginality
@@ -831,7 +831,7 @@ export default function ManageProjectClient({
         ) : (
           <div className="space-y-3">
             {reviews.map((r) => (
-              <div key={r.id} className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4">
+              <div key={r.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-foreground font-semibold truncate">
@@ -959,7 +959,7 @@ export default function ManageProjectClient({
               </div>
             </div>
             {hackatimeProjectName ? (
-              <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted px-3 py-3 space-y-3">
+              <div className="rounded-[var(--radius-xl)]  border border-border bg-muted px-3 py-3 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="block">
                     <div className="text-xs text-muted-foreground mb-1">Considered start date</div>
@@ -1047,7 +1047,7 @@ export default function ManageProjectClient({
                     key={tag}
                     type="button"
                     onClick={() => setTagsInput((prev) => appendCsvToken(prev, tag))}
-                    className="rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-muted/70 transition-colors"
+                    className="rounded-[var(--carnival-squircle-radius)] border border-border bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-muted/70 transition-colors"
                   >
                     {tag}
                   </button>
@@ -1208,12 +1208,12 @@ export default function ManageProjectClient({
       >
         {submitStep === 0 ? (
           <div className="space-y-4">
-            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4 text-sm text-muted-foreground">
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
               Complete all requirements before submitting: GitHub URL, video link, playable demo link, Hackatime project, considered range, at least 3 screenshots, and originality declaration.
             </div>
 
             <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
+              <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">GitHub URL</div>
                 <div
                   className={[
@@ -1226,7 +1226,7 @@ export default function ManageProjectClient({
                   {submitRequirements.githubOk ? "Set" : "Missing/invalid"}
                 </div>
               </div>
-              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
+              <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
               <div className="text-foreground">Video link</div>
               <div
                 className={[
@@ -1239,7 +1239,7 @@ export default function ManageProjectClient({
                 {submitRequirements.demoOk ? "Set" : "Missing/invalid"}
               </div>
             </div>
-            <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
+            <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">Playable demo link</div>
                 <div
                   className={[
@@ -1252,7 +1252,7 @@ export default function ManageProjectClient({
                   {submitRequirements.playableOk ? "Set" : "Missing/invalid"}
                 </div>
               </div>
-              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
+              <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">Hackatime project name</div>
                 <div
                   className={[
@@ -1265,7 +1265,7 @@ export default function ManageProjectClient({
                   {submitRequirements.hackatimeOk ? "Set" : "Missing"}
                 </div>
               </div>
-              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
+              <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">Considered Hackatime range</div>
                 <div
                   className={[
@@ -1278,7 +1278,7 @@ export default function ManageProjectClient({
                   {submitConsideredRange.ok ? "Set" : "Missing/invalid"}
                 </div>
               </div>
-              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
+              <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">Screenshots (min 3)</div>
                 <div
                   className={[
@@ -1291,7 +1291,7 @@ export default function ManageProjectClient({
                   {submitRequirements.screenshotsOk ? `${screenshots.length} uploaded` : `${screenshots.length}/3 needed`}
                 </div>
               </div>
-              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
+              <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                 <div className="text-foreground">Originality declaration</div>
                 <div
                   className={[
@@ -1305,7 +1305,7 @@ export default function ManageProjectClient({
                 </div>
               </div>
               {editor === "other" ? (
-                <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
+                <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                   <div className="text-foreground">Other editor name</div>
                   <div
                     className={[
@@ -1321,7 +1321,7 @@ export default function ManageProjectClient({
               ) : null}
             </div>
 
-            <div className="rounded-[var(--radius-2xl)]  border-2 border-[var(--carnival-border)] bg-background px-4 py-4 space-y-3">
+            <div className="rounded-[var(--radius-2xl)]  border border-border bg-background px-4 py-4 space-y-3">
               <div>
                 <div className="text-foreground font-semibold">Considered Hackatime range</div>
                 <div className="text-sm text-muted-foreground mt-1">
@@ -1365,7 +1365,7 @@ export default function ManageProjectClient({
         ) : (
           isReReview ? (
             <div className="space-y-4">
-              <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4">
+              <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
                 <div className="text-sm text-foreground font-semibold">Most recent rejection feedback</div>
                 <div className="text-xs text-muted-foreground mt-1">
                   {latestRejectedReview
@@ -1415,7 +1415,7 @@ export default function ManageProjectClient({
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 text-xs text-muted-foreground">
+              <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
                 Required items must be checked. Optional items are recorded for reviewer context.
               </div>
               <div className="space-y-3">

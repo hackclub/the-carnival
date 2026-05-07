@@ -50,7 +50,7 @@ export default async function ProjectsPage() {
           <div className="mt-6">
             <Link
               href="/projects?new=1"
-              className="inline-flex min-h-11 items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-[var(--platform-accent)] px-6 py-3 text-sm font-black tracking-[0.02em] text-[#fff7dc] transition-colors hover:bg-[#ee9817]"
+              className="inline-flex min-h-11 items-center justify-center rounded-[var(--carnival-squircle-radius)] border border-border bg-[var(--platform-accent)] px-6 py-3 text-sm font-bold tracking-[0.02em] text-[#fff7dc] transition-colors hover:bg-[#ee9817]"
             >
               Create a project
             </Link>
@@ -101,7 +101,7 @@ export default async function ProjectsPage() {
       {/* FAB */}
       <Link
         href="/projects?new=1"
-        className="fixed right-6 bottom-6 flex h-14 w-14 items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-[var(--platform-accent)] text-[#fff7dc] transition-colors hover:bg-[#ee9817]"
+        className="fixed right-6 bottom-6 flex h-14 w-14 items-center justify-center rounded-[var(--carnival-squircle-radius)] border border-border bg-[var(--platform-accent)] text-[#fff7dc] transition-colors hover:bg-[#ee9817]"
         aria-label="Create new project"
         title="Create new project"
       >

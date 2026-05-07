@@ -19,28 +19,39 @@ const maxWidthClasses = {
   "2xl": "max-w-2xl",
 };
 
-export function Modal({ open, onClose, title, description, children, maxWidth = "md" }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  maxWidth = "md",
+}: ModalProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(91,31,10,0.38)] backdrop-blur-sm p-4">
-      <div className={`platform-dialog-surface w-full ${maxWidthClasses[maxWidth]} max-h-[85vh] overflow-auto`}>
-        <div className="sticky top-0 flex items-center justify-between border-b-[4px] border-[var(--carnival-border)] bg-[rgba(255,247,220,0.96)] p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/15 backdrop-blur-sm p-4">
+      <div
+        className={`platform-dialog-surface w-full ${maxWidthClasses[maxWidth]} max-h-[85vh] overflow-auto`}
+      >
+        <div className="sticky top-0 flex items-center justify-between border-b border-border bg-card/95 backdrop-blur p-5">
           <div>
-            <h2 className="text-xl font-black uppercase tracking-[0.06em] text-foreground">{title}</h2>
+            <h2 className="text-lg font-bold text-foreground">{title}</h2>
             {description && (
-              <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">{description}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {description}
+              </p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="rounded-full border-2 border-transparent p-2 text-muted-foreground transition-colors hover:border-[var(--carnival-border)] hover:bg-[#fff0cf] hover:text-foreground"
+            className="rounded-full border border-transparent p-2 text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
             type="button"
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-5">{children}</div>
       </div>
     </div>
   );
