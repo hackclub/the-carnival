@@ -13,13 +13,13 @@ export default function LandingCTAButtons() {
     setAuthLoading(true);
     const { data, error } = await signIn.oauth2({
       providerId: "hackclub-identity",
-      callbackURL: "/projects",
+      callbackURL: "/explore",
       disableRedirect: true,
     });
 
     if (error || !data?.url) {
       setAuthLoading(false);
-      window.location.href = "/login?callbackUrl=/projects";
+      window.location.href = "/login?callbackUrl=/explore";
       return;
     }
 
@@ -36,7 +36,7 @@ export default function LandingCTAButtons() {
         ) : isAuthed ? (
           <Link
             aria-label="Dashboard"
-            href="/projects"
+            href="/explore"
             className="inline-flex min-h-12 w-full items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#f6a61c] px-6 py-3 text-center text-sm font-bold uppercase tracking-[0.04em] text-[#fff7dc] transition-colors duration-200 hover:bg-[#ee9817] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#74210a] sm:w-auto sm:px-9 sm:text-lg"
           >
             Enter The Carnival

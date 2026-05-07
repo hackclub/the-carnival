@@ -24,13 +24,13 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
     setAuthLoading(true);
     const { data, error } = await signIn.oauth2({
       providerId: "hackclub-identity",
-      callbackURL: "/projects",
+      callbackURL: "/explore",
       disableRedirect: true,
     });
 
     if (error || !data?.url) {
       setAuthLoading(false);
-      window.location.href = "/login?callbackUrl=/projects";
+      window.location.href = "/login?callbackUrl=/explore";
       return;
     }
 
@@ -98,14 +98,14 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
         ) : isAuthed ? (
           showDashboardLink ? (
             <Link
-              href="/projects"
+              href="/explore"
               className="rounded-[var(--carnival-squircle-radius)] border border-border bg-[#fff7dc] px-5 py-2.5 text-base font-bold tracking-[0.02em] text-foreground transition-colors hover:bg-[#fff0cf]"
             >
               Dashboard
             </Link>
           ) : (
             <Link
-              href="/projects"
+              href="/explore"
               className="rounded-[var(--carnival-squircle-radius)] border border-border bg-[#fff7dc] px-5 py-2.5 text-base font-bold tracking-[0.02em] text-foreground transition-colors hover:bg-[#fff0cf]"
             >
               Dashboard

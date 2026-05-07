@@ -45,7 +45,7 @@ export default function Home() {
               Join #carnival
             </Link>
             <Link
-              href="/projects"
+              href="/explore"
               className="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#fff7dc] px-4 py-2 text-center text-sm font-bold uppercase tracking-[0.04em] text-[#74210a] transition-colors duration-200 hover:bg-[#fff0cf] sm:w-auto"
             >
               Enter the dashboard
