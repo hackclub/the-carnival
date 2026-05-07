@@ -21,7 +21,7 @@ function getTimeLeft(targetDate: Date): TimeLeft {
 }
 
 export default function Countdown() {
-  const deadline = useMemo(() => new Date("2026-04-30T23:59:59Z"), []);
+  const deadline = useMemo(() => new Date("2026-05-31T23:59:59Z"), []);
   const deadlineLabel = useMemo(
     () =>
       new Intl.DateTimeFormat("en-US", {
