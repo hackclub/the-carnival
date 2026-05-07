@@ -43,7 +43,7 @@ export default function GetInvolvedSection() {
                   className={cx(carnivalCardClassName, "px-5 py-5 sm:px-6")}
                 >
                   <div className="flex items-start gap-4">
-                    <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-[3px] border-[#74210a] bg-[#f6a61c] text-lg font-black text-[#fff7dc] shadow-[0_4px_0_#bf6216]">
+                    <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-[3px] border-[#74210a] bg-[#f6a61c] text-lg font-bold text-[#fff7dc] shadow-[0_4px_0_#bf6216]">
                       {index + 1}
                     </span>
                     <div>
@@ -68,7 +68,7 @@ export default function GetInvolvedSection() {
 
         <div className="space-y-5 lg:pt-8">
           <div className={cx(carnivalCardClassName, "px-5 py-5 sm:px-6")}>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8f4a18]">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8f4a18]">
               Join the midway
             </p>
             <h2
@@ -87,7 +87,7 @@ export default function GetInvolvedSection() {
               href="https://hackclub.slack.com/archives/C091ZRTMF16"
               target="_blank"
               rel="noreferrer"
-              className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#f6a61c] px-4 py-2 text-center text-sm font-black uppercase tracking-[0.04em] text-[#fff7dc] transition-colors duration-200 hover:bg-[#ee9817] sm:w-auto"
+              className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#f6a61c] px-4 py-2 text-center text-sm font-bold uppercase tracking-[0.04em] text-[#fff7dc] transition-colors duration-200 hover:bg-[#ee9817] sm:w-auto"
             >
               Open #carnival on Slack
               <ArrowRight size={16} />
@@ -100,7 +100,7 @@ export default function GetInvolvedSection() {
               "carnival-card-soft px-5 py-5 sm:px-6",
             )}
           >
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8f4a18]">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8f4a18]">
               When you&apos;re ready
             </p>
             <h2
@@ -117,7 +117,7 @@ export default function GetInvolvedSection() {
             </p>
             <Link
               href="/projects/new"
-              className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#fff7dc] px-4 py-2 text-center text-sm font-black uppercase tracking-[0.04em] text-[#74210a] transition-colors duration-200 hover:bg-[#fff0cf] sm:w-auto"
+              className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#fff7dc] px-4 py-2 text-center text-sm font-bold uppercase tracking-[0.04em] text-[#74210a] transition-colors duration-200 hover:bg-[#fff0cf] sm:w-auto"
             >
               Start a project
               <ArrowRight size={16} />

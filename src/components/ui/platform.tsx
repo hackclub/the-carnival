@@ -26,7 +26,7 @@ export function PlatformContent({ className, ...props }: DivProps) {
 export function PlatformPageHeading({ title, description, className }: PlatformPageHeadingProps) {
   return (
     <header className={joinClasses("platform-page-heading mb-8 px-6 py-5", className)}>
-      <h1 className="text-3xl font-black uppercase tracking-[0.06em] leading-none md:text-4xl">{title}</h1>
+      <h1 className="text-3xl font-bold uppercase tracking-[0.06em] leading-none md:text-4xl">{title}</h1>
       {description ? (
         <p className="mt-3 text-sm font-bold leading-6 text-[var(--platform-ink-muted)] md:text-base">
           {description}

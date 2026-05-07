@@ -57,6 +57,18 @@ function trustBadgeLabel(level: string | null, value: number | null): string {
   return `${level} (${value})`;
 }
 
+function trustLevelColor(level: string | null): string {
+  if (!level) return "bg-gray-500/15 text-gray-300 border-gray-500/30";
+  const normalized = level.toLowerCase();
+  if (normalized === "high" || normalized === "verified")
+    return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
+  if (normalized === "medium" || normalized === "normal")
+    return "bg-amber-500/15 text-amber-300 border-amber-500/30";
+  if (normalized === "low" || normalized === "suspicious")
+    return "bg-rose-500/15 text-rose-300 border-rose-500/30";
+  return "bg-gray-500/15 text-gray-300 border-gray-500/30";
+}
+
 export default function ReviewHackatimeTools({
   projectId,
   hackatimeUserId,
@@ -208,12 +220,12 @@ export default function ReviewHackatimeTools({
                 <span>·</span>
                 <span>
                   Trust:{" "}
-                  <Badge>
+                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${trustLevelColor(stats.trustFactor.trustLevel)}`}>
                     {trustBadgeLabel(
                       stats.trustFactor.trustLevel,
                       stats.trustFactor.trustValue,
                     )}
-                  </Badge>
+                  </span>
                 </span>
                 <span>·</span>
                 <span>
@@ -224,7 +236,7 @@ export default function ReviewHackatimeTools({
                 </span>
               </div>
 
-              <div className="rounded-lg  border-2 border-[var(--carnival-border)] bg-background/50 p-3">
+              <div className="rounded-lg  border border-border bg-background/50 p-3">
                 <div className="text-xs text-muted-foreground">
                   Hackatime project:{" "}
                   <code className="text-foreground">

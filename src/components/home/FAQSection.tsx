@@ -59,7 +59,7 @@ export default function FAQSection() {
             "px-5 py-6 sm:px-6 sm:py-8 lg:sticky lg:top-6",
           )}
         >
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8f4a18]">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8f4a18]">
             Questions by the campfire
           </p>
           <h2
@@ -81,7 +81,7 @@ export default function FAQSection() {
               "carnival-card-soft mt-6 px-5 py-5",
             )}
           >
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8f4a18]">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8f4a18]">
               Need more context?
             </p>
             <div className="mt-4 flex flex-col gap-3">
@@ -89,13 +89,13 @@ export default function FAQSection() {
                 href="https://hackclub.slack.com/archives/C091ZRTMF16"
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#f6a61c] px-4 py-2 text-center text-sm font-black uppercase tracking-[0.04em] text-[#fff7dc] transition-colors duration-200 hover:bg-[#ee9817] sm:w-auto"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#f6a61c] px-4 py-2 text-center text-sm font-bold uppercase tracking-[0.04em] text-[#fff7dc] transition-colors duration-200 hover:bg-[#ee9817] sm:w-auto"
               >
                 Ask in #carnival
               </Link>
               <Link
                 href="/editors"
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#fff7dc] px-4 py-2 text-center text-sm font-black uppercase tracking-[0.04em] text-[#74210a] transition-colors duration-200 hover:bg-[#fff0cf] sm:w-auto"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#fff7dc] px-4 py-2 text-center text-sm font-bold uppercase tracking-[0.04em] text-[#74210a] transition-colors duration-200 hover:bg-[#fff0cf] sm:w-auto"
               >
                 Browse editors and apps
               </Link>
@@ -120,10 +120,10 @@ export default function FAQSection() {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#8f4a18]">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f4a18]">
                       Question {index + 1}
                     </p>
-                    <h3 className="mt-2 text-xl font-black text-[#5b1f0a] [text-wrap:balance] sm:text-2xl">
+                    <h3 className="mt-2 text-xl font-bold text-[#5b1f0a] [text-wrap:balance] sm:text-2xl">
                       {faq.question}
                     </h3>
                   </div>

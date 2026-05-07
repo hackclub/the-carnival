@@ -27,7 +27,7 @@ export default function Home() {
         <div className="carnival-card carnival-card-soft mx-auto max-w-6xl px-6 py-8 text-center sm:px-8">
           <div className="flex items-center justify-center gap-2">
             <span className="text-2xl">🎪</span>
-            <span className="text-xl font-black uppercase tracking-[0.08em] text-[#5b1f0a]">
+            <span className="text-xl font-bold uppercase tracking-[0.08em] text-[#5b1f0a]">
               The Carnival
             </span>
           </div>
@@ -40,13 +40,13 @@ export default function Home() {
               href="https://hackclub.slack.com/archives/C091ZRTMF16"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#f6a61c] px-4 py-2 text-center text-sm font-black uppercase tracking-[0.04em] text-[#fff7dc] transition-colors duration-200 hover:bg-[#ee9817] sm:w-auto"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#f6a61c] px-4 py-2 text-center text-sm font-bold uppercase tracking-[0.04em] text-[#fff7dc] transition-colors duration-200 hover:bg-[#ee9817] sm:w-auto"
             >
               Join #carnival
             </Link>
             <Link
               href="/projects"
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#fff7dc] px-4 py-2 text-center text-sm font-black uppercase tracking-[0.04em] text-[#74210a] transition-colors duration-200 hover:bg-[#fff0cf] sm:w-auto"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[#74210a] bg-[#fff7dc] px-4 py-2 text-center text-sm font-bold uppercase tracking-[0.04em] text-[#74210a] transition-colors duration-200 hover:bg-[#fff0cf] sm:w-auto"
             >
               Enter the dashboard
             </Link>

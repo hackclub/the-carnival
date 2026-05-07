@@ -76,6 +76,7 @@ export default function AdminUsersClient({
   currentUserId: string;
 }) {
   const [users, setUsers] = useState<UserListItem[]>(initial);
+  const [searchQuery, setSearchQuery] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const [activeLedgerUserId, setActiveLedgerUserId] = useState<string | null>(null);
@@ -89,7 +90,15 @@ export default function AdminUsersClient({
   const [adjustmentConfirmation, setAdjustmentConfirmation] = useState("");
   const [submittingAdjustment, setSubmittingAdjustment] = useState(false);
 
-  const sortedUsers = useMemo(() => users, [users]);
+  const sortedUsers = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        (u.name ?? "").toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q),
+    );
+  }, [users, searchQuery]);
   const totalUserCount = users.length;
   const internalStats = useMemo<InternalProfileStats>(() => {
     const internalUsers = users.filter((u) => u.role === "reviewer" || u.role === "admin");
@@ -319,6 +328,21 @@ export default function AdminUsersClient({
 
   return (
     <div className="space-y-6">
+      <div className="platform-surface-card p-4">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search users by name or email…"
+          className="w-full bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+        />
+        {searchQuery.trim() && (
+          <div className="mt-2 text-xs text-muted-foreground">
+            {sortedUsers.length} of {users.length} users match
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
         <div className="platform-surface-card p-4">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Total users</div>
@@ -467,12 +491,12 @@ export default function AdminUsersClient({
             <div className="text-red-600 text-sm">{ledgerError}</div>
           ) : ledgerData ? (
             <>
-              <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-4 py-3">
+              <div className="rounded-[var(--radius-xl)]  border border-border bg-background px-4 py-3">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">Current balance</div>
                 <div className="text-2xl font-bold text-foreground mt-1">{ledgerData.balance} tokens</div>
               </div>
 
-              <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background p-4 space-y-3">
+              <div className="rounded-[var(--radius-xl)]  border border-border bg-background p-4 space-y-3">
                 <div className="text-sm font-semibold text-foreground">Guarded adjustment</div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <label className="flex flex-col gap-1 text-xs text-muted-foreground">
@@ -537,7 +561,7 @@ export default function AdminUsersClient({
                     {ledgerData.ledger.map((row) => (
                       <div
                         key={row.id}
-                        className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-4 py-3"
+                        className="rounded-[var(--radius-xl)]  border border-border bg-background px-4 py-3"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="text-sm font-semibold text-foreground">

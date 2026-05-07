@@ -4,11 +4,22 @@ export type ConsideredHackatimeRange = {
 };
 
 const ISO_DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DATETIME_LOCAL_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 
 export function isIsoDateOnly(value: string) {
   if (!ISO_DATE_ONLY_RE.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
   return parsed.toISOString().slice(0, 10) === value;
+}
+
+export function isDatetimeLocal(value: string) {
+  if (!DATETIME_LOCAL_RE.test(value)) return false;
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.getTime());
+}
+
+export function isValidRangeDate(value: string) {
+  return isIsoDateOnly(value) || isDatetimeLocal(value);
 }
 
 export function toIsoDateOnly(value: Date | string | null | undefined) {
@@ -26,9 +37,13 @@ export function toIsoDateOnly(value: Date | string | null | undefined) {
   return parsed.toISOString().slice(0, 10);
 }
 
-export function toUtcBoundaryDate(dateOnly: string, boundary: "start" | "end") {
+export function toUtcBoundaryDate(dateStr: string, boundary: "start" | "end") {
+  if (isDatetimeLocal(dateStr)) {
+    const parsed = new Date(dateStr);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
   const boundaryTime = boundary === "start" ? "T00:00:00.000Z" : "T23:59:59.999Z";
-  const parsed = new Date(`${dateOnly}${boundaryTime}`);
+  const parsed = new Date(`${dateStr}${boundaryTime}`);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
@@ -41,17 +56,19 @@ export function parseConsideredHackatimeRange(input: unknown) {
   const startDate = typeof root.startDate === "string" ? root.startDate.trim() : "";
   const endDate = typeof root.endDate === "string" ? root.endDate.trim() : "";
 
-  if (!isIsoDateOnly(startDate) || !isIsoDateOnly(endDate)) {
+  if (!isValidRangeDate(startDate) || !isValidRangeDate(endDate)) {
     return {
       ok: false as const,
-      error: "Select both considered Hackatime start and end dates (YYYY-MM-DD).",
+      error: "Select both considered Hackatime start and end dates.",
     };
   }
 
-  if (startDate > endDate) {
+  const startMs = new Date(isIsoDateOnly(startDate) ? `${startDate}T00:00:00` : startDate).getTime();
+  const endMs = new Date(isIsoDateOnly(endDate) ? `${endDate}T23:59:59` : endDate).getTime();
+  if (startMs > endMs) {
     return {
       ok: false as const,
-      error: "Considered Hackatime range is invalid: start date must be before or equal to end date.",
+      error: "Considered Hackatime range is invalid: start must be before end.",
     };
   }
 

@@ -11,6 +11,7 @@ import { buildBillyUrl } from "@/lib/constants";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
+import LinkChip from "@/components/LinkChip";
 import { DatePicker } from "@/components/ui/date-picker";
 import DevlogAssessmentPanel, {
   type ReviewDevlogFull,
@@ -652,25 +653,25 @@ export default function ReviewProjectClient({
       <div className="platform-surface-card p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Review info</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
             <div className="text-muted-foreground">Created</div>
             <div className="text-foreground font-semibold">
               {new Date(project.createdAt).toLocaleString()}
             </div>
           </div>
-          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
             <div className="text-muted-foreground">Submitted</div>
             <div className="text-foreground font-semibold">
               {project.submittedAt ? new Date(project.submittedAt).toLocaleString() : "—"}
             </div>
           </div>
-          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 md:col-span-1">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 md:col-span-1">
             <div className="text-muted-foreground">Considered Hackatime range</div>
             <div className="text-foreground font-semibold">{canonicalProjectRangeLabel}</div>
           </div>
         </div>
 
-        <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4 space-y-3">
+        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 space-y-3">
           <div className="text-foreground font-semibold">Submission checklist</div>
           {project.submissionChecklist ? (
             <div className="space-y-2">
@@ -710,43 +711,19 @@ export default function ReviewProjectClient({
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <a
-            href={project.playableDemoUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
-          >
-            <div className="text-sm text-muted-foreground">Playable demo link</div>
-            <div className="text-foreground font-semibold truncate">{project.playableDemoUrl}</div>
-          </a>
-          <a
-            href={project.videoUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
-          >
-            <div className="text-sm text-muted-foreground">Video</div>
-            <div className="text-foreground font-semibold truncate">{project.videoUrl}</div>
-          </a>
-          <a
-            href={project.codeUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
-          >
-            <div className="text-sm text-muted-foreground">Code</div>
-            <div className="text-foreground font-semibold truncate">{project.codeUrl}</div>
-          </a>
+        <div className="flex flex-wrap gap-2">
+          {project.playableDemoUrl ? <LinkChip label="Demo" url={project.playableDemoUrl} /> : null}
+          {project.videoUrl ? <LinkChip label="Video" url={project.videoUrl} /> : null}
+          {project.codeUrl ? <LinkChip label="GitHub" url={project.codeUrl} /> : null}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
             <div className="text-sm text-muted-foreground">Hackatime project</div>
             <div className="text-foreground font-semibold truncate">
               <span className="font-mono">{project.hackatimeProjectName || "—"}</span>
             </div>
           </div>
-          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
             <div className="text-sm text-muted-foreground">Hackatime hours (this project)</div>
             <div className="text-foreground font-semibold">{hackatimeLoggedLabel}</div>
           </div>
@@ -755,13 +732,13 @@ export default function ReviewProjectClient({
               href={billyLink}
               target="_blank"
               rel="noreferrer"
-              className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
+              className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
             >
               <div className="text-sm text-muted-foreground">Hackatime review link</div>
               <div className="text-foreground font-semibold truncate">{billyLink}</div>
             </a>
           ) : (
-            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
               <div className="text-sm text-muted-foreground">Hackatime review link</div>
               <div className="text-foreground font-semibold">—</div>
             </div>
@@ -777,7 +754,7 @@ export default function ReviewProjectClient({
           </div>
         ) : null}
 
-        <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4">
+        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
           <div className="flex items-center justify-between gap-4">
             <div>
               <div className="text-sm text-muted-foreground">Reviewer assignments</div>
@@ -799,7 +776,7 @@ export default function ReviewProjectClient({
           {assignments.length > 0 ? (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {assignments.map((a) => (
-                <div key={`${a.reviewerId}-${a.createdAt}`} className="rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-card px-3 py-1 font-bold">
+                <div key={`${a.reviewerId}-${a.createdAt}`} className="rounded-[var(--carnival-squircle-radius)] border border-border bg-card px-3 py-1 font-bold">
                   <span className="text-xs text-foreground font-semibold">
                     {a.reviewerName}
                     {a.reviewerId === initial.viewerUserId ? " (You)" : ""}
@@ -881,7 +858,7 @@ export default function ReviewProjectClient({
           </button>
         </div>
 
-        <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
+        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm text-muted-foreground">Approved hours</div>
             <div className="text-sm font-semibold text-foreground">
@@ -925,7 +902,7 @@ export default function ReviewProjectClient({
         ) : null}
 
         {decision === "approved" ? (
-          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 text-sm text-muted-foreground">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
             Approvals require confirmation with evidence checks and a review range.
           </div>
         ) : null}
@@ -987,7 +964,7 @@ export default function ReviewProjectClient({
               <span className="font-semibold text-foreground">Dismissed projects</span> admin page.
             </div>
           </div>
-          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 text-sm text-muted-foreground">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
             <div className="font-semibold text-foreground mb-1">Reviewer comment</div>
             <div className="whitespace-pre-wrap">{comment.trim() || "(empty — please add a comment before dismissing)"}</div>
           </div>
@@ -1003,7 +980,7 @@ export default function ReviewProjectClient({
               maxLength={2000}
               placeholder="Explain why this project is being dismissed. The creator will see this in the banner on their project page."
               disabled={submitting}
-              className="w-full rounded-[var(--radius-2xl)]  border-2 border-[var(--carnival-border)] bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-carnival-red disabled:opacity-60"
+              className="w-full rounded-[var(--radius-2xl)]  border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-carnival-red disabled:opacity-60"
             />
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>The creator will see this on their project page.</span>
@@ -1024,7 +1001,7 @@ export default function ReviewProjectClient({
                 setDismissReason("");
               }}
               disabled={submitting}
-              className="inline-flex items-center justify-center rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center justify-center rounded-[var(--radius-xl)]  border border-border bg-background px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
               Cancel
             </button>
@@ -1058,7 +1035,7 @@ export default function ReviewProjectClient({
         maxWidth="lg"
       >
         <div className="space-y-5">
-          <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 text-sm text-muted-foreground">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
             <div>
               Logged Hackatime for this project:{" "}
               <span className="text-foreground font-semibold">{approvalHackatimeLabel}</span>
@@ -1090,7 +1067,7 @@ export default function ReviewProjectClient({
               {REVIEW_EVIDENCE_ITEMS.map((item) => (
                 <label
                   key={item.key}
-                  className="flex items-start gap-3 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-3 py-2"
+                  className="flex items-start gap-3 rounded-[var(--radius-xl)]  border border-border bg-background px-3 py-2"
                 >
                   <input
                     type="checkbox"
@@ -1165,7 +1142,7 @@ export default function ReviewProjectClient({
                 {REVIEW_DEFLATION_REASON_OPTIONS.map((option) => (
                   <label
                     key={option.key}
-                    className="flex items-start gap-3 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background px-3 py-2"
+                    className="flex items-start gap-3 rounded-[var(--radius-xl)]  border border-border bg-background px-3 py-2"
                   >
                     <input
                       type="checkbox"
@@ -1232,7 +1209,7 @@ export default function ReviewProjectClient({
         ) : (
           <div className="space-y-3">
             {reviews.map((r) => (
-              <div key={r.id} className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4">
+              <div key={r.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-foreground font-semibold truncate">

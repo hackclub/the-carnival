@@ -45,6 +45,13 @@ export const bountyProjectStatus = pgEnum("bounty_project_status", [
 ]);
 export type BountyProjectStatus = (typeof bountyProjectStatus.enumValues)[number];
 
+export const devlogCategory = pgEnum("devlog_category", [
+  "learning",
+  "design",
+  "coding",
+]);
+export type DevlogCategory = (typeof devlogCategory.enumValues)[number];
+
 export const devlogAssessmentDecision = pgEnum("devlog_assessment_decision", [
   "accepted",
   "rejected",
@@ -112,6 +119,7 @@ export const project = pgTable("project", {
   videoUrl: text("video_url").notNull(),
   playableDemoUrl: text("playable_demo_url").notNull().default(""),
   codeUrl: text("code_url").notNull(),
+  previewImage: text("preview_image").notNull().default(""),
   screenshots: text("screenshots").array().notNull(),
   status: projectStatus("status").notNull().default("work-in-progress"),
   // Canonical approved hours for this project (set by a reviewer on approval).
@@ -154,6 +162,7 @@ export const devlog = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     content: text("content").notNull(),
+    category: devlogCategory("category").notNull().default("coding"),
     // User-selected working window for this devlog. Hackatime seconds for the
     // project's hackatimeProjectName within [startedAt, endedAt] are captured as
     // durationSeconds at creation time.

@@ -27,6 +27,8 @@ export type ReviewQueueProject = {
   tags: string[];
   editor: string;
   editorOther: string | null;
+  previewImage: string;
+  screenshots: string[];
   status: string;
   createdAt: string;
   submittedAt: string | null;
@@ -385,14 +387,29 @@ export default function ReviewQueueClient() {
               .map((tag) => formatTagLabel(tag))
               .filter((value): value is string => !!value);
 
+            const cardImage = projectRow.previewImage?.trim() || projectRow.screenshots?.find((u) => u.trim().length > 0) || "";
+
             return (
               <Link
                 key={projectRow.id}
                 href={`/review/${projectRow.id}`}
-                className="platform-surface-card p-5 card-glow transition-all hover:bg-muted block h-full min-h-[340px]"
+                className="platform-surface-card card-glow transition-all hover:bg-muted block h-full overflow-hidden"
                 aria-label={`Review ${projectRow.name}`}
               >
                 <div className="flex h-full flex-col">
+                  {cardImage ? (
+                    <div className="border-b border-border bg-muted">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={cardImage}
+                        alt={`${projectRow.name} preview`}
+                        className="h-36 w-full object-cover"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  ) : null}
+                  <div className="p-5 flex-1 flex flex-col">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="text-foreground font-bold text-xl truncate">{projectRow.name}</div>
@@ -434,14 +451,14 @@ export default function ReviewQueueClient() {
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     {categoryLabel ? (
-                      <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-muted px-2.5 py-1 text-xs text-foreground">
+                      <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
                         {categoryLabel}
                       </span>
                     ) : null}
                     {tagLabels.slice(0, 3).map((tag) => (
                       <span
                         key={`${projectRow.id}-${tag}`}
-                        className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                        className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
                       >
                         #{tag}
                       </span>
@@ -470,6 +487,7 @@ export default function ReviewQueueClient() {
                     <div className="text-xs text-muted-foreground line-clamp-2">
                       Assignments: {summarizeAssignments(projectRow)}
                     </div>
+                  </div>
                   </div>
                 </div>
               </Link>

@@ -40,6 +40,7 @@ type UpdateProjectBody = {
   codeUrl?: unknown;
   category?: unknown;
   tags?: unknown;
+  previewImage?: unknown;
   screenshots?: unknown;
   submissionChecklist?: unknown;
   creatorDeclaredOriginality?: unknown;
@@ -144,6 +145,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       videoUrl: project.videoUrl,
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
+      previewImage: project.previewImage,
       screenshots: project.screenshots,
       submissionChecklist: project.submissionChecklist,
       creatorDeclaredOriginality: project.creatorDeclaredOriginality,
@@ -206,6 +208,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       videoUrl: project.videoUrl,
       playableDemoUrl: project.playableDemoUrl,
       codeUrl: project.codeUrl,
+      previewImage: project.previewImage,
       screenshots: project.screenshots,
       submissionChecklist: project.submissionChecklist,
       creatorDeclaredOriginality: project.creatorDeclaredOriginality,
@@ -254,6 +257,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     videoUrl: string;
     playableDemoUrl: string;
     codeUrl: string;
+    previewImage: string;
     screenshots: string[];
     submissionChecklist: ProjectSubmissionChecklist | null;
     creatorDeclaredOriginality: boolean;
@@ -406,6 +410,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       return NextResponse.json({ error: "Code URL must be http(s)" }, { status: 400 });
     }
     set.codeUrl = codeUrl;
+  }
+
+  if (body.previewImage !== undefined) {
+    set.previewImage = toCleanString(body.previewImage);
   }
 
   if (body.screenshots !== undefined) {

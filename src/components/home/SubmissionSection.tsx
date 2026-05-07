@@ -40,7 +40,7 @@ export default function SubmissionSection() {
         )}
       >
         <div className="relative z-10 text-center">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#8f4a18]">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#8f4a18]">
             Sweet deals on submission
           </p>
           <h2
@@ -69,10 +69,10 @@ export default function SubmissionSection() {
                   "carnival-card-soft px-5 py-6 text-center sm:px-6",
                 )}
               >
-                <p className="text-4xl font-black leading-none text-[#5b1f0a] sm:text-5xl">
+                <p className="text-4xl font-bold leading-none text-[#5b1f0a] sm:text-5xl">
                   {reward.amount}
                 </p>
-                <h3 className="mt-3 text-lg font-black uppercase tracking-[0.08em] text-[#8f4a18] [text-wrap:balance]">
+                <h3 className="mt-3 text-lg font-bold uppercase tracking-[0.08em] text-[#8f4a18] [text-wrap:balance]">
                   {reward.subtitle}
                 </h3>
                 <p className={cx(carnivalCopyClassName, "mt-4")}>

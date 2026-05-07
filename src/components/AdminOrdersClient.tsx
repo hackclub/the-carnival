@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import ShopOrderStatusBadge from "@/components/ShopOrderStatusBadge";
+import CopyableText from "@/components/CopyableText";
 import { Button, Input, Modal, Textarea } from "@/components/ui";
 
 export type AdminShopOrderDTO = {
@@ -216,14 +217,14 @@ export default function AdminOrdersClient({
         ) : (
           <div className="space-y-3 mt-4">
             {filteredOrders.map((o) => (
-              <div key={o.id} className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4">
+              <div key={o.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div className="min-w-0 flex items-start gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={o.itemImageUrl}
                       alt={o.itemName}
-                      className="w-16 h-16 object-cover rounded-lg  border-2 border-[var(--carnival-border)] bg-background shrink-0"
+                      className="w-16 h-16 object-cover rounded-lg  border border-border bg-background shrink-0"
                       referrerPolicy="no-referrer"
                     />
                     <div className="min-w-0">
@@ -233,7 +234,7 @@ export default function AdminOrdersClient({
                       ) : null}
                       <div className="text-xs text-muted-foreground mt-1">
                           {new Date(o.createdAt).toLocaleString()} • qty {o.quantity} • price {o.tokenCost} tokens • {o.requesterName}
-                          {o.requesterEmail ? ` (${o.requesterEmail})` : ""} • available {o.requesterTokenBalance} tokens •{" "}
+                          {o.requesterEmail ? <>{" ("}<CopyableText text={o.requesterEmail} className="inline text-xs" />{")"}</> : ""} • available {o.requesterTokenBalance} tokens •{" "}
                           <ShopOrderStatusBadge status={o.status} />
                         {o.status === "fulfilled" && o.fulfilledAt
                           ? ` • fulfilled ${new Date(o.fulfilledAt).toLocaleString()}`
@@ -273,13 +274,13 @@ export default function AdminOrdersClient({
       >
         {selectedOrder ? (
           <div className="space-y-6">
-            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted p-4">
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted p-4">
               <div className="flex flex-col md:flex-row gap-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={selectedOrder.itemImageUrl}
                   alt={selectedOrder.itemName}
-                  className="w-full md:w-48 h-48 object-cover rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background shrink-0"
+                  className="w-full md:w-48 h-48 object-cover rounded-[var(--radius-xl)]  border border-border bg-background shrink-0"
                   referrerPolicy="no-referrer"
                 />
                 <div className="min-w-0">

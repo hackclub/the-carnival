@@ -49,7 +49,7 @@ export function CardFooter({ className, ...props }: CardSectionProps) {
 }
 
 export function CardTitle({ className, ...props }: CardSectionProps) {
-  return <div data-slot="card-title" className={cn("text-base font-black uppercase tracking-[0.04em] leading-snug text-[var(--platform-ink)]", className)} {...props} />;
+  return <div data-slot="card-title" className={cn("text-base font-bold leading-snug text-foreground", className)} {...props} />;
 }
 
 export function CardDescription({ className, ...props }: CardSectionProps) {

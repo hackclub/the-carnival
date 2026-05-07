@@ -9,25 +9,25 @@ html {
 }
 
 :root {
-  --background: #fff6dd;
-  --foreground: #5b1f0a;
+  --background: #fdf8ef;
+  --foreground: #3b2518;
 
-  --card: #fff7dc;
+  --card: #fdf9f1;
   --card-foreground: var(--foreground);
-  --popover: #fff7dc;
+  --popover: #fdf9f1;
   --popover-foreground: var(--foreground);
-  --muted: #fff0cf;
-  --muted-foreground: #7b240a;
-  --border: rgba(116, 33, 10, 0.36);
-  --input: #74210a;
-  --ring: #f6a61c;
+  --muted: #f5efe4;
+  --muted-foreground: #8c6d55;
+  --border: rgba(139, 90, 56, 0.2);
+  --input: #8b5a38;
+  --ring: #e6960f;
 
-  --primary: #f6a61c;
-  --primary-foreground: #fff7dc;
-  --secondary: #fff0cf;
-  --secondary-foreground: #5b1f0a;
-  --accent: #fff0cf;
-  --accent-foreground: #5b1f0a;
+  --primary: #e6960f;
+  --primary-foreground: #fdf9f1;
+  --secondary: #f5efe4;
+  --secondary-foreground: #3b2518;
+  --accent: #f5efe4;
+  --accent-foreground: #3b2518;
   --destructive: #dc2626;
 
   --chart-1: oklch(0.87 0 0);
@@ -38,19 +38,19 @@ html {
 
   --radius: 0.65rem;
 
-  --sidebar: rgba(255, 247, 220, 0.9);
-  --sidebar-foreground: #5b1f0a;
-  --sidebar-primary: #f6a61c;
-  --sidebar-primary-foreground: #fff7dc;
-  --sidebar-accent: #fff0cf;
-  --sidebar-accent-foreground: #5b1f0a;
-  --sidebar-border: rgba(116, 33, 10, 0.2);
-  --sidebar-ring: #f6a61c;
+  --sidebar: rgba(253, 249, 241, 0.95);
+  --sidebar-foreground: #3b2518;
+  --sidebar-primary: #e6960f;
+  --sidebar-primary-foreground: #fdf9f1;
+  --sidebar-accent: #f5efe4;
+  --sidebar-accent-foreground: #3b2518;
+  --sidebar-border: rgba(139, 90, 56, 0.12);
+  --sidebar-ring: #e6960f;
 
   /* Carnival accents */
-  --carnival-amber: #f59e0b;
-  --carnival-amber-light: #fbbf24;
-  --carnival-amber-deep: #d97706;
+  --carnival-amber: #e6960f;
+  --carnival-amber-light: #f0b042;
+  --carnival-amber-deep: #c67d08;
   --carnival-pink: #ec4899;
   --carnival-blue: #3b82f6;
   --carnival-green: #10b981;
@@ -59,34 +59,34 @@ html {
   --carnival-orange: var(--carnival-amber-light);
   --carnival-yellow: var(--carnival-amber);
   --carnival-purple: #8b5cf6;
-  --carnival-dark: #111827;
-  --carnival-card: rgba(255, 255, 255, 0.9);
+  --carnival-dark: #1a1a2e;
+  --carnival-card: rgba(253, 249, 241, 0.95);
 
   /* Authenticated platform tokens */
-  --platform-shell-bg: #fff4ce;
-  --platform-shell-bg-alt: #ffe8a8;
-  --platform-surface: #fff7dc;
-  --platform-surface-soft: #fff0cf;
-  --platform-surface-rose: #ffe2d4;
-  --platform-ink: #5b1f0a;
-  --platform-ink-muted: #7b240a;
-  --platform-border: rgba(116, 33, 10, 0.36);
-  --platform-border-strong: #74210a;
-  --platform-accent: #f6a61c;
-  --platform-accent-strong: #bf6216;
-  --platform-shadow-soft: 0 6px 0 #d78b22, 0 16px 30px rgba(120, 53, 15, 0.14);
-  --platform-shadow-raised: 0 8px 0 #d78b22, 0 18px 32px rgba(120, 53, 15, 0.16);
-  --carnival-border: #74210a;
-  --carnival-border-width: 3px;
-  --carnival-control-border-width: 2px;
-  --carnival-squircle-radius: 1rem;
-  --carnival-border-dark: #5a1806;
-  --carnival-shadow: #d78b22;
-  --carnival-shadow-strong: #bf6216;
+  --platform-shell-bg: #faf5ea;
+  --platform-shell-bg-alt: #f5efe2;
+  --platform-surface: #fdf9f1;
+  --platform-surface-soft: #f5efe4;
+  --platform-surface-rose: #fce8dc;
+  --platform-ink: #3b2518;
+  --platform-ink-muted: #8c6d55;
+  --platform-border: rgba(139, 90, 56, 0.18);
+  --platform-border-strong: #a07048;
+  --platform-accent: #e6960f;
+  --platform-accent-strong: #c67d08;
+  --platform-shadow-soft: 0 2px 8px rgba(120, 53, 15, 0.06);
+  --platform-shadow-raised: 0 4px 16px rgba(120, 53, 15, 0.08);
+  --carnival-border: rgba(139, 90, 56, 0.28);
+  --carnival-border-width: 1px;
+  --carnival-control-border-width: 1px;
+  --carnival-squircle-radius: 0.75rem;
+  --carnival-border-dark: #7a5535;
+  --carnival-shadow: rgba(180, 130, 70, 0.12);
+  --carnival-shadow-strong: rgba(160, 112, 48, 0.18);
   --carnival-control-shadow: none;
-  --carnival-focus: rgba(246, 166, 28, 0.38);
-  --carnival-danger: #a51d2d;
-  --carnival-danger-bg: #ffe2d4;
+  --carnival-focus: rgba(230, 150, 15, 0.3);
+  --carnival-danger: #b91c1c;
+  --carnival-danger-bg: #fce8dc;
 }
 
 @theme inline {
@@ -174,15 +174,15 @@ html {
 body {
   background-image: none;
   background:
-    radial-gradient(1200px 600px at 20% -10%, #fce7f3 0%, transparent 60%),
-    radial-gradient(900px 500px at 110% 10%, #ffedd5 0%, transparent 55%),
-    radial-gradient(800px 400px at -10% 80%, #dbeafe 0%, transparent 55%),
-    linear-gradient(180deg, #fff7ed 0%, #fff 30%, #fff7ed 100%);
+    radial-gradient(1200px 600px at 20% -10%, rgba(252, 231, 243, 0.3) 0%, transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, rgba(255, 237, 213, 0.25) 0%, transparent 55%),
+    radial-gradient(800px 400px at -10% 80%, rgba(219, 234, 254, 0.2) 0%, transparent 55%),
+    linear-gradient(180deg, #fdf8ef 0%, #fefefe 30%, #fdf8ef 100%);
   background-size: cover;
   background-position: center;
   background-attachment: scroll;
   color: var(--foreground);
-  font-family: var(--font-geist-sans), "Arial Black", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-geist-sans), "Segoe UI", system-ui, sans-serif;
 }
 
 @media (min-width: 768px) {
@@ -191,26 +191,27 @@ body {
   }
 }
 
-/* Themed scrollbars */
+/* Subtle scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #f59e0b #fff7ed;
+  scrollbar-color: rgba(180, 140, 90, 0.3) transparent;
 }
 
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 *::-webkit-scrollbar-track {
-  background: #fff7ed;
+  background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #fbbf24, #f59e0b);
+  background: rgba(180, 140, 90, 0.25);
   border-radius: 9999px;
-  border: 2px solid #fff7ed;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #f59e0b, #d97706);
+  background: rgba(180, 140, 90, 0.4);
 }
 
 .gradient-text {
@@ -221,13 +222,11 @@ body {
 }
 
 .carnival-glow {
-  box-shadow:
-    0 0 26px rgba(245, 158, 11, 0.22),
-    0 0 54px rgba(236, 72, 153, 0.12);
+  box-shadow: 0 0 20px rgba(230, 150, 15, 0.12);
 }
 
 .card-glow:hover {
-  box-shadow: 0 5px 0 var(--carnival-shadow), 0 14px 28px rgba(120, 53, 15, 0.1);
+  box-shadow: 0 2px 12px rgba(120, 53, 15, 0.08);
   transform: none;
 }
 
@@ -277,35 +276,15 @@ body {
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
-/* Sparkles overlay */
+/* Sparkles overlay - disabled for cleaner look */
 .sparkles::before,
 .sparkles::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    radial-gradient(2px 2px at 10% 20%, rgba(245, 158, 11, 0.6) 50%, transparent 51%),
-    radial-gradient(1.5px 1.5px at 30% 60%, rgba(236, 72, 153, 0.55) 50%, transparent 51%),
-    radial-gradient(2px 2px at 70% 40%, rgba(59, 130, 246, 0.5) 50%, transparent 51%),
-    radial-gradient(1.8px 1.8px at 85% 75%, rgba(16, 185, 129, 0.5) 50%, transparent 51%);
-  background-repeat: no-repeat;
-  z-index: 10;
-}
-.sparkles::before {
-  animation: none;
-  background-image: none;
-  display: none;
-}
-.sparkles::after {
-  animation: none;
-  background-image: none;
   display: none;
 }
 
 .carnival-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(8px);
 }
 
 .carnival-dialog:not([open]) {
@@ -314,113 +293,107 @@ body {
 
 .carnival-home-bg {
   background:
-    radial-gradient(circle at 18% 0%, rgba(255, 249, 214, 0.95) 0%, transparent 28%),
-    radial-gradient(circle at 86% 10%, rgba(255, 213, 117, 0.56) 0%, transparent 24%),
-    radial-gradient(circle at 50% 100%, rgba(255, 176, 59, 0.22) 0%, transparent 32%),
-    linear-gradient(180deg, #ffe896 0%, #ffd66c 35%, #ffbf4f 100%);
+    radial-gradient(circle at 18% 0%, rgba(255, 249, 214, 0.7) 0%, transparent 28%),
+    radial-gradient(circle at 86% 10%, rgba(255, 213, 117, 0.3) 0%, transparent 24%),
+    radial-gradient(circle at 50% 100%, rgba(255, 176, 59, 0.12) 0%, transparent 32%),
+    linear-gradient(180deg, #fdf3d6 0%, #f9e8b8 35%, #f5d98a 100%);
 }
 
 .carnival-paper-grid {
   background-image:
-    linear-gradient(rgba(123, 36, 10, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(123, 36, 10, 0.06) 1px, transparent 1px);
+    linear-gradient(rgba(123, 36, 10, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(123, 36, 10, 0.03) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 
 .carnival-panel {
   position: relative;
   overflow: hidden;
-  border: 4px solid #6f260a;
+  border: 2px solid rgba(139, 90, 56, 0.3);
   border-radius: var(--radius-3xl);
-  background: linear-gradient(180deg, #ffc957 0%, #f3a31c 100%);
-  box-shadow: 0 8px 0 #c97015, 0 22px 42px rgba(120, 53, 15, 0.16);
+  background: linear-gradient(180deg, #f5c957 0%, #e6960f 100%);
+  box-shadow: 0 4px 16px rgba(120, 53, 15, 0.1);
 }
 
 .carnival-card {
-  border: 3px solid #74210a;
+  border: 1px solid rgba(139, 90, 56, 0.2);
   border-radius: var(--radius-3xl);
-  background: #fff7dc;
-  box-shadow: 0 6px 0 #d78b22, 0 16px 28px rgba(120, 53, 15, 0.11);
+  background: #fdf9f1;
+  box-shadow: 0 2px 8px rgba(120, 53, 15, 0.05);
 }
 
 .carnival-card-soft {
-  background: #fff0cf;
+  background: #f5efe4;
 }
 
 .carnival-card-rose {
-  background: #ffe2d4;
+  background: #fce8dc;
 }
 
 .carnival-wood-strip {
-  background: linear-gradient(180deg, #7b240a 0%, #5a1806 100%);
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, #7b4a2a 0%, #5a3518 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .platform-shell-bg {
-  --background: #fff6dd;
-  --foreground: #5b1f0a;
-  --card: #fff7dc;
-  --muted: #fff0cf;
-  --muted-foreground: #7b240a;
-  --border: rgba(116, 33, 10, 0.36);
-  --input: #74210a;
-  --ring: #f6a61c;
-  --carnival-dark: #5b1f0a;
-  --carnival-card: #fff7dc;
-  --popover: #fff7dc;
-  --popover-foreground: #5b1f0a;
+  --background: #fdf8ef;
+  --foreground: #3b2518;
+  --card: #fdf9f1;
+  --muted: #f5efe4;
+  --muted-foreground: #8c6d55;
+  --border: rgba(139, 90, 56, 0.18);
+  --input: #8b5a38;
+  --ring: #e6960f;
+  --carnival-dark: #3b2518;
+  --carnival-card: #fdf9f1;
+  --popover: #fdf9f1;
+  --popover-foreground: #3b2518;
 
   background:
-    radial-gradient(1200px 520px at -5% -12%, rgba(255, 232, 150, 0.66) 0%, transparent 63%),
-    radial-gradient(1000px 500px at 110% -8%, rgba(255, 198, 98, 0.32) 0%, transparent 62%),
-    radial-gradient(700px 360px at 45% 105%, rgba(246, 166, 28, 0.2) 0%, transparent 64%),
-    linear-gradient(180deg, var(--platform-shell-bg-alt) 0%, var(--platform-shell-bg) 28%, #fff8e7 100%);
+    radial-gradient(1200px 520px at -5% -12%, rgba(245, 232, 200, 0.4) 0%, transparent 63%),
+    radial-gradient(1000px 500px at 110% -8%, rgba(240, 210, 150, 0.15) 0%, transparent 62%),
+    radial-gradient(700px 360px at 45% 105%, rgba(230, 150, 15, 0.08) 0%, transparent 64%),
+    linear-gradient(180deg, var(--platform-shell-bg-alt) 0%, var(--platform-shell-bg) 28%, #fefaf2 100%);
   color: var(--platform-ink);
 }
 
 .platform-sidebar-surface {
-  border-color: var(--carnival-border);
-  border-width: 0 var(--carnival-border-width) 0 0;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(255, 232, 150, 0.66) 0%, transparent 36%),
-    #fff7dc;
-  box-shadow: 5px 0 0 rgba(215, 139, 34, 0.64), 16px 0 30px rgba(120, 53, 15, 0.12);
+  border-color: var(--border);
+  border-width: 0 1px 0 0;
+  background: #fdf9f1;
+  box-shadow: 1px 0 0 rgba(139, 90, 56, 0.06);
 }
 
 .platform-topbar-surface {
-  border: var(--carnival-border-width) solid var(--carnival-border);
+  border: 1px solid var(--border);
   border-radius: var(--carnival-squircle-radius);
-  background: #fff7dc;
-  box-shadow: 0 5px 0 var(--carnival-shadow), 0 14px 24px rgba(120, 53, 15, 0.1);
+  background: #fdf9f1;
+  box-shadow: 0 1px 4px rgba(120, 53, 15, 0.04);
 }
 
 .platform-appbar-surface {
-  border-bottom: var(--carnival-border-width) solid var(--carnival-border);
-  background:
-    radial-gradient(circle at 18% 0%, rgba(255, 249, 214, 0.78) 0%, transparent 40%),
-    #fff0cf;
-  box-shadow: 0 5px 0 rgba(215, 139, 34, 0.72), 0 14px 24px rgba(120, 53, 15, 0.1);
+  border-bottom: 1px solid var(--border);
+  background: #f5efe4;
+  box-shadow: 0 1px 4px rgba(120, 53, 15, 0.04);
 }
 
 .platform-page-heading {
-  border: var(--carnival-border-width) solid var(--carnival-border);
+  border: 1px solid var(--border);
   border-radius: var(--carnival-squircle-radius);
-  background:
-    radial-gradient(circle at 90% 0%, rgba(255, 215, 117, 0.5) 0%, transparent 38%),
-    #fff7dc;
-  box-shadow: 0 5px 0 var(--carnival-shadow), 0 14px 28px rgba(120, 53, 15, 0.1);
+  background: #fdf9f1;
+  box-shadow: 0 1px 4px rgba(120, 53, 15, 0.04);
   color: var(--platform-ink);
 }
 
 .platform-nav-section-label {
   padding-inline: 0.8rem;
   font-size: 0.68rem;
-  font-weight: 950;
+  font-weight: 700;
   line-height: 1;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--platform-ink-muted);
-  opacity: 0.92;
+  opacity: 0.7;
 }
 
 .platform-nav-link {
@@ -428,42 +401,39 @@ body {
   align-items: center;
   gap: 0.75rem;
   border-radius: var(--carnival-squircle-radius);
-  border: var(--carnival-control-border-width) solid transparent;
-  padding: 0.72rem 0.9rem;
-  font-size: 0.92rem;
-  font-weight: 900;
+  border: 1px solid transparent;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 600;
   color: var(--platform-ink-muted);
   letter-spacing: 0.01em;
-  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .platform-nav-link:hover {
-  border-color: rgba(116, 33, 10, 0.42);
-  background: #fff0cf;
+  border-color: rgba(139, 90, 56, 0.12);
+  background: #f5efe4;
   color: var(--platform-ink);
-  transform: translateY(-1px);
-  box-shadow: none;
 }
 
 .platform-nav-link[data-active="true"] {
-  border-color: var(--carnival-border);
-  background: #f6a61c;
-  color: #fff7dc;
-  box-shadow: none;
+  border-color: rgba(230, 150, 15, 0.3);
+  background: rgba(230, 150, 15, 0.12);
+  color: var(--platform-ink);
 }
 
 .platform-surface-card {
-  border: var(--carnival-border-width) solid var(--carnival-border);
+  border: 1px solid var(--border);
   border-radius: var(--carnival-squircle-radius);
   background: var(--platform-surface);
-  box-shadow: 0 5px 0 var(--carnival-shadow), 0 14px 28px rgba(120, 53, 15, 0.1);
+  box-shadow: 0 1px 4px rgba(120, 53, 15, 0.04);
 }
 
 .platform-surface-card .platform-surface-card,
 .platform-nested-surface {
-  border: var(--carnival-control-border-width) solid var(--carnival-border);
+  border: 1px solid var(--border);
   border-radius: var(--carnival-squircle-radius);
-  background: rgba(255, 240, 207, 0.45);
+  background: rgba(245, 239, 228, 0.5);
   box-shadow: none;
 }
 
@@ -476,38 +446,38 @@ body {
 }
 
 .platform-dialog-surface {
-  border: var(--carnival-border-width) solid var(--carnival-border);
+  border: 1px solid var(--border);
   border-radius: var(--carnival-squircle-radius);
   background: var(--platform-surface);
-  box-shadow: 0 6px 0 var(--carnival-shadow), 0 24px 42px rgba(120, 53, 15, 0.2);
+  box-shadow: 0 8px 32px rgba(120, 53, 15, 0.1);
 }
 
 .platform-table-shell {
-  border: var(--carnival-border-width) solid var(--carnival-border);
+  border: 1px solid var(--border);
   border-radius: var(--carnival-squircle-radius);
-  background: rgba(255, 247, 220, 0.96);
-  box-shadow: 0 5px 0 var(--carnival-shadow), 0 14px 26px rgba(120, 53, 15, 0.1);
+  background: rgba(253, 249, 241, 0.96);
+  box-shadow: 0 1px 4px rgba(120, 53, 15, 0.04);
   overflow: hidden;
 }
 
 .carnival-control {
-  border: var(--carnival-control-border-width) solid var(--carnival-border);
+  border: 1px solid var(--border);
   border-radius: var(--carnival-squircle-radius);
-  background: #fff7dc;
+  background: #fdf9f1;
   color: var(--platform-ink);
   box-shadow: var(--carnival-control-shadow);
 }
 
 .carnival-control:focus-visible {
-  border-color: var(--carnival-border);
+  border-color: var(--carnival-amber);
   outline: 0;
-  box-shadow: 0 0 0 4px var(--carnival-focus);
+  box-shadow: 0 0 0 3px var(--carnival-focus);
 }
 
 .carnival-label {
   font-size: 0.72rem;
-  font-weight: 950;
-  letter-spacing: 0.16em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   line-height: 1;
   text-transform: uppercase;
   color: var(--platform-ink-muted);
@@ -519,17 +489,17 @@ body {
   inset-inline: 0;
   top: 0;
   z-index: 1000;
-  height: 4px;
+  height: 3px;
   overflow: hidden;
-  background: rgba(255, 240, 207, 0.45);
+  background: rgba(245, 239, 228, 0.5);
 }
 
 .navigation-progress__bar {
   height: 100%;
   width: 42%;
   border-radius: 9999px;
-  background: linear-gradient(90deg, #f6a61c 0%, #fbbf24 50%, #ec4899 100%);
-  box-shadow: 0 0 18px rgba(246, 166, 28, 0.7);
+  background: linear-gradient(90deg, #e6960f 0%, #f0b042 50%, #e6960f 100%);
+  box-shadow: 0 0 12px rgba(230, 150, 15, 0.4);
   animation: navigation-progress-slide 1.05s ease-in-out infinite;
   will-change: transform;
 }
@@ -594,9 +564,9 @@ body {
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(255, 240, 207, 0.3) 25%,
-    rgba(255, 240, 207, 0.6) 37%,
-    rgba(255, 240, 207, 0.3) 63%
+    rgba(245, 239, 228, 0.3) 25%,
+    rgba(245, 239, 228, 0.6) 37%,
+    rgba(245, 239, 228, 0.3) 63%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;

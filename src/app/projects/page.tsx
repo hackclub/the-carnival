@@ -7,7 +7,6 @@ import CreateProjectModal from "@/components/CreateProjectModal";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import { db } from "@/db";
 import { project } from "@/db/schema";
-import { buildCategorySuggestions, buildTagSuggestions } from "@/lib/project-taxonomy";
 import { getServerSession } from "@/lib/server-session";
 import { fetchHackatimeProjectHoursByName } from "@/lib/hackatime";
 
@@ -30,6 +29,7 @@ export default async function ProjectsPage() {
       id: project.id,
       name: project.name,
       description: project.description,
+      previewImage: project.previewImage,
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
@@ -39,16 +39,6 @@ export default async function ProjectsPage() {
     .from(project)
     .where(eq(project.creatorId, session.user.id))
     .orderBy(desc(project.createdAt));
-
-  const taxonomyRows = await db
-    .select({
-      category: project.category,
-      tags: project.tags,
-    })
-    .from(project);
-
-  const categorySuggestions = buildCategorySuggestions(taxonomyRows.map((row) => row.category));
-  const tagSuggestions = buildTagSuggestions(taxonomyRows.map((row) => row.tags));
 
   return (
     <AppShell title="My projects">
@@ -61,7 +51,7 @@ export default async function ProjectsPage() {
           <div className="mt-6">
             <Link
               href="/projects?new=1"
-              className="inline-flex min-h-11 items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-[var(--platform-accent)] px-6 py-3 text-sm font-black tracking-[0.02em] text-[#fff7dc] transition-colors hover:bg-[#ee9817]"
+              className="inline-flex min-h-11 items-center justify-center rounded-[var(--carnival-squircle-radius)] border border-border bg-[var(--platform-accent)] px-6 py-3 text-sm font-bold tracking-[0.02em] text-[#fff7dc] transition-colors hover:bg-[#ee9817]"
             >
               Create a project
             </Link>
@@ -79,28 +69,46 @@ export default async function ProjectsPage() {
               <Link
                 key={p.id}
                 href={`/projects/${p.id}`}
-                className="platform-surface-card p-6 card-glow transition-all hover:bg-muted block"
+                className="platform-surface-card card-glow transition-all hover:bg-muted block overflow-hidden"
                 aria-label={`Manage ${p.name}`}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="text-foreground font-bold text-xl truncate">
-                      {p.name}
+                {p.previewImage ? (
+                  <div className="border-b border-border bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={p.previewImage}
+                      alt={`${p.name} preview`}
+                      className="h-40 w-full object-cover"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                ) : (
+                  <div className="h-28 w-full flex items-center justify-center border-b border-border bg-muted/50 text-sm text-muted-foreground">
+                    No preview
+                  </div>
+                )}
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="text-foreground font-bold text-lg truncate">
+                        {p.name}
+                      </div>
+                      <div className="text-muted-foreground text-sm mt-1 line-clamp-2">
+                        {p.description}
+                      </div>
                     </div>
-                    <div className="text-muted-foreground mt-2 overflow-hidden">
-                      {p.description}
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
+                      <ProjectStatusBadge status={p.status} />
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
-                    <ProjectStatusBadge status={p.status} />
-                  </div>
-                </div>
 
-                <div className="mt-6 flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">Hours</div>
-                  <div className="text-foreground font-semibold">
-                    {formatHoursMinutes(hm.hours, hm.minutes)}
+                  <div className="mt-4 flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Hours</span>
+                    <span className="text-foreground font-semibold">
+                      {formatHoursMinutes(hm.hours, hm.minutes)}
+                    </span>
                   </div>
                 </div>
               </Link>
@@ -112,17 +120,14 @@ export default async function ProjectsPage() {
       {/* FAB */}
       <Link
         href="/projects?new=1"
-        className="fixed right-6 bottom-6 flex h-14 w-14 items-center justify-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-[var(--platform-accent)] text-[#fff7dc] transition-colors hover:bg-[#ee9817]"
+        className="fixed right-6 bottom-6 flex h-14 w-14 items-center justify-center rounded-[var(--carnival-squircle-radius)] border border-border bg-[var(--platform-accent)] text-[#fff7dc] transition-colors hover:bg-[#ee9817]"
         aria-label="Create new project"
         title="Create new project"
       >
         <span className="text-3xl leading-none">+</span>
       </Link>
 
-      <CreateProjectModal
-        categorySuggestions={categorySuggestions}
-        tagSuggestions={tagSuggestions}
-      />
+      <CreateProjectModal />
     </AppShell>
   );
 }

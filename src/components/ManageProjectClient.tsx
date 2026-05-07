@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle2, XCircle } from "lucide-react";
+import toast from "react-hot-toast";
 import type {
   ProjectEditor,
   ProjectStatus,
@@ -11,7 +13,8 @@ import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
 import { Modal } from "@/components/ui";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
-import { DatePicker } from "@/components/ui/date-picker";
+import { ScreenshotGrid } from "@/components/ScreenshotGrid";
+import { DateTimePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -40,7 +43,6 @@ import {
   type HackatimeProjectOption,
   type HackatimeRangePreview,
 } from "@/lib/project-form-utils";
-import toast from "react-hot-toast";
 
 export type ManageProjectInitial = {
   id: string;
@@ -57,6 +59,7 @@ export type ManageProjectInitial = {
   videoUrl: string;
   playableDemoUrl: string;
   codeUrl: string;
+  previewImage: string;
   screenshots: string[];
   submissionChecklist: ProjectSubmissionChecklist | null;
   creatorDeclaredOriginality: boolean;
@@ -140,6 +143,10 @@ export default function ManageProjectClient({
   const [videoUrl, setVideoUrl] = useState(initial.videoUrl);
   const [playableDemoUrl, setPlayableDemoUrl] = useState(initial.playableDemoUrl);
   const [codeUrl, setCodeUrl] = useState(initial.codeUrl);
+  const [previewImage, setPreviewImage] = useState(initial.previewImage ?? "");
+  const [previewDragOver, setPreviewDragOver] = useState(false);
+  const [previewUploading, setPreviewUploading] = useState(false);
+  const previewInputRef = useRef<HTMLInputElement | null>(null);
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>(
     (initial.screenshots?.length ?? 0) > 0 ? initial.screenshots : [""],
   );
@@ -178,6 +185,47 @@ export default function ManageProjectClient({
       })
       .catch(() => {});
   }, [initial.bountyProjectId]);
+
+  const uploadPreviewImage = useCallback(async (file: File) => {
+    const contentType = file.type || "application/octet-stream";
+    if (!contentType.startsWith("image/")) {
+      toast.error("Please choose an image file.");
+      return;
+    }
+    setPreviewUploading(true);
+    const toastId = toast.loading("Uploading preview...");
+    try {
+      const presignRes = await fetch("/api/uploads/presign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "project_screenshot", contentType, projectId: initial.id }),
+      });
+      const presignData = await presignRes.json().catch(() => null);
+      if (!presignRes.ok) {
+        toast.error(presignData?.error ?? "Failed to start upload.", { id: toastId });
+        setPreviewUploading(false);
+        return;
+      }
+      const { uploadUrl, publicUrl } = presignData ?? {};
+      if (!uploadUrl || !publicUrl) {
+        toast.error("Upload response missing URLs.", { id: toastId });
+        setPreviewUploading(false);
+        return;
+      }
+      const putRes = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": contentType }, body: file });
+      if (!putRes.ok) {
+        toast.error(`Upload failed (${putRes.status})`, { id: toastId });
+        setPreviewUploading(false);
+        return;
+      }
+      setPreviewImage(publicUrl);
+      toast.success("Preview image uploaded.", { id: toastId });
+    } catch {
+      toast.error("Upload failed.", { id: toastId });
+    } finally {
+      setPreviewUploading(false);
+    }
+  }, [initial.id]);
 
   const isGranted = status === "granted";
 
@@ -283,7 +331,9 @@ export default function ManageProjectClient({
     const demoOk = videoUrl.trim().length > 0 && isValidUrlString(videoUrl.trim());
     const playableOk = playableDemoUrl.trim().length > 0 && isValidUrlString(playableDemoUrl.trim());
     const hackatimeOk = hackatimeProjectName.trim().length > 0;
-    const screenshotsOk = screenshots.length > 0;
+    const screenshotsOk = screenshots.length >= 3;
+    const editorOk = editor !== "other" || editorOther.trim().length > 0;
+    const declarationOk = creatorDeclaredOriginality || (creatorOriginalityRationale?.trim()?.length ?? 0) > 0;
 
     return {
       nameOk,
@@ -293,14 +343,13 @@ export default function ManageProjectClient({
       playableOk,
       hackatimeOk,
       screenshotsOk,
+      editorOk,
+      declarationOk,
       allOk:
-        nameOk && descriptionOk && githubOk && demoOk && playableOk && hackatimeOk && screenshotsOk && editor !== "other"
-          ? true
-          : nameOk && descriptionOk && githubOk && demoOk && playableOk && hackatimeOk && screenshotsOk && editor === "other"
-            ? editorOther.trim().length > 0
-            : false,
+        nameOk && descriptionOk && githubOk && demoOk && playableOk &&
+        hackatimeOk && screenshotsOk && editorOk && declarationOk,
     };
-  }, [codeUrl, description, editor, editorOther, hackatimeProjectName, name, playableDemoUrl, videoUrl, screenshots]);
+  }, [codeUrl, description, editor, editorOther, hackatimeProjectName, name, playableDemoUrl, videoUrl, screenshots, creatorDeclaredOriginality, creatorOriginalityRationale]);
 
   const submissionChecklist = useMemo<ProjectSubmissionChecklist>(
     () => ({
@@ -446,6 +495,7 @@ export default function ManageProjectClient({
       videoUrl: videoUrl.trim(),
       playableDemoUrl: playableDemoUrl.trim(),
       codeUrl: codeUrl.trim(),
+      previewImage: previewImage.trim(),
       screenshots: cleanList(screenshotUrls),
       bountyProjectId: bountyProjectId || null,
       consideredHackatimeRange:
@@ -489,6 +539,7 @@ export default function ManageProjectClient({
         setVideoUrl(p.videoUrl);
         setPlayableDemoUrl(p.playableDemoUrl);
         setCodeUrl(p.codeUrl);
+        setPreviewImage(p.previewImage ?? "");
         setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
         setSavedSubmissionChecklist(p.submissionChecklist ?? null);
         setCreatorDeclaredOriginality(p.creatorDeclaredOriginality);
@@ -599,6 +650,7 @@ export default function ManageProjectClient({
       videoUrl: videoUrl.trim(),
       playableDemoUrl: playableDemoUrl.trim(),
       codeUrl: codeUrl.trim(),
+      previewImage: previewImage.trim(),
       screenshots: cleanList(screenshotUrls),
       bountyProjectId: bountyProjectId || null,
       status: "in-review",
@@ -676,6 +728,7 @@ export default function ManageProjectClient({
         setVideoUrl(p.videoUrl);
         setPlayableDemoUrl(p.playableDemoUrl);
         setCodeUrl(p.codeUrl);
+        setPreviewImage(p.previewImage ?? "");
         setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
         setSavedSubmissionChecklist(p.submissionChecklist ?? null);
         setCreatorDeclaredOriginality(p.creatorDeclaredOriginality);
@@ -796,7 +849,7 @@ export default function ManageProjectClient({
 
       <div className="platform-surface-card p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Originality declaration</div>
-        <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4 space-y-3">
+        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 space-y-3">
           <div className="text-sm text-muted-foreground">Creator statement</div>
           <div className="text-foreground font-semibold">
             {creatorDeclaredOriginality
@@ -829,7 +882,7 @@ export default function ManageProjectClient({
         ) : (
           <div className="space-y-3">
             {reviews.map((r) => (
-              <div key={r.id} className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4">
+              <div key={r.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-foreground font-semibold truncate">
@@ -852,6 +905,84 @@ export default function ManageProjectClient({
             ))}
           </div>
         )}
+      </div>
+
+      {/* Preview image card */}
+      <div className="platform-surface-card overflow-hidden">
+        {previewImage ? (
+          <div className="relative group">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewImage}
+              alt="Project preview"
+              className="w-full h-48 sm:h-56 object-cover"
+            />
+            {!isGranted && (
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => previewInputRef.current?.click()}
+                    disabled={saving}
+                    className="bg-white/90 hover:bg-white text-foreground px-4 py-2 rounded-[var(--radius-xl)] text-sm font-semibold transition-colors"
+                  >
+                    Replace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewImage("")}
+                    disabled={saving}
+                    className="bg-white/90 hover:bg-white text-red-600 px-4 py-2 rounded-[var(--radius-xl)] text-sm font-semibold transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => previewInputRef.current?.click()}
+            disabled={saving || isGranted}
+            onDragOver={(e) => { e.preventDefault(); setPreviewDragOver(true); }}
+            onDragEnter={(e) => { e.preventDefault(); setPreviewDragOver(true); }}
+            onDragLeave={(e) => { e.preventDefault(); setPreviewDragOver(false); }}
+            onDrop={async (e) => {
+              e.preventDefault();
+              setPreviewDragOver(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file) await uploadPreviewImage(file);
+            }}
+            className={[
+              "w-full h-48 sm:h-56 flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer",
+              previewDragOver
+                ? "bg-carnival-blue/10 border-b border-carnival-blue/30"
+                : "bg-muted/30 border-b border-border hover:bg-muted/50",
+              (saving || isGranted) ? "opacity-50 cursor-not-allowed" : "",
+            ].join(" ")}
+          >
+            <span className="text-3xl text-muted-foreground/50">🖼</span>
+            <span className="text-sm text-muted-foreground font-medium">
+              {previewUploading ? "Uploading..." : "Add a preview image"}
+            </span>
+            <span className="text-xs text-muted-foreground/70">
+              Drop an image or click to upload
+            </span>
+          </button>
+        )}
+        <input
+          ref={previewInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          disabled={saving || isGranted}
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) await uploadPreviewImage(file);
+          }}
+        />
       </div>
 
       <div className="platform-surface-card p-6 space-y-5">
@@ -957,15 +1088,15 @@ export default function ManageProjectClient({
               </div>
             </div>
             {hackatimeProjectName ? (
-              <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted px-3 py-3 space-y-3">
+              <div className="rounded-[var(--radius-xl)]  border border-border bg-muted px-3 py-3 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="block">
-                    <div className="text-xs text-muted-foreground mb-1">Considered start date</div>
-                    <DatePicker value={submitRangeStartDate} onChange={(v) => setSubmitRangeStartDate(v)} disabled={saving || isGranted} />
+                    <div className="text-xs text-muted-foreground mb-1">Considered start</div>
+                    <DateTimePicker value={submitRangeStartDate} onChange={(v) => setSubmitRangeStartDate(v)} disabled={saving || isGranted} />
                   </label>
                   <label className="block">
-                    <div className="text-xs text-muted-foreground mb-1">Considered end date</div>
-                    <DatePicker value={submitRangeEndDate} onChange={(v) => setSubmitRangeEndDate(v)} disabled={saving || isGranted} />
+                    <div className="text-xs text-muted-foreground mb-1">Considered end</div>
+                    <DateTimePicker value={submitRangeEndDate} onChange={(v) => setSubmitRangeEndDate(v)} disabled={saving || isGranted} />
                   </label>
                 </div>
                 {!submitConsideredRange.ok ? (
@@ -1045,7 +1176,7 @@ export default function ManageProjectClient({
                     key={tag}
                     type="button"
                     onClick={() => setTagsInput((prev) => appendCsvToken(prev, tag))}
-                    className="rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-muted/70 transition-colors"
+                    className="rounded-[var(--carnival-squircle-radius)] border border-border bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-muted/70 transition-colors"
                   >
                     {tag}
                   </button>
@@ -1128,47 +1259,20 @@ export default function ManageProjectClient({
           </div>
         ) : null}
 
-        <label className="block">
+        <div>
           <div className="text-sm text-muted-foreground font-medium mb-2">
             Screenshots
           </div>
-          <div className="space-y-3">
-            {screenshotUrls.map((value, idx) => (
-              <div key={idx} className="platform-surface-card p-4 space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-muted-foreground font-medium">Screenshot {idx + 1}</div>
-                  <button
-                    type="button"
-                    onClick={() => removeScreenshotField(idx)}
-                    className="h-10 px-4 rounded-[var(--radius-xl)] bg-muted hover:bg-muted/70 border border-border text-foreground font-semibold disabled:opacity-60"
-                    disabled={screenshotUrls.length <= 1}
-                    aria-label="Remove screenshot"
-                    title="Remove"
-                  >
-                    Remove
-                  </button>
-                </div>
-
-                <R2ImageUpload
-                  label="Upload"
-                  value={value}
-                  onChange={(url) => updateScreenshotField(idx, url)}
-                  kind="project_screenshot"
-                  projectId={initial.id}
-                  disabled={saving || isGranted}
-                  helperText="Include screenshots of your project working (not your code)."
-                />
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={addScreenshotField}
-              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
-            >
-              Add screenshot
-            </button>
+          <ScreenshotGrid
+            urls={screenshotUrls}
+            onChange={setScreenshotUrls}
+            projectId={initial.id}
+            disabled={saving || isGranted}
+          />
+          <div className="mt-2 text-xs text-muted-foreground">
+            Include screenshots of your project working (not your code). Required before submission.
           </div>
-        </label>
+        </div>
         </fieldset>
 
         {error ? (
@@ -1233,107 +1337,42 @@ export default function ManageProjectClient({
       >
         {submitStep === 0 ? (
           <div className="space-y-4">
-            <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4 text-sm text-muted-foreground">
-              You can’t submit until these are set: GitHub URL, video link, playable demo link, Hackatime project name, considered Hackatime range, and at least one screenshot.
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
+              Complete all requirements before submitting: GitHub URL, video link, playable demo link, Hackatime project, considered range, at least 3 screenshots, and originality declaration.
             </div>
 
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
-                <div className="text-foreground">GitHub URL</div>
-                <div
-                  className={[
-                    "px-2 py-0.5 rounded-md font-bold",
-                    submitRequirements.githubOk
-                      ? "text-emerald-300 bg-emerald-500/15"
-                      : "text-rose-300 bg-rose-500/15",
-                  ].join(" ")}
-                >
-                  {submitRequirements.githubOk ? "Set" : "Missing/invalid"}
+            <div className="space-y-1.5 text-sm">
+              {[
+                { ok: submitRequirements.githubOk, label: "GitHub URL" },
+                { ok: submitRequirements.demoOk, label: "Video link" },
+                { ok: submitRequirements.playableOk, label: "Playable demo link" },
+                { ok: submitRequirements.hackatimeOk, label: "Hackatime project name" },
+                { ok: submitConsideredRange.ok, label: "Considered Hackatime range" },
+                { ok: submitRequirements.screenshotsOk, label: submitRequirements.screenshotsOk ? `Screenshots (${screenshots.length} uploaded)` : `Screenshots (${screenshots.length}/3 needed)` },
+                { ok: submitRequirements.declarationOk, label: "Originality declaration" },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-2.5 border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
+                  {item.ok ? (
+                    <CheckCircle2 className="h-4.5 w-4.5 shrink-0 text-emerald-400" />
+                  ) : (
+                    <XCircle className="h-4.5 w-4.5 shrink-0 text-rose-400" />
+                  )}
+                  <span className={item.ok ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
                 </div>
-              </div>
-              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
-              <div className="text-foreground">Video link</div>
-              <div
-                className={[
-                  "px-2 py-0.5 rounded-md font-bold",
-                  submitRequirements.demoOk
-                    ? "text-emerald-300 bg-emerald-500/15"
-                    : "text-rose-300 bg-rose-500/15",
-                ].join(" ")}
-              >
-                {submitRequirements.demoOk ? "Set" : "Missing/invalid"}
-              </div>
-            </div>
-            <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
-                <div className="text-foreground">Playable demo link</div>
-                <div
-                  className={[
-                    "px-2 py-0.5 rounded-md font-bold",
-                    submitRequirements.playableOk
-                      ? "text-emerald-300 bg-emerald-500/15"
-                      : "text-rose-300 bg-rose-500/15",
-                  ].join(" ")}
-                >
-                  {submitRequirements.playableOk ? "Set" : "Missing/invalid"}
-                </div>
-              </div>
-              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
-                <div className="text-foreground">Hackatime project name</div>
-                <div
-                  className={[
-                    "px-2 py-0.5 rounded-md font-bold",
-                    submitRequirements.hackatimeOk
-                      ? "text-emerald-300 bg-emerald-500/15"
-                      : "text-rose-300 bg-rose-500/15",
-                  ].join(" ")}
-                >
-                  {submitRequirements.hackatimeOk ? "Set" : "Missing"}
-                </div>
-              </div>
-              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
-                <div className="text-foreground">Considered Hackatime range</div>
-                <div
-                  className={[
-                    "px-2 py-0.5 rounded-md font-bold",
-                    submitConsideredRange.ok
-                      ? "text-emerald-300 bg-emerald-500/15"
-                      : "text-rose-300 bg-rose-500/15",
-                  ].join(" ")}
-                >
-                  {submitConsideredRange.ok ? "Set" : "Missing/invalid"}
-                </div>
-              </div>
-              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
-                <div className="text-foreground">Screenshots</div>
-                <div
-                  className={[
-                    "px-2 py-0.5 rounded-md font-bold",
-                    submitRequirements.screenshotsOk
-                      ? "text-emerald-300 bg-emerald-500/15"
-                      : "text-rose-300 bg-rose-500/15",
-                  ].join(" ")}
-                >
-                  {submitRequirements.screenshotsOk ? "Set" : "Missing"}
-                </div>
-              </div>
+              ))}
               {editor === "other" ? (
-                <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
-                  <div className="text-foreground">Other editor name</div>
-                  <div
-                    className={[
-                      "px-2 py-0.5 rounded-md font-bold",
-                      editorOther.trim().length > 0
-                        ? "text-emerald-300 bg-emerald-500/15"
-                        : "text-rose-300 bg-rose-500/15",
-                    ].join(" ")}
-                  >
-                    {editorOther.trim().length > 0 ? "Set" : "Missing"}
-                  </div>
+                <div className="flex items-center gap-2.5 border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
+                  {editorOther.trim().length > 0 ? (
+                    <CheckCircle2 className="h-4.5 w-4.5 shrink-0 text-emerald-400" />
+                  ) : (
+                    <XCircle className="h-4.5 w-4.5 shrink-0 text-rose-400" />
+                  )}
+                  <span className={editorOther.trim().length > 0 ? "text-foreground" : "text-muted-foreground"}>Other editor name</span>
                 </div>
               ) : null}
             </div>
 
-            <div className="rounded-[var(--radius-2xl)]  border-2 border-[var(--carnival-border)] bg-background px-4 py-4 space-y-3">
+            <div className="rounded-[var(--radius-2xl)]  border border-border bg-background px-4 py-4 space-y-3">
               <div>
                 <div className="text-foreground font-semibold">Considered Hackatime range</div>
                 <div className="text-sm text-muted-foreground mt-1">
@@ -1342,12 +1381,12 @@ export default function ManageProjectClient({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="block">
-                  <div className="text-xs text-muted-foreground mb-1">Start date</div>
-                  <DatePicker value={submitRangeStartDate} onChange={(v) => setSubmitRangeStartDate(v)} />
+                  <div className="text-xs text-muted-foreground mb-1">Start</div>
+                  <DateTimePicker value={submitRangeStartDate} onChange={(v) => setSubmitRangeStartDate(v)} />
                 </label>
                 <label className="block">
-                  <div className="text-xs text-muted-foreground mb-1">End date</div>
-                  <DatePicker value={submitRangeEndDate} onChange={(v) => setSubmitRangeEndDate(v)} />
+                  <div className="text-xs text-muted-foreground mb-1">End</div>
+                  <DateTimePicker value={submitRangeEndDate} onChange={(v) => setSubmitRangeEndDate(v)} />
                 </label>
               </div>
               {!submitConsideredRange.ok ? (
@@ -1377,7 +1416,7 @@ export default function ManageProjectClient({
         ) : (
           isReReview ? (
             <div className="space-y-4">
-              <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4">
+              <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
                 <div className="text-sm text-foreground font-semibold">Most recent rejection feedback</div>
                 <div className="text-xs text-muted-foreground mt-1">
                   {latestRejectedReview
@@ -1427,7 +1466,7 @@ export default function ManageProjectClient({
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-3 text-xs text-muted-foreground">
+              <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
                 Required items must be checked. Optional items are recorded for reviewer context.
               </div>
               <div className="space-y-3">

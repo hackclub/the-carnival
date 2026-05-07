@@ -1,20 +1,12 @@
-// ============================================================================
-// Badge variants
-// ============================================================================
-
 export const badgeVariants = {
-  default: "border-[var(--carnival-border)] bg-[#fff0cf] text-[var(--platform-ink)]",
-  success: "border-[#176b45] bg-[#dff8dc] text-[#176b45]",
-  warning: "border-[#9a4e0a] bg-[#ffe8a8] text-[#7b240a]",
-  error: "border-[#a51d2d] bg-[#ffe2d4] text-[#8d1a2b]",
-  info: "border-[#2363b8] bg-[#dbeafe] text-[#174582]",
-  purple: "border-[#6d28d9] bg-[#ede9fe] text-[#4c1d95]",
-  emerald: "border-[#047857] bg-[#d1fae5] text-[#065f46]",
+  default: "border-border bg-muted text-foreground",
+  success: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  warning: "border-amber-200 bg-amber-50 text-amber-700",
+  error: "border-red-200 bg-red-50 text-red-700",
+  info: "border-blue-200 bg-blue-50 text-blue-700",
+  purple: "border-violet-200 bg-violet-50 text-violet-700",
+  emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
 };
-
-// ============================================================================
-// Badge component
-// ============================================================================
 
 export type BadgeVariant = keyof typeof badgeVariants;
 
@@ -24,9 +16,15 @@ type BadgeProps = {
   className?: string;
 };
 
-export function Badge({ children, variant = "default", className = "" }: BadgeProps) {
+export function Badge({
+  children,
+  variant = "default",
+  className = "",
+}: BadgeProps) {
   return (
-    <span className={`shrink-0 rounded-[var(--carnival-squircle-radius)] border-2 px-2.5 py-0.5 text-[0.68rem] font-black uppercase tracking-[0.06em] shadow-none ${badgeVariants[variant]} ${className}`}>
+    <span
+      className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[0.68rem] font-semibold tracking-wide ${badgeVariants[variant]} ${className}`}
+    >
       {children}
     </span>
   );

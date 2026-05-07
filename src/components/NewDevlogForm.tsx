@@ -98,6 +98,9 @@ export default function NewDevlogForm({
   const [hackatimeError, setHackatimeError] = useState<string | null>(null);
   const [hackatimeConnectUrl, setHackatimeConnectUrl] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<string[]>(initial?.attachments ?? []);
+  const [devlogCategory, setDevlogCategory] = useState<"learning" | "design" | "coding">(
+    (initial as { category?: string } | undefined)?.category as "learning" | "design" | "coding" ?? "coding",
+  );
   const [usedAi, setUsedAi] = useState(initial?.usedAi ?? false);
   const [aiDesc, setAiDesc] = useState(initial?.aiUsageDescription ?? "");
   const [startedAt, setStartedAt] = useState(
@@ -322,6 +325,7 @@ export default function NewDevlogForm({
       const body: Record<string, unknown> = {
         title: title.trim(),
         content: content.trim(),
+        category: devlogCategory,
         attachments,
         usedAi,
         aiUsageDescription: usedAi ? aiDesc.trim() : null,
@@ -373,6 +377,7 @@ export default function NewDevlogForm({
     canEditWindow,
     canSubmit,
     content,
+    devlogCategory,
     devlogId,
     endedIso,
     isEdit,
@@ -464,15 +469,43 @@ export default function NewDevlogForm({
             ) : null}
           </div>
 
-          <label className="block">
-            <FormLabel>Title</FormLabel>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Implemented the login flow"
-              maxLength={200}
-            />
-          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="block">
+              <FormLabel>Title</FormLabel>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Implemented the login flow"
+                maxLength={200}
+              />
+            </label>
+
+            <div>
+              <FormLabel>Category</FormLabel>
+              <div className="flex gap-2 mt-1.5">
+                {([
+                  { value: "coding", label: "Coding", icon: "⌨️" },
+                  { value: "design", label: "Design / Art", icon: "🎨" },
+                  { value: "learning", label: "Learning", icon: "📚" },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setDevlogCategory(opt.value)}
+                    className={[
+                      "flex-1 rounded-[var(--radius-xl)] border-2 px-3 py-2 text-sm font-semibold transition-colors text-center",
+                      devlogCategory === opt.value
+                        ? "border-carnival-amber bg-carnival-amber/15 text-foreground"
+                        : "border-border bg-background text-muted-foreground hover:border-muted-foreground/40",
+                    ].join(" ")}
+                  >
+                    <span className="block text-base">{opt.icon}</span>
+                    <span className="block text-xs mt-0.5">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
 
           <RichTextField
             label="What did you work on?"

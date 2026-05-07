@@ -115,14 +115,14 @@ export default async function AdminGrantsPage({
                     <div className="text-foreground font-bold text-xl truncate">{p.name}</div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {p.category ? (
-                        <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-muted px-2.5 py-1 text-xs text-foreground">
+                        <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
                           {formatCategoryLabel(p.category) ?? p.category}
                         </span>
                       ) : null}
                       {(p.tags ?? []).slice(0, 3).map((tag) => (
                         <span
                           key={`${p.id}-${tag}`}
-                          className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                          className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
                         >
                           #{formatTagLabel(tag) ?? tag}
                         </span>

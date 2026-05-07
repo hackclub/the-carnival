@@ -25,10 +25,10 @@ export default async function EditorsPage() {
 
       <main className="relative z-10 mx-auto max-w-5xl px-6 pb-20 md:px-10">
         <div className="platform-page-heading mb-8 px-6 py-5">
-          <h1 className="text-3xl font-black uppercase leading-none tracking-[0.06em] text-foreground md:text-4xl">Editors you can build for</h1>
+          <h1 className="text-3xl font-bold uppercase leading-none tracking-[0.06em] text-foreground md:text-4xl">Editors you can build for</h1>
           <p className="mt-3 text-sm font-bold leading-6 text-muted-foreground md:text-base">
             Pick any supported program/editor and ship an extension/plugin/widget. Check out the{" "}
-            <Link href="/resources" className="font-black text-[var(--platform-ink)] underline decoration-[3px] underline-offset-4 hover:text-[var(--platform-accent-strong)]">
+            <Link href="/resources" className="font-bold text-[var(--platform-ink)] underline decoration-[3px] underline-offset-4 hover:text-[var(--platform-accent-strong)]">
               Resources
             </Link>{" "}
             section for documentation and tutorials.
@@ -41,13 +41,13 @@ export default async function EditorsPage() {
               <Link
                 key={e.id}
                 href="/resources"
-                className="rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-[#fff0cf] px-4 py-2 text-sm font-black text-[var(--platform-ink)] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc]"
+                className="rounded-[var(--carnival-squircle-radius)] border border-border bg-[#fff0cf] px-4 py-2 text-sm font-bold text-[var(--platform-ink)] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc]"
                 title={e.description || e.name}
               >
                 {e.name}
               </Link>
             ))}
-            <span className="rounded-[var(--carnival-squircle-radius)] border-2 border-[var(--carnival-border)] bg-[#fff0cf] px-4 py-2 text-sm font-black text-[var(--platform-ink)]">
+            <span className="rounded-[var(--carnival-squircle-radius)] border border-border bg-[#fff0cf] px-4 py-2 text-sm font-bold text-[var(--platform-ink)]">
               Other
             </span>
           </div>

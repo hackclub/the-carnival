@@ -74,15 +74,15 @@ export default function Countdown() {
 
         <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-xl">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8f4a18]">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8f4a18]">
               Countdown
             </p>
-            <h2 className="mt-2 text-3xl font-black uppercase tracking-[0.08em] text-[#5b1f0a] [text-wrap:balance] sm:text-[2.3rem]">
+            <h2 className="mt-2 text-3xl font-bold uppercase tracking-[0.08em] text-[#5b1f0a] [text-wrap:balance] sm:text-[2.3rem]">
               Countdown to the Carnival finale.
             </h2>
             <p className="mt-3 text-sm leading-6 text-[#6d3510] sm:text-base sm:leading-7">
-              Deadline: <span className="font-black">{deadlineLabel}</span> at{" "}
-              <span className="font-black">23:59 UTC</span>.
+              Deadline: <span className="font-bold">{deadlineLabel}</span> at{" "}
+              <span className="font-bold">23:59 UTC</span>.
             </p>
           </div>
 
@@ -98,10 +98,10 @@ export default function Countdown() {
                   key={label}
                   className="min-w-0 rounded-[1.5rem] border-[3px] border-[#74210a] bg-[#f6a61c] px-3 py-3 text-center shadow-[0_6px_0_#bf6216] sm:px-4 sm:py-4"
                 >
-                  <div className="text-2xl font-black text-[#fff7dc] tabular-nums sm:text-4xl">
+                  <div className="text-2xl font-bold text-[#fff7dc] tabular-nums sm:text-4xl">
                     {String(value).padStart(2, "0")}
                   </div>
-                  <div className="mt-1 text-[11px] font-black uppercase tracking-[0.18em] text-[#ffeab3]">
+                  <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[#ffeab3]">
                     {label}
                   </div>
                 </div>
@@ -109,7 +109,7 @@ export default function Countdown() {
             </div>
           ) : (
             <div className="max-w-md rounded-[1.5rem] border-[3px] border-[#74210a] bg-[#f6a61c] px-5 py-5 text-[#fff7dc] shadow-[0_6px_0_#bf6216]">
-              <div className="text-2xl font-black uppercase tracking-[0.08em] [text-wrap:balance] sm:text-3xl">
+              <div className="text-2xl font-bold uppercase tracking-[0.08em] [text-wrap:balance] sm:text-3xl">
                 The Carnival deadline has arrived.
               </div>
               <div className="mt-2 text-sm font-semibold leading-6 text-[#fff0c1] sm:text-base">

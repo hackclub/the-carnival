@@ -260,7 +260,7 @@ export default function ShopClient({
                 <img
                   src={i.imageUrl}
                   alt=""
-                  className="h-44 w-full rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-background object-cover"
+                  className="h-44 w-full rounded-[var(--radius-xl)]  border border-border bg-background object-cover"
                   referrerPolicy="no-referrer"
                 />
                 <div className="mt-4 flex flex-col gap-1">
@@ -372,7 +372,7 @@ export default function ShopClient({
               onChange={(e) => setQuantity(e.target.value)}
               disabled={busyItemId === selectedItem.id}
             />
-            <div className="rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted px-3 py-2 text-sm text-muted-foreground">
+            <div className="rounded-[var(--radius-xl)]  border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
               Total:{" "}
               <span className="font-semibold text-foreground">
                 {calculateShopOrderTotal(selectedItem.tokenCost, Number(quantity) || 1)} tokens
@@ -447,7 +447,7 @@ export default function ShopClient({
             placeholder="https://..."
             disabled={suggestBusy}
           />
-          <label className="flex items-start gap-3 rounded-[var(--radius-xl)]  border-2 border-[var(--carnival-border)] bg-muted px-4 py-3">
+          <label className="flex items-start gap-3 rounded-[var(--radius-xl)]  border border-border bg-muted px-4 py-3">
             <input
               type="checkbox"
               className="mt-1 h-4 w-4 accent-carnival-blue"

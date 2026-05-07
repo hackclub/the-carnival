@@ -32,7 +32,6 @@ type CreateProjectBody = {
   bountyProjectId?: unknown;
   status?: unknown;
 };
-const MIN_SCREENSHOTS = 3;
 
 function toCleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -110,7 +109,6 @@ export async function POST(req: Request) {
   const codeUrl = toCleanString(body.codeUrl);
   const category = normalizeCategory(body.category);
   const tags = normalizeProjectTags(body.tags);
-  const creatorDeclaredOriginality = body.creatorDeclaredOriginality;
   const parsedRange =
     body.consideredHackatimeRange === undefined
       ? null
@@ -153,64 +151,39 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!videoUrl) {
-    return NextResponse.json({ error: "Video link is required" }, { status: 400 });
-  }
-  if (!isValidUrlString(videoUrl)) {
+  // URL fields are optional at creation; validated only if provided
+  if (videoUrl && !isValidUrlString(videoUrl)) {
     return NextResponse.json({ error: "Video link must be http(s)" }, { status: 400 });
   }
-  if (!playableDemoUrl) {
-    return NextResponse.json({ error: "Playable demo link is required" }, { status: 400 });
-  }
-  if (!isValidUrlString(playableDemoUrl)) {
+  if (playableDemoUrl && !isValidUrlString(playableDemoUrl)) {
     return NextResponse.json({ error: "Playable demo link must be http(s)" }, { status: 400 });
   }
-  if (!codeUrl) {
-    return NextResponse.json({ error: "Code URL is required" }, { status: 400 });
-  }
-  if (!isValidUrlString(codeUrl)) {
+  if (codeUrl && !isValidUrlString(codeUrl)) {
     return NextResponse.json({ error: "Code URL must be http(s)" }, { status: 400 });
   }
-  if (screenshots.length < MIN_SCREENSHOTS) {
-    return NextResponse.json(
-      { error: `Please upload at least ${MIN_SCREENSHOTS} screenshots` },
-      { status: 400 },
-    );
-  }
-  if (typeof creatorDeclaredOriginality !== "boolean") {
-    return NextResponse.json(
-      { error: "Please declare whether your project overlaps with existing submissions." },
-      { status: 400 },
-    );
-  }
-  if (
-    body.creatorDuplicateExplanation !== undefined &&
-    body.creatorDuplicateExplanation !== null &&
-    typeof body.creatorDuplicateExplanation !== "string"
-  ) {
-    return NextResponse.json(
-      { error: "Duplicate overlap explanation must be text." },
-      { status: 400 },
-    );
-  }
-  if (
-    body.creatorOriginalityRationale !== undefined &&
-    body.creatorOriginalityRationale !== null &&
-    typeof body.creatorOriginalityRationale !== "string"
-  ) {
-    return NextResponse.json(
-      { error: "Originality rationale must be text." },
-      { status: 400 },
-    );
-  }
 
-  const originalityDeclaration = validateCreatorOriginalityDeclaration({
-    creatorDeclaredOriginality,
-    creatorDuplicateExplanation: toOptionalTrimmedString(body.creatorDuplicateExplanation),
-    creatorOriginalityRationale: toOptionalTrimmedString(body.creatorOriginalityRationale),
-  });
-  if (!originalityDeclaration.ok) {
-    return NextResponse.json({ error: originalityDeclaration.error }, { status: 400 });
+  // Originality declaration is optional at creation; defaults if not provided
+  const creatorDeclaredOriginality =
+    typeof body.creatorDeclaredOriginality === "boolean"
+      ? body.creatorDeclaredOriginality
+      : false;
+
+  let originalityValues = {
+    creatorDeclaredOriginality: false,
+    creatorDuplicateExplanation: null as string | null,
+    creatorOriginalityRationale: null as string | null,
+  };
+
+  if (typeof body.creatorDeclaredOriginality === "boolean") {
+    const originalityDeclaration = validateCreatorOriginalityDeclaration({
+      creatorDeclaredOriginality,
+      creatorDuplicateExplanation: toOptionalTrimmedString(body.creatorDuplicateExplanation),
+      creatorOriginalityRationale: toOptionalTrimmedString(body.creatorOriginalityRationale),
+    });
+    if (!originalityDeclaration.ok) {
+      return NextResponse.json({ error: originalityDeclaration.error }, { status: 400 });
+    }
+    originalityValues = originalityDeclaration.value;
   }
 
   if (hackatimeProjectName && !consideredHackatimeRange) {
@@ -270,19 +243,19 @@ export async function POST(req: Request) {
     description,
     editor,
     editorOther: editorOther || null,
-    hackatimeProjectName,
+    hackatimeProjectName: hackatimeProjectName || "",
     hackatimeStartedAt: resolvedHackatimeStartedAt,
     hackatimeStoppedAt: resolvedHackatimeStoppedAt,
     hackatimeTotalSeconds: resolvedHackatimeTotalSeconds,
-    videoUrl,
-    playableDemoUrl,
-    codeUrl,
+    videoUrl: videoUrl || "",
+    playableDemoUrl: playableDemoUrl || "",
+    codeUrl: codeUrl || "",
     category,
     tags,
     screenshots,
-    creatorDeclaredOriginality: originalityDeclaration.value.creatorDeclaredOriginality,
-    creatorDuplicateExplanation: originalityDeclaration.value.creatorDuplicateExplanation,
-    creatorOriginalityRationale: originalityDeclaration.value.creatorOriginalityRationale,
+    creatorDeclaredOriginality: originalityValues.creatorDeclaredOriginality,
+    creatorDuplicateExplanation: originalityValues.creatorDuplicateExplanation,
+    creatorOriginalityRationale: originalityValues.creatorOriginalityRationale,
     bountyProjectId,
     startedOnCarnivalAt: now,
     createdAt: now,

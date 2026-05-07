@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { devlog, project, user } from "@/db/schema";
+import { devlog, project, user, type DevlogCategory } from "@/db/schema";
 import {
   DEVLOG_AI_DESCRIPTION_MAX_LENGTH,
   DEVLOG_MAX_CONTENT_LENGTH,
@@ -26,6 +26,7 @@ import { getServerSession } from "@/lib/server-session";
 type CreateDevlogBody = {
   title?: unknown;
   content?: unknown;
+  category?: unknown;
   hackatimeProjectName?: unknown;
   startedAt?: unknown;
   endedAt?: unknown;
@@ -76,6 +77,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       userId: devlog.userId,
       title: devlog.title,
       content: devlog.content,
+      category: devlog.category,
       startedAt: devlog.startedAt,
       endedAt: devlog.endedAt,
       durationSeconds: devlog.durationSeconds,
@@ -99,6 +101,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       userId: r.userId,
       title: r.title,
       content: r.content,
+      category: r.category ?? "coding",
       startedAt: r.startedAt.toISOString(),
       endedAt: r.endedAt.toISOString(),
       durationSeconds: r.durationSeconds,
@@ -175,6 +178,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const title = toCleanString(body.title);
   const content = toCleanString(body.content);
+  const VALID_DEVLOG_CATEGORIES: DevlogCategory[] = ["learning", "design", "coding"];
+  const categoryRaw = typeof body.category === "string" ? body.category.trim() : "coding";
+  const category: DevlogCategory = VALID_DEVLOG_CATEGORIES.includes(categoryRaw as DevlogCategory)
+    ? (categoryRaw as DevlogCategory)
+    : "coding";
 
   if (!title) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -281,6 +289,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         userId,
         title,
         content,
+        category,
         startedAt: window.startedAt,
         endedAt: window.endedAt,
         durationSeconds,
@@ -316,6 +325,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         userId,
         title,
         content,
+        category,
         startedAt: window.startedAt.toISOString(),
         endedAt: window.endedAt.toISOString(),
         durationSeconds,
