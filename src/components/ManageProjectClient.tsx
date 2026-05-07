@@ -11,6 +11,7 @@ import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
 import { Modal } from "@/components/ui";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
+import { ScreenshotGrid } from "@/components/ScreenshotGrid";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
@@ -283,7 +284,9 @@ export default function ManageProjectClient({
     const demoOk = videoUrl.trim().length > 0 && isValidUrlString(videoUrl.trim());
     const playableOk = playableDemoUrl.trim().length > 0 && isValidUrlString(playableDemoUrl.trim());
     const hackatimeOk = hackatimeProjectName.trim().length > 0;
-    const screenshotsOk = screenshots.length > 0;
+    const screenshotsOk = screenshots.length >= 3;
+    const editorOk = editor !== "other" || editorOther.trim().length > 0;
+    const declarationOk = creatorDeclaredOriginality || (creatorOriginalityRationale?.trim()?.length ?? 0) > 0;
 
     return {
       nameOk,
@@ -293,14 +296,13 @@ export default function ManageProjectClient({
       playableOk,
       hackatimeOk,
       screenshotsOk,
+      editorOk,
+      declarationOk,
       allOk:
-        nameOk && descriptionOk && githubOk && demoOk && playableOk && hackatimeOk && screenshotsOk && editor !== "other"
-          ? true
-          : nameOk && descriptionOk && githubOk && demoOk && playableOk && hackatimeOk && screenshotsOk && editor === "other"
-            ? editorOther.trim().length > 0
-            : false,
+        nameOk && descriptionOk && githubOk && demoOk && playableOk &&
+        hackatimeOk && screenshotsOk && editorOk && declarationOk,
     };
-  }, [codeUrl, description, editor, editorOther, hackatimeProjectName, name, playableDemoUrl, videoUrl, screenshots]);
+  }, [codeUrl, description, editor, editorOther, hackatimeProjectName, name, playableDemoUrl, videoUrl, screenshots, creatorDeclaredOriginality, creatorOriginalityRationale]);
 
   const submissionChecklist = useMemo<ProjectSubmissionChecklist>(
     () => ({
@@ -1128,47 +1130,20 @@ export default function ManageProjectClient({
           </div>
         ) : null}
 
-        <label className="block">
+        <div>
           <div className="text-sm text-muted-foreground font-medium mb-2">
             Screenshots
           </div>
-          <div className="space-y-3">
-            {screenshotUrls.map((value, idx) => (
-              <div key={idx} className="platform-surface-card p-4 space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-muted-foreground font-medium">Screenshot {idx + 1}</div>
-                  <button
-                    type="button"
-                    onClick={() => removeScreenshotField(idx)}
-                    className="h-10 px-4 rounded-[var(--radius-xl)] bg-muted hover:bg-muted/70 border border-border text-foreground font-semibold disabled:opacity-60"
-                    disabled={screenshotUrls.length <= 1}
-                    aria-label="Remove screenshot"
-                    title="Remove"
-                  >
-                    Remove
-                  </button>
-                </div>
-
-                <R2ImageUpload
-                  label="Upload"
-                  value={value}
-                  onChange={(url) => updateScreenshotField(idx, url)}
-                  kind="project_screenshot"
-                  projectId={initial.id}
-                  disabled={saving || isGranted}
-                  helperText="Include screenshots of your project working (not your code)."
-                />
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={addScreenshotField}
-              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
-            >
-              Add screenshot
-            </button>
+          <ScreenshotGrid
+            urls={screenshotUrls}
+            onChange={setScreenshotUrls}
+            projectId={initial.id}
+            disabled={saving || isGranted}
+          />
+          <div className="mt-2 text-xs text-muted-foreground">
+            Include screenshots of your project working (not your code). Required before submission.
           </div>
-        </label>
+        </div>
         </fieldset>
 
         {error ? (
@@ -1234,7 +1209,7 @@ export default function ManageProjectClient({
         {submitStep === 0 ? (
           <div className="space-y-4">
             <div className="rounded-[var(--radius-2xl)] border-2 border-[var(--carnival-border)] bg-muted px-4 py-4 text-sm text-muted-foreground">
-              You can’t submit until these are set: GitHub URL, video link, playable demo link, Hackatime project name, considered Hackatime range, and at least one screenshot.
+              Complete all requirements before submitting: GitHub URL, video link, playable demo link, Hackatime project, considered range, at least 3 screenshots, and originality declaration.
             </div>
 
             <div className="space-y-2 text-sm">
@@ -1304,7 +1279,7 @@ export default function ManageProjectClient({
                 </div>
               </div>
               <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
-                <div className="text-foreground">Screenshots</div>
+                <div className="text-foreground">Screenshots (min 3)</div>
                 <div
                   className={[
                     "px-2 py-0.5 rounded-md font-bold",
@@ -1313,7 +1288,20 @@ export default function ManageProjectClient({
                       : "text-rose-300 bg-rose-500/15",
                   ].join(" ")}
                 >
-                  {submitRequirements.screenshotsOk ? "Set" : "Missing"}
+                  {submitRequirements.screenshotsOk ? `${screenshots.length} uploaded` : `${screenshots.length}/3 needed`}
+                </div>
+              </div>
+              <div className="flex items-center justify-between  border-2 border-[var(--carnival-border)] bg-background rounded-[var(--radius-xl)] px-3 py-2">
+                <div className="text-foreground">Originality declaration</div>
+                <div
+                  className={[
+                    "px-2 py-0.5 rounded-md font-bold",
+                    submitRequirements.declarationOk
+                      ? "text-emerald-300 bg-emerald-500/15"
+                      : "text-rose-300 bg-rose-500/15",
+                  ].join(" ")}
+                >
+                  {submitRequirements.declarationOk ? "Set" : "Missing"}
                 </div>
               </div>
               {editor === "other" ? (
