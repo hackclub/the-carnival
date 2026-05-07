@@ -11,6 +11,7 @@ import { buildBillyUrl } from "@/lib/constants";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
+import LinkChip from "@/components/LinkChip";
 import { DatePicker } from "@/components/ui/date-picker";
 import DevlogAssessmentPanel, {
   type ReviewDevlogFull,
@@ -710,34 +711,10 @@ export default function ReviewProjectClient({
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <a
-            href={project.playableDemoUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
-          >
-            <div className="text-sm text-muted-foreground">Playable demo link</div>
-            <div className="text-foreground font-semibold truncate">{project.playableDemoUrl}</div>
-          </a>
-          <a
-            href={project.videoUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
-          >
-            <div className="text-sm text-muted-foreground">Video</div>
-            <div className="text-foreground font-semibold truncate">{project.videoUrl}</div>
-          </a>
-          <a
-            href={project.codeUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
-          >
-            <div className="text-sm text-muted-foreground">Code</div>
-            <div className="text-foreground font-semibold truncate">{project.codeUrl}</div>
-          </a>
+        <div className="flex flex-wrap gap-2">
+          {project.playableDemoUrl ? <LinkChip label="Demo" url={project.playableDemoUrl} /> : null}
+          {project.videoUrl ? <LinkChip label="Video" url={project.videoUrl} /> : null}
+          {project.codeUrl ? <LinkChip label="GitHub" url={project.codeUrl} /> : null}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">

@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import ShopOrderStatusBadge from "@/components/ShopOrderStatusBadge";
+import CopyableText from "@/components/CopyableText";
 import { Button, Input, Modal, Textarea } from "@/components/ui";
 
 export type AdminShopOrderDTO = {
@@ -233,7 +234,7 @@ export default function AdminOrdersClient({
                       ) : null}
                       <div className="text-xs text-muted-foreground mt-1">
                           {new Date(o.createdAt).toLocaleString()} • qty {o.quantity} • price {o.tokenCost} tokens • {o.requesterName}
-                          {o.requesterEmail ? ` (${o.requesterEmail})` : ""} • available {o.requesterTokenBalance} tokens •{" "}
+                          {o.requesterEmail ? <>{" ("}<CopyableText text={o.requesterEmail} className="inline text-xs" />{")"}</> : ""} • available {o.requesterTokenBalance} tokens •{" "}
                           <ShopOrderStatusBadge status={o.status} />
                         {o.status === "fulfilled" && o.fulfilledAt
                           ? ` • fulfilled ${new Date(o.fulfilledAt).toLocaleString()}`

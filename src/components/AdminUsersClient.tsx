@@ -76,6 +76,7 @@ export default function AdminUsersClient({
   currentUserId: string;
 }) {
   const [users, setUsers] = useState<UserListItem[]>(initial);
+  const [searchQuery, setSearchQuery] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const [activeLedgerUserId, setActiveLedgerUserId] = useState<string | null>(null);
@@ -89,7 +90,15 @@ export default function AdminUsersClient({
   const [adjustmentConfirmation, setAdjustmentConfirmation] = useState("");
   const [submittingAdjustment, setSubmittingAdjustment] = useState(false);
 
-  const sortedUsers = useMemo(() => users, [users]);
+  const sortedUsers = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        (u.name ?? "").toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q),
+    );
+  }, [users, searchQuery]);
   const totalUserCount = users.length;
   const internalStats = useMemo<InternalProfileStats>(() => {
     const internalUsers = users.filter((u) => u.role === "reviewer" || u.role === "admin");
@@ -319,6 +328,21 @@ export default function AdminUsersClient({
 
   return (
     <div className="space-y-6">
+      <div className="platform-surface-card p-4">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search users by name or email…"
+          className="w-full bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+        />
+        {searchQuery.trim() && (
+          <div className="mt-2 text-xs text-muted-foreground">
+            {sortedUsers.length} of {users.length} users match
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
         <div className="platform-surface-card p-4">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Total users</div>

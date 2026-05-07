@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   ProjectEditor,
   ProjectStatus,
@@ -13,6 +13,7 @@ import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import { PROJECT_SUBMISSION_CHECKLIST_ITEMS } from "@/lib/project-submission-checklist";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
+import LinkChip from "@/components/LinkChip";
 import { DatePicker } from "@/components/ui/date-picker";
 import type { ReviewJustificationPayload } from "@/lib/review-rules";
 import {
@@ -69,6 +70,15 @@ type GrantReviewItem = {
   reviewerEmail: string;
 };
 
+function trustLevelColor(level: string | null): string {
+  if (!level) return "bg-gray-500/15 text-gray-300 border-gray-500/30";
+  const n = level.toLowerCase();
+  if (n === "high" || n === "verified") return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
+  if (n === "medium" || n === "normal") return "bg-amber-500/15 text-amber-300 border-amber-500/30";
+  if (n === "low" || n === "suspicious") return "bg-rose-500/15 text-rose-300 border-rose-500/30";
+  return "bg-gray-500/15 text-gray-300 border-gray-500/30";
+}
+
 export default function AdminGrantClient({
   initial,
 }: {
@@ -79,6 +89,20 @@ export default function AdminGrantClient({
   const [showReviews, setShowReviews] = useState(false);
   const [showScreenshots, setShowScreenshots] = useState(false);
   const [screenshotIndex, setScreenshotIndex] = useState(0);
+
+  const [trustLevel, setTrustLevel] = useState<{ level: string | null; value: number | null } | null>(null);
+  useEffect(() => {
+    fetch(`/api/projects/${project.id}/hackatime-stats`, { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as { trustFactor?: { trustLevel?: string | null; trustValue?: number | null } };
+        setTrustLevel({
+          level: data.trustFactor?.trustLevel ?? null,
+          value: data.trustFactor?.trustValue ?? null,
+        });
+      })
+      .catch(() => {});
+  }, [project.id]);
 
   const canGrant = useMemo(() => project.status === "shipped", [project.status]);
   const canUngrant = useMemo(() => project.status === "granted", [project.status]);
@@ -483,7 +507,19 @@ export default function AdminGrantClient({
                 {project.approvedHours !== null && project.approvedHours !== undefined ? `${project.approvedHours}h` : "—"}
               </div>
             </div>
-            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 md:col-span-2">
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
+              <div className="text-sm text-muted-foreground">Trust level</div>
+              <div className="mt-1">
+                {trustLevel ? (
+                  <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${trustLevelColor(trustLevel.level)}`}>
+                    {trustLevel.level ?? "unknown"}{trustLevel.value !== null ? ` (${trustLevel.value})` : ""}
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">Loading…</span>
+                )}
+              </div>
+            </div>
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
               <div className="text-sm text-muted-foreground">Considered Hackatime range</div>
               <div className="text-foreground font-semibold">{canonicalProjectRangeLabel}</div>
             </div>
@@ -575,34 +611,10 @@ export default function AdminGrantClient({
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <a
-              href={project.playableDemoUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
-            >
-              <div className="text-sm text-muted-foreground">Playable demo link</div>
-              <div className="text-foreground font-semibold truncate">{project.playableDemoUrl}</div>
-            </a>
-            <a
-              href={project.videoUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
-            >
-              <div className="text-sm text-muted-foreground">Video</div>
-              <div className="text-foreground font-semibold truncate">{project.videoUrl}</div>
-            </a>
-            <a
-              href={project.codeUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
-            >
-              <div className="text-sm text-muted-foreground">GitHub</div>
-              <div className="text-foreground font-semibold truncate">{project.codeUrl}</div>
-            </a>
+          <div className="flex flex-wrap gap-2">
+            {project.playableDemoUrl ? <LinkChip label="Demo" url={project.playableDemoUrl} /> : null}
+            {project.videoUrl ? <LinkChip label="Video" url={project.videoUrl} /> : null}
+            {project.codeUrl ? <LinkChip label="GitHub" url={project.codeUrl} /> : null}
           </div>
 
           <div className="flex items-center justify-between gap-3">

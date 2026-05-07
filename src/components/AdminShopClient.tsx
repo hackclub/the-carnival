@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import ShopItemSuggestionStatusBadge from "@/components/ShopItemSuggestionStatusBadge";
 import ShopOrderStatusBadge from "@/components/ShopOrderStatusBadge";
+import CopyableText from "@/components/CopyableText";
 import {
   Button,
   Card,
@@ -105,6 +106,7 @@ export default function AdminShopClient({
   const [suggestionRejectReasons, setSuggestionRejectReasons] = useState<Record<string, string>>({});
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
   const [busySuggestionId, setBusySuggestionId] = useState<string | null>(null);
+  const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   const ordersById = useMemo(
@@ -253,6 +255,28 @@ export default function AdminShopClient({
     }
   }, [suggestionRejectReasons]);
 
+  const onDeleteItem = useCallback(async (itemId: string) => {
+    if (!window.confirm("Delete this shop item? This cannot be undone.")) return;
+    setDeletingItemId(itemId);
+    const toastId = toast.loading("Deleting item…");
+    try {
+      const res = await fetch(`/api/admin/shop/items/${encodeURIComponent(itemId)}`, {
+        method: "DELETE",
+      });
+      const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+      if (!res.ok) {
+        toast.error(typeof data?.error === "string" ? data.error : "Failed to delete item.", { id: toastId });
+        setDeletingItemId(null);
+        return;
+      }
+      toast.success("Item deleted.", { id: toastId });
+      window.location.reload();
+    } catch {
+      toast.error("Failed to delete item.", { id: toastId });
+      setDeletingItemId(null);
+    }
+  }, []);
+
   return (
     <div className="flex flex-col gap-8">
       {canManageOrders ? (
@@ -364,13 +388,21 @@ export default function AdminShopClient({
                         <div className="mt-1 text-xs font-medium text-carnival-blue">Requester note required</div>
                       ) : null}
                     </div>
-                    <div className="mt-4">
+                    <div className="mt-4 flex items-center gap-3">
                       <Link
                         href={`/admin/shop/items/${encodeURIComponent(i.id)}`}
                         className="text-sm font-semibold text-carnival-blue hover:underline"
                       >
                         Edit
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteItem(i.id)}
+                        disabled={deletingItemId === i.id}
+                        className="text-sm font-semibold text-rose-400 hover:text-rose-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {deletingItemId === i.id ? "Deleting…" : "Delete"}
+                      </button>
                     </div>
                   </CardContent>
                 </Card>
@@ -446,7 +478,7 @@ export default function AdminShopClient({
                             <div className="mt-1 text-xs text-muted-foreground">
                               {new Date(o.createdAt).toLocaleString()} • qty {o.quantity} • {o.tokenCost} tokens •{" "}
                               {o.requesterName}
-                              {o.requesterEmail ? ` (${o.requesterEmail})` : ""} • available{" "}
+                              {o.requesterEmail ? <>{" ("}<CopyableText text={o.requesterEmail} className="inline text-xs" />{")"}</> : ""} • available{" "}
                               {o.requesterTokenBalance} tokens
                             </div>
                             <div className="mt-2">

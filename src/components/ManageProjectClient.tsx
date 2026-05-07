@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle2, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import type {
   ProjectEditor,
@@ -13,7 +14,7 @@ import ReviewJustificationSummary from "@/components/ReviewJustificationSummary"
 import { Modal } from "@/components/ui";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
 import { ScreenshotGrid } from "@/components/ScreenshotGrid";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DateTimePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -1090,12 +1091,12 @@ export default function ManageProjectClient({
               <div className="rounded-[var(--radius-xl)]  border border-border bg-muted px-3 py-3 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="block">
-                    <div className="text-xs text-muted-foreground mb-1">Considered start date</div>
-                    <DatePicker value={submitRangeStartDate} onChange={(v) => setSubmitRangeStartDate(v)} disabled={saving || isGranted} />
+                    <div className="text-xs text-muted-foreground mb-1">Considered start</div>
+                    <DateTimePicker value={submitRangeStartDate} onChange={(v) => setSubmitRangeStartDate(v)} disabled={saving || isGranted} />
                   </label>
                   <label className="block">
-                    <div className="text-xs text-muted-foreground mb-1">Considered end date</div>
-                    <DatePicker value={submitRangeEndDate} onChange={(v) => setSubmitRangeEndDate(v)} disabled={saving || isGranted} />
+                    <div className="text-xs text-muted-foreground mb-1">Considered end</div>
+                    <DateTimePicker value={submitRangeEndDate} onChange={(v) => setSubmitRangeEndDate(v)} disabled={saving || isGranted} />
                   </label>
                 </div>
                 {!submitConsideredRange.ok ? (
@@ -1340,111 +1341,33 @@ export default function ManageProjectClient({
               Complete all requirements before submitting: GitHub URL, video link, playable demo link, Hackatime project, considered range, at least 3 screenshots, and originality declaration.
             </div>
 
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
-                <div className="text-foreground">GitHub URL</div>
-                <div
-                  className={[
-                    "px-2 py-0.5 rounded-md font-bold",
-                    submitRequirements.githubOk
-                      ? "text-emerald-300 bg-emerald-500/15"
-                      : "text-rose-300 bg-rose-500/15",
-                  ].join(" ")}
-                >
-                  {submitRequirements.githubOk ? "Set" : "Missing/invalid"}
+            <div className="space-y-1.5 text-sm">
+              {[
+                { ok: submitRequirements.githubOk, label: "GitHub URL" },
+                { ok: submitRequirements.demoOk, label: "Video link" },
+                { ok: submitRequirements.playableOk, label: "Playable demo link" },
+                { ok: submitRequirements.hackatimeOk, label: "Hackatime project name" },
+                { ok: submitConsideredRange.ok, label: "Considered Hackatime range" },
+                { ok: submitRequirements.screenshotsOk, label: submitRequirements.screenshotsOk ? `Screenshots (${screenshots.length} uploaded)` : `Screenshots (${screenshots.length}/3 needed)` },
+                { ok: submitRequirements.declarationOk, label: "Originality declaration" },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-2.5 border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
+                  {item.ok ? (
+                    <CheckCircle2 className="h-4.5 w-4.5 shrink-0 text-emerald-400" />
+                  ) : (
+                    <XCircle className="h-4.5 w-4.5 shrink-0 text-rose-400" />
+                  )}
+                  <span className={item.ok ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
                 </div>
-              </div>
-              <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
-              <div className="text-foreground">Video link</div>
-              <div
-                className={[
-                  "px-2 py-0.5 rounded-md font-bold",
-                  submitRequirements.demoOk
-                    ? "text-emerald-300 bg-emerald-500/15"
-                    : "text-rose-300 bg-rose-500/15",
-                ].join(" ")}
-              >
-                {submitRequirements.demoOk ? "Set" : "Missing/invalid"}
-              </div>
-            </div>
-            <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
-                <div className="text-foreground">Playable demo link</div>
-                <div
-                  className={[
-                    "px-2 py-0.5 rounded-md font-bold",
-                    submitRequirements.playableOk
-                      ? "text-emerald-300 bg-emerald-500/15"
-                      : "text-rose-300 bg-rose-500/15",
-                  ].join(" ")}
-                >
-                  {submitRequirements.playableOk ? "Set" : "Missing/invalid"}
-                </div>
-              </div>
-              <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
-                <div className="text-foreground">Hackatime project name</div>
-                <div
-                  className={[
-                    "px-2 py-0.5 rounded-md font-bold",
-                    submitRequirements.hackatimeOk
-                      ? "text-emerald-300 bg-emerald-500/15"
-                      : "text-rose-300 bg-rose-500/15",
-                  ].join(" ")}
-                >
-                  {submitRequirements.hackatimeOk ? "Set" : "Missing"}
-                </div>
-              </div>
-              <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
-                <div className="text-foreground">Considered Hackatime range</div>
-                <div
-                  className={[
-                    "px-2 py-0.5 rounded-md font-bold",
-                    submitConsideredRange.ok
-                      ? "text-emerald-300 bg-emerald-500/15"
-                      : "text-rose-300 bg-rose-500/15",
-                  ].join(" ")}
-                >
-                  {submitConsideredRange.ok ? "Set" : "Missing/invalid"}
-                </div>
-              </div>
-              <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
-                <div className="text-foreground">Screenshots (min 3)</div>
-                <div
-                  className={[
-                    "px-2 py-0.5 rounded-md font-bold",
-                    submitRequirements.screenshotsOk
-                      ? "text-emerald-300 bg-emerald-500/15"
-                      : "text-rose-300 bg-rose-500/15",
-                  ].join(" ")}
-                >
-                  {submitRequirements.screenshotsOk ? `${screenshots.length} uploaded` : `${screenshots.length}/3 needed`}
-                </div>
-              </div>
-              <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
-                <div className="text-foreground">Originality declaration</div>
-                <div
-                  className={[
-                    "px-2 py-0.5 rounded-md font-bold",
-                    submitRequirements.declarationOk
-                      ? "text-emerald-300 bg-emerald-500/15"
-                      : "text-rose-300 bg-rose-500/15",
-                  ].join(" ")}
-                >
-                  {submitRequirements.declarationOk ? "Set" : "Missing"}
-                </div>
-              </div>
+              ))}
               {editor === "other" ? (
-                <div className="flex items-center justify-between  border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
-                  <div className="text-foreground">Other editor name</div>
-                  <div
-                    className={[
-                      "px-2 py-0.5 rounded-md font-bold",
-                      editorOther.trim().length > 0
-                        ? "text-emerald-300 bg-emerald-500/15"
-                        : "text-rose-300 bg-rose-500/15",
-                    ].join(" ")}
-                  >
-                    {editorOther.trim().length > 0 ? "Set" : "Missing"}
-                  </div>
+                <div className="flex items-center gap-2.5 border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
+                  {editorOther.trim().length > 0 ? (
+                    <CheckCircle2 className="h-4.5 w-4.5 shrink-0 text-emerald-400" />
+                  ) : (
+                    <XCircle className="h-4.5 w-4.5 shrink-0 text-rose-400" />
+                  )}
+                  <span className={editorOther.trim().length > 0 ? "text-foreground" : "text-muted-foreground"}>Other editor name</span>
                 </div>
               ) : null}
             </div>
@@ -1458,12 +1381,12 @@ export default function ManageProjectClient({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="block">
-                  <div className="text-xs text-muted-foreground mb-1">Start date</div>
-                  <DatePicker value={submitRangeStartDate} onChange={(v) => setSubmitRangeStartDate(v)} />
+                  <div className="text-xs text-muted-foreground mb-1">Start</div>
+                  <DateTimePicker value={submitRangeStartDate} onChange={(v) => setSubmitRangeStartDate(v)} />
                 </label>
                 <label className="block">
-                  <div className="text-xs text-muted-foreground mb-1">End date</div>
-                  <DatePicker value={submitRangeEndDate} onChange={(v) => setSubmitRangeEndDate(v)} />
+                  <div className="text-xs text-muted-foreground mb-1">End</div>
+                  <DateTimePicker value={submitRangeEndDate} onChange={(v) => setSubmitRangeEndDate(v)} />
                 </label>
               </div>
               {!submitConsideredRange.ok ? (

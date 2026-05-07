@@ -4,9 +4,23 @@ import { notFound } from "next/navigation";
 import { and, asc, eq, lte } from "drizzle-orm";
 import { Badge, Card, CardContent } from "@/components/ui";
 import { PlatformContent, PlatformShell } from "@/components/ui/platform";
+import ProjectEditorBadge from "@/components/ProjectEditorBadge";
+import LinkChip from "@/components/LinkChip";
 import { db } from "@/db";
 import { devlog, project, user } from "@/db/schema";
 import { formatDurationHM } from "@/lib/devlog-shared";
+import { formatCategoryLabel } from "@/lib/project-taxonomy";
+
+const DEVLOG_CATEGORY_LABELS: Record<string, string> = {
+  coding: "Coding",
+  design: "Design / Art",
+  learning: "Learning",
+};
+const DEVLOG_CATEGORY_COLORS: Record<string, string> = {
+  coding: "bg-blue-500/15 text-blue-300 border-blue-500/30",
+  design: "bg-purple-500/15 text-purple-300 border-purple-500/30",
+  learning: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+};
 
 function formatDateTime(iso: string | null) {
   if (!iso) return null;
@@ -57,6 +71,8 @@ export default async function PublicProjectPage(props: {
       description: project.description,
       tags: project.tags,
       category: project.category,
+      editor: project.editor,
+      editorOther: project.editorOther,
       videoUrl: project.videoUrl,
       codeUrl: project.codeUrl,
       playableDemoUrl: project.playableDemoUrl,
@@ -96,6 +112,7 @@ export default async function PublicProjectPage(props: {
       usedAi: devlog.usedAi,
       aiUsageDescription: devlog.aiUsageDescription,
       hackatimeProjectNameSnapshot: devlog.hackatimeProjectNameSnapshot,
+      category: devlog.category,
       createdAt: devlog.createdAt,
       userId: devlog.userId,
       authorName: user.name,
@@ -124,6 +141,18 @@ export default async function PublicProjectPage(props: {
           <Badge variant="info">Submitted {formatDate(submittedAt.toISOString())}</Badge>
         </div>
 
+        {p.previewImage ? (
+          <div className="mb-6 overflow-hidden rounded-xl border border-border">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={p.previewImage}
+              alt={`${p.name} preview`}
+              className="w-full max-h-80 object-cover"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+        ) : null}
+
         <Card className="mb-6">
           <CardContent className="pt-6 space-y-4">
             <div className="flex flex-wrap items-start gap-3">
@@ -140,8 +169,16 @@ export default async function PublicProjectPage(props: {
                   <span>·</span>
                   <span>{devlogRows.length} devlog{devlogRows.length === 1 ? "" : "s"}</span>
                 </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
+                  {formatCategoryLabel(p.category) ? (
+                    <Badge variant="info">{formatCategoryLabel(p.category)}</Badge>
+                  ) : null}
+                </div>
+
                 {p.tags && p.tags.length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
+                  <div className="mt-2 flex flex-wrap gap-1.5">
                     {p.tags.map((t) => (
                       <Badge key={t}>{t}</Badge>
                     ))}
@@ -157,36 +194,9 @@ export default async function PublicProjectPage(props: {
             ) : null}
 
             <div className="flex flex-wrap gap-2 pt-1">
-              {p.codeUrl ? (
-                <a
-                  href={p.codeUrl}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="rounded-[var(--carnival-squircle-radius)] border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
-                >
-                  Code
-                </a>
-              ) : null}
-              {p.playableDemoUrl ? (
-                <a
-                  href={p.playableDemoUrl}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="rounded-[var(--carnival-squircle-radius)] border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
-                >
-                  Playable demo
-                </a>
-              ) : null}
-              {p.videoUrl ? (
-                <a
-                  href={p.videoUrl}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="rounded-[var(--carnival-squircle-radius)] border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
-                >
-                  Demo video
-                </a>
-              ) : null}
+              {p.codeUrl ? <LinkChip label="GitHub" url={p.codeUrl} /> : null}
+              {p.playableDemoUrl ? <LinkChip label="Demo" url={p.playableDemoUrl} /> : null}
+              {p.videoUrl ? <LinkChip label="Video" url={p.videoUrl} /> : null}
             </div>
           </CardContent>
         </Card>
@@ -232,6 +242,14 @@ export default async function PublicProjectPage(props: {
                             <span className="font-semibold text-foreground">
                               {duration.label}
                             </span>
+                            {row.category && DEVLOG_CATEGORY_LABELS[row.category] ? (
+                              <>
+                                <span>·</span>
+                                <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${DEVLOG_CATEGORY_COLORS[row.category] ?? ""}`}>
+                                  {DEVLOG_CATEGORY_LABELS[row.category]}
+                                </span>
+                              </>
+                            ) : null}
                             {row.usedAi ? (
                               <>
                                 <span>·</span>
