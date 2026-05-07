@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import type {
   ProjectEditor,
   ProjectStatus,
@@ -41,7 +42,6 @@ import {
   type HackatimeProjectOption,
   type HackatimeRangePreview,
 } from "@/lib/project-form-utils";
-import toast from "react-hot-toast";
 
 export type ManageProjectInitial = {
   id: string;
@@ -143,6 +143,9 @@ export default function ManageProjectClient({
   const [playableDemoUrl, setPlayableDemoUrl] = useState(initial.playableDemoUrl);
   const [codeUrl, setCodeUrl] = useState(initial.codeUrl);
   const [previewImage, setPreviewImage] = useState(initial.previewImage ?? "");
+  const [previewDragOver, setPreviewDragOver] = useState(false);
+  const [previewUploading, setPreviewUploading] = useState(false);
+  const previewInputRef = useRef<HTMLInputElement | null>(null);
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>(
     (initial.screenshots?.length ?? 0) > 0 ? initial.screenshots : [""],
   );
@@ -181,6 +184,47 @@ export default function ManageProjectClient({
       })
       .catch(() => {});
   }, [initial.bountyProjectId]);
+
+  const uploadPreviewImage = useCallback(async (file: File) => {
+    const contentType = file.type || "application/octet-stream";
+    if (!contentType.startsWith("image/")) {
+      toast.error("Please choose an image file.");
+      return;
+    }
+    setPreviewUploading(true);
+    const toastId = toast.loading("Uploading preview...");
+    try {
+      const presignRes = await fetch("/api/uploads/presign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "project_screenshot", contentType, projectId: initial.id }),
+      });
+      const presignData = await presignRes.json().catch(() => null);
+      if (!presignRes.ok) {
+        toast.error(presignData?.error ?? "Failed to start upload.", { id: toastId });
+        setPreviewUploading(false);
+        return;
+      }
+      const { uploadUrl, publicUrl } = presignData ?? {};
+      if (!uploadUrl || !publicUrl) {
+        toast.error("Upload response missing URLs.", { id: toastId });
+        setPreviewUploading(false);
+        return;
+      }
+      const putRes = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": contentType }, body: file });
+      if (!putRes.ok) {
+        toast.error(`Upload failed (${putRes.status})`, { id: toastId });
+        setPreviewUploading(false);
+        return;
+      }
+      setPreviewImage(publicUrl);
+      toast.success("Preview image uploaded.", { id: toastId });
+    } catch {
+      toast.error("Upload failed.", { id: toastId });
+    } finally {
+      setPreviewUploading(false);
+    }
+  }, [initial.id]);
 
   const isGranted = status === "granted";
 
@@ -862,6 +906,84 @@ export default function ManageProjectClient({
         )}
       </div>
 
+      {/* Preview image card */}
+      <div className="platform-surface-card overflow-hidden">
+        {previewImage ? (
+          <div className="relative group">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewImage}
+              alt="Project preview"
+              className="w-full h-48 sm:h-56 object-cover"
+            />
+            {!isGranted && (
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => previewInputRef.current?.click()}
+                    disabled={saving}
+                    className="bg-white/90 hover:bg-white text-foreground px-4 py-2 rounded-[var(--radius-xl)] text-sm font-semibold transition-colors"
+                  >
+                    Replace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewImage("")}
+                    disabled={saving}
+                    className="bg-white/90 hover:bg-white text-red-600 px-4 py-2 rounded-[var(--radius-xl)] text-sm font-semibold transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => previewInputRef.current?.click()}
+            disabled={saving || isGranted}
+            onDragOver={(e) => { e.preventDefault(); setPreviewDragOver(true); }}
+            onDragEnter={(e) => { e.preventDefault(); setPreviewDragOver(true); }}
+            onDragLeave={(e) => { e.preventDefault(); setPreviewDragOver(false); }}
+            onDrop={async (e) => {
+              e.preventDefault();
+              setPreviewDragOver(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file) await uploadPreviewImage(file);
+            }}
+            className={[
+              "w-full h-48 sm:h-56 flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer",
+              previewDragOver
+                ? "bg-carnival-blue/10 border-b border-carnival-blue/30"
+                : "bg-muted/30 border-b border-border hover:bg-muted/50",
+              (saving || isGranted) ? "opacity-50 cursor-not-allowed" : "",
+            ].join(" ")}
+          >
+            <span className="text-3xl text-muted-foreground/50">🖼</span>
+            <span className="text-sm text-muted-foreground font-medium">
+              {previewUploading ? "Uploading..." : "Add a preview image"}
+            </span>
+            <span className="text-xs text-muted-foreground/70">
+              Drop an image or click to upload
+            </span>
+          </button>
+        )}
+        <input
+          ref={previewInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          disabled={saving || isGranted}
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) await uploadPreviewImage(file);
+          }}
+        />
+      </div>
+
       <div className="platform-surface-card p-6 space-y-5">
         <div className="text-foreground font-semibold text-lg">Project details</div>
 
@@ -1135,21 +1257,6 @@ export default function ManageProjectClient({
             </div>
           </div>
         ) : null}
-
-        <div>
-          <div className="text-sm text-muted-foreground font-medium mb-2">
-            Preview image
-          </div>
-          <R2ImageUpload
-            label=""
-            value={previewImage}
-            onChange={setPreviewImage}
-            kind="project_screenshot"
-            projectId={initial.id}
-            disabled={saving || isGranted}
-            helperText="This image appears on the project card. Use a compelling screenshot or banner."
-          />
-        </div>
 
         <div>
           <div className="text-sm text-muted-foreground font-medium mb-2">
