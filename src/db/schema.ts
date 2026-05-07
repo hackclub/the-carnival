@@ -45,6 +45,13 @@ export const bountyProjectStatus = pgEnum("bounty_project_status", [
 ]);
 export type BountyProjectStatus = (typeof bountyProjectStatus.enumValues)[number];
 
+export const devlogCategory = pgEnum("devlog_category", [
+  "learning",
+  "design",
+  "coding",
+]);
+export type DevlogCategory = (typeof devlogCategory.enumValues)[number];
+
 export const devlogAssessmentDecision = pgEnum("devlog_assessment_decision", [
   "accepted",
   "rejected",
@@ -154,6 +161,7 @@ export const devlog = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     content: text("content").notNull(),
+    category: devlogCategory("category").notNull().default("coding"),
     // User-selected working window for this devlog. Hackatime seconds for the
     // project's hackatimeProjectName within [startedAt, endedAt] are captured as
     // durationSeconds at creation time.
