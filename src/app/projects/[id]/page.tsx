@@ -95,6 +95,7 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
       id: devlog.id,
       title: devlog.title,
       content: devlog.content,
+      category: devlog.category,
       startedAt: devlog.startedAt,
       endedAt: devlog.endedAt,
       durationSeconds: devlog.durationSeconds,
@@ -121,6 +122,7 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
     return {
       id: row.id,
       title: row.title,
+      category: (row.category ?? "coding") as "learning" | "design" | "coding",
       createdAt: row.createdAt.toISOString(),
       startedAt: row.startedAt.toISOString(),
       endedAt: row.endedAt.toISOString(),
