@@ -60,6 +60,7 @@ export default async function PublicProjectPage(props: {
       videoUrl: project.videoUrl,
       codeUrl: project.codeUrl,
       playableDemoUrl: project.playableDemoUrl,
+      previewImage: project.previewImage,
       screenshots: project.screenshots,
       hoursSpentSeconds: project.hoursSpentSeconds,
       hackatimeProjectName: project.hackatimeProjectName,

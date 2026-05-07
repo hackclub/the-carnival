@@ -58,6 +58,7 @@ export type ManageProjectInitial = {
   videoUrl: string;
   playableDemoUrl: string;
   codeUrl: string;
+  previewImage: string;
   screenshots: string[];
   submissionChecklist: ProjectSubmissionChecklist | null;
   creatorDeclaredOriginality: boolean;
@@ -141,6 +142,7 @@ export default function ManageProjectClient({
   const [videoUrl, setVideoUrl] = useState(initial.videoUrl);
   const [playableDemoUrl, setPlayableDemoUrl] = useState(initial.playableDemoUrl);
   const [codeUrl, setCodeUrl] = useState(initial.codeUrl);
+  const [previewImage, setPreviewImage] = useState(initial.previewImage ?? "");
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>(
     (initial.screenshots?.length ?? 0) > 0 ? initial.screenshots : [""],
   );
@@ -448,6 +450,7 @@ export default function ManageProjectClient({
       videoUrl: videoUrl.trim(),
       playableDemoUrl: playableDemoUrl.trim(),
       codeUrl: codeUrl.trim(),
+      previewImage: previewImage.trim(),
       screenshots: cleanList(screenshotUrls),
       bountyProjectId: bountyProjectId || null,
       consideredHackatimeRange:
@@ -491,6 +494,7 @@ export default function ManageProjectClient({
         setVideoUrl(p.videoUrl);
         setPlayableDemoUrl(p.playableDemoUrl);
         setCodeUrl(p.codeUrl);
+        setPreviewImage(p.previewImage ?? "");
         setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
         setSavedSubmissionChecklist(p.submissionChecklist ?? null);
         setCreatorDeclaredOriginality(p.creatorDeclaredOriginality);
@@ -601,6 +605,7 @@ export default function ManageProjectClient({
       videoUrl: videoUrl.trim(),
       playableDemoUrl: playableDemoUrl.trim(),
       codeUrl: codeUrl.trim(),
+      previewImage: previewImage.trim(),
       screenshots: cleanList(screenshotUrls),
       bountyProjectId: bountyProjectId || null,
       status: "in-review",
@@ -678,6 +683,7 @@ export default function ManageProjectClient({
         setVideoUrl(p.videoUrl);
         setPlayableDemoUrl(p.playableDemoUrl);
         setCodeUrl(p.codeUrl);
+        setPreviewImage(p.previewImage ?? "");
         setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
         setSavedSubmissionChecklist(p.submissionChecklist ?? null);
         setCreatorDeclaredOriginality(p.creatorDeclaredOriginality);
@@ -1129,6 +1135,21 @@ export default function ManageProjectClient({
             </div>
           </div>
         ) : null}
+
+        <div>
+          <div className="text-sm text-muted-foreground font-medium mb-2">
+            Preview image
+          </div>
+          <R2ImageUpload
+            label=""
+            value={previewImage}
+            onChange={setPreviewImage}
+            kind="project_screenshot"
+            projectId={initial.id}
+            disabled={saving || isGranted}
+            helperText="This image appears on the project card. Use a compelling screenshot or banner."
+          />
+        </div>
 
         <div>
           <div className="text-sm text-muted-foreground font-medium mb-2">

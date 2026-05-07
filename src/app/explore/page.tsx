@@ -141,6 +141,7 @@ export default async function ExplorePage({
             videoUrl: project.videoUrl,
             playableDemoUrl: project.playableDemoUrl,
             codeUrl: project.codeUrl,
+            previewImage: project.previewImage,
             screenshots: project.screenshots,
             status: project.status,
             createdAt: project.createdAt,
@@ -350,7 +351,7 @@ export default async function ExplorePage({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {projects.map((projectRow) => {
-                const firstScreenshot = projectRow.screenshots.find((url) => url.trim().length > 0);
+                const cardImage = projectRow.previewImage?.trim() || projectRow.screenshots.find((url) => url.trim().length > 0) || "";
                 const categoryLabel = formatCategoryLabel(projectRow.category);
                 const tagLabels = (projectRow.tags ?? [])
                   .map((tag) => formatTagLabel(tag))
@@ -362,12 +363,12 @@ export default async function ExplorePage({
                     className="platform-surface-card p-6 card-glow transition-all hover:bg-muted h-full min-h-[380px]"
                   >
                     <div className="flex h-full flex-col">
-                      {firstScreenshot ? (
-                        <div className="mb-4 overflow-hidden rounded-[var(--radius-xl)]  border border-border bg-muted">
+                      {cardImage ? (
+                        <div className="mb-4 overflow-hidden rounded-[var(--radius-xl)] border border-border bg-muted">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={firstScreenshot}
-                            alt={`${projectRow.name} screenshot`}
+                            src={cardImage}
+                            alt={`${projectRow.name} preview`}
                             className="h-40 w-full object-cover"
                             loading="lazy"
                             referrerPolicy="no-referrer"

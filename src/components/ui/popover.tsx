@@ -61,7 +61,7 @@ function PopoverTitle({ className, ...props }: PopoverPrimitive.Title.Props) {
   return (
     <PopoverPrimitive.Title
       data-slot="popover-title"
-      className={cn("font-bold uppercase tracking-[0.08em] text-[var(--platform-ink)]", className)}
+      className={cn("font-semibold uppercase tracking-[0.08em] text-[var(--platform-ink)]", className)}
       {...props}
     />
   )

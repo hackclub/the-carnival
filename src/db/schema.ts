@@ -119,6 +119,7 @@ export const project = pgTable("project", {
   videoUrl: text("video_url").notNull(),
   playableDemoUrl: text("playable_demo_url").notNull().default(""),
   codeUrl: text("code_url").notNull(),
+  previewImage: text("preview_image").notNull().default(""),
   screenshots: text("screenshots").array().notNull(),
   status: projectStatus("status").notNull().default("work-in-progress"),
   // Canonical approved hours for this project (set by a reviewer on approval).

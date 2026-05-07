@@ -288,6 +288,13 @@
       "when": 1778371200000,
       "tag": "0040_add_devlog_category",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1778371200001,
+      "tag": "0041_add_project_preview_image",
+      "breakpoints": true
     }
   ]
 }
