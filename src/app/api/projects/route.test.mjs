@@ -161,6 +161,21 @@ describe("POST /api/projects", () => {
     expect(state.insertedProjectValues.hackatimeTotalSeconds).toBeNull();
   });
 
+  test("allows creating a draft before submission links are filled in", async () => {
+    const { res } = await createProject({
+      ...BASE_BODY,
+      hackatimeProjectName: "",
+      videoUrl: "",
+      playableDemoUrl: "",
+      codeUrl: "",
+    });
+
+    expect(res.status).toBe(201);
+    expect(state.insertedProjectValues.videoUrl).toBe("");
+    expect(state.insertedProjectValues.playableDemoUrl).toBe("");
+    expect(state.insertedProjectValues.codeUrl).toBe("");
+  });
+
   test("accepts an approved open bounty link", async () => {
     state.bountyRows = [{ id: "bounty-1", status: "approved", completed: false }];
 
