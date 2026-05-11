@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/select";
 import type { ReviewJustificationPayload } from "@/lib/review-rules";
 import {
-  hasRequiredProjectSubmissionChecklistAnswers,
   normalizeProjectSubmissionChecklist,
   PROJECT_SUBMISSION_CHECKLIST_ITEMS,
 } from "@/lib/project-submission-checklist";
@@ -120,6 +119,12 @@ export default function ManageProjectClient({
   );
   const [checkScreenshotsWorking, setCheckScreenshotsWorking] = useState(
     initialSubmissionChecklist.screenshotsWorking,
+  );
+  const [checkDidNotManipulateHackatimeData, setCheckDidNotManipulateHackatimeData] = useState(
+    initialSubmissionChecklist.didNotManipulateHackatimeData,
+  );
+  const [checkDidNotCopyCodeWithoutAttribution, setCheckDidNotCopyCodeWithoutAttribution] = useState(
+    initialSubmissionChecklist.didNotCopyCodeWithoutAttribution,
   );
   const [checkAddressedRejection, setCheckAddressedRejection] = useState(false);
 
@@ -333,8 +338,6 @@ export default function ManageProjectClient({
     const hackatimeOk = hackatimeProjectName.trim().length > 0;
     const screenshotsOk = screenshots.length >= 3;
     const editorOk = editor !== "other" || editorOther.trim().length > 0;
-    const declarationOk = creatorDeclaredOriginality || (creatorOriginalityRationale?.trim()?.length ?? 0) > 0;
-
     return {
       nameOk,
       descriptionOk,
@@ -344,12 +347,11 @@ export default function ManageProjectClient({
       hackatimeOk,
       screenshotsOk,
       editorOk,
-      declarationOk,
       allOk:
         nameOk && descriptionOk && githubOk && demoOk && playableOk &&
-        hackatimeOk && screenshotsOk && editorOk && declarationOk,
+        hackatimeOk && screenshotsOk && editorOk,
     };
-  }, [codeUrl, description, editor, editorOther, hackatimeProjectName, name, playableDemoUrl, videoUrl, screenshots, creatorDeclaredOriginality, creatorOriginalityRationale]);
+  }, [codeUrl, description, editor, editorOther, hackatimeProjectName, name, playableDemoUrl, videoUrl, screenshots]);
 
   const submissionChecklist = useMemo<ProjectSubmissionChecklist>(
     () => ({
@@ -359,13 +361,19 @@ export default function ManageProjectClient({
       githubPublic: checkGithubPublic,
       descriptionClear: checkDescriptionClear,
       screenshotsWorking: checkScreenshotsWorking,
+      didNotManipulateHackatimeData: checkDidNotManipulateHackatimeData,
+      didNotCopyCodeWithoutAttribution: checkDidNotCopyCodeWithoutAttribution,
     }),
-    [aiUsage, checkDescriptionClear, checkGithubPublic, checkReadme, checkScreenshotsWorking, checkTested],
-  );
-
-  const checklistOk = useMemo(
-    () => hasRequiredProjectSubmissionChecklistAnswers(submissionChecklist),
-    [submissionChecklist],
+    [
+      aiUsage,
+      checkDescriptionClear,
+      checkDidNotCopyCodeWithoutAttribution,
+      checkDidNotManipulateHackatimeData,
+      checkGithubPublic,
+      checkReadme,
+      checkScreenshotsWorking,
+      checkTested,
+    ],
   );
   const setChecklistValue = useCallback(
     (key: keyof ProjectSubmissionChecklist, checked: boolean) => {
@@ -375,6 +383,8 @@ export default function ManageProjectClient({
       else if (key === "githubPublic") setCheckGithubPublic(checked);
       else if (key === "descriptionClear") setCheckDescriptionClear(checked);
       else if (key === "screenshotsWorking") setCheckScreenshotsWorking(checked);
+      else if (key === "didNotManipulateHackatimeData") setCheckDidNotManipulateHackatimeData(checked);
+      else if (key === "didNotCopyCodeWithoutAttribution") setCheckDidNotCopyCodeWithoutAttribution(checked);
     },
     [],
   );
@@ -498,6 +508,9 @@ export default function ManageProjectClient({
       previewImage: previewImage.trim(),
       screenshots: cleanList(screenshotUrls),
       bountyProjectId: bountyProjectId || null,
+      creatorDeclaredOriginality,
+      creatorDuplicateExplanation: creatorDuplicateExplanation?.trim() ?? "",
+      creatorOriginalityRationale: creatorOriginalityRationale?.trim() ?? "",
       consideredHackatimeRange:
         hackatimeProjectName.trim() && submitConsideredRange.ok ? submitConsideredRange.value : undefined,
     };
@@ -580,6 +593,8 @@ export default function ManageProjectClient({
     setCheckGithubPublic(checklist.githubPublic);
     setCheckDescriptionClear(checklist.descriptionClear);
     setCheckScreenshotsWorking(checklist.screenshotsWorking);
+    setCheckDidNotManipulateHackatimeData(checklist.didNotManipulateHackatimeData);
+    setCheckDidNotCopyCodeWithoutAttribution(checklist.didNotCopyCodeWithoutAttribution);
     setCheckAddressedRejection(false);
     setSubmitStep(0);
     setSubmitOpen(true);
@@ -627,12 +642,6 @@ export default function ManageProjectClient({
         setSubmitStep(1);
         return;
       }
-    } else {
-      if (!checklistOk) {
-        toast.error("Please check all required checklist items before submitting.");
-        setSubmitStep(1);
-        return;
-      }
     }
     setSubmitting(true);
 
@@ -655,10 +664,11 @@ export default function ManageProjectClient({
       bountyProjectId: bountyProjectId || null,
       status: "in-review",
       consideredHackatimeRange: submitConsideredRange.value,
+      creatorDeclaredOriginality,
+      creatorDuplicateExplanation: creatorDuplicateExplanation?.trim() ?? "",
+      creatorOriginalityRationale: creatorOriginalityRationale?.trim() ?? "",
     };
-    if (!isReReview) {
-      payload.submissionChecklist = submissionChecklist;
-    }
+    payload.submissionChecklist = submissionChecklist;
 
     const toastId = toast.loading("Submitting for review…");
     try {
@@ -833,7 +843,7 @@ export default function ManageProjectClient({
         ) : (
           <div className="flex items-center justify-between gap-4">
             <div className="text-sm text-muted-foreground">
-              When you’re ready, submit for review. You’ll need to fill all required fields and complete required checklist items.
+              When you’re ready, submit for review. You’ll need to fill all required project fields; checklist answers are shared with reviewers for context.
             </div>
             <button
               type="button"
@@ -849,30 +859,66 @@ export default function ManageProjectClient({
 
       <div className="platform-surface-card p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Originality declaration</div>
-        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 space-y-3">
-          <div className="text-sm text-muted-foreground">Creator statement</div>
-          <div className="text-foreground font-semibold">
-            {creatorDeclaredOriginality
-              ? "Declared as fully original (no overlap with existing submissions)."
-              : "Declared overlap with existing submissions."}
-          </div>
-          {!creatorDeclaredOriginality ? (
-            <div className="space-y-2 text-sm">
-              {creatorDuplicateExplanation ? (
+        <fieldset disabled={saving || isGranted} className={isGranted ? "opacity-60" : ""}>
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="flex items-start gap-3 rounded-[var(--radius-xl)] border border-border bg-background px-3 py-3">
+                <input
+                  type="radio"
+                  name="creator-originality"
+                  checked={creatorDeclaredOriginality}
+                  onChange={() => setCreatorDeclaredOriginality(true)}
+                  className="mt-1"
+                />
                 <div>
-                  <div className="text-muted-foreground">Overlap details</div>
-                  <div className="text-foreground whitespace-pre-wrap">{creatorDuplicateExplanation}</div>
+                  <div className="text-foreground font-semibold">I believe this project is unique</div>
+                  <div className="text-sm text-muted-foreground">
+                    This answer is informational and will not block submission.
+                  </div>
                 </div>
-              ) : null}
-              <div>
-                <div className="text-muted-foreground">Uniqueness rationale</div>
-                <div className="text-foreground whitespace-pre-wrap">
-                  {creatorOriginalityRationale || "No rationale was saved."}
+              </label>
+              <label className="flex items-start gap-3 rounded-[var(--radius-xl)] border border-border bg-background px-3 py-3">
+                <input
+                  type="radio"
+                  name="creator-originality"
+                  checked={!creatorDeclaredOriginality}
+                  onChange={() => setCreatorDeclaredOriginality(false)}
+                  className="mt-1"
+                />
+                <div>
+                  <div className="text-foreground font-semibold">This may overlap with existing work</div>
+                  <div className="text-sm text-muted-foreground">
+                    You can explain the overlap, but it will not block submission.
+                  </div>
                 </div>
-              </div>
+              </label>
             </div>
-          ) : null}
-        </div>
+            <label className="block">
+              <div className="text-sm text-muted-foreground font-medium mb-2">
+                Overlap details <span className="font-normal">(optional)</span>
+              </div>
+              <textarea
+                value={creatorDuplicateExplanation ?? ""}
+                onChange={(e) => setCreatorDuplicateExplanation(e.target.value)}
+                rows={3}
+                className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                placeholder="Mention any reused ideas, prior submissions, starter code, or similar projects."
+              />
+            </label>
+            <label className="block">
+              <div className="text-sm text-muted-foreground font-medium mb-2">
+                Uniqueness or attribution notes <span className="font-normal">(optional)</span>
+              </div>
+              <textarea
+                value={creatorOriginalityRationale ?? ""}
+                onChange={(e) => setCreatorOriginalityRationale(e.target.value)}
+                rows={3}
+                className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                placeholder="Add anything reviewers should know about what is yours or what you attributed."
+              />
+            </label>
+          </div>
+        </fieldset>
       </div>
 
       <div className="platform-surface-card p-6 space-y-4">
@@ -1331,14 +1377,14 @@ export default function ManageProjectClient({
             ? "First, make sure the required fields are filled."
             : isReReview
               ? "Confirm you've addressed the most recent reviewer feedback before re-submitting."
-              : "Only required checklist items block submission; optional answers are still shared with reviewers."
+              : "Checklist answers are saved for reviewers, whether checked or unchecked."
         }
         maxWidth="lg"
       >
         {submitStep === 0 ? (
           <div className="space-y-4">
             <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
-              Complete all requirements before submitting: GitHub URL, video link, playable demo link, Hackatime project, considered range, at least 3 screenshots, and originality declaration.
+              Complete all project requirements before submitting: GitHub URL, video link, playable demo link, Hackatime project, considered range, and at least 3 screenshots.
             </div>
 
             <div className="space-y-1.5 text-sm">
@@ -1349,7 +1395,6 @@ export default function ManageProjectClient({
                 { ok: submitRequirements.hackatimeOk, label: "Hackatime project name" },
                 { ok: submitConsideredRange.ok, label: "Considered Hackatime range" },
                 { ok: submitRequirements.screenshotsOk, label: submitRequirements.screenshotsOk ? `Screenshots (${screenshots.length} uploaded)` : `Screenshots (${screenshots.length}/3 needed)` },
-                { ok: submitRequirements.declarationOk, label: "Originality declaration" },
               ].map((item) => (
                 <div key={item.label} className="flex items-center gap-2.5 border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                   {item.ok ? (
@@ -1467,7 +1512,7 @@ export default function ManageProjectClient({
           ) : (
             <div className="space-y-4">
               <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
-                Required items must be checked. Optional items are recorded for reviewer context.
+                These answers are recorded for reviewer context. Unchecked answers are saved too and will not block submission.
               </div>
               <div className="space-y-3">
                 {PROJECT_SUBMISSION_CHECKLIST_ITEMS.map((item) => (
@@ -1481,16 +1526,6 @@ export default function ManageProjectClient({
                     <div>
                       <div className="text-foreground font-semibold">
                         {item.label}
-                        <span
-                          className={[
-                            "ml-2 inline-flex rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide",
-                            item.required
-                              ? "bg-rose-500/15 text-rose-200"
-                              : "bg-emerald-500/15 text-emerald-200",
-                          ].join(" ")}
-                        >
-                          {item.required ? "Required" : "Optional"}
-                        </span>
                       </div>
                       <div className="text-sm text-muted-foreground">{item.helper}</div>
                     </div>
@@ -1511,7 +1546,7 @@ export default function ManageProjectClient({
                   type="button"
                   onClick={onSubmitForReview}
                   className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
-                  disabled={!submitRequirements.allOk || !checklistOk || submitting}
+                  disabled={!submitRequirements.allOk || submitting}
                 >
                   {submitting ? "Submitting…" : "Submit for review"}
                 </button>
