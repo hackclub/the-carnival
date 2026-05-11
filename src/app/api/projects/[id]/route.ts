@@ -15,7 +15,6 @@ import {
   type ConsideredHackatimeRange,
 } from "@/lib/hackatime-range";
 import {
-  hasRequiredProjectSubmissionChecklistAnswers,
   parseProjectSubmissionChecklist,
 } from "@/lib/project-submission-checklist";
 import { validateCreatorOriginalityDeclaration } from "@/lib/project-originality";
@@ -493,16 +492,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         ? toOptionalTrimmedString(body.creatorOriginalityRationale)
         : current.creatorOriginalityRationale;
 
-    // Explicitly switching to "fully original" clears overlap fields unless explicitly re-sent.
-    if (body.creatorDeclaredOriginality === true) {
-      if (body.creatorDuplicateExplanation === undefined) {
-        nextCreatorDuplicateExplanation = null;
-      }
-      if (body.creatorOriginalityRationale === undefined) {
-        nextCreatorOriginalityRationale = null;
-      }
-    }
-
     const originalityDeclaration = validateCreatorOriginalityDeclaration({
       creatorDeclaredOriginality: nextCreatorDeclaredOriginality,
       creatorDuplicateExplanation: nextCreatorDuplicateExplanation,
@@ -569,11 +558,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const nextPlayableDemo = (set.playableDemoUrl ?? current.playableDemoUrl).trim();
     const nextCodeUrl = (set.codeUrl ?? current.codeUrl).trim();
     const nextScreenshots = (set.screenshots ?? current.screenshots) ?? [];
-    const nextSubmissionChecklist =
-      set.submissionChecklist !== undefined
-        ? set.submissionChecklist
-        : (current.submissionChecklist ?? null);
-
     if (!nextName) return NextResponse.json({ error: "Project name is required" }, { status: 400 });
     if (!nextDescription) {
       return NextResponse.json({ error: "Description is required" }, { status: 400 });
@@ -611,18 +595,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     if (!Array.isArray(nextScreenshots) || nextScreenshots.length === 0) {
       return NextResponse.json(
         { error: "At least one screenshot is required to submit for review" },
-        { status: 400 },
-      );
-    }
-
-    const hasSubmittedBefore = !!current.submittedAt;
-    const shouldValidateChecklist = !hasSubmittedBefore || !!nextSubmissionChecklist;
-    if (
-      shouldValidateChecklist &&
-      !hasRequiredProjectSubmissionChecklistAnswers(nextSubmissionChecklist)
-    ) {
-      return NextResponse.json(
-        { error: "Please complete all required checklist items before submitting for review." },
         { status: 400 },
       );
     }

@@ -583,16 +583,6 @@ export default function AdminGrantClient({
                       <div className="shrink-0 flex items-center gap-2">
                         <span
                           className={[
-                            "inline-flex rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide",
-                            item.required
-                              ? "bg-rose-500/15 text-rose-200"
-                              : "bg-emerald-500/15 text-emerald-200",
-                          ].join(" ")}
-                        >
-                          {item.required ? "Required" : "Optional"}
-                        </span>
-                        <span
-                          className={[
                             "text-xs font-semibold uppercase tracking-wide",
                             checked ? "text-emerald-300" : "text-muted-foreground",
                           ].join(" ")}

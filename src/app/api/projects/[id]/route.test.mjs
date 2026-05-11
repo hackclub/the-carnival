@@ -8,6 +8,8 @@ const VALID_SUBMISSION_CHECKLIST = {
   githubPublic: true,
   descriptionClear: true,
   screenshotsWorking: true,
+  didNotManipulateHackatimeData: true,
+  didNotCopyCodeWithoutAttribution: true,
 };
 
 const state = {
@@ -223,6 +225,82 @@ describe("PATCH /api/projects/[id]", () => {
     expect(state.updateSets[0].submittedAt).toBeInstanceOf(Date);
     expect(json.project.hackatimeTotalSeconds).toBe(5400);
     expect(json.project.status).toBe("in-review");
+  });
+
+  test("allows submission when originality is declared not unique without rationale", async () => {
+    state.updatedProjectRow.creatorDeclaredOriginality = false;
+    state.updatedProjectRow.creatorOriginalityRationale = null;
+
+    const { res } = await patchProject({
+      status: "in-review",
+      creatorDeclaredOriginality: false,
+      creatorDuplicateExplanation: "",
+      creatorOriginalityRationale: "",
+      consideredHackatimeRange: {
+        startDate: "2026-03-10",
+        endDate: "2026-03-20",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(state.updateSets[0].creatorDeclaredOriginality).toBe(false);
+    expect(state.updateSets[0].creatorDuplicateExplanation).toBeNull();
+    expect(state.updateSets[0].creatorOriginalityRationale).toBeNull();
+    expect(state.updateSets[0].status).toBe("in-review");
+  });
+
+  test("allows submission with unchecked checklist assertions and persists them", async () => {
+    const submissionChecklist = {
+      readmeInstructions: false,
+      testedWorking: false,
+      usedAi: true,
+      githubPublic: false,
+      descriptionClear: false,
+      screenshotsWorking: false,
+      didNotManipulateHackatimeData: false,
+      didNotCopyCodeWithoutAttribution: false,
+    };
+    state.updatedProjectRow.submissionChecklist = submissionChecklist;
+
+    const { res } = await patchProject({
+      status: "in-review",
+      submissionChecklist,
+      consideredHackatimeRange: {
+        startDate: "2026-03-10",
+        endDate: "2026-03-20",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(state.updateSets[0].submissionChecklist).toEqual(submissionChecklist);
+    expect(state.updateSets[0].status).toBe("in-review");
+  });
+
+  test("normalizes missing newer checklist keys when submitting legacy checklist state", async () => {
+    const legacyChecklist = {
+      readmeInstructions: true,
+      testedWorking: true,
+      usedAi: false,
+      githubPublic: true,
+      descriptionClear: true,
+      screenshotsWorking: true,
+    };
+
+    const { res } = await patchProject({
+      status: "in-review",
+      submissionChecklist: legacyChecklist,
+      consideredHackatimeRange: {
+        startDate: "2026-03-10",
+        endDate: "2026-03-20",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(state.updateSets[0].submissionChecklist).toEqual({
+      ...legacyChecklist,
+      didNotManipulateHackatimeData: false,
+      didNotCopyCodeWithoutAttribution: false,
+    });
   });
 
   test("refreshes Hackatime when the considered range changes on an ordinary save", async () => {

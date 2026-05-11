@@ -683,16 +683,6 @@ export default function ReviewProjectClient({
                     <div className="shrink-0 flex items-center gap-2">
                       <span
                         className={[
-                          "inline-flex rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide",
-                          item.required
-                            ? "bg-rose-500/15 text-rose-200"
-                            : "bg-emerald-500/15 text-emerald-200",
-                        ].join(" ")}
-                      >
-                        {item.required ? "Required" : "Optional"}
-                      </span>
-                      <span
-                        className={[
                           "text-xs font-semibold uppercase tracking-wide",
                           checked ? "text-emerald-300" : "text-muted-foreground",
                         ].join(" ")}
@@ -709,6 +699,34 @@ export default function ReviewProjectClient({
               No checklist state was saved for this submission.
             </div>
           )}
+        </div>
+
+        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 space-y-3">
+          <div className="text-foreground font-semibold">Originality declaration</div>
+          <div className="text-sm text-foreground font-semibold">
+            {project.creatorDeclaredOriginality
+              ? "Creator believes this project is unique."
+              : "Creator declared possible overlap with existing work."}
+          </div>
+          {project.creatorDuplicateExplanation ? (
+            <div className="text-sm">
+              <div className="text-muted-foreground">Overlap details</div>
+              <div className="text-foreground whitespace-pre-wrap">
+                {project.creatorDuplicateExplanation}
+              </div>
+            </div>
+          ) : null}
+          {project.creatorOriginalityRationale ? (
+            <div className="text-sm">
+              <div className="text-muted-foreground">Uniqueness or attribution notes</div>
+              <div className="text-foreground whitespace-pre-wrap">
+                {project.creatorOriginalityRationale}
+              </div>
+            </div>
+          ) : null}
+          {!project.creatorDuplicateExplanation && !project.creatorOriginalityRationale ? (
+            <div className="text-sm text-muted-foreground">No optional notes were saved.</div>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap gap-2">

@@ -9,70 +9,67 @@ export const EMPTY_PROJECT_SUBMISSION_CHECKLIST: ProjectSubmissionChecklist = {
   githubPublic: false,
   descriptionClear: false,
   screenshotsWorking: false,
+  didNotManipulateHackatimeData: false,
+  didNotCopyCodeWithoutAttribution: false,
 };
 
 export const PROJECT_SUBMISSION_CHECKLIST_ITEMS: Array<{
   key: ProjectSubmissionChecklistKey;
   label: string;
   helper: string;
-  required: boolean;
 }> = [
   {
     key: "readmeInstructions",
     label: "My README contains instructions to build and/or run my extension",
-    helper: "Reviewers should be able to follow it and reproduce.",
-    required: true,
+    helper: "Recorded for reviewer context. Unchecked answers are still saved.",
   },
   {
     key: "testedWorking",
     label: "I have tested my extension/plugin and it works without breaking",
-    helper: "You’re confident it’s stable enough for review.",
-    required: true,
+    helper: "Recorded for reviewer context. Unchecked answers are still saved.",
   },
   {
     key: "usedAi",
     label: "I used AI while building this",
-    helper: "Optional disclosure to give reviewers extra context.",
-    required: false,
+    helper: "Disclose AI usage for reviewer context. Unchecked means you did not use AI.",
   },
   {
     key: "githubPublic",
     label: "The GitHub URL is publicly accessible for reviewers",
-    helper: "Private repos can’t be reviewed.",
-    required: true,
+    helper: "Recorded for reviewer context. Unchecked answers are still saved.",
   },
   {
     key: "descriptionClear",
     label: "The description clearly explains what the project is and what it does",
-    helper: "Optional, but helps reviewers understand it quickly.",
-    required: false,
+    helper: "Recorded for reviewer context. Unchecked answers are still saved.",
   },
   {
     key: "screenshotsWorking",
     label: "I included screenshots of my project working (not my code)",
-    helper: "Optional confirmation in addition to the required screenshot field.",
-    required: false,
+    helper: "Recorded for reviewer context. Unchecked answers are still saved.",
+  },
+  {
+    key: "didNotManipulateHackatimeData",
+    label: "I did not manipulate Hackatime data to commit fraud",
+    helper: "Recorded for reviewer context. Unchecked answers are still saved.",
+  },
+  {
+    key: "didNotCopyCodeWithoutAttribution",
+    label: "I did not copy code from somewhere else without attribution",
+    helper: "Recorded for reviewer context. Unchecked answers are still saved.",
   },
 ];
-
-export const REQUIRED_PROJECT_SUBMISSION_CHECKLIST_KEYS = PROJECT_SUBMISSION_CHECKLIST_ITEMS
-  .filter((item) => item.required)
-  .map((item) => item.key);
 
 export function normalizeProjectSubmissionChecklist(
   value: Partial<ProjectSubmissionChecklist> | null | undefined,
 ): ProjectSubmissionChecklist {
+  const definedValues = Object.fromEntries(
+    Object.entries(value ?? {}).filter(([, itemValue]) => itemValue !== undefined),
+  ) as Partial<ProjectSubmissionChecklist>;
   return {
     ...EMPTY_PROJECT_SUBMISSION_CHECKLIST,
-    ...(value ?? {}),
+    ...definedValues,
   };
-}
-
-export function hasRequiredProjectSubmissionChecklistAnswers(
-  checklist: ProjectSubmissionChecklist | null | undefined,
-): boolean {
-  if (!checklist) return false;
-  return REQUIRED_PROJECT_SUBMISSION_CHECKLIST_KEYS.every((key) => checklist[key]);
 }
 
 export function parseProjectSubmissionChecklist(
@@ -87,9 +84,11 @@ export function parseProjectSubmissionChecklist(
     githubPublic: row.githubPublic as boolean,
     descriptionClear: row.descriptionClear as boolean,
     screenshotsWorking: row.screenshotsWorking as boolean,
+    didNotManipulateHackatimeData: row.didNotManipulateHackatimeData as boolean,
+    didNotCopyCodeWithoutAttribution: row.didNotCopyCodeWithoutAttribution as boolean,
   });
-  const allBooleans = PROJECT_SUBMISSION_CHECKLIST_ITEMS.every(
-    ({ key }) => typeof row[key] === "boolean",
+  const knownKeysAreBooleans = PROJECT_SUBMISSION_CHECKLIST_ITEMS.every(
+    ({ key }) => row[key] === undefined || typeof row[key] === "boolean",
   );
-  return allBooleans ? normalized : null;
+  return knownKeysAreBooleans ? normalized : null;
 }

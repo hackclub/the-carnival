@@ -66,6 +66,8 @@ export type ProjectSubmissionChecklist = {
   githubPublic: boolean;
   descriptionClear: boolean;
   screenshotsWorking: boolean;
+  didNotManipulateHackatimeData: boolean;
+  didNotCopyCodeWithoutAttribution: boolean;
 };
 
 export type ReviewEvidenceChecklist = Record<string, boolean>;
