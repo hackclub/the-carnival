@@ -3,6 +3,7 @@ import DashboardTopBar from "@/components/DashboardTopBar";
 import { SidebarProvider } from "@/components/SidebarContext";
 import { PlatformContent, PlatformShell } from "@/components/ui/platform";
 import { db } from "@/db";
+import { getAdminIndicatorCounts } from "@/lib/admin-indicators";
 import { getServerSession } from "@/lib/server-session";
 import { getTokenBalance } from "@/lib/wallet";
 
@@ -42,7 +43,10 @@ export default async function AppShell({
 }) {
   const session = await getServerSession({ disableCookieCache: true });
   const shellUser = toSafeShellUser(session?.user ?? null);
-  const walletBalance = shellUser ? await getTokenBalance(db, shellUser.id) : null;
+  const [walletBalance, adminIndicators] = await Promise.all([
+    shellUser ? getTokenBalance(db, shellUser.id) : null,
+    shellUser?.role === "admin" ? getAdminIndicatorCounts(db) : null,
+  ]);
   const walletFetchedAt = new Date().toISOString();
 
   return (
@@ -53,6 +57,7 @@ export default async function AppShell({
             user={shellUser}
             initialWalletBalance={walletBalance}
             walletFetchedAt={walletFetchedAt}
+            adminIndicators={adminIndicators}
           />
 
           <main className="flex-1 min-w-0">
