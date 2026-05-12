@@ -75,55 +75,33 @@ function coerceDate(value: unknown) {
   return null;
 }
 
-function isSameLocalCalendarDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
-function clampSameDayStartToFloor(start: Date, floor: Date) {
-  if (start.getTime() >= floor.getTime() - 500) return start;
-  return isSameLocalCalendarDay(start, floor) ? floor : start;
-}
-
 export function parseDevlogWindow(input: {
   startedAt: unknown;
   endedAt: unknown;
-  floor: Date;
-  ceiling: Date;
+  ceiling?: Date;
 }): ParsedDevlogWindow {
   const start = coerceDate(input.startedAt);
   const end = coerceDate(input.endedAt);
   if (!start) return { ok: false, error: "Invalid devlog startedAt." };
   if (!end) return { ok: false, error: "Invalid devlog endedAt." };
-  const effectiveStart = clampSameDayStartToFloor(start, input.floor);
 
-  if (end.getTime() <= effectiveStart.getTime()) {
+  if (end.getTime() <= start.getTime()) {
     return { ok: false, error: "Devlog end must be after start." };
   }
-  if (end.getTime() - effectiveStart.getTime() > DEVLOG_MAX_WINDOW_MS) {
+  if (end.getTime() - start.getTime() > DEVLOG_MAX_WINDOW_MS) {
     return {
       ok: false,
       error: "A single devlog can cover at most 60 days; split it into multiple devlogs.",
     };
   }
-  if (effectiveStart.getTime() < input.floor.getTime() - 500) {
+  if (input.ceiling && end.getTime() > input.ceiling.getTime() + 500) {
     return {
       ok: false,
-      error:
-        "Devlog start can't be earlier than the end of your previous devlog (or the project's start).",
-    };
-  }
-  if (end.getTime() > input.ceiling.getTime() + 500) {
-    return {
-      ok: false,
-      error: "Devlog end can't be in the future (or past submission).",
+      error: "Devlog end can't be in the future.",
     };
   }
 
-  return { ok: true, startedAt: effectiveStart, endedAt: end };
+  return { ok: true, startedAt: start, endedAt: end };
 }
 
 /**

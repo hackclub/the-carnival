@@ -5,7 +5,6 @@ import { project } from "@/db/schema";
 import { computeDevlogWindowCeiling, parseDevlogWindow } from "@/lib/devlog-shared";
 import {
   countProjectDevlogs,
-  getDevlogWindowFloor,
   resolveDevlogHackatimeProjectName,
 } from "@/lib/devlogs";
 import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
@@ -32,8 +31,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       status: project.status,
       hackatimeProjectName: project.hackatimeProjectName,
       submittedAt: project.submittedAt,
-      startedOnCarnivalAt: project.startedOnCarnivalAt,
-      createdAt: project.createdAt,
     })
     .from(project)
     .where(eq(project.id, projectId))
@@ -50,8 +47,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const endedAtRaw = url.searchParams.get("endedAt");
   const hackatimeProjectNameRaw = url.searchParams.get("hackatimeProjectName");
 
-  const floorBase = p.startedOnCarnivalAt ?? p.createdAt;
-  const floor = await getDevlogWindowFloor(projectId, floorBase);
   const ceiling = computeDevlogWindowCeiling({
     projectStatus: p.status,
     submittedAt: p.submittedAt ?? null,
@@ -68,7 +63,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     const message = err instanceof Error ? err.message : "Select a Hackatime project.";
     return NextResponse.json(
       {
-        floor: floor.toISOString(),
         ceiling: ceiling.toISOString(),
         durationSeconds: null,
         hackatimeProjectName: "",
@@ -80,7 +74,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
   if (!startedAtRaw || !endedAtRaw) {
     return NextResponse.json({
-      floor: floor.toISOString(),
       ceiling: ceiling.toISOString(),
       durationSeconds: null,
       hackatimeProjectName,
@@ -90,13 +83,11 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const window = parseDevlogWindow({
     startedAt: startedAtRaw,
     endedAt: endedAtRaw,
-    floor,
     ceiling,
   });
   if (!window.ok) {
     return NextResponse.json(
       {
-        floor: floor.toISOString(),
         ceiling: ceiling.toISOString(),
         durationSeconds: null,
         hackatimeProjectName,
@@ -113,7 +104,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       endedAt: window.endedAt,
     });
     return NextResponse.json({
-      floor: floor.toISOString(),
       ceiling: ceiling.toISOString(),
       durationSeconds: Math.max(0, Math.floor(result.totalSeconds)),
       hackatimeProjectName,
@@ -122,7 +112,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     const message = err instanceof Error ? err.message : "Failed to pull Hackatime hours.";
     return NextResponse.json(
       {
-        floor: floor.toISOString(),
         ceiling: ceiling.toISOString(),
         durationSeconds: null,
         hackatimeProjectName,

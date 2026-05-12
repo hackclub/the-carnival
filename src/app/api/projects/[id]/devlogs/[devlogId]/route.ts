@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, desc, eq, gt } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { devlog, project, user } from "@/db/schema";
 import {
@@ -12,7 +12,6 @@ import {
   parseOptionalTrimmedString,
 } from "@/lib/devlog-shared";
 import {
-  getDevlogWindowFloor,
   recomputeProjectHoursSpentSeconds,
   upsertProjectHackatimeProject,
 } from "@/lib/devlogs";
@@ -62,8 +61,6 @@ async function loadDevlog(projectId: string, devlogId: string) {
       projectStatus: project.status,
       projectHackatimeProjectName: project.hackatimeProjectName,
       projectSubmittedAt: project.submittedAt,
-      projectStartedOnCarnivalAt: project.startedOnCarnivalAt,
-      projectCreatedAt: project.createdAt,
     })
     .from(devlog)
     .leftJoin(user, eq(devlog.userId, user.id))
@@ -257,23 +254,6 @@ export async function PATCH(
   let linkedHackatimeProjectName: string | null = null;
 
   if (body.startedAt !== undefined || body.endedAt !== undefined) {
-    const laterRows = await db
-      .select({ id: devlog.id })
-      .from(devlog)
-      .where(and(eq(devlog.projectId, projectId), gt(devlog.endedAt, row.endedAt)))
-      .limit(1);
-    if (laterRows.length > 0) {
-      return NextResponse.json(
-        {
-          error:
-            "You can only change the window on the latest devlog. Delete newer devlogs first or edit them instead.",
-        },
-        { status: 400 },
-      );
-    }
-
-    const floorBase = row.projectStartedOnCarnivalAt ?? row.projectCreatedAt ?? row.createdAt;
-    const floor = await getDevlogWindowFloor(projectId, floorBase, row.id);
     const ceiling = computeDevlogWindowCeiling({
       projectStatus: row.projectStatus,
       submittedAt: row.projectSubmittedAt ?? null,
@@ -282,7 +262,6 @@ export async function PATCH(
     const window = parseDevlogWindow({
       startedAt: body.startedAt ?? row.startedAt.toISOString(),
       endedAt: body.endedAt ?? row.endedAt.toISOString(),
-      floor,
       ceiling,
     });
     if (!window.ok) return NextResponse.json({ error: window.error }, { status: 400 });

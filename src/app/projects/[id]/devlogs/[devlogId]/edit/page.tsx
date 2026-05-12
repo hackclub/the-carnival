@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import NewDevlogForm from "@/components/NewDevlogForm";
 import { Card, CardContent } from "@/components/ui";
 import { db } from "@/db";
 import { devlog, project } from "@/db/schema";
 import { computeDevlogWindowCeiling } from "@/lib/devlog-shared";
-import { getDevlogWindowFloor, listProjectHackatimeProjects } from "@/lib/devlogs";
+import { listProjectHackatimeProjects } from "@/lib/devlogs";
 import { getServerSession } from "@/lib/server-session";
 
 export default async function EditDevlogPage(props: {
@@ -36,8 +36,6 @@ export default async function EditDevlogPage(props: {
       projectStatus: project.status,
       projectCreatorId: project.creatorId,
       projectSubmittedAt: project.submittedAt,
-      projectStartedOnCarnivalAt: project.startedOnCarnivalAt,
-      projectCreatedAt: project.createdAt,
       projectHackatimeProjectName: project.hackatimeProjectName,
     })
     .from(devlog)
@@ -106,15 +104,6 @@ export default async function EditDevlogPage(props: {
     );
   }
 
-  const laterDevlogs = await db
-    .select({ id: devlog.id })
-    .from(devlog)
-    .where(and(eq(devlog.projectId, id), gt(devlog.endedAt, row.endedAt)))
-    .limit(1);
-  const isLatest = laterDevlogs.length === 0;
-
-  const floorBase = row.projectStartedOnCarnivalAt ?? row.projectCreatedAt ?? new Date(0);
-  const floor = await getDevlogWindowFloor(id, floorBase, row.id);
   const ceiling = computeDevlogWindowCeiling({
     projectStatus: row.projectStatus,
     submittedAt: row.projectSubmittedAt ?? null,
@@ -138,14 +127,7 @@ export default async function EditDevlogPage(props: {
         projectName={row.projectName ?? "Project"}
         hackatimeProjectName={(row.hackatimeProjectNameSnapshot ?? "").trim() || hackatimeProjectName}
         linkedHackatimeProjects={linkedHackatimeProjects}
-        floorIso={floor.toISOString()}
         ceilingIso={ceiling.toISOString()}
-        canEditWindow={isLatest}
-        windowLockedReason={
-          isLatest
-            ? undefined
-            : "Only the most recent devlog can change its start/end window. Delete the newer devlogs first, or edit this devlog's other fields only."
-        }
         initial={{
           title: row.title,
           content: row.content,

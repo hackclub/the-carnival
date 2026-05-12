@@ -14,7 +14,6 @@ import {
 } from "@/lib/devlog-shared";
 import {
   countProjectDevlogs,
-  getDevlogWindowFloor,
   recomputeProjectHoursSpentSeconds,
   resolveDevlogHackatimeProjectName,
   upsertProjectHackatimeProject,
@@ -143,8 +142,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       status: project.status,
       hackatimeProjectName: project.hackatimeProjectName,
       submittedAt: project.submittedAt,
-      startedOnCarnivalAt: project.startedOnCarnivalAt,
-      createdAt: project.createdAt,
     })
     .from(project)
     .where(eq(project.id, projectId))
@@ -233,8 +230,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   const aiUsageDescription = usedAi ? aiDescParsed : null;
 
-  const floorStart = p.startedOnCarnivalAt ?? p.createdAt;
-  const floor = await getDevlogWindowFloor(projectId, floorStart);
   const ceiling = computeDevlogWindowCeiling({
     projectStatus: p.status,
     submittedAt: p.submittedAt ?? null,
@@ -258,7 +253,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const window = parseDevlogWindow({
     startedAt: body.startedAt,
     endedAt: body.endedAt,
-    floor,
     ceiling,
   });
   if (!window.ok) {

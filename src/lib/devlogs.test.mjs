@@ -105,51 +105,35 @@ describe("parseOptionalTrimmedString", () => {
 });
 
 describe("parseDevlogWindow", () => {
-  const floor = new Date("2026-04-01T00:00:00.000Z");
   const ceiling = new Date("2026-04-30T00:00:00.000Z");
 
   test("rejects non-date inputs", () => {
-    const r = parseDevlogWindow({ startedAt: "nope", endedAt: null, floor, ceiling });
+    const r = parseDevlogWindow({ startedAt: "nope", endedAt: null, ceiling });
     expect(r.ok).toBe(false);
   });
   test("rejects end before start", () => {
     const r = parseDevlogWindow({
       startedAt: "2026-04-10T12:00:00Z",
       endedAt: "2026-04-10T11:00:00Z",
-      floor,
       ceiling,
     });
     expect(r.ok).toBe(false);
   });
-  test("rejects start before floor", () => {
+  test("accepts start before project creation or earlier devlogs", () => {
     const r = parseDevlogWindow({
       startedAt: "2026-03-30T00:00:00Z",
       endedAt: "2026-04-02T00:00:00Z",
-      floor,
-      ceiling,
-    });
-    expect(r.ok).toBe(false);
-  });
-  test("clamps same-day starts before the floor to the floor timestamp", () => {
-    const sameDayFloor = new Date("2026-04-11T00:39:48.000Z");
-    const r = parseDevlogWindow({
-      startedAt: "2026-04-11T00:00:00Z",
-      endedAt: "2026-04-11T02:00:00Z",
-      floor: sameDayFloor,
       ceiling,
     });
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.startedAt.toISOString()).toBe("2026-04-11T00:39:48.000Z");
-      expect(r.endedAt.toISOString()).toBe("2026-04-11T02:00:00.000Z");
+      expect(r.startedAt.toISOString()).toBe("2026-03-30T00:00:00.000Z");
     }
   });
-  test("keeps starts after the floor unchanged", () => {
-    const sameDayFloor = new Date("2026-04-11T00:39:48.000Z");
+  test("keeps starts unchanged", () => {
     const r = parseDevlogWindow({
       startedAt: "2026-04-11T01:00:00Z",
       endedAt: "2026-04-11T02:00:00Z",
-      floor: sameDayFloor,
       ceiling,
     });
     expect(r.ok).toBe(true);
@@ -157,34 +141,10 @@ describe("parseDevlogWindow", () => {
       expect(r.startedAt.toISOString()).toBe("2026-04-11T01:00:00.000Z");
     }
   });
-  test("rejects previous-day starts before the floor", () => {
-    const sameDayFloor = new Date("2026-04-11T00:39:48.000Z");
-    const r = parseDevlogWindow({
-      startedAt: "2026-04-10T23:59:00Z",
-      endedAt: "2026-04-11T02:00:00Z",
-      floor: sameDayFloor,
-      ceiling,
-    });
-    expect(r.ok).toBe(false);
-  });
-  test("rejects end times before the clamped start", () => {
-    const sameDayFloor = new Date("2026-04-11T00:39:48.000Z");
-    const r = parseDevlogWindow({
-      startedAt: "2026-04-11T00:00:00Z",
-      endedAt: "2026-04-11T00:20:00Z",
-      floor: sameDayFloor,
-      ceiling,
-    });
-    expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.error).toBe("Devlog end must be after start.");
-    }
-  });
   test("rejects end after ceiling", () => {
     const r = parseDevlogWindow({
       startedAt: "2026-04-10T00:00:00Z",
       endedAt: "2026-05-01T00:00:00Z",
-      floor,
       ceiling,
     });
     expect(r.ok).toBe(false);
@@ -193,7 +153,6 @@ describe("parseDevlogWindow", () => {
     const r = parseDevlogWindow({
       startedAt: "2026-04-10T00:00:00Z",
       endedAt: "2026-04-11T00:00:00Z",
-      floor,
       ceiling,
     });
     expect(r.ok).toBe(true);
