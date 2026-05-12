@@ -53,6 +53,8 @@ type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
+  badgeCount?: number;
+  badgeLabel?: string;
 };
 
 type NavSection = {
@@ -75,7 +77,7 @@ const REVIEW_NAV: NavItem[] = [
 ];
 
 const ADMIN_NAV: NavItem[] = [
-  { href: "/admin/grants", label: "Grants", icon: Gift },
+  { href: "/admin/grants?status=shipped", label: "Grants", icon: Gift },
   { href: "/admin/dismissed", label: "Dismissed projects", icon: Ban },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
   { href: "/admin/review/comments", label: "Reviewer comments", icon: MessageSquare },
@@ -89,14 +91,52 @@ function asUserRole(value: unknown): UserRole {
 }
 
 function isActivePath(pathname: string | null, href: string) {
-  return pathname === href || pathname?.startsWith(href + "/");
+  const baseHref = href.split("?")[0] ?? href;
+  return pathname === baseHref || pathname?.startsWith(baseHref + "/");
 }
 
-function getNavSections(role: UserRole): NavSection[] {
+function withAdminIndicators(items: NavItem[], counts: AdminIndicatorCounts | null): NavItem[] {
+  if (!counts) return items;
+
+  return items.map((item) => {
+    if (item.href === "/review") {
+      return {
+        ...item,
+        badgeCount: counts.reviewQueue,
+        badgeLabel: `${counts.reviewQueue} project${counts.reviewQueue === 1 ? "" : "s"} to review`,
+      };
+    }
+    if (item.href === "/admin/shop") {
+      return {
+        ...item,
+        badgeCount: counts.shopSuggestions,
+        badgeLabel: `${counts.shopSuggestions} pending shop item suggestion${counts.shopSuggestions === 1 ? "" : "s"}`,
+      };
+    }
+    if (item.href.startsWith("/admin/grants")) {
+      return {
+        ...item,
+        badgeCount: counts.grants,
+        badgeLabel: `${counts.grants} shipped project${counts.grants === 1 ? "" : "s"} awaiting grants`,
+      };
+    }
+    if (item.href === "/admin/orders") {
+      return {
+        ...item,
+        badgeCount: counts.orders,
+        badgeLabel: `${counts.orders} unfulfilled order${counts.orders === 1 ? "" : "s"}`,
+      };
+    }
+    return item;
+  });
+}
+
+function getNavSections(role: UserRole, adminIndicators: AdminIndicatorCounts | null): NavSection[] {
   if (role === "admin") {
+    const opsItems = withAdminIndicators([...REVIEW_NAV, ...ADMIN_NAV], adminIndicators);
     return [
       { id: "workspace", title: "Workspace", items: WORKSPACE_NAV },
-      { id: "ops", title: "Operations", items: [...REVIEW_NAV, ...ADMIN_NAV] },
+      { id: "ops", title: "Operations", items: opsItems },
     ];
   }
 
@@ -117,6 +157,33 @@ function getInitials(nameOrEmail?: string | null) {
 }
 
 const WALLET_STALE_MS = 60_000;
+
+function SidebarBadge({
+  count,
+  label,
+  collapsed,
+}: {
+  count: number | undefined;
+  label: string | undefined;
+  collapsed: boolean;
+}) {
+  if (!count) return null;
+
+  return (
+    <span
+      className={[
+        "inline-flex shrink-0 items-center justify-center rounded-full border border-[#b91c1c]/20 bg-carnival-red text-white shadow-sm",
+        collapsed
+          ? "absolute -right-1 -top-1 min-w-5 px-1.5 py-0.5 text-[10px] font-bold leading-none"
+          : "ml-auto min-w-6 px-2 py-0.5 text-xs font-bold leading-5",
+      ].join(" ")}
+      title={label}
+      aria-label={label}
+    >
+      {count.toLocaleString()}
+    </span>
+  );
+}
 
 type SidebarNavProps = {
   sections: NavSection[];
@@ -140,25 +207,28 @@ function SidebarNav({ sections, pathname, collapsed, onNavigate }: SidebarNavPro
             {section.items.map((item) => {
               const Icon = item.icon;
               const active = isActivePath(pathname, item.href);
+              const badgeLabel = item.badgeCount ? item.badgeLabel ?? `${item.badgeCount} pending` : undefined;
+              const tooltipLabel = badgeLabel ? `${item.label}: ${item.badgeCount}` : item.label;
 
               const linkElement = (
                 <Link
                   key={item.href}
                   href={item.href}
                   data-active={active ? "true" : "false"}
-                  className="platform-nav-link"
+                  className="platform-nav-link relative"
                   onClick={onNavigate}
                 >
                   <Icon size={17} className="shrink-0" />
-                  {!collapsed && <span className="sidebar-label">{item.label}</span>}
+                  {!collapsed && <span className="sidebar-label min-w-0 flex-1 truncate">{item.label}</span>}
+                  <SidebarBadge count={item.badgeCount} label={badgeLabel} collapsed={collapsed} />
                 </Link>
               );
 
               if (collapsed) {
                 return (
-                  <Tooltip key={item.href}>
-                    <TooltipTrigger render={linkElement} />
-                    <TooltipContent side="right">{item.label}</TooltipContent>
+                    <Tooltip key={item.href}>
+                      <TooltipTrigger render={linkElement} />
+                    <TooltipContent side="right">{tooltipLabel}</TooltipContent>
                   </Tooltip>
                 );
               }
@@ -176,7 +246,7 @@ export default function AppSidebar({
   user,
   initialWalletBalance,
   walletFetchedAt,
-  adminIndicators: _adminIndicators,
+  adminIndicators,
 }: {
   user: SidebarUser | null;
   initialWalletBalance: number | null;
@@ -195,7 +265,7 @@ export default function AppSidebar({
   const sessionUser = user;
   const isAuthed = !!sessionUser?.id;
   const role = asUserRole(sessionUser?.role ?? null);
-  const sections = getNavSections(role);
+  const sections = getNavSections(role, adminIndicators);
 
   const displayName = useMemo(() => {
     return sessionUser?.name?.trim() || sessionUser?.email?.trim() || "Unknown";
