@@ -226,8 +226,8 @@ function SidebarNav({ sections, pathname, collapsed, onNavigate }: SidebarNavPro
 
               if (collapsed) {
                 return (
-                    <Tooltip key={item.href}>
-                      <TooltipTrigger render={linkElement} />
+                  <Tooltip key={item.href}>
+                    <TooltipTrigger render={linkElement} />
                     <TooltipContent side="right">{tooltipLabel}</TooltipContent>
                   </Tooltip>
                 );
