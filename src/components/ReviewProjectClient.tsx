@@ -210,10 +210,12 @@ export default function ReviewProjectClient({
     return new Map<string, DevlogAssessmentDraft>(Object.entries(devlogAssessments));
   }, [devlogAssessments]);
 
+  const hasDevlogs = initial.devlogs.length > 0;
+
   const allDevlogsAssessed = useMemo(() => {
-    if (initial.devlogs.length === 0) return false;
+    if (!hasDevlogs) return false;
     return initial.devlogs.every((d) => assessmentsMap.has(d.id));
-  }, [assessmentsMap, initial.devlogs]);
+  }, [assessmentsMap, hasDevlogs, initial.devlogs]);
 
   const assessedTotalSeconds = useMemo(() => {
     let total = 0;
@@ -227,22 +229,6 @@ export default function ReviewProjectClient({
     }
     return total;
   }, [assessmentsMap, initial.devlogs]);
-
-  const approvedHoursValue = useMemo(() => {
-    if (assessedTotalSeconds <= 0) return null;
-    const h = assessmentSecondsToApprovedHours(assessedTotalSeconds);
-    return normalizeApprovedHours(h);
-  }, [assessedTotalSeconds]);
-
-  const canSubmit = useMemo(() => {
-    if (submitting) return false;
-    if (comment.trim().length === 0) return false;
-    if (decision === "approved") {
-      if (!allDevlogsAssessed) return false;
-      return approvedHoursValue !== null && approvedHoursValue > 0;
-    }
-    return true;
-  }, [allDevlogsAssessed, approvedHoursValue, comment, decision, submitting]);
 
   const hackatimeLoggedHoursValue = useMemo(() => {
     if (!project.hackatimeHours) return null;
@@ -299,6 +285,39 @@ export default function ReviewProjectClient({
     }
     return hackatimeLoggedHoursValue;
   }, [adminHackatimePreview, decision, hackatimeLoggedHoursValue, isAdmin]);
+
+  const approvedHoursValue = useMemo(() => {
+    if (!hasDevlogs) {
+      if (approvalHackatimeHoursValue === null) return null;
+      return normalizeApprovedHours(approvalHackatimeHoursValue);
+    }
+    if (assessedTotalSeconds <= 0) return null;
+    const h = assessmentSecondsToApprovedHours(assessedTotalSeconds);
+    return normalizeApprovedHours(h);
+  }, [approvalHackatimeHoursValue, assessedTotalSeconds, hasDevlogs]);
+
+  const canSubmit = useMemo(() => {
+    if (submitting) return false;
+    if (comment.trim().length === 0) return false;
+    if (decision === "approved") {
+      if (hasDevlogs && !allDevlogsAssessed) return false;
+      if (!hasDevlogs && isAdmin && (adminHackatimePreviewLoading || !!adminHackatimePreviewError)) {
+        return false;
+      }
+      return approvedHoursValue !== null && approvedHoursValue > 0;
+    }
+    return true;
+  }, [
+    adminHackatimePreviewError,
+    adminHackatimePreviewLoading,
+    allDevlogsAssessed,
+    approvedHoursValue,
+    comment,
+    decision,
+    hasDevlogs,
+    isAdmin,
+    submitting,
+  ]);
 
   const approvalHackatimeLabel = useMemo(() => {
     if (
@@ -882,22 +901,27 @@ export default function ReviewProjectClient({
             <div className="text-sm font-semibold text-foreground">
               {approvedHoursValue !== null
                 ? `${approvedHoursValue}h`
-                : initial.devlogs.length === 0
-                  ? "No devlogs yet"
+                : !hasDevlogs
+                  ? "Pending Hackatime range"
                   : allDevlogsAssessed
                     ? "0h"
                     : "Pending assessment"}
             </div>
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
-            Approved hours is the sum of accepted and adjusted devlog durations, snapped down to
-            the nearest 0.1h. Assess each devlog below before approving.
+            {hasDevlogs
+              ? "Approved hours is the sum of accepted and adjusted devlog durations, snapped down to the nearest 0.1h. Assess each devlog below before approving."
+              : "This project has no devlogs, so approved hours come from the selected considered Hackatime range, snapped down to the nearest 0.1h."}
           </div>
-          {decision === "approved" && !allDevlogsAssessed ? (
+          {decision === "approved" && hasDevlogs && !allDevlogsAssessed ? (
             <div className="mt-2 text-xs text-red-200">
-              {initial.devlogs.length === 0
-                ? "There are no devlogs; the creator must post at least one before you can approve."
-                : `Assess every devlog before approving (${Object.keys(devlogAssessments).length}/${initial.devlogs.length} done).`}
+              {`Assess every devlog before approving (${Object.keys(devlogAssessments).length}/${initial.devlogs.length} done).`}
+            </div>
+          ) : null}
+          {decision === "approved" && !hasDevlogs && isAdmin ? (
+            <div className="mt-2 text-xs text-muted-foreground">
+              Pick the project considered range in the approval confirmation step to preview and save
+              the Hackatime hours for this no-devlog project.
             </div>
           ) : null}
         </div>
