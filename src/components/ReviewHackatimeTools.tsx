@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Badge, Button, Card, CardContent, PlatformNestedSurface } from "@/components/ui";
+import { buildBillyUrl, buildJoeFraudUrl } from "@/lib/constants";
 
 type HackatimeProject = {
   name: string;
@@ -118,16 +119,14 @@ export default function ReviewHackatimeTools({
 
   const hasHackatimeUserId = Boolean(hackatimeUserId);
   const canBuildLinks = hasHackatimeUserId && defaultStart && defaultEnd;
-  const linkDateRange =
-    defaultStart && defaultEnd ? `${defaultStart}-${defaultEnd}` : null;
 
   const billyUrl =
-    canBuildLinks && linkDateRange
-      ? `https://billy.3kh0.net/?u=${encodeURIComponent(hackatimeUserId!)}&d=${encodeURIComponent(linkDateRange)}`
+    canBuildLinks && defaultStart && defaultEnd
+      ? buildBillyUrl(hackatimeUserId!, defaultStart, defaultEnd)
       : null;
   const joeUrl =
-    canBuildLinks && linkDateRange
-      ? `https://joe.fraud.hackclub.com/billy?u=${encodeURIComponent(hackatimeUserId!)}&d=${encodeURIComponent(linkDateRange)}`
+    canBuildLinks && defaultStart && defaultEnd
+      ? buildJoeFraudUrl(hackatimeUserId!, defaultStart, defaultEnd)
       : null;
 
   return (

@@ -269,11 +269,18 @@ export default function AdminOrdersClient({
         open={!!selectedOrder}
         onClose={() => setSelectedOrderId(null)}
         title={selectedOrder ? selectedOrder.itemName : "Order details"}
-        description={selectedOrder ? `${selectedOrder.requesterName}${selectedOrder.requesterEmail ? ` • ${selectedOrder.requesterEmail}` : ""}` : ""}
+        description={selectedOrder ? selectedOrder.requesterName : ""}
         maxWidth="2xl"
       >
         {selectedOrder ? (
           <div className="space-y-6">
+            {selectedOrder.requesterEmail ? (
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <span>Email</span>
+                <CopyableText text={selectedOrder.requesterEmail} className="text-sm" />
+              </div>
+            ) : null}
+
             <div className="rounded-[var(--radius-2xl)] border border-border bg-muted p-4">
               <div className="flex flex-col md:flex-row gap-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

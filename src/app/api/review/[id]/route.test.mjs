@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { peerReview, reviewAuditLog } from "@/db/schema";
+import { devlog, peerReview, peerReviewDevlogAssessment, reviewAuditLog } from "@/db/schema";
 
 const state = {
   session: {
@@ -28,6 +28,8 @@ const state = {
   insertedReviews: [],
   auditEntries: [],
   updateSets: [],
+  devlogRows: [],
+  insertedDevlogAssessments: [],
   assignmentDeleteCalls: 0,
   hackatimeRangeFetchCalls: [],
   rangeFetchTotalSeconds: 4 * 3600,
@@ -68,6 +70,8 @@ function resetState() {
   state.insertedReviews = [];
   state.auditEntries = [];
   state.updateSets = [];
+  state.devlogRows = [];
+  state.insertedDevlogAssessments = [];
   state.assignmentDeleteCalls = 0;
   state.hackatimeRangeFetchCalls = [];
   state.rangeFetchTotalSeconds = 4 * 3600;
@@ -77,7 +81,12 @@ function buildTx() {
   return {
     select() {
       return {
-        from() {
+        from(table) {
+          if (table === devlog) {
+            return {
+              where: async () => state.devlogRows,
+            };
+          }
           return {
             where() {
               return {
@@ -120,6 +129,15 @@ function buildTx() {
         };
       }
 
+      if (table === peerReviewDevlogAssessment) {
+        return {
+          values: async (values) => {
+            state.insertedDevlogAssessments.push(...values);
+            return values;
+          },
+        };
+      }
+
       throw new Error("Unexpected insert table");
     },
     update() {
@@ -153,6 +171,7 @@ const db = {
       insertedReviewsLen: state.insertedReviews.length,
       auditEntriesLen: state.auditEntries.length,
       updateSetsLen: state.updateSets.length,
+      insertedDevlogAssessmentsLen: state.insertedDevlogAssessments.length,
       assignmentDeleteCalls: state.assignmentDeleteCalls,
     };
     try {
@@ -161,6 +180,7 @@ const db = {
       state.insertedReviews.length = snapshot.insertedReviewsLen;
       state.auditEntries.length = snapshot.auditEntriesLen;
       state.updateSets.length = snapshot.updateSetsLen;
+      state.insertedDevlogAssessments.length = snapshot.insertedDevlogAssessmentsLen;
       state.assignmentDeleteCalls = snapshot.assignmentDeleteCalls;
       throw error;
     }
@@ -343,6 +363,32 @@ describe("POST /api/review/[id]", () => {
         reasonRequired: true,
       },
     });
+  });
+
+  test("honors manually entered approved hours when devlog assessments are present", async () => {
+    state.devlogRows = [
+      { id: "devlog-1", durationSeconds: 60 * 60 },
+      { id: "devlog-2", durationSeconds: 60 * 60 },
+    ];
+
+    const { res, json } = await postReview({
+      decision: "approved",
+      comment: "approved manual hours",
+      approvedHours: 3.5,
+      devlogAssessments: [
+        { devlogId: "devlog-1", decision: "accepted" },
+        { devlogId: "devlog-2", decision: "accepted" },
+      ],
+      reviewJustification: buildValidReviewJustification({
+        deflationReasons: ["scopeCouldNotBeVerified"],
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(json.review.approvedHours).toBe(3.5);
+    expect(state.insertedReviews[0].approvedHours).toBe(3.5);
+    expect(state.updateSets[0].approvedHours).toBe(3.5);
+    expect(state.insertedDevlogAssessments.length).toBe(2);
   });
 
   test("accepts normalized deflation payloads for compatibility", async () => {

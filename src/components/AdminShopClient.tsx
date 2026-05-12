@@ -503,15 +503,18 @@ export default function AdminShopClient({
         open={!!selectedOrder}
         onClose={() => setSelectedOrderId(null)}
         title={selectedOrder ? selectedOrder.itemName : "Order details"}
-        description={
-          selectedOrder
-            ? `${selectedOrder.requesterName}${selectedOrder.requesterEmail ? ` • ${selectedOrder.requesterEmail}` : ""}`
-            : ""
-        }
+        description={selectedOrder ? selectedOrder.requesterName : ""}
         maxWidth="2xl"
       >
         {selectedOrder ? (
           <div className="flex flex-col gap-6">
+            {selectedOrder.requesterEmail ? (
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <span>Email</span>
+                <CopyableText text={selectedOrder.requesterEmail} className="text-sm" />
+              </div>
+            ) : null}
+
             <Card variant="flat">
               <CardContent className="pt-5">
                 <div className="flex flex-col gap-4 md:flex-row">

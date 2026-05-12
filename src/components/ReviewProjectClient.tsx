@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import type {
   ProjectEditor,
   ProjectStatus,
   ProjectSubmissionChecklist,
   ReviewDecision,
 } from "@/db/schema";
-import { buildBillyUrl } from "@/lib/constants";
+import { buildBillyUrl, buildJoeFraudUrl } from "@/lib/constants";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
@@ -27,6 +27,7 @@ import {
   buildReviewJustificationRequest,
   buildDefaultReviewJustificationDraft,
   calculateHoursReduction,
+  isApprovedHourIncrement,
   normalizeApprovedHours,
   requiresDeflationReason,
   REVIEW_DEFLATION_REASON_OPTIONS,
@@ -108,6 +109,11 @@ function toHackatimeHours(totalSeconds: number | null | undefined) {
   };
 }
 
+function formatApprovedHoursInput(value: number | null) {
+  if (value === null) return "";
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
 export default function ReviewProjectClient({
   initial,
 }: {
@@ -134,6 +140,8 @@ export default function ReviewProjectClient({
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showDismissConfirmationModal, setShowDismissConfirmationModal] = useState(false);
   const [dismissReason, setDismissReason] = useState("");
+  const [approvedHoursInput, setApprovedHoursInput] = useState("");
+  const [approvedHoursManuallyEdited, setApprovedHoursManuallyEdited] = useState(false);
   const canonicalProjectRange = useMemo(
     () =>
       getProjectConsideredHackatimeRange({
@@ -286,7 +294,7 @@ export default function ReviewProjectClient({
     return hackatimeLoggedHoursValue;
   }, [adminHackatimePreview, decision, hackatimeLoggedHoursValue, isAdmin]);
 
-  const approvedHoursValue = useMemo(() => {
+  const suggestedApprovedHoursValue = useMemo(() => {
     if (!hasDevlogs) {
       if (approvalHackatimeHoursValue === null) return null;
       return normalizeApprovedHours(approvalHackatimeHoursValue);
@@ -296,6 +304,44 @@ export default function ReviewProjectClient({
     return normalizeApprovedHours(h);
   }, [approvalHackatimeHoursValue, assessedTotalSeconds, hasDevlogs]);
 
+  useEffect(() => {
+    if (decision !== "approved") {
+      setApprovedHoursInput("");
+      setApprovedHoursManuallyEdited(false);
+      return;
+    }
+    if (approvedHoursManuallyEdited) return;
+    setApprovedHoursInput(formatApprovedHoursInput(suggestedApprovedHoursValue));
+  }, [approvedHoursManuallyEdited, decision, suggestedApprovedHoursValue]);
+
+  const parsedApprovedHoursInput = useMemo(() => {
+    if (decision !== "approved") return null;
+    const trimmed = approvedHoursInput.trim();
+    if (!trimmed) return null;
+    return Number(trimmed);
+  }, [approvedHoursInput, decision]);
+
+  const approvedHoursInputError = useMemo(() => {
+    if (decision !== "approved") return null;
+    const trimmed = approvedHoursInput.trim();
+    if (!trimmed) return "Enter the approved hours to save.";
+    if (!Number.isFinite(parsedApprovedHoursInput)) return "Approved hours must be a number.";
+    if ((parsedApprovedHoursInput as number) <= 0) return "Approved hours must be greater than 0.";
+    if (!isApprovedHourIncrement(parsedApprovedHoursInput as number)) {
+      return "Approved hours must be in 0.1-hour increments.";
+    }
+    const maxApprovedHours = normalizeApprovedHours(approvalHackatimeHoursValue);
+    if (maxApprovedHours !== null && (parsedApprovedHoursInput as number) > maxApprovedHours) {
+      return `Approved hours cannot exceed captured Hackatime (${maxApprovedHours}h).`;
+    }
+    return null;
+  }, [approvalHackatimeHoursValue, approvedHoursInput, decision, parsedApprovedHoursInput]);
+
+  const approvedHoursValue = useMemo(() => {
+    if (decision !== "approved" || approvedHoursInputError) return null;
+    return normalizeApprovedHours(parsedApprovedHoursInput);
+  }, [approvedHoursInputError, decision, parsedApprovedHoursInput]);
+
   const canSubmit = useMemo(() => {
     if (submitting) return false;
     if (comment.trim().length === 0) return false;
@@ -304,13 +350,14 @@ export default function ReviewProjectClient({
       if (!hasDevlogs && isAdmin && (adminHackatimePreviewLoading || !!adminHackatimePreviewError)) {
         return false;
       }
-      return approvedHoursValue !== null && approvedHoursValue > 0;
+      return !approvedHoursInputError && approvedHoursValue !== null && approvedHoursValue > 0;
     }
     return true;
   }, [
     adminHackatimePreviewError,
     adminHackatimePreviewLoading,
     allDevlogsAssessed,
+    approvedHoursInputError,
     approvedHoursValue,
     comment,
     decision,
@@ -355,6 +402,11 @@ export default function ReviewProjectClient({
     const hackatimeId = project.hackatimeUserId?.trim();
     if (!hackatimeId || !canonicalProjectRange) return null;
     return buildBillyUrl(hackatimeId, canonicalProjectRange.startDate, canonicalProjectRange.endDate);
+  }, [canonicalProjectRange, project.hackatimeUserId]);
+  const joeFraudLink = useMemo(() => {
+    const hackatimeId = project.hackatimeUserId?.trim();
+    if (!hackatimeId || !canonicalProjectRange) return null;
+    return buildJoeFraudUrl(hackatimeId, canonicalProjectRange.startDate, canonicalProjectRange.endDate);
   }, [canonicalProjectRange, project.hackatimeUserId]);
 
   const resetReviewJustificationDraft = useCallback(() => {
@@ -591,8 +643,11 @@ export default function ReviewProjectClient({
     setModalError(null);
     if (nextDecision !== "approved") {
       setShowConfirmationModal(false);
+      setApprovedHoursInput("");
+      setApprovedHoursManuallyEdited(false);
       return;
     }
+    setApprovedHoursManuallyEdited(false);
     setApprovalProjectRange({
       startDate: defaultReviewStartDate,
       endDate: defaultReviewEndDate,
@@ -771,12 +826,28 @@ export default function ReviewProjectClient({
               rel="noreferrer"
               className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
             >
-              <div className="text-sm text-muted-foreground">Hackatime review link</div>
+              <div className="text-sm text-muted-foreground">Billy review link</div>
               <div className="text-foreground font-semibold truncate">{billyLink}</div>
             </a>
           ) : (
             <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
-              <div className="text-sm text-muted-foreground">Hackatime review link</div>
+              <div className="text-sm text-muted-foreground">Billy review link</div>
+              <div className="text-foreground font-semibold">—</div>
+            </div>
+          )}
+          {joeFraudLink ? (
+            <a
+              href={joeFraudLink}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
+            >
+              <div className="text-sm text-muted-foreground">Joe.fraud review link</div>
+              <div className="text-foreground font-semibold truncate">{joeFraudLink}</div>
+            </a>
+          ) : (
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
+              <div className="text-sm text-muted-foreground">Joe.fraud review link</div>
               <div className="text-foreground font-semibold">—</div>
             </div>
           )}
@@ -908,10 +979,44 @@ export default function ReviewProjectClient({
                     : "Pending assessment"}
             </div>
           </div>
+          {decision === "approved" ? (
+            <label className="mt-3 block">
+              <div className="text-xs text-muted-foreground mb-1">
+                Approved hours to save
+              </div>
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0.1"
+                step="0.1"
+                value={approvedHoursInput}
+                onChange={(e) => {
+                  setApprovedHoursManuallyEdited(true);
+                  setApprovedHoursInput(e.target.value);
+                  setModalError(null);
+                }}
+                className="w-full max-w-xs bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                placeholder={
+                  suggestedApprovedHoursValue !== null
+                    ? formatApprovedHoursInput(suggestedApprovedHoursValue)
+                    : "0.0"
+                }
+              />
+              {approvedHoursInputError ? (
+                <div className="mt-1 text-xs text-red-200">{approvedHoursInputError}</div>
+              ) : null}
+              {suggestedApprovedHoursValue !== null ? (
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Suggested from current review data:{" "}
+                  <span className="text-foreground font-semibold">{suggestedApprovedHoursValue}h</span>
+                </div>
+              ) : null}
+            </label>
+          ) : null}
           <div className="mt-1 text-xs text-muted-foreground">
             {hasDevlogs
-              ? "Approved hours is the sum of accepted and adjusted devlog durations, snapped down to the nearest 0.1h. Assess each devlog below before approving."
-              : "This project has no devlogs, so approved hours come from the selected considered Hackatime range, snapped down to the nearest 0.1h."}
+              ? "Start from the assessed devlog total, then enter the approved hours you want to save."
+              : "Start from the selected considered Hackatime range, then enter the approved hours you want to save."}
           </div>
           {decision === "approved" && hasDevlogs && !allDevlogsAssessed ? (
             <div className="mt-2 text-xs text-red-200">
@@ -1093,7 +1198,38 @@ export default function ReviewProjectClient({
                 ) : null}
               </div>
             ) : null}
+            {suggestedApprovedHoursValue !== null ? (
+              <div className="mt-1">
+                Suggested hours:{" "}
+                <span className="text-foreground font-semibold">{suggestedApprovedHoursValue}h</span>
+              </div>
+            ) : null}
           </div>
+
+          <label className="block">
+            <div className="text-xs text-muted-foreground mb-1">Approved hours to save</div>
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0.1"
+              step="0.1"
+              value={approvedHoursInput}
+              onChange={(e) => {
+                setApprovedHoursManuallyEdited(true);
+                setApprovedHoursInput(e.target.value);
+                setModalError(null);
+              }}
+              className="w-full bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              placeholder={
+                suggestedApprovedHoursValue !== null
+                  ? formatApprovedHoursInput(suggestedApprovedHoursValue)
+                  : "0.0"
+              }
+            />
+            {approvedHoursInputError ? (
+              <div className="mt-1 text-xs text-red-200">{approvedHoursInputError}</div>
+            ) : null}
+          </label>
 
           <div className="space-y-4">
             <div className="text-sm font-semibold text-foreground">Evidence checklist</div>

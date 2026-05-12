@@ -421,14 +421,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
         if (decision === "approved") {
           const derivedHours = assessmentSecondsToApprovedHours(totalSeconds);
-          if (derivedHours <= 0) {
+          if (!Number.isFinite(approvedHours) && derivedHours <= 0) {
             throw new ReviewSubmitError(
               "validation",
               "Assessed devlog hours total less than 0.1h; approving is not possible.",
               400,
             );
           }
-          approvedHours = derivedHours;
+          if (!Number.isFinite(approvedHours)) {
+            approvedHours = derivedHours;
+          }
         }
 
         await tx

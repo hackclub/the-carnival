@@ -7,7 +7,7 @@ import type {
   ProjectSubmissionChecklist,
   ReviewDecision,
 } from "@/db/schema";
-import { buildBillyUrl } from "@/lib/constants";
+import { buildBillyUrl, buildJoeFraudUrl } from "@/lib/constants";
 import { Modal } from "@/components/ui";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
@@ -171,6 +171,11 @@ export default function AdminGrantClient({
     const hackatimeId = project.hackatimeUserId?.trim();
     if (!hackatimeId || !canonicalProjectRange) return null;
     return buildBillyUrl(hackatimeId, canonicalProjectRange.startDate, canonicalProjectRange.endDate);
+  }, [canonicalProjectRange, project.hackatimeUserId]);
+  const joeFraudLink = useMemo(() => {
+    const hackatimeId = project.hackatimeUserId?.trim();
+    if (!hackatimeId || !canonicalProjectRange) return null;
+    return buildJoeFraudUrl(hackatimeId, canonicalProjectRange.startDate, canonicalProjectRange.endDate);
   }, [canonicalProjectRange, project.hackatimeUserId]);
 
   const screenshots = project.screenshots ?? [];
@@ -621,6 +626,16 @@ export default function AdminGrantClient({
                 className="text-sm font-semibold text-carnival-blue hover:underline"
               >
                 Review Hackatime (billy)
+              </a>
+            ) : null}
+            {joeFraudLink ? (
+              <a
+                href={joeFraudLink}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
+              >
+                Review Hackatime (Joe.fraud)
               </a>
             ) : null}
           </div>
