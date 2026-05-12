@@ -30,6 +30,7 @@ const state = {
   updateSets: [],
   devlogRows: [],
   insertedDevlogAssessments: [],
+  operations: [],
   assignmentDeleteCalls: 0,
   hackatimeRangeFetchCalls: [],
   rangeFetchTotalSeconds: 4 * 3600,
@@ -72,6 +73,7 @@ function resetState() {
   state.updateSets = [];
   state.devlogRows = [];
   state.insertedDevlogAssessments = [];
+  state.operations = [];
   state.assignmentDeleteCalls = 0;
   state.hackatimeRangeFetchCalls = [];
   state.rangeFetchTotalSeconds = 4 * 3600;
@@ -103,6 +105,7 @@ function buildTx() {
           values(values) {
             return {
               returning: async () => {
+                state.operations.push("insert:peerReview");
                 state.insertedReviews.push(values);
                 return [
                   {
@@ -123,6 +126,7 @@ function buildTx() {
       if (table === reviewAuditLog) {
         return {
           values: async (values) => {
+            state.operations.push("insert:reviewAuditLog");
             state.auditEntries.push(values);
             return [values];
           },
@@ -132,6 +136,7 @@ function buildTx() {
       if (table === peerReviewDevlogAssessment) {
         return {
           values: async (values) => {
+            state.operations.push("insert:peerReviewDevlogAssessment");
             state.insertedDevlogAssessments.push(...values);
             return values;
           },
@@ -143,6 +148,7 @@ function buildTx() {
     update() {
       return {
         set(values) {
+          state.operations.push("update:project");
           state.updateSets.push(values);
           return {
             where() {
@@ -154,10 +160,15 @@ function buildTx() {
         },
       };
     },
-    delete() {
+    delete(table) {
       return {
         where: async () => {
-          state.assignmentDeleteCalls += 1;
+          if (table === peerReviewDevlogAssessment) {
+            state.operations.push("delete:peerReviewDevlogAssessment");
+          } else {
+            state.operations.push("delete");
+            state.assignmentDeleteCalls += 1;
+          }
           return [];
         },
       };
@@ -172,6 +183,7 @@ const db = {
       auditEntriesLen: state.auditEntries.length,
       updateSetsLen: state.updateSets.length,
       insertedDevlogAssessmentsLen: state.insertedDevlogAssessments.length,
+      operationsLen: state.operations.length,
       assignmentDeleteCalls: state.assignmentDeleteCalls,
     };
     try {
@@ -181,6 +193,7 @@ const db = {
       state.auditEntries.length = snapshot.auditEntriesLen;
       state.updateSets.length = snapshot.updateSetsLen;
       state.insertedDevlogAssessments.length = snapshot.insertedDevlogAssessmentsLen;
+      state.operations.length = snapshot.operationsLen;
       state.assignmentDeleteCalls = snapshot.assignmentDeleteCalls;
       throw error;
     }
@@ -389,6 +402,9 @@ describe("POST /api/review/[id]", () => {
     expect(state.insertedReviews[0].approvedHours).toBe(3.5);
     expect(state.updateSets[0].approvedHours).toBe(3.5);
     expect(state.insertedDevlogAssessments.length).toBe(2);
+    expect(state.operations.indexOf("insert:peerReview")).toBeLessThan(
+      state.operations.indexOf("insert:peerReviewDevlogAssessment"),
+    );
   });
 
   test("accepts normalized deflation payloads for compatibility", async () => {

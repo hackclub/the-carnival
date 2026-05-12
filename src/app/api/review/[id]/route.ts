@@ -433,23 +433,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           }
         }
 
-        await tx
-          .delete(peerReviewDevlogAssessment)
-          .where(eq(peerReviewDevlogAssessment.reviewId, reviewId));
-
-        if (parsedAssessments.length > 0) {
-          await tx.insert(peerReviewDevlogAssessment).values(
-            parsedAssessments.map((a) => ({
-              id: randomUUID(),
-              reviewId,
-              devlogId: a.devlogId,
-              decision: a.decision,
-              adjustedSeconds: a.decision === "adjusted" ? a.adjustedSeconds ?? null : null,
-              comment: a.comment,
-              createdAt: now,
-            })),
-          );
-        }
       }
 
       if (decision === "approved") {
@@ -527,6 +510,24 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         hackatimeSnapshotSeconds: number;
         createdAt: Date;
       }>;
+
+      if (parsedAssessments && parsedAssessments.length > 0) {
+        await tx
+          .delete(peerReviewDevlogAssessment)
+          .where(eq(peerReviewDevlogAssessment.reviewId, reviewId));
+
+        await tx.insert(peerReviewDevlogAssessment).values(
+          parsedAssessments.map((a) => ({
+            id: randomUUID(),
+            reviewId,
+            devlogId: a.devlogId,
+            decision: a.decision,
+            adjustedSeconds: a.decision === "adjusted" ? a.adjustedSeconds ?? null : null,
+            comment: a.comment,
+            createdAt: now,
+          })),
+        );
+      }
 
       const updateSet =
         decision === "approved"
