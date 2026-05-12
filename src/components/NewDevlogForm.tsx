@@ -46,7 +46,6 @@ type NewDevlogFormProps = {
     isDefault: boolean;
     firstDevlogId: string | null;
   }>;
-  floorIso: string;
   ceilingIso: string;
   mode?: DevlogFormMode;
   devlogId?: string;
@@ -70,12 +69,17 @@ function fromDatetimeLocalValue(value: string): string | null {
   return d.toISOString();
 }
 
+function defaultStartedAtIso(ceilingIso: string) {
+  const ceiling = new Date(ceilingIso);
+  if (Number.isNaN(ceiling.getTime())) return "";
+  return new Date(ceiling.getTime() - 60 * 60 * 1000).toISOString();
+}
+
 export default function NewDevlogForm({
   projectId,
   projectName,
   hackatimeProjectName,
   linkedHackatimeProjects = [],
-  floorIso,
   ceilingIso,
   mode = "create",
   devlogId,
@@ -104,7 +108,7 @@ export default function NewDevlogForm({
   const [usedAi, setUsedAi] = useState(initial?.usedAi ?? false);
   const [aiDesc, setAiDesc] = useState(initial?.aiUsageDescription ?? "");
   const [startedAt, setStartedAt] = useState(
-    toDatetimeLocalValue(initial?.startedAtIso ?? floorIso),
+    toDatetimeLocalValue(initial?.startedAtIso ?? defaultStartedAtIso(ceilingIso)),
   );
   const [endedAt, setEndedAt] = useState(
     toDatetimeLocalValue(initial?.endedAtIso ?? ceilingIso),
@@ -119,18 +123,16 @@ export default function NewDevlogForm({
   const endedIso = useMemo(() => fromDatetimeLocalValue(endedAt), [endedAt]);
   const parsedWindow = useMemo(() => {
     if (!canEditWindow || !startedIso || !endedIso) return null;
-    const floor = new Date(floorIso);
     const ceiling = new Date(ceilingIso);
-    if (Number.isNaN(floor.getTime()) || Number.isNaN(ceiling.getTime())) {
+    if (Number.isNaN(ceiling.getTime())) {
       return { ok: false as const, error: "Choose valid start and end times." };
     }
     return parseDevlogWindow({
       startedAt: startedIso,
       endedAt: endedIso,
-      floor,
       ceiling,
     });
-  }, [canEditWindow, ceilingIso, endedIso, floorIso, startedIso]);
+  }, [canEditWindow, ceilingIso, endedIso, startedIso]);
   const effectiveStartedIso = parsedWindow?.ok ? parsedWindow.startedAt.toISOString() : startedIso;
   const hackatimeProjectOptions = useMemo(() => {
     const seen = new Set<string>();
@@ -223,13 +225,10 @@ export default function NewDevlogForm({
     if (parsedWindow.error === "Devlog end must be after start.") {
       return "End time must be after start time.";
     }
-    if (parsedWindow.error.startsWith("Devlog start can't")) {
-      return `Start can't be earlier than ${new Date(floorIso).toLocaleString()} (end of your last devlog or project start).`;
-    }
     if (parsedWindow.error.startsWith("Devlog end can't")) return "End can't be later than now.";
     if (parsedWindow.error.startsWith("Invalid devlog")) return "Choose valid start and end times.";
     return parsedWindow.error;
-  }, [floorIso, parsedWindow]);
+  }, [parsedWindow]);
 
   useEffect(() => {
     if (!canEditWindow) {
@@ -540,15 +539,15 @@ export default function NewDevlogForm({
           <div>
             <div className="font-semibold text-foreground">Working window</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Pick the time range you worked during. Start can&apos;t be earlier than the end of your
-              last devlog (or the project start), and end can&apos;t be in the future.
+              Pick the time range you worked during. Devlogs can describe work from before this
+              project was created on the platform; end just can&apos;t be in the future.
             </p>
           </div>
 
           {!canEditWindow ? (
             <PlatformNestedSurface className="px-3 py-2 text-sm text-muted-foreground">
               {windowLockedReason ??
-                "The time window for this devlog is locked because newer devlogs exist. Edit title, description, attachments, or AI declaration only."}
+                "The time window for this devlog is locked. Edit title, description, attachments, or AI declaration only."}
             </PlatformNestedSurface>
           ) : null}
 

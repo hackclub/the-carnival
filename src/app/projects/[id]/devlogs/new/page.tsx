@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui";
 import { db } from "@/db";
 import { project } from "@/db/schema";
 import { computeDevlogWindowCeiling } from "@/lib/devlog-shared";
-import { listProjectHackatimeProjects, getDevlogWindowFloor } from "@/lib/devlogs";
+import { listProjectHackatimeProjects } from "@/lib/devlogs";
 import { getServerSession } from "@/lib/server-session";
 
 export default async function NewDevlogPage(props: {
@@ -28,8 +28,6 @@ export default async function NewDevlogPage(props: {
       status: project.status,
       hackatimeProjectName: project.hackatimeProjectName,
       submittedAt: project.submittedAt,
-      startedOnCarnivalAt: project.startedOnCarnivalAt,
-      createdAt: project.createdAt,
     })
     .from(project)
     .where(and(eq(project.id, id), eq(project.creatorId, session.user.id)))
@@ -64,8 +62,6 @@ export default async function NewDevlogPage(props: {
     );
   }
 
-  const floorBase = p.startedOnCarnivalAt ?? p.createdAt;
-  const floor = await getDevlogWindowFloor(p.id, floorBase);
   const ceiling = computeDevlogWindowCeiling({
     projectStatus: p.status,
     submittedAt: p.submittedAt ?? null,
@@ -87,7 +83,6 @@ export default async function NewDevlogPage(props: {
         projectName={p.name}
         hackatimeProjectName={hackatimeProjectName}
         linkedHackatimeProjects={linkedHackatimeProjects}
-        floorIso={floor.toISOString()}
         ceilingIso={ceiling.toISOString()}
       />
     </AppShell>

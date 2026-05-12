@@ -73,23 +73,8 @@ export default function ProjectDevlogsSummary({
               <Badge variant="info">{totalFormatted.label} logged</Badge>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Log your progress. Reviewers verify your hours between{" "}
-              {projectStartedAtIso ? (
-                <strong className="text-foreground">
-                  {formatDate(projectStartedAtIso)}
-                </strong>
-              ) : (
-                "project start"
-              )}
-              {" "}and{" "}
-              {submittedAtIso ? (
-                <strong className="text-foreground">
-                  {formatDate(submittedAtIso)}
-                </strong>
-              ) : (
-                "submission"
-              )}
-              .
+              Log what you worked on and when. Devlogs can describe work from any point in
+              the project timeline.
             </p>
           </div>
           <div className="flex items-center gap-2">
