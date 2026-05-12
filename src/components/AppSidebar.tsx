@@ -36,6 +36,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { type AdminIndicatorCounts } from "@/lib/admin-indicators";
 import WalletConverterPopover from "@/components/WalletConverterPopover";
 
 type UserRole = "user" | "reviewer" | "admin" | null;
@@ -175,10 +176,12 @@ export default function AppSidebar({
   user,
   initialWalletBalance,
   walletFetchedAt,
+  adminIndicators: _adminIndicators,
 }: {
   user: SidebarUser | null;
   initialWalletBalance: number | null;
   walletFetchedAt: string;
+  adminIndicators: AdminIndicatorCounts | null;
 }) {
   const pathname = usePathname();
   const { mobileOpen, setMobileOpen, collapsed, toggleCollapsed } = useSidebar();
