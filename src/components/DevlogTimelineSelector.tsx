@@ -19,7 +19,7 @@ type Props = {
   linkedProjectNames: string[];
   totalCodedTime: number;
   /** Called whenever the derived window changes. Null when nothing is selected. */
-  onWindowChange: (window: { startedAt: Date; endedAt: Date } | null) => void;
+  onWindowChange: (window: DevlogWindow | null) => void;
 };
 
 function formatTime(epochSeconds: number): string {
@@ -42,6 +42,25 @@ function formatHoursMinutes(seconds: number): string {
   const m = Math.floor((seconds % 3600) / 60);
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
+}
+
+type DevlogWindow = { startedAt: Date; endedAt: Date };
+
+/** Smallest window covering the given span indices, or null if none are valid. */
+function windowFromIndices(
+  spans: TimelineSpan[],
+  indices: Iterable<number>,
+): DevlogWindow | null {
+  let minStart = Infinity;
+  let maxEnd = -Infinity;
+  for (const i of indices) {
+    const span = spans[i];
+    if (!span) continue;
+    if (span.startTime < minStart) minStart = span.startTime;
+    if (span.endTime > maxEnd) maxEnd = span.endTime;
+  }
+  if (!Number.isFinite(minStart) || !Number.isFinite(maxEnd)) return null;
+  return { startedAt: new Date(minStart * 1000), endedAt: new Date(maxEnd * 1000) };
 }
 
 /** Horizontal bar visualization of spans within a time window. */
@@ -105,22 +124,10 @@ export default function DevlogTimelineSelector({
 }: Props) {
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
 
-  const derivedWindow = useMemo(() => {
-    if (selectedIndices.size === 0) return null;
-    let minStart = Infinity;
-    let maxEnd = -Infinity;
-    for (const i of selectedIndices) {
-      const span = spans[i];
-      if (!span) continue;
-      if (span.startTime < minStart) minStart = span.startTime;
-      if (span.endTime > maxEnd) maxEnd = span.endTime;
-    }
-    if (!Number.isFinite(minStart) || !Number.isFinite(maxEnd)) return null;
-    return {
-      startedAt: new Date(minStart * 1000),
-      endedAt: new Date(maxEnd * 1000),
-    };
-  }, [selectedIndices, spans]);
+  const derivedWindow = useMemo(
+    () => windowFromIndices(spans, selectedIndices),
+    [selectedIndices, spans],
+  );
 
   const selectedDuration = useMemo(() => {
     let total = 0;
@@ -138,21 +145,7 @@ export default function DevlogTimelineSelector({
       } else {
         next.add(i);
       }
-      // Notify parent after state settles
-      const newWindow = (() => {
-        if (next.size === 0) return null;
-        let minStart = Infinity;
-        let maxEnd = -Infinity;
-        for (const idx of next) {
-          const span = spans[idx];
-          if (!span) continue;
-          if (span.startTime < minStart) minStart = span.startTime;
-          if (span.endTime > maxEnd) maxEnd = span.endTime;
-        }
-        if (!Number.isFinite(minStart) || !Number.isFinite(maxEnd)) return null;
-        return { startedAt: new Date(minStart * 1000), endedAt: new Date(maxEnd * 1000) };
-      })();
-      onWindowChange(newWindow);
+      onWindowChange(windowFromIndices(spans, next));
       return next;
     });
   }
@@ -160,18 +153,7 @@ export default function DevlogTimelineSelector({
   function selectAll() {
     const all = new Set(spans.map((_, i) => i));
     setSelectedIndices(all);
-    if (spans.length === 0) { onWindowChange(null); return; }
-    let minStart = Infinity;
-    let maxEnd = -Infinity;
-    for (const span of spans) {
-      if (span.startTime < minStart) minStart = span.startTime;
-      if (span.endTime > maxEnd) maxEnd = span.endTime;
-    }
-    onWindowChange(
-      Number.isFinite(minStart)
-        ? { startedAt: new Date(minStart * 1000), endedAt: new Date(maxEnd * 1000) }
-        : null,
-    );
+    onWindowChange(windowFromIndices(spans, all));
   }
 
   function clearAll() {
