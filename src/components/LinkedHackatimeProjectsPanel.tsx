@@ -23,6 +23,19 @@ type Props = {
   readonly?: boolean;
 };
 
+/** Parse a `{ projects, error }` JSON response into a normalized shape. */
+async function readProjectsResponse(
+  res: Response,
+): Promise<{ projects: LinkedProject[]; error: string | null }> {
+  const data = (await res.json().catch(() => null)) as
+    | { projects?: unknown; error?: unknown }
+    | null;
+  return {
+    projects: Array.isArray(data?.projects) ? (data.projects as LinkedProject[]) : [],
+    error: typeof data?.error === "string" ? data.error : null,
+  };
+}
+
 export default function LinkedHackatimeProjectsPanel({ projectId, readonly = false }: Props) {
   const [linked, setLinked] = useState<LinkedProject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,18 +55,12 @@ export default function LinkedHackatimeProjectsPanel({ projectId, readonly = fal
     setError(null);
     try {
       const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/hackatime-projects`);
-      const data = (await res.json().catch(() => null)) as
-        | { projects?: unknown; error?: unknown }
-        | null;
+      const { projects, error } = await readProjectsResponse(res);
       if (!res.ok) {
-        setError(typeof data?.error === "string" ? data.error : "Failed to load linked projects.");
+        setError(error ?? "Failed to load linked projects.");
         setLinked([]);
       } else {
-        setLinked(
-          Array.isArray(data?.projects)
-            ? (data.projects as LinkedProject[])
-            : [],
-        );
+        setLinked(projects);
       }
     } catch {
       setError("Failed to load linked projects.");
@@ -114,15 +121,11 @@ export default function LinkedHackatimeProjectsPanel({ projectId, readonly = fal
           body: JSON.stringify({ name }),
         },
       );
-      const data = (await res.json().catch(() => null)) as
-        | { projects?: unknown; error?: unknown }
-        | null;
+      const { projects, error } = await readProjectsResponse(res);
       if (!res.ok) {
-        setAddError(
-          typeof data?.error === "string" ? data.error : "Failed to add project.",
-        );
+        setAddError(error ?? "Failed to add project.");
       } else {
-        setLinked(Array.isArray(data?.projects) ? (data.projects as LinkedProject[]) : []);
+        setLinked(projects);
         setAddName("");
         toast.success(`"${name}" linked.`);
       }
@@ -140,14 +143,11 @@ export default function LinkedHackatimeProjectsPanel({ projectId, readonly = fal
         `/api/projects/${encodeURIComponent(projectId)}/hackatime-projects?name=${encodeURIComponent(name)}`,
         { method: "DELETE" },
       );
-      const data = (await res.json().catch(() => null)) as
-        | { projects?: unknown; error?: unknown }
-        | null;
+      const { projects, error } = await readProjectsResponse(res);
       if (!res.ok) {
-        const msg = typeof data?.error === "string" ? data.error : "Failed to remove project.";
-        toast.error(msg);
+        toast.error(error ?? "Failed to remove project.");
       } else {
-        setLinked(Array.isArray(data?.projects) ? (data.projects as LinkedProject[]) : []);
+        setLinked(projects);
         toast.success(`"${name}" unlinked.`);
       }
     } catch {
