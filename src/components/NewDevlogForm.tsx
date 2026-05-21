@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import DevlogAttachmentsInput from "@/components/DevlogAttachmentsInput";
+import DevlogTimelineSelector, { type TimelineSpan } from "@/components/DevlogTimelineSelector";
 import { RichTextField } from "@/components/RichTextField";
 import {
   Button,
@@ -75,6 +76,23 @@ function defaultStartedAtIso(ceilingIso: string) {
   return new Date(ceiling.getTime() - 60 * 60 * 1000).toISOString();
 }
 
+function toDateOnly(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+}
+
+type TimelineState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "error"; message: string; code?: string }
+  | {
+      status: "loaded";
+      spans: TimelineSpan[];
+      linkedProjectNames: string[];
+      totalCodedTime: number;
+    };
+
 export default function NewDevlogForm({
   projectId,
   projectName,
@@ -113,6 +131,16 @@ export default function NewDevlogForm({
   const [endedAt, setEndedAt] = useState(
     toDatetimeLocalValue(initial?.endedAtIso ?? ceilingIso),
   );
+
+  // Timeline state
+  const [selectedDate, setSelectedDate] = useState(() => {
+    // Default to the date of the current endedAt or today
+    const endIso = initial?.endedAtIso ?? ceilingIso;
+    return toDateOnly(endIso) || toDateOnly(new Date().toISOString());
+  });
+  const [timeline, setTimeline] = useState<TimelineState>({ status: "idle" });
+  const [timelineEnabled, setTimelineEnabled] = useState(true);
+
   const [previewSeconds, setPreviewSeconds] = useState<number | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -219,6 +247,63 @@ export default function NewDevlogForm({
   useEffect(() => {
     void refreshHackatimeProjects();
   }, [refreshHackatimeProjects]);
+
+  // Fetch timeline whenever the selected date changes (only in create mode with editable window)
+  useEffect(() => {
+    if (!canEditWindow || isEdit || !selectedDate || !timelineEnabled) return;
+
+    let cancelled = false;
+    setTimeline({ status: "loading" });
+
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/projects/${encodeURIComponent(projectId)}/devlogs/timeline?date=${encodeURIComponent(selectedDate)}`,
+        );
+        const data = (await res.json().catch(() => null)) as {
+          spans?: unknown;
+          linkedProjectNames?: unknown;
+          totalCodedTime?: unknown;
+          error?: unknown;
+          code?: unknown;
+        } | null;
+
+        if (cancelled) return;
+
+        if (!res.ok) {
+          const code = typeof data?.code === "string" ? data.code : undefined;
+          // Gracefully disable timeline if the feature isn't configured or user has no hackatime ID
+          if (code === "no_admin_token" || code === "no_hackatime_user_id") {
+            setTimelineEnabled(false);
+            setTimeline({ status: "idle" });
+            return;
+          }
+          setTimeline({
+            status: "error",
+            message: typeof data?.error === "string" ? data.error : "Failed to load timeline.",
+            code,
+          });
+          return;
+        }
+
+        const spans = (Array.isArray(data?.spans) ? data.spans : []) as TimelineSpan[];
+        setTimeline({
+          status: "loaded",
+          spans,
+          linkedProjectNames: Array.isArray(data?.linkedProjectNames)
+            ? (data.linkedProjectNames as string[])
+            : [],
+          totalCodedTime:
+            typeof data?.totalCodedTime === "number" ? data.totalCodedTime : 0,
+        });
+      } catch {
+        if (cancelled) return;
+        setTimeline({ status: "error", message: "Failed to load timeline." });
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [canEditWindow, isEdit, projectId, selectedDate, timelineEnabled]);
 
   const windowError = useMemo(() => {
     if (!parsedWindow || parsedWindow.ok) return null;
@@ -402,6 +487,8 @@ export default function NewDevlogForm({
     ? `/projects/${projectId}/devlogs/${devlogId}`
     : `/projects/${projectId}`;
 
+  const showTimeline = canEditWindow && !isEdit && timelineEnabled;
+
   return (
     <div className="space-y-5">
       <Card>
@@ -549,6 +636,53 @@ export default function NewDevlogForm({
               {windowLockedReason ??
                 "The time window for this devlog is locked. Edit title, description, attachments, or AI declaration only."}
             </PlatformNestedSurface>
+          ) : null}
+
+          {showTimeline ? (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="block flex-1 min-w-[160px]">
+                  <FormLabel>Date</FormLabel>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    max={toDateOnly(ceilingIso)}
+                    onChange={(e) => {
+                      setSelectedDate(e.target.value);
+                      setTimeline({ status: "idle" });
+                    }}
+                    className="w-full bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  />
+                </label>
+              </div>
+
+              {timeline.status === "loading" ? (
+                <PlatformNestedSurface className="px-3 py-2 text-sm text-muted-foreground">
+                  Loading your coding activity for {selectedDate}…
+                </PlatformNestedSurface>
+              ) : timeline.status === "error" ? (
+                <PlatformNestedSurface className="px-3 py-2 text-sm text-red-200">
+                  {timeline.message}
+                </PlatformNestedSurface>
+              ) : timeline.status === "loaded" ? (
+                <DevlogTimelineSelector
+                  date={selectedDate}
+                  spans={timeline.spans}
+                  linkedProjectNames={timeline.linkedProjectNames}
+                  totalCodedTime={timeline.totalCodedTime}
+                  onWindowChange={(window) => {
+                    if (window) {
+                      setStartedAt(toDatetimeLocalValue(window.startedAt.toISOString()));
+                      setEndedAt(toDatetimeLocalValue(window.endedAt.toISOString()));
+                    }
+                  }}
+                />
+              ) : null}
+
+              <div className="text-xs text-muted-foreground">
+                Or set the window manually:
+              </div>
+            </div>
           ) : null}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
