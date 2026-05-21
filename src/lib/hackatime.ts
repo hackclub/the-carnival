@@ -381,6 +381,123 @@ export async function refreshHackatimeProjectSnapshotForRange(
   };
 }
 
+// ============================================================================
+// Admin Timeline API
+// ============================================================================
+
+type AdminTimelineSpanRaw = {
+  start_time?: number;
+  end_time?: number;
+  duration?: number;
+  files_edited?: unknown[];
+  projects_edited_details?: Array<{ name?: unknown; repo_url?: unknown }>;
+  editors?: unknown[];
+  languages?: unknown[];
+};
+
+type AdminTimelineUserRaw = {
+  user?: { id?: unknown; username?: unknown };
+  spans?: AdminTimelineSpanRaw[];
+  total_coded_time?: unknown;
+};
+
+type AdminTimelineResponseRaw = {
+  date?: unknown;
+  next_date?: unknown;
+  prev_date?: unknown;
+  users?: AdminTimelineUserRaw[];
+};
+
+export type HackatimeAdminTimelineSpan = {
+  startTime: number; // Unix epoch seconds (float)
+  endTime: number;
+  duration: number; // seconds
+  projectsEdited: Array<{ name: string; repoUrl: string | null }>;
+  editors: string[];
+  languages: string[];
+};
+
+export type HackatimeAdminTimelineUser = {
+  userId: number;
+  username: string;
+  spans: HackatimeAdminTimelineSpan[];
+  totalCodedTime: number;
+};
+
+export type HackatimeAdminTimeline = {
+  date: string;
+  nextDate: string;
+  prevDate: string;
+  users: HackatimeAdminTimelineUser[];
+};
+
+/**
+ * Fetch a single day's coding timeline for one or more users via the Hackatime
+ * admin API. Requires HACKATIME_ADMIN_API_TOKEN to be set.
+ */
+export async function fetchHackatimeAdminTimeline(input: {
+  date: string; // YYYY-MM-DD
+  hackatimeUserId: string; // numeric user ID as string
+}): Promise<HackatimeAdminTimeline> {
+  const adminToken = process.env.HACKATIME_ADMIN_API_TOKEN?.trim();
+  if (!adminToken) {
+    throw new Error("Hackatime admin API token is not configured (HACKATIME_ADMIN_API_TOKEN).");
+  }
+
+  const url = new URL("https://hackatime.hackclub.com/api/admin/v1/timeline");
+  url.searchParams.set("date", input.date);
+  url.searchParams.set("user_ids", input.hackatimeUserId);
+
+  const response = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${adminToken}` },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `Hackatime admin timeline request failed (${response.status} ${response.statusText})${body ? `: ${body.slice(0, 300)}` : ""}`,
+    );
+  }
+
+  const raw = (await response.json().catch(() => ({}))) as AdminTimelineResponseRaw;
+
+  const users: HackatimeAdminTimelineUser[] = (Array.isArray(raw.users) ? raw.users : []).map(
+    (u) => ({
+      userId: typeof u.user?.id === "number" ? u.user.id : 0,
+      username: typeof u.user?.username === "string" ? u.user.username : "",
+      totalCodedTime: typeof u.total_coded_time === "number" ? u.total_coded_time : 0,
+      spans: (Array.isArray(u.spans) ? u.spans : []).map((s) => ({
+        startTime: typeof s.start_time === "number" ? s.start_time : 0,
+        endTime: typeof s.end_time === "number" ? s.end_time : 0,
+        duration: typeof s.duration === "number" ? s.duration : 0,
+        projectsEdited: (Array.isArray(s.projects_edited_details)
+          ? s.projects_edited_details
+          : []
+        )
+          .map((p) => ({
+            name: typeof p.name === "string" ? p.name.trim() : "",
+            repoUrl: typeof p.repo_url === "string" ? p.repo_url : null,
+          }))
+          .filter((p) => p.name.length > 0),
+        editors: (Array.isArray(s.editors) ? s.editors : []).filter(
+          (e): e is string => typeof e === "string",
+        ),
+        languages: (Array.isArray(s.languages) ? s.languages : []).filter(
+          (l): l is string => typeof l === "string",
+        ),
+      })),
+    }),
+  );
+
+  return {
+    date: typeof raw.date === "string" ? raw.date : input.date,
+    nextDate: typeof raw.next_date === "string" ? raw.next_date : "",
+    prevDate: typeof raw.prev_date === "string" ? raw.prev_date : "",
+    users,
+  };
+}
+
 export async function fetchHackatimeProjectHoursByName(
   userId: string,
 ): Promise<Record<string, { hours: number; minutes: number }>> {

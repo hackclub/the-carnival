@@ -9,6 +9,7 @@ import type {
   ProjectSubmissionChecklist,
   ReviewDecision,
 } from "@/db/schema";
+import LinkedHackatimeProjectsPanel from "@/components/LinkedHackatimeProjectsPanel";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
 import { Modal } from "@/components/ui";
@@ -1341,6 +1342,8 @@ export default function ManageProjectClient({
           </button>
         </div>
       </div>
+
+      <LinkedHackatimeProjectsPanel projectId={initial.id} readonly={isGranted} />
 
       <div className="platform-surface-card p-6 space-y-3">
         <div className="flex items-start justify-between gap-4">

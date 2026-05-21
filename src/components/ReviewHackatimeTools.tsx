@@ -30,12 +30,20 @@ type HackatimeStats = {
   };
 };
 
+type LinkedProject = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  firstDevlogId: string | null;
+};
+
 type Props = {
   projectId: string;
   hackatimeUserId: string | null;
   projectStartedAtIso: string | null;
   submittedAtIso: string | null;
   projectCreatedAtIso: string;
+  linkedHackatimeProjects?: LinkedProject[];
 };
 
 function toDateOnly(iso: string | null): string | null {
@@ -76,6 +84,7 @@ export default function ReviewHackatimeTools({
   projectStartedAtIso,
   submittedAtIso,
   projectCreatedAtIso,
+  linkedHackatimeProjects = [],
 }: Props) {
   const defaultStart =
     toDateOnly(projectStartedAtIso) ?? toDateOnly(projectCreatedAtIso) ?? null;
@@ -137,6 +146,26 @@ export default function ReviewHackatimeTools({
             <h3 className="text-lg font-semibold text-foreground">
               Hackatime review tools
             </h3>
+            {linkedHackatimeProjects.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {linkedHackatimeProjects.map((lp) => (
+                  <span
+                    key={lp.id}
+                    className={[
+                      "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                      lp.isDefault
+                        ? "border-carnival-blue/40 bg-carnival-blue/10 text-carnival-blue"
+                        : "border-border bg-muted text-muted-foreground",
+                    ].join(" ")}
+                  >
+                    <code>{lp.name}</code>
+                    {lp.isDefault ? (
+                      <span className="ml-1 text-[10px] opacity-70">default</span>
+                    ) : null}
+                  </span>
+                ))}
+              </div>
+            ) : null}
             <p className="mt-1 text-sm text-muted-foreground">
               Window considered:{" "}
               <span className="text-foreground font-semibold">

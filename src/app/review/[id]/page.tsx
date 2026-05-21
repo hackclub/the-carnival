@@ -17,6 +17,7 @@ import {
   type UserRole,
 } from "@/db/schema";
 import { hydrateReviewJustification } from "@/lib/review-justification";
+import { listProjectHackatimeProjects } from "@/lib/devlogs";
 import { getServerSession } from "@/lib/server-session";
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
@@ -176,6 +177,8 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
     authorName: row.authorName || "Unknown",
   }));
 
+  const linkedHackatimeProjects = await listProjectHackatimeProjects(id);
+
   return (
     <AppShell title="Review project">
       <div className="mb-6 flex items-center justify-between gap-4">
@@ -196,6 +199,7 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
           projectStartedAtIso={p.startedOnCarnivalAt ? p.startedOnCarnivalAt.toISOString() : null}
           submittedAtIso={p.submittedAt ? p.submittedAt.toISOString() : null}
           projectCreatedAtIso={p.createdAt.toISOString()}
+          linkedHackatimeProjects={linkedHackatimeProjects}
         />
       </div>
 
