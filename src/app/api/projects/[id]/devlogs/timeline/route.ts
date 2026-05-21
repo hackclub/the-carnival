@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { project, user } from "@/db/schema";
+import { user } from "@/db/schema";
 import { listProjectHackatimeProjects } from "@/lib/devlogs";
 import { fetchHackatimeAdminTimeline } from "@/lib/hackatime";
-import { getServerSession } from "@/lib/server-session";
+import { resolveProjectAccess } from "@/lib/project-route";
 
 /**
  * GET /api/projects/[id]/devlogs/timeline?date=YYYY-MM-DD
@@ -18,23 +18,11 @@ import { getServerSession } from "@/lib/server-session";
  * error so the client can gracefully fall back to manual datetime pickers.
  */
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { id: projectId } = await ctx.params;
 
-  const projectRows = await db
-    .select({ id: project.id, creatorId: project.creatorId })
-    .from(project)
-    .where(eq(project.id, projectId))
-    .limit(1);
-
-  const p = projectRows[0];
-  if (!p) return NextResponse.json({ error: "Project not found" }, { status: 404 });
-  if (p.creatorId !== userId) {
+  const access = await resolveProjectAccess(projectId);
+  if ("error" in access) return access.error;
+  if (access.project.creatorId !== access.userId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -57,7 +45,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const userRows = await db
     .select({ hackatimeUserId: user.hackatimeUserId })
     .from(user)
-    .where(eq(user.id, userId))
+    .where(eq(user.id, access.userId))
     .limit(1);
 
   const hackatimeUserId = userRows[0]?.hackatimeUserId?.trim() ?? "";

@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { devlog, project, projectHackatimeProject } from "@/db/schema";
+import { devlog, projectHackatimeProject } from "@/db/schema";
 import {
   listProjectHackatimeProjects,
   upsertProjectHackatimeProject,
 } from "@/lib/devlogs";
-import { getServerSession } from "@/lib/server-session";
-
-function canRead(role: unknown, isCreator: boolean) {
-  return isCreator || role === "reviewer" || role === "admin";
-}
+import { canReadProject, resolveProjectAccess } from "@/lib/project-route";
 
 /**
  * GET /api/projects/[id]/hackatime-projects
@@ -18,23 +14,11 @@ function canRead(role: unknown, isCreator: boolean) {
  * Accessible by the creator, reviewers, and admins.
  */
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const { id: projectId } = await ctx.params;
 
-  const projectRows = await db
-    .select({ id: project.id, creatorId: project.creatorId })
-    .from(project)
-    .where(eq(project.id, projectId))
-    .limit(1);
-
-  const p = projectRows[0];
-  if (!p) return NextResponse.json({ error: "Project not found" }, { status: 404 });
-
-  const role = (session?.user as { role?: unknown } | undefined)?.role;
-  if (!canRead(role, p.creatorId === userId)) {
+  const access = await resolveProjectAccess(projectId);
+  if ("error" in access) return access.error;
+  if (!canReadProject(access.role, access.project.creatorId === access.userId)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -49,21 +33,11 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
  * requiring a devlog. Creator-only.
  */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const { id: projectId } = await ctx.params;
 
-  const projectRows = await db
-    .select({ id: project.id, creatorId: project.creatorId, hackatimeProjectName: project.hackatimeProjectName })
-    .from(project)
-    .where(eq(project.id, projectId))
-    .limit(1);
-
-  const p = projectRows[0];
-  if (!p) return NextResponse.json({ error: "Project not found" }, { status: 404 });
-  if (p.creatorId !== userId) {
+  const access = await resolveProjectAccess(projectId);
+  if ("error" in access) return access.error;
+  if (access.project.creatorId !== access.userId) {
     return NextResponse.json(
       { error: "Only the project creator can manage linked projects." },
       { status: 403 },
@@ -89,7 +63,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   // Only make this the default if there are no linked projects yet AND the
   // project has no canonical hackatimeProjectName set. This prevents
   // overwriting an existing primary project name when a user adds an extra one.
-  const hasCanonicalName = (p.hackatimeProjectName ?? "").trim().length > 0;
+  const hasCanonicalName = (access.project.hackatimeProjectName ?? "").trim().length > 0;
   const makeDefault = existing.length === 0 && !hasCanonicalName;
 
   await upsertProjectHackatimeProject({ projectId, name, makeDefault });
@@ -105,21 +79,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
  * be removed. Creator-only.
  */
 export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const { id: projectId } = await ctx.params;
 
-  const projectRows = await db
-    .select({ id: project.id, creatorId: project.creatorId })
-    .from(project)
-    .where(eq(project.id, projectId))
-    .limit(1);
-
-  const p = projectRows[0];
-  if (!p) return NextResponse.json({ error: "Project not found" }, { status: 404 });
-  if (p.creatorId !== userId) {
+  const access = await resolveProjectAccess(projectId);
+  if ("error" in access) return access.error;
+  if (access.project.creatorId !== access.userId) {
     return NextResponse.json(
       { error: "Only the project creator can manage linked projects." },
       { status: 403 },
