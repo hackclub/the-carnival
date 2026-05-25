@@ -130,9 +130,11 @@ export default function ReviewProjectClient({
   const [project, setProject] = useState(initial.project);
   const [reviews, setReviews] = useState<ReviewItem[]>(initial.reviews);
   const [assignments, setAssignments] = useState<AssignmentItem[]>(initial.assignments);
+  const [reviewDevlogs, setReviewDevlogs] = useState<ReviewDevlogFull[]>(initial.devlogs);
   const [decision, setDecision] = useState<ReviewDecision>("comment");
   const [comment, setComment] = useState("");
   const [devlogAssessments, setDevlogAssessments] = useState<Record<string, DevlogAssessmentDraft>>({});
+  const [refreshingDevlogIds, setRefreshingDevlogIds] = useState<Set<string>>(() => new Set());
   const [submitting, setSubmitting] = useState(false);
   const [assignmentBusy, setAssignmentBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -218,16 +220,16 @@ export default function ReviewProjectClient({
     return new Map<string, DevlogAssessmentDraft>(Object.entries(devlogAssessments));
   }, [devlogAssessments]);
 
-  const hasDevlogs = initial.devlogs.length > 0;
+  const hasDevlogs = reviewDevlogs.length > 0;
 
   const allDevlogsAssessed = useMemo(() => {
     if (!hasDevlogs) return false;
-    return initial.devlogs.every((d) => assessmentsMap.has(d.id));
-  }, [assessmentsMap, hasDevlogs, initial.devlogs]);
+    return reviewDevlogs.every((d) => assessmentsMap.has(d.id));
+  }, [assessmentsMap, hasDevlogs, reviewDevlogs]);
 
   const assessedTotalSeconds = useMemo(() => {
     let total = 0;
-    for (const d of initial.devlogs) {
+    for (const d of reviewDevlogs) {
       const a = assessmentsMap.get(d.id);
       if (!a) continue;
       total += effectiveSecondsForAssessment(
@@ -236,7 +238,7 @@ export default function ReviewProjectClient({
       );
     }
     return total;
-  }, [assessmentsMap, initial.devlogs]);
+  }, [assessmentsMap, reviewDevlogs]);
 
   const hackatimeLoggedHoursValue = useMemo(() => {
     if (!project.hackatimeHours) return null;
@@ -705,6 +707,60 @@ export default function ReviewProjectClient({
     }
   }, [assignmentBusy, isAssignedToMe, project.id]);
 
+  const onRefreshDevlogHackatime = useCallback(async (devlogId: string) => {
+    if (refreshingDevlogIds.has(devlogId)) return;
+    setRefreshingDevlogIds((prev) => new Set(prev).add(devlogId));
+    const toastId = toast.loading("Refreshing devlog Hackatime…");
+    try {
+      const res = await fetch(
+        `/api/projects/${encodeURIComponent(project.id)}/devlogs/${encodeURIComponent(devlogId)}/refresh`,
+        { method: "POST" },
+      );
+      const data = (await res.json().catch(() => null)) as
+        | { devlog?: ReviewDevlogFull; error?: unknown }
+        | null;
+      if (!res.ok || !data?.devlog) {
+        const message =
+          typeof data?.error === "string" ? data.error : "Failed to refresh devlog Hackatime.";
+        toast.error(message, { id: toastId });
+        setRefreshingDevlogIds((prev) => {
+          const next = new Set(prev);
+          next.delete(devlogId);
+          return next;
+        });
+        return;
+      }
+
+      const refreshed = data.devlog;
+      setReviewDevlogs((prev) => prev.map((d) => (d.id === refreshed.id ? refreshed : d)));
+      setDevlogAssessments((prev) => {
+        const draft = prev[refreshed.id];
+        if (!draft || draft.decision !== "adjusted") return prev;
+        const nextAdjustedSeconds = Math.min(
+          Math.max(0, Math.floor(draft.adjustedSeconds ?? 0)),
+          Math.max(0, Math.floor(refreshed.durationSeconds || 0)),
+        );
+        if (nextAdjustedSeconds === draft.adjustedSeconds) return prev;
+        return {
+          ...prev,
+          [refreshed.id]: {
+            ...draft,
+            adjustedSeconds: nextAdjustedSeconds,
+          },
+        };
+      });
+      toast.success("Devlog Hackatime refreshed.", { id: toastId });
+    } catch {
+      toast.error("Failed to refresh devlog Hackatime.", { id: toastId });
+    } finally {
+      setRefreshingDevlogIds((prev) => {
+        const next = new Set(prev);
+        next.delete(devlogId);
+        return next;
+      });
+    }
+  }, [project.id, refreshingDevlogIds]);
+
   return (
     <div className="space-y-6">
       <div className="platform-surface-card p-6">
@@ -916,9 +972,11 @@ export default function ReviewProjectClient({
 
       <DevlogAssessmentPanel
         projectId={project.id}
-        devlogs={initial.devlogs}
+        devlogs={reviewDevlogs}
         assessments={devlogAssessments}
         onChange={setDevlogAssessments}
+        onRefreshHackatime={onRefreshDevlogHackatime}
+        refreshingDevlogIds={refreshingDevlogIds}
       />
 
       <div className="platform-surface-card p-6 space-y-4">
@@ -1020,7 +1078,7 @@ export default function ReviewProjectClient({
           </div>
           {decision === "approved" && hasDevlogs && !allDevlogsAssessed ? (
             <div className="mt-2 text-xs text-red-200">
-              {`Assess every devlog before approving (${Object.keys(devlogAssessments).length}/${initial.devlogs.length} done).`}
+              {`Assess every devlog before approving (${Object.keys(devlogAssessments).length}/${reviewDevlogs.length} done).`}
             </div>
           ) : null}
           {decision === "approved" && !hasDevlogs && isAdmin ? (

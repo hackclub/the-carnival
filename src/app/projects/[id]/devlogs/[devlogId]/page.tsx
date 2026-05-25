@@ -61,6 +61,7 @@ export default async function DevlogDetailPage(props: {
   const projectEditable = row.projectStatus === "work-in-progress";
   const canEdit = isAuthor && projectEditable;
   const canDelete = canEdit || role === "admin";
+  const canRefreshHackatime = role === "reviewer" || role === "admin";
 
   return (
     <AppShell title={row.title}>
@@ -99,6 +100,7 @@ export default async function DevlogDetailPage(props: {
         }}
         canEdit={canEdit}
         canDelete={canDelete}
+        canRefreshHackatime={canRefreshHackatime}
       />
     </AppShell>
   );
