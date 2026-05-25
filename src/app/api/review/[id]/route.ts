@@ -19,6 +19,7 @@ import {
   effectiveSecondsForAssessment,
   isValidAssessmentDecision,
 } from "@/lib/devlog-assessments";
+import { reviewableDevlogWhere } from "@/lib/devlogs";
 import { getServerSession } from "@/lib/server-session";
 import { sendReviewEmail } from "@/lib/loops";
 import { appendReviewAudit } from "@/lib/review-audit";
@@ -354,9 +355,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       let derivedApprovedSeconds: number | null = null;
       if (parsedAssessments && parsedAssessments.length > 0) {
         const projectDevlogs = await tx
-          .select({ id: devlog.id, durationSeconds: devlog.durationSeconds })
+          .select({
+            id: devlog.id,
+            durationSeconds: devlog.durationSeconds,
+          })
           .from(devlog)
-          .where(eq(devlog.projectId, projectId));
+          .where(
+            reviewableDevlogWhere(projectId, {
+              start: projectRangeUpdate.hackatimeStartedAt ?? current.hackatimeStartedAt,
+              end: projectRangeUpdate.hackatimeStoppedAt ?? current.hackatimeStoppedAt,
+            }),
+          );
 
         const knownIds = new Set(projectDevlogs.map((d) => d.id));
         const durationLookup = new Map(
