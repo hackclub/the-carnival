@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { and, asc, desc, eq, ne, sql, sum } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, ne, sql, sum } from "drizzle-orm";
 import { db } from "@/db";
 import { devlog, project, projectHackatimeProject } from "@/db/schema";
 
@@ -55,6 +55,36 @@ export async function recomputeProjectHoursSpentSeconds(
 }
 
 type ProjectHackatimeRunner = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export type ReviewableDevlogRange = {
+  start: Date | null | undefined;
+  end: Date | null | undefined;
+};
+
+function isValidDate(value: Date | null | undefined): value is Date {
+  return value instanceof Date && !Number.isNaN(value.getTime());
+}
+
+export function devlogWindowOverlapsRange(input: {
+  devlogStart: Date;
+  devlogEnd: Date;
+  rangeStart: Date | null | undefined;
+  rangeEnd: Date | null | undefined;
+}) {
+  if (!isValidDate(input.rangeStart) || !isValidDate(input.rangeEnd)) return true;
+  if (input.rangeStart.getTime() > input.rangeEnd.getTime()) return true;
+  return (
+    input.devlogStart.getTime() <= input.rangeEnd.getTime() &&
+    input.devlogEnd.getTime() >= input.rangeStart.getTime()
+  );
+}
+
+export function reviewableDevlogWhere(projectId: string, range: ReviewableDevlogRange) {
+  const base = eq(devlog.projectId, projectId);
+  if (!isValidDate(range.start) || !isValidDate(range.end)) return base;
+  if (range.start.getTime() > range.end.getTime()) return base;
+  return and(base, lte(devlog.startedAt, range.end), gte(devlog.endedAt, range.start));
+}
 
 export type LinkedHackatimeProject = {
   id: string;

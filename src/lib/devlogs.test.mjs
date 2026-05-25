@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 const {
+  devlogWindowOverlapsRange,
   resolveDevlogHackatimeProjectName,
 } = await import("./devlogs.ts");
 
@@ -44,6 +45,55 @@ describe("resolveDevlogHackatimeProjectName", () => {
         hasPriorDevlogs: false,
       }),
     ).toThrow("Select a Hackatime project for your first devlog.");
+  });
+});
+
+describe("devlogWindowOverlapsRange", () => {
+  const rangeStart = new Date("2026-03-10T00:00:00.000Z");
+  const rangeEnd = new Date("2026-03-20T23:59:59.999Z");
+
+  test("includes devlogs whose start falls inside the selected range", () => {
+    expect(
+      devlogWindowOverlapsRange({
+        devlogStart: new Date("2026-03-15T12:00:00.000Z"),
+        devlogEnd: new Date("2026-03-25T12:00:00.000Z"),
+        rangeStart,
+        rangeEnd,
+      }),
+    ).toBe(true);
+  });
+
+  test("includes devlogs whose end falls inside the selected range", () => {
+    expect(
+      devlogWindowOverlapsRange({
+        devlogStart: new Date("2026-03-01T12:00:00.000Z"),
+        devlogEnd: new Date("2026-03-15T12:00:00.000Z"),
+        rangeStart,
+        rangeEnd,
+      }),
+    ).toBe(true);
+  });
+
+  test("includes devlogs that span the selected range", () => {
+    expect(
+      devlogWindowOverlapsRange({
+        devlogStart: new Date("2026-03-01T12:00:00.000Z"),
+        devlogEnd: new Date("2026-03-25T12:00:00.000Z"),
+        rangeStart,
+        rangeEnd,
+      }),
+    ).toBe(true);
+  });
+
+  test("excludes devlogs fully outside the selected range", () => {
+    expect(
+      devlogWindowOverlapsRange({
+        devlogStart: new Date("2026-03-21T12:00:00.000Z"),
+        devlogEnd: new Date("2026-03-25T12:00:00.000Z"),
+        rangeStart,
+        rangeEnd,
+      }),
+    ).toBe(false);
   });
 });
 

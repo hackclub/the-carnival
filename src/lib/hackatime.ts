@@ -162,6 +162,17 @@ export async function getHackatimePublicUidForUser(userId: string): Promise<stri
   return slackId || null;
 }
 
+export async function getHackatimeTimelineUserIdForUser(userId: string): Promise<string | null> {
+  const rows = await db
+    .select({ hackatimeUserId: user.hackatimeUserId })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+  const hackatimeUid =
+    typeof rows[0]?.hackatimeUserId === "string" ? rows[0].hackatimeUserId.trim() : "";
+  return hackatimeUid || null;
+}
+
 type HackatimeStatsTotalsResponse = {
   data?: {
     total_seconds?: number | string;
@@ -313,10 +324,8 @@ export async function fetchHackatimeProjectTotalSecondsForRange(
 }
 
 /**
- * Precise (ISO-timestamp) variant of fetchHackatimeProjectTotalSecondsForRange
- * used for devlog-sized windows. Hits the public /users/{uid}/stats endpoint
- * (the same one flavortown uses from sync_devlog_duration) with full ISO
- * timestamps for start_date/end_date.
+ * Precise variant used for devlog-sized windows. Uses Hackatime admin timeline
+ * spans so project attribution matches the projectsEdited data shown in the UI.
  */
 export async function fetchHackatimeProjectTotalSecondsForInstantRange(
   userId: string,
@@ -338,19 +347,21 @@ export async function fetchHackatimeProjectTotalSecondsForInstantRange(
     throw new Error("Devlog end must be after start.");
   }
 
-  const hackatimeUid = await getHackatimePublicUidForUser(userId);
-  if (!hackatimeUid) {
-    throw new Error("Connect your Hackatime account to post a devlog.");
-  }
-
-  const totalSeconds = await fetchHackatimeStatsProjectTotalSeconds({
-    hackatimeUid,
+  const totalSeconds = await fetchHackatimeTimelineProjectOverlapSecondsForUser(userId, {
     projectName,
-    start: input.startedAt.toISOString(),
-    end: input.endedAt.toISOString(),
+    startedAt: input.startedAt,
+    endedAt: input.endedAt,
   });
 
   return { totalSeconds };
+}
+
+async function requireHackatimeTimelineUserIdForUser(userId: string) {
+  const hackatimeUserId = await getHackatimeTimelineUserIdForUser(userId);
+  if (!hackatimeUserId) {
+    throw new Error("Connect your Hackatime account to post a devlog.");
+  }
+  return hackatimeUserId;
 }
 
 export async function refreshHackatimeProjectSnapshotForRange(
@@ -430,6 +441,87 @@ export type HackatimeAdminTimeline = {
   prevDate: string;
   users: HackatimeAdminTimelineUser[];
 };
+
+function normalizeHackatimeProjectName(value: string) {
+  return value.trim().toLowerCase();
+}
+
+export function matchingProjectOverlapSeconds(input: {
+  spans: HackatimeAdminTimelineSpan[];
+  projectName: string;
+  startedAt: Date;
+  endedAt: Date;
+}) {
+  const wanted = normalizeHackatimeProjectName(input.projectName);
+  if (!wanted) return 0;
+  const rangeStart = input.startedAt.getTime() / 1000;
+  const rangeEnd = input.endedAt.getTime() / 1000;
+  if (!Number.isFinite(rangeStart) || !Number.isFinite(rangeEnd) || rangeEnd <= rangeStart) {
+    return 0;
+  }
+
+  let total = 0;
+  for (const span of input.spans) {
+    const hasProject = span.projectsEdited.some(
+      (project) => normalizeHackatimeProjectName(project.name) === wanted,
+    );
+    if (!hasProject) continue;
+
+    const overlapStart = Math.max(rangeStart, span.startTime);
+    const overlapEnd = Math.min(rangeEnd, span.endTime);
+    if (overlapEnd > overlapStart) {
+      total += overlapEnd - overlapStart;
+    }
+  }
+
+  return Math.max(0, Math.floor(total));
+}
+
+function toUtcDateOnly(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function datesCoveredByRange(startedAt: Date, endedAt: Date) {
+  const dates: string[] = [];
+  const cursor = new Date(Date.UTC(
+    startedAt.getUTCFullYear(),
+    startedAt.getUTCMonth(),
+    startedAt.getUTCDate(),
+  ));
+  const end = new Date(Date.UTC(
+    endedAt.getUTCFullYear(),
+    endedAt.getUTCMonth(),
+    endedAt.getUTCDate(),
+  ));
+
+  while (cursor.getTime() <= end.getTime()) {
+    dates.push(toUtcDateOnly(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
+}
+
+export async function fetchHackatimeTimelineProjectOverlapSecondsForUser(
+  userId: string,
+  input: { projectName: string; startedAt: Date; endedAt: Date },
+) {
+  const hackatimeUserId = await requireHackatimeTimelineUserIdForUser(userId);
+
+  let total = 0;
+  for (const date of datesCoveredByRange(input.startedAt, input.endedAt)) {
+    const timeline = await fetchHackatimeAdminTimeline({ date, hackatimeUserId });
+    const userData = timeline.users.find((u) => String(u.userId) === hackatimeUserId);
+    if (!userData) continue;
+    total += matchingProjectOverlapSeconds({
+      spans: userData.spans,
+      projectName: input.projectName,
+      startedAt: input.startedAt,
+      endedAt: input.endedAt,
+    });
+  }
+
+  return Math.max(0, Math.floor(total));
+}
 
 /**
  * Fetch a single day's coding timeline for one or more users via the Hackatime

@@ -37,19 +37,52 @@ function formatDateTime(iso: string) {
 export default function DevlogDetailClient({
   projectId,
   projectName,
-  devlog,
+  devlog: initialDevlog,
   canEdit,
   canDelete,
+  canRefreshHackatime,
 }: {
   projectId: string;
   projectName: string;
   devlog: DevlogDetail;
   canEdit: boolean;
   canDelete: boolean;
+  canRefreshHackatime: boolean;
 }) {
   const router = useRouter();
+  const [devlog, setDevlog] = useState(initialDevlog);
   const [deleting, setDeleting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const duration = formatDurationHM(devlog.durationSeconds);
+
+  const onRefreshHackatime = async () => {
+    if (!canRefreshHackatime) return;
+    setRefreshing(true);
+    const toastId = toast.loading("Refreshing Hackatime…");
+    try {
+      const res = await fetch(
+        `/api/projects/${encodeURIComponent(projectId)}/devlogs/${encodeURIComponent(devlog.id)}/refresh`,
+        { method: "POST" },
+      );
+      const data = (await res.json().catch(() => null)) as
+        | { devlog?: DevlogDetail; error?: unknown }
+        | null;
+      if (!res.ok || !data?.devlog) {
+        const msg =
+          typeof data?.error === "string" ? data.error : "Failed to refresh Hackatime.";
+        toast.error(msg, { id: toastId });
+        setRefreshing(false);
+        return;
+      }
+      setDevlog(data.devlog);
+      toast.success("Hackatime refreshed.", { id: toastId });
+      router.refresh();
+      setRefreshing(false);
+    } catch {
+      toast.error("Failed to refresh Hackatime.", { id: toastId });
+      setRefreshing(false);
+    }
+  };
 
   const onDelete = async () => {
     if (!canDelete) return;
@@ -102,6 +135,16 @@ export default function DevlogDetailClient({
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {canRefreshHackatime ? (
+                <Button
+                  variant="outline"
+                  onClick={onRefreshHackatime}
+                  loading={refreshing}
+                  loadingText="Refreshing…"
+                >
+                  Refresh Hackatime
+                </Button>
+              ) : null}
               {canEdit ? (
                 <Button
                   variant="outline"

@@ -17,7 +17,7 @@ import {
   type UserRole,
 } from "@/db/schema";
 import { hydrateReviewJustification } from "@/lib/review-justification";
-import { listProjectHackatimeProjects } from "@/lib/devlogs";
+import { listProjectHackatimeProjects, reviewableDevlogWhere } from "@/lib/devlogs";
 import { getServerSession } from "@/lib/server-session";
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
@@ -159,7 +159,12 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
     })
     .from(devlog)
     .leftJoin(user, eq(devlog.userId, user.id))
-    .where(eq(devlog.projectId, id))
+    .where(
+      reviewableDevlogWhere(id, {
+        start: p.hackatimeStartedAt,
+        end: p.hackatimeStoppedAt,
+      }),
+    )
     .orderBy(asc(devlog.startedAt), asc(devlog.id));
 
   const devlogsForReview: ReviewDevlogFull[] = devlogRows.map((row) => ({

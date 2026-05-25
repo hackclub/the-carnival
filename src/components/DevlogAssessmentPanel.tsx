@@ -30,6 +30,8 @@ type Props = {
   devlogs: ReviewDevlogFull[];
   assessments: Record<string, DevlogAssessmentDraft>;
   onChange: (next: Record<string, DevlogAssessmentDraft>) => void;
+  onRefreshHackatime?: (devlogId: string) => void;
+  refreshingDevlogIds?: Set<string>;
   readOnly?: boolean;
 };
 
@@ -98,12 +100,16 @@ function DevlogItem({
   devlog,
   draft,
   onChange,
+  onRefreshHackatime,
+  refreshing,
   readOnly,
 }: {
   projectId: string;
   devlog: ReviewDevlogFull;
   draft: DevlogAssessmentDraft | undefined;
   onChange: (next: DevlogAssessmentDraft | null) => void;
+  onRefreshHackatime?: (devlogId: string) => void;
+  refreshing?: boolean;
   readOnly?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -191,14 +197,26 @@ function DevlogItem({
             <span className="font-semibold text-foreground">{duration.label}</span>
           </div>
         </div>
-        <Link
-          href={`/projects/${projectId}/devlogs/${devlog.id}`}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
-        >
-          Open ↗
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          {onRefreshHackatime ? (
+            <button
+              type="button"
+              onClick={() => onRefreshHackatime(devlog.id)}
+              disabled={refreshing}
+              className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {refreshing ? "Refreshing…" : "Refresh Hackatime"}
+            </button>
+          ) : null}
+          <Link
+            href={`/projects/${projectId}/devlogs/${devlog.id}`}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            Open ↗
+          </Link>
+        </div>
       </div>
 
       <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
@@ -327,6 +345,8 @@ export default function DevlogAssessmentPanel({
   devlogs,
   assessments,
   onChange,
+  onRefreshHackatime,
+  refreshingDevlogIds,
   readOnly,
 }: Props) {
   const totalAssessed = useMemo(() => {
@@ -399,6 +419,8 @@ export default function DevlogAssessmentPanel({
                 devlog={d}
                 draft={assessments[d.id]}
                 onChange={(next) => setDraft(d.id, next)}
+                onRefreshHackatime={onRefreshHackatime}
+                refreshing={refreshingDevlogIds?.has(d.id) ?? false}
                 readOnly={readOnly}
               />
             ))}
