@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
@@ -24,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDurationHM, parseDevlogWindow } from "@/lib/devlog-shared";
+import { NotebookPen } from "lucide-react";
 
 type DevlogFormMode = "create" | "edit";
 
@@ -491,6 +493,28 @@ export default function NewDevlogForm({
 
   return (
     <div className="space-y-5">
+      {!isEdit ? (
+        <Link
+          href="/devlog-guide"
+          className="block rounded-[var(--radius-xl)] border border-carnival-blue/40 bg-carnival-blue/10 px-4 py-3 transition-colors hover:bg-carnival-blue/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-carnival-blue/60"
+        >
+          <div className="flex items-start gap-3">
+            <NotebookPen className="mt-0.5 h-5 w-5 shrink-0 text-carnival-blue" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold text-foreground">
+                New to devlogs? Read the devlog guide first.
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                A quick walkthrough on what to include so your hours and your description line up
+                at review time.
+              </p>
+            </div>
+            <span className="hidden text-xs font-semibold text-carnival-blue sm:inline">
+              Read guide →
+            </span>
+          </div>
+        </Link>
+      ) : null}
       <Card>
         <CardContent className="pt-6 space-y-4">
           <div>

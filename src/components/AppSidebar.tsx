@@ -19,6 +19,7 @@ import {
   LogOut,
   LucideIcon,
   MessageSquare,
+  NotebookPen,
   Settings,
   Shield,
   ShoppingBag,
@@ -69,6 +70,7 @@ const WORKSPACE_NAV: NavItem[] = [
   { href: "/bounties", label: "Bounties", icon: Trophy },
   { href: "/shop", label: "Shop", icon: ShoppingBag },
   { href: "/resources", label: "Resources", icon: BookOpen },
+  { href: "/devlog-guide", label: "Devlog guide", icon: NotebookPen },
 ];
 
 const REVIEW_NAV: NavItem[] = [
