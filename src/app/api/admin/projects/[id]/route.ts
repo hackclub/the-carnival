@@ -69,6 +69,7 @@ const EMPTY_IDENTITY_GRANT_PROFILE: IdentityGrantProfile = {
 };
 
 type GrantProjectRow = {
+  id: string;
   name: string;
   description: string;
   hackatimeProjectName: string;
@@ -82,6 +83,7 @@ type GrantProjectRow = {
   creatorEmail: string | null;
   creatorSlackId: string | null;
   creatorBirthday: string | null;
+  creatorHackatimeUserId: string | null;
   addressLine1: string | null;
   addressLine2: string | null;
   city: string | null;
@@ -99,6 +101,7 @@ type GrantReviewRow = {
   reviewedHackatimeRangeEnd: Date | null;
   hourAdjustmentReasonMetadata: unknown;
   reviewJustification?: unknown;
+  createdAt: Date;
 };
 
 type AirtableGrantReview = NonNullable<AirtableGrantCreateInput["reviews"]>[number];
@@ -247,6 +250,7 @@ function mapReviewsForAirtable(
       reviewerName: r.reviewerName || "Unknown reviewer",
       decision: r.decision,
       message: r.reviewComment,
+      createdAtIso: r.createdAt.toISOString(),
       reviewJustification: hydrateReviewJustification({
         decision: r.decision,
         fallbackHackatimeProjectName,
@@ -273,6 +277,7 @@ async function loadGrantReviewsForAirtable(
       reviewedHackatimeRangeEnd: peerReview.reviewedHackatimeRangeEnd,
       hourAdjustmentReasonMetadata: peerReview.hourAdjustmentReasonMetadata,
       ...(reviewJustificationColumn ? { reviewJustification: reviewJustificationColumn } : {}),
+      createdAt: peerReview.createdAt,
     })
     .from(peerReview)
     .leftJoin(user, eq(peerReview.reviewerId, user.id))
@@ -286,9 +291,16 @@ function buildAirtableGrantInput(
   current: GrantProjectRow,
   identityProfile: IdentityGrantProfile,
   reviews: AirtableGrantReview[],
-) {
+): AirtableGrantCreateInput {
+  const latestApprovedAtIso = reviews
+    .filter((r) => r.decision === "approved" && r.createdAtIso)
+    .map((r) => r.createdAtIso as string)
+    .sort()
+    .pop() ?? null;
+
   return {
     project: {
+      id: current.id,
       name: current.name,
       description: current.description,
       hackatimeProjectName: current.hackatimeProjectName,
@@ -298,12 +310,14 @@ function buildAirtableGrantInput(
       screenshots: current.screenshots ?? [],
       submittedAtIso: current.submittedAt ? current.submittedAt.toISOString() : null,
       approvedHours: current.approvedHours ?? null,
+      approvedAtIso: latestApprovedAtIso,
     },
     creator: {
       name: identityProfile.name ?? current.creatorName ?? "Unknown",
       email: identityProfile.email ?? current.creatorEmail ?? "",
       slackId: identityProfile.slackId ?? current.creatorSlackId ?? null,
       birthdayIso: identityProfile.birthday ?? current.creatorBirthday ?? null,
+      hackatimeUserId: current.creatorHackatimeUserId ?? null,
     },
     shipping: {
       addressLine1: identityProfile.addressLine1 ?? current.addressLine1 ?? null,
@@ -313,6 +327,7 @@ function buildAirtableGrantInput(
       country: identityProfile.country ?? current.country ?? null,
       zipPostalCode: identityProfile.zipPostalCode ?? current.zipPostalCode ?? null,
     },
+    appUrl: process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || null,
     reviewStatus: "Approved" as const,
     reviews,
   };
@@ -574,6 +589,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           creatorSlackId: user.slackId,
           creatorIdentityToken: user.identityToken,
           creatorBirthday: user.birthday,
+          creatorHackatimeUserId: user.hackatimeUserId,
           addressLine1: user.addressLine1,
           addressLine2: user.addressLine2,
           city: user.city,
@@ -856,6 +872,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       creatorSlackId: user.slackId,
       creatorIdentityToken: user.identityToken,
       creatorBirthday: user.birthday,
+      creatorHackatimeUserId: user.hackatimeUserId,
       addressLine1: user.addressLine1,
       addressLine2: user.addressLine2,
       city: user.city,

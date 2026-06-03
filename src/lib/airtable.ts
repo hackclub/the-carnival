@@ -99,6 +99,7 @@ export type YswsProfileShippingFields = {
 
 export type AirtableGrantCreateInput = {
   project: {
+    id: string;
     name: string;
     description: string;
     hackatimeProjectName: string;
@@ -108,14 +109,17 @@ export type AirtableGrantCreateInput = {
     screenshots: string[];
     submittedAtIso: string | null;
     approvedHours: number | null;
+    approvedAtIso: string | null;
   };
   creator: {
     name: string;
     email: string;
     slackId: string | null;
     birthdayIso?: string | null; // YYYY-MM-DD
+    hackatimeUserId: string | null;
   };
   shipping: YswsProfileShippingFields;
+  appUrl?: string | null;
   hackatimeReviewLink?: string | null;
   reviewStatus?: string | null; // e.g. "Approved"
   reviewer?: string | null;
@@ -126,6 +130,7 @@ export type AirtableGrantReview = {
   reviewerName: string;
   decision: "approved" | "rejected" | "comment";
   message: string;
+  createdAtIso?: string | null;
   reviewJustification?: ReviewJustificationPayload | null;
 };
 
@@ -221,50 +226,124 @@ function splitFirstLastName(fullName: string): { firstName: string | null; lastN
   return { firstName: parts[0] ?? null, lastName: parts.slice(1).join(" ") || null };
 }
 
-function decisionLabel(decision: AirtableGrantReview["decision"]) {
-  return decision === "approved" ? "Approved" : decision === "rejected" ? "Rejected" : "Comment";
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/+$/, "");
 }
 
-function formatStructuredReviewBlock(review: AirtableGrantReview, index: number) {
-  const lines = [`Review ${index + 1}`, `Reviewer: ${review.reviewerName}`, `Decision: ${decisionLabel(review.decision)}`];
+function buildProjectUrls(appUrl: string | null | undefined, projectId: string | null | undefined) {
+  const base = appUrl ? trimTrailingSlash(appUrl.trim()) : "";
+  if (!base || !projectId) {
+    return { projectPage: null, devlogs: null, reviewComments: null };
+  }
+  const id = encodeURIComponent(projectId);
+  const projectPage = `${base}/projects/${id}`;
+  return {
+    projectPage,
+    devlogs: `${base}/projects/${id}/devlogs`,
+    reviewComments: projectPage,
+  };
+}
 
-  if (review.reviewJustification) {
-    const justification = review.reviewJustification;
-    const reasons = justification.deflation.reasons
-      .map((reason) => DEFLATION_REASON_LABELS.get(reason) ?? reason)
-      .join(", ");
+function pickLatestApprovedReview(reviews: AirtableGrantReview[]) {
+  const approved = reviews.filter((r) => r.decision === "approved");
+  if (approved.length === 0) return null;
+  return approved.reduce((latest, candidate) => {
+    if (!latest) return candidate;
+    const latestAt = latest.createdAtIso ? Date.parse(latest.createdAtIso) : Number.NEGATIVE_INFINITY;
+    const candidateAt = candidate.createdAtIso
+      ? Date.parse(candidate.createdAtIso)
+      : Number.NEGATIVE_INFINITY;
+    return candidateAt >= latestAt ? candidate : latest;
+  }, null as AirtableGrantReview | null);
+}
 
-    lines.push(`Hackatime project: ${justification.hackatimeProjectName}`);
-    lines.push(
-      `Reviewed range: ${justification.reviewDateRange.startDate} to ${justification.reviewDateRange.endDate}`,
-    );
-    lines.push("Evidence checks:");
-    for (const item of REVIEW_EVIDENCE_ITEMS) {
-      lines.push(`- ${item.label}: ${justification.evidence[item.key] ? "Yes" : "No"}`);
+function formatLinkLine(label: string, url: string | null | undefined) {
+  return `- ${label}: ${url && url.trim() ? url.trim() : "—"}`;
+}
+
+function formatHoursAwarded(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  return Number.isInteger(value) ? `${value}h` : `${value.toFixed(1)}h`;
+}
+
+export function formatAirtableHoursJustification(
+  reviews: AirtableGrantReview[] | undefined,
+  context?: {
+    projectId?: string | null;
+    appUrl?: string | null;
+    codeUrl?: string | null;
+    hackatimeUserId?: string | null;
+    approvedHours?: number | null;
+    approvedAtIso?: string | null;
+  },
+) {
+  const ctx = context ?? {};
+  const latestApproved = pickLatestApprovedReview(reviews ?? []);
+  const justification = latestApproved?.reviewJustification ?? null;
+  const urls = buildProjectUrls(ctx.appUrl ?? null, ctx.projectId ?? null);
+
+  const sections: string[] = [];
+
+  const criteriaLines = [
+    "[APPROVAL CRITERIA]",
+    "Approved by Carnival because:",
+    "- The project works as intended (manual test performed by the reviewer).",
+    "- The GitHub repository and commit history were reviewed and deemed appropriate.",
+    "- A working demo/video was included and reviewed.",
+    "- The devlogs describe the work done while building the project.",
+  ];
+  sections.push(criteriaLines.join("\n"));
+
+  const hoursLines: string[] = ["[HOURS]"];
+  hoursLines.push(`- Hours awarded: ${formatHoursAwarded(ctx.approvedHours ?? null)}`);
+  if (justification) {
+    hoursLines.push(`- Hours reduced: ${justification.deflation.reduced ? "Yes" : "No"}`);
+    if (justification.deflation.reduced) {
+      hoursLines.push(`- Hours reduced by: ${justification.deflation.hoursReducedBy.toFixed(2)}h`);
+      const reasons = justification.deflation.reasons
+        .map((reason) => DEFLATION_REASON_LABELS.get(reason) ?? reason)
+        .join(", ");
+      hoursLines.push(`- Deflation reasons: ${reasons || "—"}`);
+      hoursLines.push(`- Deflation note: ${justification.deflation.note ?? "—"}`);
     }
-    lines.push("Hour deflation:");
-    lines.push(`- Hours reduced: ${justification.deflation.reduced ? "Yes" : "No"}`);
-    lines.push(`- Hours reduced by: ${justification.deflation.hoursReducedBy.toFixed(2)}h`);
-    lines.push(`- Deflation reasons: ${reasons || "—"}`);
-    lines.push(`- Deflation note: ${justification.deflation.note ?? "—"}`);
+  }
+  sections.push(hoursLines.join("\n"));
+
+  const hackatimeLines: string[] = ["[HACKATIME]"];
+  hackatimeLines.push(`- Hackatime project: ${justification?.hackatimeProjectName ?? "—"}`);
+  hackatimeLines.push(`- Hackatime user ID: ${ctx.hackatimeUserId?.trim() || "—"}`);
+  if (justification) {
+    hackatimeLines.push(
+      `- Reviewed range: ${justification.reviewDateRange.startDate} to ${justification.reviewDateRange.endDate}`,
+    );
+  }
+  sections.push(hackatimeLines.join("\n"));
+
+  const linkLines: string[] = ["[LINKS]"];
+  linkLines.push(formatLinkLine("Project page", urls.projectPage));
+  linkLines.push(formatLinkLine("Devlogs", urls.devlogs));
+  linkLines.push(formatLinkLine("Review comments", urls.reviewComments));
+  linkLines.push(formatLinkLine("GitHub repository", ctx.codeUrl ?? null));
+  sections.push(linkLines.join("\n"));
+
+  const evidenceLines: string[] = ["[EVIDENCE]"];
+  if (justification) {
+    for (const item of REVIEW_EVIDENCE_ITEMS) {
+      evidenceLines.push(`- ${item.label}: ${justification.evidence[item.key] ? "Yes" : "No"}`);
+    }
   } else {
-    lines.push("Structured review confirmation: unavailable");
+    evidenceLines.push("- Structured review confirmation: unavailable");
   }
+  evidenceLines.push(`- Hours awarded: ${formatHoursAwarded(ctx.approvedHours ?? null)}`);
+  evidenceLines.push(formatLinkLine("Review comments", urls.reviewComments));
+  sections.push(evidenceLines.join("\n"));
 
-  lines.push("Review comment:");
-  lines.push(review.message.trim() || "—");
+  const approvedAt = ctx.approvedAtIso ?? latestApproved?.createdAtIso ?? null;
+  const approvalLines: string[] = ["[APPROVED BY CARNIVAL]"];
+  approvalLines.push(`- Approved at: ${approvedAt ?? "—"}`);
+  sections.push(approvalLines.join("\n"));
 
-  return lines.join("\n");
-}
-
-export function formatAirtableHoursJustification(reviews?: AirtableGrantReview[]) {
-  const nonCommentReviews = (reviews ?? []).filter((review) => review.decision !== "comment");
-  if (nonCommentReviews.length === 0) {
-    return "No non-comment reviews available.";
-  }
-  return nonCommentReviews
-    .map((review, index) => formatStructuredReviewBlock(review, index))
-    .join("\n\n---\n\n");
+  return sections.join("\n\n");
 }
 
 export function getAirtableConfigErrors(env: NodeJS.ProcessEnv = process.env): string[] {
@@ -400,7 +479,14 @@ export async function createAirtableGrantRecord(input: AirtableGrantCreateInput)
   }
 
   // Hours justification (structured text)
-  const hoursJustification = formatAirtableHoursJustification(input.reviews);
+  const hoursJustification = formatAirtableHoursJustification(input.reviews, {
+    projectId: input.project.id,
+    appUrl: input.appUrl ?? null,
+    codeUrl: input.project.codeUrl,
+    hackatimeUserId: input.creator.hackatimeUserId,
+    approvedHours: input.project.approvedHours,
+    approvedAtIso: input.project.approvedAtIso,
+  });
   setIf(YSWS_AIRTABLE_FIELDS.overrideHoursSpentJustification, hoursJustification);
 
   // Airtable's FieldSet types are intentionally loose, but TS treats `unknown` as too strict.
