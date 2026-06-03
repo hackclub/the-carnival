@@ -25,6 +25,11 @@ export type ReviewDevlogFull = {
   hackatimeProjectNameSnapshot: string;
 };
 
+export type DevlogHackatimeBreakdownEntry = {
+  name: string;
+  seconds: number;
+};
+
 type Props = {
   projectId: string;
   devlogs: ReviewDevlogFull[];
@@ -33,6 +38,8 @@ type Props = {
   onRefreshHackatime?: (devlogId: string) => void;
   refreshingDevlogIds?: Set<string>;
   readOnly?: boolean;
+  hackatimeBreakdownByDevlogId?: Record<string, DevlogHackatimeBreakdownEntry[]>;
+  hackatimeBreakdownConfigured?: boolean;
 };
 
 function formatDateTime(iso: string) {
@@ -95,6 +102,83 @@ function AssessmentButtons({
   );
 }
 
+function DevlogHackatimeBreakdown({
+  entries,
+  configured,
+  devlogProjectName,
+}: {
+  entries: DevlogHackatimeBreakdownEntry[];
+  configured: boolean;
+  devlogProjectName: string;
+}) {
+  const nonZero = entries.filter((e) => e.seconds > 0);
+  if (!configured) {
+    return (
+      <div className="rounded-[var(--radius-xl)] border border-dashed border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+        Per-project breakdown unavailable (admin timeline not configured).
+        {devlogProjectName ? (
+          <>
+            {" "}Recorded under <code className="text-foreground">{devlogProjectName}</code>.
+          </>
+        ) : null}
+      </div>
+    );
+  }
+  if (nonZero.length === 0) {
+    return (
+      <div className="rounded-[var(--radius-xl)] border border-dashed border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+        No linked Hackatime project recorded time in this window.
+      </div>
+    );
+  }
+
+  const total = nonZero.reduce((acc, e) => acc + e.seconds, 0);
+  const recordedKey = devlogProjectName.trim().toLowerCase();
+  return (
+    <div className="rounded-[var(--radius-xl)] border border-border bg-muted/40 px-3 py-2 space-y-1.5">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>Hackatime contribution in this window</span>
+        <span className="font-semibold text-foreground">{formatDurationHM(total).label}</span>
+      </div>
+      <ul className="space-y-1">
+        {nonZero.map((entry) => {
+          const percent = total > 0 ? Math.round((entry.seconds / total) * 1000) / 10 : 0;
+          const isRecorded = entry.name.trim().toLowerCase() === recordedKey;
+          return (
+            <li key={entry.name} className="text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <code className="truncate text-foreground">{entry.name}</code>
+                  {isRecorded ? (
+                    <span className="rounded-full border border-carnival-blue/30 bg-carnival-blue/10 px-1.5 py-0 text-[10px] font-semibold uppercase tracking-wide text-carnival-blue">
+                      recorded
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <span className="font-semibold text-foreground">
+                    {formatDurationHM(entry.seconds).label}
+                  </span>
+                  <span>{percent.toFixed(1)}%</span>
+                </div>
+              </div>
+              <div
+                className="mt-1 h-1 w-full overflow-hidden rounded-full bg-background"
+                aria-hidden="true"
+              >
+                <div
+                  className={`h-full ${isRecorded ? "bg-carnival-blue" : "bg-emerald-500/70"}`}
+                  style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
+                />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function DevlogItem({
   projectId,
   devlog,
@@ -103,6 +187,8 @@ function DevlogItem({
   onRefreshHackatime,
   refreshing,
   readOnly,
+  breakdownEntries,
+  breakdownConfigured,
 }: {
   projectId: string;
   devlog: ReviewDevlogFull;
@@ -111,6 +197,8 @@ function DevlogItem({
   onRefreshHackatime?: (devlogId: string) => void;
   refreshing?: boolean;
   readOnly?: boolean;
+  breakdownEntries: DevlogHackatimeBreakdownEntry[] | undefined;
+  breakdownConfigured: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const isLong = devlog.content.length > 500;
@@ -261,6 +349,12 @@ function DevlogItem({
         </div>
       ) : null}
 
+      <DevlogHackatimeBreakdown
+        entries={breakdownEntries ?? []}
+        configured={breakdownConfigured}
+        devlogProjectName={devlog.hackatimeProjectNameSnapshot}
+      />
+
       <div className="border-t border-border pt-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <AssessmentButtons
@@ -348,6 +442,8 @@ export default function DevlogAssessmentPanel({
   onRefreshHackatime,
   refreshingDevlogIds,
   readOnly,
+  hackatimeBreakdownByDevlogId,
+  hackatimeBreakdownConfigured = false,
 }: Props) {
   const totalAssessed = useMemo(() => {
     let total = 0;
@@ -422,6 +518,8 @@ export default function DevlogAssessmentPanel({
                 onRefreshHackatime={onRefreshHackatime}
                 refreshing={refreshingDevlogIds?.has(d.id) ?? false}
                 readOnly={readOnly}
+                breakdownEntries={hackatimeBreakdownByDevlogId?.[d.id]}
+                breakdownConfigured={hackatimeBreakdownConfigured}
               />
             ))}
           </ul>

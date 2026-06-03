@@ -48,6 +48,7 @@ import {
   formatHoursMinutes,
   type HackatimeRangePreview,
 } from "@/lib/project-form-utils";
+import { formatDurationHM } from "@/lib/devlog-shared";
 import toast from "react-hot-toast";
 
 type ReviewItem = {
@@ -114,6 +115,158 @@ function formatApprovedHoursInput(value: number | null) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+export type HackatimeBreakdownEntry = {
+  name: string;
+  seconds: number;
+};
+
+export type HackatimeBreakdownInitial = {
+  configured: boolean;
+  error: string | null;
+  byProject: HackatimeBreakdownEntry[];
+  byDevlog: Record<string, HackatimeBreakdownEntry[]>;
+};
+
+export type LinkedHackatimeProjectInitial = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+};
+
+function LinkedHackatimeBreakdownCard({
+  linkedProjects,
+  breakdown,
+}: {
+  linkedProjects: LinkedHackatimeProjectInitial[];
+  breakdown: HackatimeBreakdownInitial;
+}) {
+  if (linkedProjects.length === 0 && breakdown.byProject.length === 0) return null;
+
+  const linkedByKey = new Map(linkedProjects.map((lp) => [lp.name.toLowerCase(), lp] as const));
+  const breakdownByKey = new Map(
+    breakdown.byProject.map((entry) => [entry.name.toLowerCase(), entry] as const),
+  );
+
+  type Row = {
+    key: string;
+    name: string;
+    seconds: number;
+    isLinked: boolean;
+    isDefault: boolean;
+  };
+  const rowMap = new Map<string, Row>();
+  for (const lp of linkedProjects) {
+    const key = lp.name.toLowerCase();
+    rowMap.set(key, {
+      key,
+      name: lp.name,
+      seconds: breakdownByKey.get(key)?.seconds ?? 0,
+      isLinked: true,
+      isDefault: lp.isDefault,
+    });
+  }
+  for (const entry of breakdown.byProject) {
+    const key = entry.name.toLowerCase();
+    if (rowMap.has(key)) continue;
+    rowMap.set(key, {
+      key,
+      name: entry.name,
+      seconds: entry.seconds,
+      isLinked: linkedByKey.has(key),
+      isDefault: false,
+    });
+  }
+
+  const rows = Array.from(rowMap.values()).sort((a, b) => {
+    if (b.seconds !== a.seconds) return b.seconds - a.seconds;
+    return a.name.localeCompare(b.name);
+  });
+  const totalSeconds = rows.reduce((acc, row) => acc + row.seconds, 0);
+
+  return (
+    <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-sm text-muted-foreground">Linked Hackatime projects</div>
+          <div className="text-xs text-muted-foreground/80">
+            Time each project contributes across devlogs in the considered range.
+          </div>
+        </div>
+        <div className="text-right text-xs text-muted-foreground">
+          <div className="font-semibold text-foreground">
+            Total: {formatDurationHM(totalSeconds).label}
+          </div>
+          {!breakdown.configured ? (
+            <div className="mt-0.5 text-amber-200/90">
+              Per-project totals unavailable (admin timeline not configured).
+            </div>
+          ) : breakdown.error ? (
+            <div className="mt-0.5 text-amber-200/90">{breakdown.error}</div>
+          ) : null}
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="rounded-[var(--radius-xl)] border border-dashed border-border bg-background/40 px-3 py-3 text-sm text-muted-foreground">
+          No linked Hackatime projects yet.
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map((row) => {
+            const percent =
+              totalSeconds > 0
+                ? Math.round((row.seconds / totalSeconds) * 1000) / 10
+                : 0;
+            const hm = formatDurationHM(row.seconds);
+            return (
+              <li
+                key={row.key}
+                className="rounded-[var(--radius-xl)] border border-border bg-background px-3 py-2"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <code className="text-sm text-foreground truncate">{row.name}</code>
+                    {row.isDefault ? (
+                      <span className="rounded-full border border-carnival-blue/30 bg-carnival-blue/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-carnival-blue">
+                        default
+                      </span>
+                    ) : null}
+                    {!row.isLinked ? (
+                      <span
+                        className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200"
+                        title="Devlogs reference this Hackatime project but it isn't linked."
+                      >
+                        not linked
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="font-semibold text-foreground">{hm.label}</span>
+                    {breakdown.configured ? (
+                      <span>{percent.toFixed(1)}%</span>
+                    ) : null}
+                  </div>
+                </div>
+                {breakdown.configured ? (
+                  <div
+                    className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted"
+                    aria-hidden="true"
+                  >
+                    <div
+                      className={`h-full ${row.isLinked ? "bg-carnival-blue" : "bg-amber-500/70"}`}
+                      style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
+                    />
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function ReviewProjectClient({
   initial,
 }: {
@@ -124,9 +277,13 @@ export default function ReviewProjectClient({
     reviews: ReviewItem[];
     assignments: AssignmentItem[];
     devlogs: ReviewDevlogFull[];
+    linkedHackatimeProjects: LinkedHackatimeProjectInitial[];
+    hackatimeBreakdown: HackatimeBreakdownInitial;
   };
 }) {
   const isAdmin = initial.isAdmin;
+  const linkedHackatimeProjects = initial.linkedHackatimeProjects;
+  const hackatimeBreakdown = initial.hackatimeBreakdown;
   const [project, setProject] = useState(initial.project);
   const [reviews, setReviews] = useState<ReviewItem[]>(initial.reviews);
   const [assignments, setAssignments] = useState<AssignmentItem[]>(initial.assignments);
@@ -909,6 +1066,11 @@ export default function ReviewProjectClient({
           )}
         </div>
 
+        <LinkedHackatimeBreakdownCard
+          linkedProjects={linkedHackatimeProjects}
+          breakdown={hackatimeBreakdown}
+        />
+
         {project.bountyProjectId ? (
           <div className="rounded-[var(--radius-2xl)] border border-purple-500/30 bg-purple-500/10 px-4 py-3">
             <div className="text-sm text-muted-foreground">Linked bounty</div>
@@ -977,6 +1139,8 @@ export default function ReviewProjectClient({
         onChange={setDevlogAssessments}
         onRefreshHackatime={onRefreshDevlogHackatime}
         refreshingDevlogIds={refreshingDevlogIds}
+        hackatimeBreakdownByDevlogId={hackatimeBreakdown.byDevlog}
+        hackatimeBreakdownConfigured={hackatimeBreakdown.configured}
       />
 
       <div className="platform-surface-card p-6 space-y-4">

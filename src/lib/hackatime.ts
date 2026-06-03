@@ -501,6 +501,189 @@ function datesCoveredByRange(startedAt: Date, endedAt: Date) {
   return dates;
 }
 
+export type DevlogHackatimeBreakdownInput = {
+  id: string;
+  startedAt: Date;
+  endedAt: Date;
+};
+
+export type DevlogHackatimeBreakdownProjectEntry = {
+  name: string;
+  seconds: number;
+};
+
+export type DevlogHackatimeBreakdownResult = {
+  configured: boolean;
+  error: string | null;
+  byProject: DevlogHackatimeBreakdownProjectEntry[];
+  byDevlog: Record<string, DevlogHackatimeBreakdownProjectEntry[]>;
+};
+
+const EMPTY_BREAKDOWN: DevlogHackatimeBreakdownResult = {
+  configured: false,
+  error: null,
+  byProject: [],
+  byDevlog: {},
+};
+
+const DEVLOG_BREAKDOWN_MAX_DAYS = 120;
+
+/**
+ * For each devlog window, compute how many seconds each linked Hackatime project
+ * contributes — derived from the admin timeline so attribution matches the spans
+ * shown to the user. Returns per-devlog totals and a project-level aggregate
+ * summed across all devlog windows.
+ *
+ * Fails soft: if the admin token is missing, the creator has no Hackatime user
+ * id, or an upstream request errors, the result is returned with `configured`
+ * and/or `error` populated so the caller can render a degraded UI rather than
+ * blowing up the page.
+ */
+export async function loadDevlogHackatimeBreakdown(input: {
+  carnivalUserId: string | null;
+  linkedProjectNames: string[];
+  devlogs: DevlogHackatimeBreakdownInput[];
+}): Promise<DevlogHackatimeBreakdownResult> {
+  const adminToken = process.env.HACKATIME_ADMIN_API_TOKEN?.trim();
+  if (!adminToken) return EMPTY_BREAKDOWN;
+  if (!input.carnivalUserId) return EMPTY_BREAKDOWN;
+
+  const linkedNames = input.linkedProjectNames
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
+  if (linkedNames.length === 0) {
+    return { configured: true, error: null, byProject: [], byDevlog: {} };
+  }
+  if (input.devlogs.length === 0) {
+    return {
+      configured: true,
+      error: null,
+      byProject: linkedNames.map((name) => ({ name, seconds: 0 })),
+      byDevlog: {},
+    };
+  }
+
+  const hackatimeUserId = await getHackatimeTimelineUserIdForUser(input.carnivalUserId);
+  if (!hackatimeUserId) return EMPTY_BREAKDOWN;
+
+  const displayByKey = new Map<string, string>();
+  for (const name of linkedNames) {
+    const key = normalizeHackatimeProjectName(name);
+    if (!displayByKey.has(key)) displayByKey.set(key, name);
+  }
+
+  const dateSet = new Set<string>();
+  for (const dl of input.devlogs) {
+    if (
+      !(dl.startedAt instanceof Date) ||
+      !(dl.endedAt instanceof Date) ||
+      Number.isNaN(dl.startedAt.getTime()) ||
+      Number.isNaN(dl.endedAt.getTime()) ||
+      dl.endedAt.getTime() <= dl.startedAt.getTime()
+    ) {
+      continue;
+    }
+    for (const date of datesCoveredByRange(dl.startedAt, dl.endedAt)) {
+      dateSet.add(date);
+    }
+  }
+
+  if (dateSet.size === 0) {
+    return {
+      configured: true,
+      error: null,
+      byProject: linkedNames.map((name) => ({ name, seconds: 0 })),
+      byDevlog: {},
+    };
+  }
+  if (dateSet.size > DEVLOG_BREAKDOWN_MAX_DAYS) {
+    return {
+      configured: true,
+      error: `Breakdown skipped — devlogs span ${dateSet.size} days (max ${DEVLOG_BREAKDOWN_MAX_DAYS}).`,
+      byProject: [],
+      byDevlog: {},
+    };
+  }
+
+  const spansByDate = new Map<string, HackatimeAdminTimelineSpan[]>();
+  try {
+    const dates = Array.from(dateSet);
+    const timelines = await Promise.all(
+      dates.map((date) => fetchHackatimeAdminTimeline({ date, hackatimeUserId })),
+    );
+    for (let i = 0; i < dates.length; i++) {
+      const userData = timelines[i].users.find((u) => String(u.userId) === hackatimeUserId);
+      spansByDate.set(dates[i], userData?.spans ?? []);
+    }
+  } catch (err) {
+    const message =
+      err instanceof Error && err.message.trim()
+        ? err.message.trim()
+        : "Failed to load Hackatime timeline.";
+    return { configured: true, error: message, byProject: [], byDevlog: {} };
+  }
+
+  const projectTotals = new Map<string, number>();
+  for (const key of displayByKey.keys()) projectTotals.set(key, 0);
+
+  const byDevlog: Record<string, DevlogHackatimeBreakdownProjectEntry[]> = {};
+
+  for (const dl of input.devlogs) {
+    if (
+      !(dl.startedAt instanceof Date) ||
+      !(dl.endedAt instanceof Date) ||
+      Number.isNaN(dl.startedAt.getTime()) ||
+      Number.isNaN(dl.endedAt.getTime()) ||
+      dl.endedAt.getTime() <= dl.startedAt.getTime()
+    ) {
+      byDevlog[dl.id] = Array.from(displayByKey.values()).map((name) => ({ name, seconds: 0 }));
+      continue;
+    }
+
+    const perProject = new Map<string, number>();
+    for (const key of displayByKey.keys()) perProject.set(key, 0);
+
+    for (const date of datesCoveredByRange(dl.startedAt, dl.endedAt)) {
+      const spans = spansByDate.get(date) ?? [];
+      for (const [key, displayName] of displayByKey.entries()) {
+        const seconds = matchingProjectOverlapSeconds({
+          spans,
+          projectName: displayName,
+          startedAt: dl.startedAt,
+          endedAt: dl.endedAt,
+        });
+        if (seconds > 0) {
+          perProject.set(key, (perProject.get(key) ?? 0) + seconds);
+        }
+      }
+    }
+
+    const entries: DevlogHackatimeBreakdownProjectEntry[] = [];
+    for (const [key, seconds] of perProject.entries()) {
+      const display = displayByKey.get(key) ?? key;
+      entries.push({ name: display, seconds });
+      projectTotals.set(key, (projectTotals.get(key) ?? 0) + seconds);
+    }
+    entries.sort((a, b) => {
+      if (b.seconds !== a.seconds) return b.seconds - a.seconds;
+      return a.name.localeCompare(b.name);
+    });
+    byDevlog[dl.id] = entries;
+  }
+
+  const byProject: DevlogHackatimeBreakdownProjectEntry[] = Array.from(projectTotals.entries())
+    .map(([key, seconds]) => ({
+      name: displayByKey.get(key) ?? key,
+      seconds,
+    }))
+    .sort((a, b) => {
+      if (b.seconds !== a.seconds) return b.seconds - a.seconds;
+      return a.name.localeCompare(b.name);
+    });
+
+  return { configured: true, error: null, byProject, byDevlog };
+}
+
 export async function fetchHackatimeTimelineProjectOverlapSecondsForUser(
   userId: string,
   input: { projectName: string; startedAt: Date; endedAt: Date },

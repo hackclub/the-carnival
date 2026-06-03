@@ -18,6 +18,7 @@ import {
 } from "@/db/schema";
 import { hydrateReviewJustification } from "@/lib/review-justification";
 import { listProjectHackatimeProjects, reviewableDevlogWhere } from "@/lib/devlogs";
+import { loadDevlogHackatimeBreakdown } from "@/lib/hackatime";
 import { getServerSession } from "@/lib/server-session";
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
@@ -184,6 +185,16 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
 
   const linkedHackatimeProjects = await listProjectHackatimeProjects(id);
 
+  const hackatimeBreakdown = await loadDevlogHackatimeBreakdown({
+    carnivalUserId: p.creatorId ?? null,
+    linkedProjectNames: linkedHackatimeProjects.map((lp) => lp.name),
+    devlogs: devlogRows.map((row) => ({
+      id: row.id,
+      startedAt: row.startedAt,
+      endedAt: row.endedAt,
+    })),
+  });
+
   return (
     <AppShell title="Review project">
       <div className="mb-6 flex items-center justify-between gap-4">
@@ -267,6 +278,12 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
             createdAt: a.createdAt.toISOString(),
           })),
           devlogs: devlogsForReview,
+          linkedHackatimeProjects: linkedHackatimeProjects.map((lp) => ({
+            id: lp.id,
+            name: lp.name,
+            isDefault: lp.isDefault,
+          })),
+          hackatimeBreakdown,
         }}
       />
     </AppShell>
