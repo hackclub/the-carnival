@@ -352,21 +352,28 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         }
       }
 
+      const projectDevlogs = await tx
+        .select({
+          id: devlog.id,
+          durationSeconds: devlog.durationSeconds,
+        })
+        .from(devlog)
+        .where(
+          reviewableDevlogWhere(projectId, {
+            start: projectRangeUpdate.hackatimeStartedAt ?? current.hackatimeStartedAt,
+            end: projectRangeUpdate.hackatimeStoppedAt ?? current.hackatimeStoppedAt,
+          }),
+        );
+
+      const devlogSumSeconds = projectDevlogs.reduce(
+        (acc, d) => acc + Math.max(0, Math.floor(d.durationSeconds || 0)),
+        0,
+      );
+      const effectiveHackatimeSeconds =
+        devlogSumSeconds > 0 ? devlogSumSeconds : hackatimeSnapshotSeconds;
+
       let derivedApprovedSeconds: number | null = null;
       if (parsedAssessments && parsedAssessments.length > 0) {
-        const projectDevlogs = await tx
-          .select({
-            id: devlog.id,
-            durationSeconds: devlog.durationSeconds,
-          })
-          .from(devlog)
-          .where(
-            reviewableDevlogWhere(projectId, {
-              start: projectRangeUpdate.hackatimeStartedAt ?? current.hackatimeStartedAt,
-              end: projectRangeUpdate.hackatimeStoppedAt ?? current.hackatimeStoppedAt,
-            }),
-          );
-
         const knownIds = new Set(projectDevlogs.map((d) => d.id));
         const durationLookup = new Map(
           projectDevlogs.map((d) => [d.id, Math.max(0, Math.floor(d.durationSeconds || 0))]),
@@ -452,7 +459,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             400,
           );
         }
-        if (!approvedHoursWithinSnapshot(approvedHours as number, hackatimeSnapshotSeconds)) {
+        if (!approvedHoursWithinSnapshot(approvedHours as number, effectiveHackatimeSeconds)) {
           throw new ReviewSubmitError(
             "validation",
             "Approved hours cannot exceed captured Hackatime at review time",
@@ -474,7 +481,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
                 decision,
                 expectedHackatimeProjectName: current.hackatimeProjectName,
                 approvedHours: decision === "approved" ? (approvedHours as number) : null,
-                loggedHackatimeHours: hackatimeSnapshotSeconds / 3600,
+                loggedHackatimeHours: effectiveHackatimeSeconds / 3600,
               });
               if (!validated.ok) {
                 throw new ReviewSubmitError("validation", validated.error, 400);
