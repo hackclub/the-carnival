@@ -1134,6 +1134,7 @@ export default function ReviewProjectClient({
 
       <DevlogAssessmentPanel
         projectId={project.id}
+        hackatimeUserId={project.hackatimeUserId}
         devlogs={reviewDevlogs}
         assessments={devlogAssessments}
         onChange={setDevlogAssessments}

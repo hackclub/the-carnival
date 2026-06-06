@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { Badge, Button, Card, CardContent } from "@/components/ui";
+import { Badge, Button, Card, CardContent, buttonVariants } from "@/components/ui";
+import { buildHackatimeDevlogReviewUrls } from "@/lib/constants";
 import { formatDurationHM } from "@/lib/devlog-shared";
 
 export type DevlogDetail = {
@@ -38,6 +39,7 @@ export default function DevlogDetailClient({
   projectId,
   projectName,
   devlog: initialDevlog,
+  hackatimeUserId,
   canEdit,
   canDelete,
   canRefreshHackatime,
@@ -45,6 +47,7 @@ export default function DevlogDetailClient({
   projectId: string;
   projectName: string;
   devlog: DevlogDetail;
+  hackatimeUserId?: string | null;
   canEdit: boolean;
   canDelete: boolean;
   canRefreshHackatime: boolean;
@@ -54,6 +57,13 @@ export default function DevlogDetailClient({
   const [deleting, setDeleting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const duration = formatDurationHM(devlog.durationSeconds);
+  const reviewUrls = canRefreshHackatime
+    ? buildHackatimeDevlogReviewUrls({
+        hackatimeId: hackatimeUserId,
+        startedAt: devlog.startedAt,
+        endedAt: devlog.endedAt,
+      })
+    : null;
 
   const onRefreshHackatime = async () => {
     if (!canRefreshHackatime) return;
@@ -134,7 +144,27 @@ export default function DevlogDetailClient({
                 {devlog.usedAi ? <Badge variant="warning">AI</Badge> : null}
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
+              {reviewUrls ? (
+                <>
+                  <a
+                    href={reviewUrls.billyUrl}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className={buttonVariants.secondary}
+                  >
+                    Billy ↗
+                  </a>
+                  <a
+                    href={reviewUrls.joeFraudUrl}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className={buttonVariants.secondary}
+                  >
+                    Joe.fraud ↗
+                  </a>
+                </>
+              ) : null}
               {canRefreshHackatime ? (
                 <Button
                   variant="outline"
