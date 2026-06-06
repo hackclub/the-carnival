@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Parkinsans } from "next/font/google";
 import "./globals.css";
 import ToasterProvider from "@/components/ToasterProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { NavigationProgressProvider } from "@/components/NavigationProgress";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const parkinsans = Parkinsans({
+  variable: "--font-parkinsans",
   subsets: ["latin"],
 });
 
@@ -38,7 +38,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased sparkles`}
+        className={`${parkinsans.variable} ${geistMono.variable} antialiased sparkles`}
       >
         <ToasterProvider />
         <TooltipProvider>
