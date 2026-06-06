@@ -9,6 +9,7 @@ import { db } from "@/db";
 import { project } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
 import { fetchHackatimeProjectHoursByName } from "@/lib/hackatime";
+import { buildApprovedProjectAwardSummary } from "@/lib/project-awards";
 
 function formatHoursMinutes(hours: number, minutes: number) {
   const h = Number.isFinite(hours) ? Math.max(0, Math.floor(hours)) : 0;
@@ -34,6 +35,7 @@ export default async function ProjectsPage() {
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
       status: project.status,
+      approvedHours: project.approvedHours,
       createdAt: project.createdAt,
     })
     .from(project)
@@ -64,6 +66,10 @@ export default async function ProjectsPage() {
               hoursByName[p.hackatimeProjectName] ??
               hoursByName[p.name] ??
               { hours: 0, minutes: 0 };
+            const awardSummary = buildApprovedProjectAwardSummary({
+              status: p.status,
+              approvedHours: p.approvedHours,
+            });
 
             return (
               <Link
@@ -110,6 +116,24 @@ export default async function ProjectsPage() {
                       {formatHoursMinutes(hm.hours, hm.minutes)}
                     </span>
                   </div>
+                  {awardSummary ? (
+                    <div className="mt-3 rounded-[var(--radius-xl)] border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">Approved hours</span>
+                        <span className="font-semibold text-foreground">
+                          {awardSummary.approvedHoursLabel}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">
+                          {p.status === "granted" ? "Tokens issued" : "Tokens when granted"}
+                        </span>
+                        <span className="font-semibold text-foreground">
+                          {awardSummary.tokensLabel}
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </Link>
             );
