@@ -7,9 +7,39 @@ export const HACKATIME_JOE_FRAUD_BASE_URL =
   process.env.NEXT_PUBLIC_HACKATIME_JOE_FRAUD_URL ?? "https://joe.fraud.hackclub.com/billy";
 
 export function buildBillyUrl(hackatimeId: string, start: string, end: string): string {
-  return `${HACKATIME_BILLY_BASE_URL}?u=${encodeURIComponent(hackatimeId)}&d=${start}-${end}`;
+  return `${HACKATIME_BILLY_BASE_URL}?u=${encodeURIComponent(hackatimeId)}&d=${encodeURIComponent(
+    `${start}-${end}`,
+  )}`;
 }
 
 export function buildJoeFraudUrl(hackatimeId: string, start: string, end: string): string {
-  return `${HACKATIME_JOE_FRAUD_BASE_URL}?u=${encodeURIComponent(hackatimeId)}&d=${start}-${end}`;
+  return `${HACKATIME_JOE_FRAUD_BASE_URL}?u=${encodeURIComponent(hackatimeId)}&d=${encodeURIComponent(
+    `${start}-${end}`,
+  )}`;
+}
+
+export function buildHackatimeDevlogReviewUrls(input: {
+  hackatimeId: string | null | undefined;
+  startedAt: string;
+  endedAt: string;
+}) {
+  const hackatimeId = input.hackatimeId?.trim();
+  if (!hackatimeId) return null;
+
+  const start = new Date(input.startedAt);
+  const end = new Date(input.endedAt);
+  if (
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime()) ||
+    end.getTime() <= start.getTime()
+  ) {
+    return null;
+  }
+
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+  return {
+    billyUrl: buildBillyUrl(hackatimeId, startIso, endIso),
+    joeFraudUrl: buildJoeFraudUrl(hackatimeId, startIso, endIso),
+  };
 }

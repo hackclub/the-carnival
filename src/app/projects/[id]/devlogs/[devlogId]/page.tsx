@@ -40,6 +40,7 @@ export default async function DevlogDetailPage(props: {
       createdAt: devlog.createdAt,
       updatedAt: devlog.updatedAt,
       authorName: user.name,
+      authorHackatimeUserId: user.hackatimeUserId,
       projectName: project.name,
       projectCreatorId: project.creatorId,
       projectStatus: project.status,
@@ -98,6 +99,11 @@ export default async function DevlogDetailPage(props: {
           updatedAt: row.updatedAt.toISOString(),
           authorName: row.authorName || "Unknown",
         }}
+        hackatimeUserId={
+          canRefreshHackatime && typeof row.authorHackatimeUserId === "string"
+            ? row.authorHackatimeUserId
+            : null
+        }
         canEdit={canEdit}
         canDelete={canDelete}
         canRefreshHackatime={canRefreshHackatime}

@@ -8,6 +8,7 @@ import {
   effectiveSecondsForAssessment,
   type DevlogAssessmentDraft,
 } from "@/lib/devlog-assessments";
+import { buildHackatimeDevlogReviewUrls } from "@/lib/constants";
 import { formatDurationHM } from "@/lib/devlog-shared";
 
 export type ReviewDevlogFull = {
@@ -32,6 +33,7 @@ export type DevlogHackatimeBreakdownEntry = {
 
 type Props = {
   projectId: string;
+  hackatimeUserId?: string | null;
   devlogs: ReviewDevlogFull[];
   assessments: Record<string, DevlogAssessmentDraft>;
   onChange: (next: Record<string, DevlogAssessmentDraft>) => void;
@@ -181,6 +183,7 @@ function DevlogHackatimeBreakdown({
 
 function DevlogItem({
   projectId,
+  hackatimeUserId,
   devlog,
   draft,
   onChange,
@@ -191,6 +194,7 @@ function DevlogItem({
   breakdownConfigured,
 }: {
   projectId: string;
+  hackatimeUserId?: string | null;
   devlog: ReviewDevlogFull;
   draft: DevlogAssessmentDraft | undefined;
   onChange: (next: DevlogAssessmentDraft | null) => void;
@@ -201,6 +205,11 @@ function DevlogItem({
   breakdownConfigured: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const reviewUrls = buildHackatimeDevlogReviewUrls({
+    hackatimeId: hackatimeUserId,
+    startedAt: devlog.startedAt,
+    endedAt: devlog.endedAt,
+  });
   const isLong = devlog.content.length > 500;
   const preview =
     expanded || !isLong ? devlog.content : `${devlog.content.slice(0, 500).trimEnd()}…`;
@@ -285,7 +294,7 @@ function DevlogItem({
             <span className="font-semibold text-foreground">{duration.label}</span>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           {onRefreshHackatime ? (
             <button
               type="button"
@@ -295,6 +304,26 @@ function DevlogItem({
             >
               {refreshing ? "Refreshing…" : "Refresh Hackatime"}
             </button>
+          ) : null}
+          {reviewUrls ? (
+            <>
+              <a
+                href={reviewUrls.billyUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+              >
+                Billy ↗
+              </a>
+              <a
+                href={reviewUrls.joeFraudUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+              >
+                Joe.fraud ↗
+              </a>
+            </>
           ) : null}
           <Link
             href={`/projects/${projectId}/devlogs/${devlog.id}`}
@@ -436,6 +465,7 @@ function DevlogItem({
 
 export default function DevlogAssessmentPanel({
   projectId,
+  hackatimeUserId,
   devlogs,
   assessments,
   onChange,
@@ -512,6 +542,7 @@ export default function DevlogAssessmentPanel({
               <DevlogItem
                 key={d.id}
                 projectId={projectId}
+                hackatimeUserId={hackatimeUserId}
                 devlog={d}
                 draft={assessments[d.id]}
                 onChange={(next) => setDraft(d.id, next)}
