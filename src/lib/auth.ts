@@ -83,7 +83,10 @@ function createAuth() {
       additionalFields: {
         slackId: createFieldAttribute("string", { required: false }),
         verificationStatus: createFieldAttribute("string", { required: false }),
-        role: createFieldAttribute("string", { required: false }),
+        // Authorization role is managed only by server-side admin/database paths.
+        // If this is client-inputtable, Better Auth's `/update-user` endpoint can
+        // persist self-service privilege escalation.
+        role: createFieldAttribute("string", { required: false, input: false }),
         birthday: createFieldAttribute("string", { required: false }),
         addressLine1: createFieldAttribute("string", { required: false }),
         addressLine2: createFieldAttribute("string", { required: false }),
