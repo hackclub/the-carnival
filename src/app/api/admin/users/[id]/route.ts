@@ -53,7 +53,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     );
   }
 
-  // Prevent admins from changing their own role or freeze state (safety measure).
+  // Role and freeze mutations are only for other users; even admins cannot
+  // self-change these privilege/safety controls from this endpoint.
   if (targetUserId === currentUserId) {
     return NextResponse.json(
       { error: "Cannot update your own role or freeze state" },
