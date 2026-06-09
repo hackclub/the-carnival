@@ -81,19 +81,19 @@ function createAuth() {
     // Ensure these custom columns are selected and included on `session.user`.
     user: {
       additionalFields: {
-        slackId: createFieldAttribute("string", { required: false }),
-        verificationStatus: createFieldAttribute("string", { required: false }),
+        slackId: createFieldAttribute("string", { required: false, input: false }),
+        verificationStatus: createFieldAttribute("string", { required: false, input: false }),
         // Authorization role is managed only by server-side admin/database paths.
         // If this is client-inputtable, Better Auth's `/update-user` endpoint can
         // persist self-service privilege escalation.
         role: createFieldAttribute("string", { required: false, input: false }),
-        birthday: createFieldAttribute("string", { required: false }),
-        addressLine1: createFieldAttribute("string", { required: false }),
-        addressLine2: createFieldAttribute("string", { required: false }),
-        city: createFieldAttribute("string", { required: false }),
-        stateProvince: createFieldAttribute("string", { required: false }),
-        country: createFieldAttribute("string", { required: false }),
-        zipPostalCode: createFieldAttribute("string", { required: false }),
+        birthday: createFieldAttribute("string", { required: false, input: false }),
+        addressLine1: createFieldAttribute("string", { required: false, input: false }),
+        addressLine2: createFieldAttribute("string", { required: false, input: false }),
+        city: createFieldAttribute("string", { required: false, input: false }),
+        stateProvince: createFieldAttribute("string", { required: false, input: false }),
+        country: createFieldAttribute("string", { required: false, input: false }),
+        zipPostalCode: createFieldAttribute("string", { required: false, input: false }),
       },
     },
     emailAndPassword: {
