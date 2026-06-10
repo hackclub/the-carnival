@@ -259,10 +259,29 @@ body {
   will-change: transform;
 }
 
+@keyframes carnival-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+
+.carnival-bob {
+  animation: carnival-bob 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+.carnival-bob-delay-1 {
+  animation-delay: -2s;
+}
+
+.carnival-bob-delay-2 {
+  animation-delay: -4s;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .float-animation,
   .carnival-balloon-float,
-  .carnival-balloon-sway {
+  .carnival-balloon-sway,
+  .carnival-bob {
     animation: none !important;
   }
 }
