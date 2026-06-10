@@ -302,6 +302,13 @@
       "when": 1778371200002,
       "tag": "0042_relax_project_video_links_for_drafts",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1781136000000,
+      "tag": "0043_devlog_assessment_hackatime_adjustments",
+      "breakpoints": true
     }
   ]
 }

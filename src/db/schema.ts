@@ -72,6 +72,13 @@ export type ProjectSubmissionChecklist = {
 
 export type ReviewEvidenceChecklist = Record<string, boolean>;
 
+// Reviewer-set seconds counted for one linked Hackatime project within a devlog's
+// window. Stored on adjusted devlog assessments when 2+ projects contribute.
+export type DevlogHackatimeProjectAdjustment = {
+  name: string;
+  seconds: number;
+};
+
 export type HourAdjustmentReasonMetadata = Record<string, unknown>;
 
 export const user = pgTable("user", {
@@ -228,6 +235,13 @@ export const peerReviewDevlogAssessment = pgTable(
     // this devlog. Null for accepted (=> use devlog.durationSeconds) or rejected
     // (=> contributes 0).
     adjustedSeconds: integer("adjusted_seconds"),
+    // When decision = 'adjusted' and multiple linked Hackatime projects contribute
+    // to the devlog window, the per-project seconds the reviewer counted. Their sum
+    // equals adjustedSeconds. Empty when the reviewer adjusted the devlog as a whole.
+    hackatimeProjectAdjustments: jsonb("hackatime_project_adjustments")
+      .$type<DevlogHackatimeProjectAdjustment[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     comment: text("comment"),
     createdAt: timestamp("created_at").notNull(),
   },
