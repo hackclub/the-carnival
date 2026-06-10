@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Badge, Card, CardContent, FormLabel, Input, Textarea } from "@/components/ui";
-import type { DevlogAssessmentDecision } from "@/db/schema";
+import type { DevlogAssessmentDecision, DevlogHackatimeProjectAdjustment } from "@/db/schema";
 import {
   effectiveSecondsForAssessment,
+  sumHackatimeAdjustmentSeconds,
   type DevlogAssessmentDraft,
 } from "@/lib/devlog-assessments";
 import { buildHackatimeDevlogReviewUrls } from "@/lib/constants";
@@ -181,6 +182,68 @@ function DevlogHackatimeBreakdown({
   );
 }
 
+function ProjectAdjustmentRow({
+  name,
+  capSeconds,
+  seconds,
+  onChangeSeconds,
+  disabled,
+}: {
+  name: string;
+  capSeconds: number;
+  seconds: number;
+  onChangeSeconds: (next: number) => void;
+  disabled?: boolean;
+}) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor(seconds / 60) % 60;
+
+  function setHM(h: number, m: number) {
+    const safeH = Math.max(0, Math.floor(h));
+    const safeM = Math.max(0, Math.min(59, Math.floor(m)));
+    onChangeSeconds(safeH * 3600 + safeM * 60);
+  }
+
+  return (
+    <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
+      <div className="min-w-0">
+        <FormLabel size="small">Hackatime project</FormLabel>
+        <div className="truncate">
+          <code className="text-sm text-foreground">{name}</code>
+        </div>
+      </div>
+      <label className="block">
+        <FormLabel size="small">Hours</FormLabel>
+        <Input
+          size="small"
+          type="number"
+          min={0}
+          step={1}
+          value={hours}
+          onChange={(e) => setHM(Number(e.target.value || 0), minutes)}
+          disabled={disabled}
+        />
+      </label>
+      <label className="block">
+        <FormLabel size="small">Minutes</FormLabel>
+        <Input
+          size="small"
+          type="number"
+          min={0}
+          max={59}
+          step={1}
+          value={minutes}
+          onChange={(e) => setHM(hours, Number(e.target.value || 0))}
+          disabled={disabled}
+        />
+      </label>
+      <div className="pb-2 text-xs text-muted-foreground whitespace-nowrap">
+        of {formatDurationHM(capSeconds).label} logged
+      </div>
+    </div>
+  );
+}
+
 function DevlogItem({
   projectId,
   hackatimeUserId,
@@ -215,9 +278,27 @@ function DevlogItem({
     expanded || !isLong ? devlog.content : `${devlog.content.slice(0, 500).trimEnd()}…`;
   const decision = draft?.decision ?? null;
   const duration = formatDurationHM(devlog.durationSeconds);
+
+  const contributingEntries = useMemo(
+    () =>
+      breakdownConfigured ? (breakdownEntries ?? []).filter((e) => e.seconds > 0) : [],
+    [breakdownConfigured, breakdownEntries],
+  );
+  const breakdownTotalSeconds = useMemo(
+    () => contributingEntries.reduce((acc, e) => acc + e.seconds, 0),
+    [contributingEntries],
+  );
+  // With 2+ contributing Hackatime projects the reviewer adjusts each project's
+  // contribution individually; their sum is the devlog's counted time.
+  const multiProject = contributingEntries.length >= 2;
+
   const adjustedPreviewSeconds = draft
     ? effectiveSecondsForAssessment(
-        { devlogId: devlog.id, durationSeconds: devlog.durationSeconds },
+        {
+          devlogId: devlog.id,
+          durationSeconds: devlog.durationSeconds,
+          hackatimeBreakdownTotalSeconds: breakdownConfigured ? breakdownTotalSeconds : null,
+        },
         { decision: draft.decision, adjustedSeconds: draft.adjustedSeconds ?? null },
       )
     : 0;
@@ -229,20 +310,39 @@ function DevlogItem({
     return [Math.floor(s / 3600), Math.floor(s / 60) % 60];
   }, [draft]);
 
+  function defaultProjectAdjustments(): DevlogHackatimeProjectAdjustment[] {
+    return contributingEntries.map((e) => ({ name: e.name, seconds: e.seconds }));
+  }
+
   function setDecision(next: DevlogAssessmentDecision) {
     if (readOnly) return;
     if (next === "adjusted") {
-      onChange({
-        devlogId: devlog.id,
-        decision: "adjusted",
-        adjustedSeconds: draft?.adjustedSeconds ?? devlog.durationSeconds,
-        comment: draft?.comment ?? null,
-      });
+      if (multiProject) {
+        const adjustments = draft?.hackatimeAdjustments?.length
+          ? draft.hackatimeAdjustments
+          : defaultProjectAdjustments();
+        onChange({
+          devlogId: devlog.id,
+          decision: "adjusted",
+          adjustedSeconds: sumHackatimeAdjustmentSeconds(adjustments),
+          hackatimeAdjustments: adjustments,
+          comment: draft?.comment ?? null,
+        });
+      } else {
+        onChange({
+          devlogId: devlog.id,
+          decision: "adjusted",
+          adjustedSeconds: draft?.adjustedSeconds ?? devlog.durationSeconds,
+          hackatimeAdjustments: null,
+          comment: draft?.comment ?? null,
+        });
+      }
     } else {
       onChange({
         devlogId: devlog.id,
         decision: next,
         adjustedSeconds: null,
+        hackatimeAdjustments: null,
         comment: draft?.comment ?? null,
       });
     }
@@ -253,6 +353,7 @@ function DevlogItem({
       devlogId: devlog.id,
       decision: "adjusted",
       adjustedSeconds: Math.max(0, Math.floor(next)),
+      hackatimeAdjustments: null,
       comment: draft?.comment ?? null,
     });
   }
@@ -263,11 +364,28 @@ function DevlogItem({
     setAdjustedSeconds(safeH * 3600 + safeM * 60);
   }
 
+  function setProjectAdjustmentSeconds(name: string, nextSeconds: number) {
+    const cap = contributingEntries.find((e) => e.name === name)?.seconds ?? 0;
+    const clamped = Math.min(Math.max(0, Math.floor(nextSeconds)), cap);
+    const current = draft?.hackatimeAdjustments?.length
+      ? draft.hackatimeAdjustments
+      : defaultProjectAdjustments();
+    const next = current.map((e) => (e.name === name ? { ...e, seconds: clamped } : e));
+    onChange({
+      devlogId: devlog.id,
+      decision: "adjusted",
+      adjustedSeconds: sumHackatimeAdjustmentSeconds(next),
+      hackatimeAdjustments: next,
+      comment: draft?.comment ?? null,
+    });
+  }
+
   function setComment(next: string) {
     onChange({
       devlogId: devlog.id,
       decision: draft?.decision ?? "accepted",
       adjustedSeconds: draft?.adjustedSeconds ?? null,
+      hackatimeAdjustments: draft?.hackatimeAdjustments ?? null,
       comment: next.trim() ? next : null,
     });
   }
@@ -402,40 +520,70 @@ function DevlogItem({
         </div>
 
         {decision === "adjusted" ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[auto_auto_1fr]">
-            <label className="block">
-              <FormLabel size="small">Hours</FormLabel>
-              <Input
-                size="small"
-                type="number"
-                min={0}
-                step={1}
-                value={adjustedHours ?? 0}
-                onChange={(e) =>
-                  setAdjustedHM(Number(e.target.value || 0), adjustedMinutes ?? 0)
-                }
-                disabled={readOnly}
-              />
-            </label>
-            <label className="block">
-              <FormLabel size="small">Minutes</FormLabel>
-              <Input
-                size="small"
-                type="number"
-                min={0}
-                max={59}
-                step={1}
-                value={adjustedMinutes ?? 0}
-                onChange={(e) =>
-                  setAdjustedHM(adjustedHours ?? 0, Number(e.target.value || 0))
-                }
-                disabled={readOnly}
-              />
-            </label>
-            <div className="self-end text-xs text-muted-foreground">
-              Can&apos;t exceed the devlog&apos;s logged time ({duration.label}).
+          multiProject ? (
+            <div className="space-y-3 rounded-[var(--radius-xl)] border border-border bg-muted/30 px-3 py-3">
+              <div className="text-xs text-muted-foreground">
+                Adjust how much each linked Hackatime project counts toward this devlog. The
+                devlog&apos;s counted time is their total.
+              </div>
+              {contributingEntries.map((entry) => {
+                const adjustments = draft?.hackatimeAdjustments?.length
+                  ? draft.hackatimeAdjustments
+                  : null;
+                const seconds =
+                  adjustments?.find((a) => a.name === entry.name)?.seconds ?? entry.seconds;
+                return (
+                  <ProjectAdjustmentRow
+                    key={`${devlog.id}-adj-${entry.name}`}
+                    name={entry.name}
+                    capSeconds={entry.seconds}
+                    seconds={seconds}
+                    onChangeSeconds={(next) => setProjectAdjustmentSeconds(entry.name, next)}
+                    disabled={readOnly}
+                  />
+                );
+              })}
+              <div className="flex items-center justify-between border-t border-border pt-2 text-xs">
+                <span className="text-muted-foreground">Counted total</span>
+                <span className="font-semibold text-foreground">{adjustedPreview.label}</span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[auto_auto_1fr]">
+              <label className="block">
+                <FormLabel size="small">Hours</FormLabel>
+                <Input
+                  size="small"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={adjustedHours ?? 0}
+                  onChange={(e) =>
+                    setAdjustedHM(Number(e.target.value || 0), adjustedMinutes ?? 0)
+                  }
+                  disabled={readOnly}
+                />
+              </label>
+              <label className="block">
+                <FormLabel size="small">Minutes</FormLabel>
+                <Input
+                  size="small"
+                  type="number"
+                  min={0}
+                  max={59}
+                  step={1}
+                  value={adjustedMinutes ?? 0}
+                  onChange={(e) =>
+                    setAdjustedHM(adjustedHours ?? 0, Number(e.target.value || 0))
+                  }
+                  disabled={readOnly}
+                />
+              </label>
+              <div className="self-end text-xs text-muted-foreground">
+                Can&apos;t exceed the devlog&apos;s logged time ({duration.label}).
+              </div>
+            </div>
+          )
         ) : null}
 
         {decision && decision !== "accepted" ? (
@@ -480,13 +628,23 @@ export default function DevlogAssessmentPanel({
     for (const d of devlogs) {
       const a = assessments[d.id];
       if (!a) continue;
+      const breakdownTotal = hackatimeBreakdownConfigured
+        ? (hackatimeBreakdownByDevlogId?.[d.id] ?? []).reduce(
+            (acc, e) => acc + Math.max(0, e.seconds),
+            0,
+          )
+        : null;
       total += effectiveSecondsForAssessment(
-        { devlogId: d.id, durationSeconds: d.durationSeconds },
+        {
+          devlogId: d.id,
+          durationSeconds: d.durationSeconds,
+          hackatimeBreakdownTotalSeconds: breakdownTotal,
+        },
         { decision: a.decision, adjustedSeconds: a.adjustedSeconds ?? null },
       );
     }
     return total;
-  }, [assessments, devlogs]);
+  }, [assessments, devlogs, hackatimeBreakdownByDevlogId, hackatimeBreakdownConfigured]);
 
   const totalLogged = useMemo(
     () => devlogs.reduce((acc, d) => acc + Math.max(0, d.durationSeconds || 0), 0),
