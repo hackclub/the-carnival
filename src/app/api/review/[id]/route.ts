@@ -10,6 +10,7 @@ import {
   projectReviewerAssignment,
   user,
   type DevlogAssessmentDecision,
+  type DevlogHackatimeProjectAdjustment,
   type ProjectStatus,
   type ReviewDecision,
   type UserRole,
@@ -18,8 +19,10 @@ import {
   assessmentSecondsToApprovedHours,
   effectiveSecondsForAssessment,
   isValidAssessmentDecision,
+  maxAdjustableSeconds,
+  sumHackatimeAdjustmentSeconds,
 } from "@/lib/devlog-assessments";
-import { reviewableDevlogWhere } from "@/lib/devlogs";
+import { listProjectHackatimeProjects, reviewableDevlogWhere } from "@/lib/devlogs";
 import { getServerSession } from "@/lib/server-session";
 import { sendReviewEmail } from "@/lib/loops";
 import { appendReviewAudit } from "@/lib/review-audit";
@@ -36,7 +39,10 @@ import {
   toUtcBoundaryDate,
   type ConsideredHackatimeRange,
 } from "@/lib/hackatime-range";
-import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
+import {
+  loadDevlogHackatimeBreakdown,
+  refreshHackatimeProjectSnapshotForRange,
+} from "@/lib/hackatime";
 import { notifyReviewDM } from "@/lib/slack";
 
 type ReviewBody = {
@@ -54,8 +60,33 @@ type ParsedAssessmentInput = {
   devlogId: string;
   decision: DevlogAssessmentDecision;
   adjustedSeconds: number | null;
+  hackatimeAdjustments: DevlogHackatimeProjectAdjustment[] | null;
   comment: string | null;
 };
+
+const MAX_HACKATIME_ADJUSTMENT_ENTRIES = 50;
+
+function parseHackatimeAdjustments(value: unknown): DevlogHackatimeProjectAdjustment[] | null | undefined {
+  // undefined => invalid payload; null => not provided
+  if (value === undefined || value === null) return null;
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_HACKATIME_ADJUSTMENT_ENTRIES) {
+    return undefined;
+  }
+  const seen = new Set<string>();
+  const out: DevlogHackatimeProjectAdjustment[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") return undefined;
+    const { name, seconds } = item as Record<string, unknown>;
+    if (typeof name !== "string" || !name.trim()) return undefined;
+    const key = name.trim().toLowerCase();
+    if (seen.has(key)) return undefined;
+    seen.add(key);
+    const raw = typeof seconds === "number" ? seconds : NaN;
+    if (!Number.isFinite(raw) || raw < 0) return undefined;
+    out.push({ name: name.trim(), seconds: Math.max(0, Math.floor(raw)) });
+  }
+  return out;
+}
 
 function parseDevlogAssessments(value: unknown): ParsedAssessmentInput[] | null {
   if (value === undefined || value === null) return null;
@@ -63,10 +94,12 @@ function parseDevlogAssessments(value: unknown): ParsedAssessmentInput[] | null 
   const out: ParsedAssessmentInput[] = [];
   for (const item of value) {
     if (!item || typeof item !== "object") return null;
-    const { devlogId, decision, adjustedSeconds, comment } = item as Record<string, unknown>;
+    const { devlogId, decision, adjustedSeconds, hackatimeAdjustments, comment } =
+      item as Record<string, unknown>;
     if (typeof devlogId !== "string" || !devlogId.trim()) return null;
     if (!isValidAssessmentDecision(decision)) return null;
     let adj: number | null = null;
+    let perProject: DevlogHackatimeProjectAdjustment[] | null = null;
     if (decision === "adjusted") {
       const raw =
         typeof adjustedSeconds === "number"
@@ -76,15 +109,25 @@ function parseDevlogAssessments(value: unknown): ParsedAssessmentInput[] | null 
             : NaN;
       if (!Number.isFinite(raw) || raw < 0) return null;
       adj = Math.max(0, Math.floor(raw));
-    } else if (adjustedSeconds !== undefined && adjustedSeconds !== null) {
-      return null;
+      const parsedPerProject = parseHackatimeAdjustments(hackatimeAdjustments);
+      if (parsedPerProject === undefined) return null;
+      perProject = parsedPerProject;
+    } else {
+      if (adjustedSeconds !== undefined && adjustedSeconds !== null) return null;
+      if (hackatimeAdjustments !== undefined && hackatimeAdjustments !== null) return null;
     }
     let cmt: string | null = null;
     if (typeof comment === "string") {
       const t = comment.trim();
       if (t) cmt = t.slice(0, 2000);
     }
-    out.push({ devlogId: devlogId.trim(), decision, adjustedSeconds: adj, comment: cmt });
+    out.push({
+      devlogId: devlogId.trim(),
+      decision,
+      adjustedSeconds: adj,
+      hackatimeAdjustments: perProject,
+      comment: cmt,
+    });
   }
   return out;
 }
@@ -289,6 +332,57 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     consideredHackatimeRange = parsedRange.value;
   }
 
+  // When any devlog is adjusted, precompute the per-devlog Hackatime breakdown so
+  // per-project adjustments — and totals above the recorded duration — are
+  // validated against the admin timeline instead of client-supplied numbers.
+  // The upstream fetches happen here, outside the transaction.
+  type DevlogBreakdownInfo = {
+    secondsByProjectKey: Map<string, number>;
+    totalSeconds: number;
+  };
+  const breakdownByDevlogId = new Map<string, DevlogBreakdownInfo>();
+  if (parsedAssessments?.some((a) => a.decision === "adjusted")) {
+    const breakdownProjectRows = await db
+      .select({
+        creatorId: project.creatorId,
+        hackatimeStartedAt: project.hackatimeStartedAt,
+        hackatimeStoppedAt: project.hackatimeStoppedAt,
+      })
+      .from(project)
+      .where(eq(project.id, projectId))
+      .limit(1);
+    const breakdownProject = breakdownProjectRows[0];
+    if (breakdownProject) {
+      const breakdownDevlogs = await db
+        .select({ id: devlog.id, startedAt: devlog.startedAt, endedAt: devlog.endedAt })
+        .from(devlog)
+        .where(
+          reviewableDevlogWhere(projectId, {
+            start: breakdownProject.hackatimeStartedAt,
+            end: breakdownProject.hackatimeStoppedAt,
+          }),
+        );
+      const linkedProjects = await listProjectHackatimeProjects(projectId);
+      const breakdown = await loadDevlogHackatimeBreakdown({
+        carnivalUserId: breakdownProject.creatorId ?? null,
+        linkedProjectNames: linkedProjects.map((lp) => lp.name),
+        devlogs: breakdownDevlogs,
+      });
+      if (breakdown.configured && !breakdown.error) {
+        for (const [devlogId, entries] of Object.entries(breakdown.byDevlog)) {
+          const secondsByProjectKey = new Map<string, number>();
+          let totalSeconds = 0;
+          for (const entry of entries) {
+            const seconds = Math.max(0, Math.floor(entry.seconds || 0));
+            secondsByProjectKey.set(entry.name.trim().toLowerCase(), seconds);
+            totalSeconds += seconds;
+          }
+          breakdownByDevlogId.set(devlogId, { secondsByProjectKey, totalSeconds });
+        }
+      }
+    }
+  }
+
   const txResult = await db
     .transaction(async (tx) => {
       const rows = await tx
@@ -399,6 +493,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
           if (a.decision === "adjusted") {
             const base = durationLookup.get(a.devlogId) ?? 0;
+            const breakdown = breakdownByDevlogId.get(a.devlogId) ?? null;
             if (a.adjustedSeconds === null) {
               throw new ReviewSubmitError(
                 "validation",
@@ -406,12 +501,50 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
                 400,
               );
             }
-            if (a.adjustedSeconds > base) {
+            const maxSeconds = maxAdjustableSeconds({
+              devlogId: a.devlogId,
+              durationSeconds: base,
+              hackatimeBreakdownTotalSeconds: breakdown?.totalSeconds ?? null,
+            });
+            if (a.adjustedSeconds > maxSeconds) {
               throw new ReviewSubmitError(
                 "validation",
-                "adjustedSeconds cannot exceed the devlog's logged Hackatime duration.",
+                "adjustedSeconds cannot exceed the Hackatime time logged in the devlog window.",
                 400,
               );
+            }
+            if (a.hackatimeAdjustments) {
+              if (!breakdown) {
+                throw new ReviewSubmitError(
+                  "validation",
+                  "Per-project adjustments are unavailable — the Hackatime breakdown could not be loaded for this devlog.",
+                  400,
+                );
+              }
+              for (const entry of a.hackatimeAdjustments) {
+                const cap = breakdown.secondsByProjectKey.get(entry.name.trim().toLowerCase());
+                if (cap === undefined) {
+                  throw new ReviewSubmitError(
+                    "validation",
+                    `Adjustment references Hackatime project "${entry.name}", which does not contribute to this devlog.`,
+                    400,
+                  );
+                }
+                if (entry.seconds > cap) {
+                  throw new ReviewSubmitError(
+                    "validation",
+                    `Adjusted time for Hackatime project "${entry.name}" exceeds its logged time in this devlog window.`,
+                    400,
+                  );
+                }
+              }
+              if (sumHackatimeAdjustmentSeconds(a.hackatimeAdjustments) !== a.adjustedSeconds) {
+                throw new ReviewSubmitError(
+                  "validation",
+                  "Per-project adjustments must sum to the devlog's adjusted seconds.",
+                  400,
+                );
+              }
             }
           }
         }
@@ -429,7 +562,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         let totalSeconds = 0;
         for (const a of parsedAssessments) {
           totalSeconds += effectiveSecondsForAssessment(
-            { devlogId: a.devlogId, durationSeconds: durationLookup.get(a.devlogId) ?? 0 },
+            {
+              devlogId: a.devlogId,
+              durationSeconds: durationLookup.get(a.devlogId) ?? 0,
+              hackatimeBreakdownTotalSeconds:
+                breakdownByDevlogId.get(a.devlogId)?.totalSeconds ?? null,
+            },
             { decision: a.decision, adjustedSeconds: a.adjustedSeconds ?? null },
           );
         }
@@ -451,6 +589,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
       }
 
+      // Assessed totals may exceed the devlog-duration sum when adjusted devlogs
+      // count contributions from additional linked Hackatime projects, so the
+      // approval ceiling considers both.
+      const approvedHoursCapSeconds = Math.max(
+        effectiveHackatimeSeconds,
+        derivedApprovedSeconds ?? 0,
+      );
+
       if (decision === "approved") {
         if (!Number.isFinite(approvedHours)) {
           throw new ReviewSubmitError(
@@ -459,7 +605,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             400,
           );
         }
-        if (!approvedHoursWithinSnapshot(approvedHours as number, effectiveHackatimeSeconds)) {
+        if (!approvedHoursWithinSnapshot(approvedHours as number, approvedHoursCapSeconds)) {
           throw new ReviewSubmitError(
             "validation",
             "Approved hours cannot exceed captured Hackatime at review time",
@@ -467,8 +613,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           );
         }
       }
-
-      void derivedApprovedSeconds;
 
       const normalizedReviewJustification =
         decision === "comment"
@@ -481,7 +625,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
                 decision,
                 expectedHackatimeProjectName: current.hackatimeProjectName,
                 approvedHours: decision === "approved" ? (approvedHours as number) : null,
-                loggedHackatimeHours: effectiveHackatimeSeconds / 3600,
+                loggedHackatimeHours: approvedHoursCapSeconds / 3600,
               });
               if (!validated.ok) {
                 throw new ReviewSubmitError("validation", validated.error, 400);
@@ -539,6 +683,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             devlogId: a.devlogId,
             decision: a.decision,
             adjustedSeconds: a.decision === "adjusted" ? a.adjustedSeconds ?? null : null,
+            hackatimeProjectAdjustments:
+              a.decision === "adjusted" && a.hackatimeAdjustments ? a.hackatimeAdjustments : [],
             comment: a.comment,
             createdAt: now,
           })),
