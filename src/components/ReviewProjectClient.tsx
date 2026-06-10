@@ -384,18 +384,36 @@ export default function ReviewProjectClient({
     return reviewDevlogs.every((d) => assessmentsMap.has(d.id));
   }, [assessmentsMap, hasDevlogs, reviewDevlogs]);
 
+  // Total seconds all linked Hackatime projects contribute per devlog window;
+  // raises the adjusted ceiling above the devlog's recorded duration.
+  const breakdownTotalByDevlogId = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!hackatimeBreakdown.configured) return map;
+    for (const [devlogId, entries] of Object.entries(hackatimeBreakdown.byDevlog)) {
+      map.set(
+        devlogId,
+        entries.reduce((acc, e) => acc + Math.max(0, e.seconds), 0),
+      );
+    }
+    return map;
+  }, [hackatimeBreakdown]);
+
   const assessedTotalSeconds = useMemo(() => {
     let total = 0;
     for (const d of reviewDevlogs) {
       const a = assessmentsMap.get(d.id);
       if (!a) continue;
       total += effectiveSecondsForAssessment(
-        { devlogId: d.id, durationSeconds: d.durationSeconds },
+        {
+          devlogId: d.id,
+          durationSeconds: d.durationSeconds,
+          hackatimeBreakdownTotalSeconds: breakdownTotalByDevlogId.get(d.id) ?? null,
+        },
         { decision: a.decision, adjustedSeconds: a.adjustedSeconds ?? null },
       );
     }
     return total;
-  }, [assessmentsMap, reviewDevlogs]);
+  }, [assessmentsMap, breakdownTotalByDevlogId, reviewDevlogs]);
 
   const hackatimeLoggedHoursValue = useMemo(() => {
     if (!project.hackatimeHours) return null;
@@ -489,12 +507,26 @@ export default function ReviewProjectClient({
     if (!isApprovedHourIncrement(parsedApprovedHoursInput as number)) {
       return "Approved hours must be in 0.1-hour increments.";
     }
-    const maxApprovedHours = normalizeApprovedHours(approvalHackatimeHoursValue);
+    // Assessed totals may exceed logged Hackatime when adjusted devlogs count
+    // contributions from additional linked Hackatime projects.
+    const capHoursValue =
+      approvalHackatimeHoursValue === null
+        ? assessedTotalSeconds > 0
+          ? assessedTotalSeconds / 3600
+          : null
+        : Math.max(approvalHackatimeHoursValue, assessedTotalSeconds / 3600);
+    const maxApprovedHours = normalizeApprovedHours(capHoursValue);
     if (maxApprovedHours !== null && (parsedApprovedHoursInput as number) > maxApprovedHours) {
       return `Approved hours cannot exceed captured Hackatime (${maxApprovedHours}h).`;
     }
     return null;
-  }, [approvalHackatimeHoursValue, approvedHoursInput, decision, parsedApprovedHoursInput]);
+  }, [
+    approvalHackatimeHoursValue,
+    approvedHoursInput,
+    assessedTotalSeconds,
+    decision,
+    parsedApprovedHoursInput,
+  ]);
 
   const approvedHoursValue = useMemo(() => {
     if (decision !== "approved" || approvedHoursInputError) return null;
@@ -603,6 +635,14 @@ export default function ReviewProjectClient({
         decision: a.decision,
         ...(a.decision === "adjusted"
           ? { adjustedSeconds: Math.max(0, Math.floor(a.adjustedSeconds ?? 0)) }
+          : {}),
+        ...(a.decision === "adjusted" && a.hackatimeAdjustments?.length
+          ? {
+              hackatimeAdjustments: a.hackatimeAdjustments.map((entry) => ({
+                name: entry.name,
+                seconds: Math.max(0, Math.floor(entry.seconds)),
+              })),
+            }
           : {}),
         ...(a.comment ? { comment: a.comment } : {}),
       }));
@@ -895,7 +935,10 @@ export default function ReviewProjectClient({
         if (!draft || draft.decision !== "adjusted") return prev;
         const nextAdjustedSeconds = Math.min(
           Math.max(0, Math.floor(draft.adjustedSeconds ?? 0)),
-          Math.max(0, Math.floor(refreshed.durationSeconds || 0)),
+          Math.max(
+            Math.max(0, Math.floor(refreshed.durationSeconds || 0)),
+            breakdownTotalByDevlogId.get(refreshed.id) ?? 0,
+          ),
         );
         if (nextAdjustedSeconds === draft.adjustedSeconds) return prev;
         return {
@@ -916,7 +959,7 @@ export default function ReviewProjectClient({
         return next;
       });
     }
-  }, [project.id, refreshingDevlogIds]);
+  }, [breakdownTotalByDevlogId, project.id, refreshingDevlogIds]);
 
   return (
     <div className="space-y-6">

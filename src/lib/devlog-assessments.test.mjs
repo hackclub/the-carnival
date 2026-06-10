@@ -4,7 +4,9 @@ const {
   assessmentSecondsToApprovedHours,
   effectiveSecondsForAssessment,
   isValidAssessmentDecision,
+  maxAdjustableSeconds,
   sumAssessedSeconds,
+  sumHackatimeAdjustmentSeconds,
 } = await import("./devlog-assessments.ts");
 
 describe("isValidAssessmentDecision", () => {
@@ -55,6 +57,72 @@ describe("effectiveSecondsForAssessment", () => {
       { decision: "adjusted" },
     );
     expect(out).toBe(0);
+  });
+  test("adjusted cap rises to the multi-project breakdown total", () => {
+    const out = effectiveSecondsForAssessment(
+      { devlogId: "d1", durationSeconds: 3600, hackatimeBreakdownTotalSeconds: 5400 },
+      { decision: "adjusted", adjustedSeconds: 5400 },
+    );
+    expect(out).toBe(5400);
+  });
+  test("adjusted still caps above the breakdown total", () => {
+    const out = effectiveSecondsForAssessment(
+      { devlogId: "d1", durationSeconds: 3600, hackatimeBreakdownTotalSeconds: 5400 },
+      { decision: "adjusted", adjustedSeconds: 9999 },
+    );
+    expect(out).toBe(5400);
+  });
+  test("accepted ignores the breakdown total and uses durationSeconds", () => {
+    const out = effectiveSecondsForAssessment(
+      { devlogId: "d1", durationSeconds: 3600, hackatimeBreakdownTotalSeconds: 5400 },
+      { decision: "accepted" },
+    );
+    expect(out).toBe(3600);
+  });
+});
+
+describe("maxAdjustableSeconds", () => {
+  test("uses durationSeconds when no breakdown is available", () => {
+    expect(maxAdjustableSeconds({ devlogId: "d1", durationSeconds: 3600 })).toBe(3600);
+    expect(
+      maxAdjustableSeconds({
+        devlogId: "d1",
+        durationSeconds: 3600,
+        hackatimeBreakdownTotalSeconds: null,
+      }),
+    ).toBe(3600);
+  });
+  test("uses the larger of durationSeconds and the breakdown total", () => {
+    expect(
+      maxAdjustableSeconds({
+        devlogId: "d1",
+        durationSeconds: 3600,
+        hackatimeBreakdownTotalSeconds: 5400,
+      }),
+    ).toBe(5400);
+    expect(
+      maxAdjustableSeconds({
+        devlogId: "d1",
+        durationSeconds: 3600,
+        hackatimeBreakdownTotalSeconds: 1200,
+      }),
+    ).toBe(3600);
+  });
+});
+
+describe("sumHackatimeAdjustmentSeconds", () => {
+  test("sums entries and ignores invalid seconds", () => {
+    expect(
+      sumHackatimeAdjustmentSeconds([
+        { name: "a", seconds: 1200 },
+        { name: "b", seconds: 1800 },
+        { name: "c", seconds: -5 },
+      ]),
+    ).toBe(3000);
+  });
+  test("returns 0 for missing input", () => {
+    expect(sumHackatimeAdjustmentSeconds(null)).toBe(0);
+    expect(sumHackatimeAdjustmentSeconds(undefined)).toBe(0);
   });
 });
 
