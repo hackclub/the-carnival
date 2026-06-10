@@ -48,7 +48,7 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
       <div
         className={
           isLandingHeader
-            ? "flex items-center gap-2 self-start rounded-[var(--carnival-squircle-radius)] border border-[#74210a]/20 bg-[#fff7dc]/80 px-4 py-2.5 backdrop-blur"
+            ? "flex items-center gap-2 self-start py-2"
             : "flex items-center gap-2"
         }
       >
@@ -57,7 +57,7 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
           href="/"
           className={
             isLandingHeader
-              ? "text-xl font-bold uppercase tracking-[0.08em] text-[#5b1f0a]"
+              ? "text-xl font-bold text-[#5b1f0a]"
               : "text-xl font-bold text-foreground"
           }
         >
@@ -71,22 +71,22 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
         }`}
       >
         {showSectionLinks ? (
-          <div className="hidden items-center gap-1 rounded-[var(--carnival-squircle-radius)] border border-[#74210a]/20 bg-[#fff7dc]/80 p-1 backdrop-blur sm:flex">
+          <div className="hidden items-center gap-5 sm:flex">
             <Link
               href="#about"
-              className="rounded-[calc(var(--carnival-squircle-radius)*0.75)] px-4 py-2 text-sm font-bold uppercase tracking-[0.06em] text-[#7b240a] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc]"
+              className="text-sm font-bold text-[#7b240a] underline-offset-4 transition-colors hover:underline hover:decoration-[#e08609] hover:decoration-wavy"
             >
-              How It Works
+              How it works
             </Link>
             <Link
               href="#rewards"
-              className="rounded-[calc(var(--carnival-squircle-radius)*0.75)] px-4 py-2 text-sm font-bold uppercase tracking-[0.06em] text-[#7b240a] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc]"
+              className="text-sm font-bold text-[#7b240a] underline-offset-4 transition-colors hover:underline hover:decoration-[#e08609] hover:decoration-wavy"
             >
               Rewards
             </Link>
             <Link
               href="#faq"
-              className="rounded-[calc(var(--carnival-squircle-radius)*0.75)] px-4 py-2 text-sm font-bold uppercase tracking-[0.06em] text-[#7b240a] transition-colors hover:bg-[#f6a61c] hover:text-[#fff7dc]"
+              className="text-sm font-bold text-[#7b240a] underline-offset-4 transition-colors hover:underline hover:decoration-[#e08609] hover:decoration-wavy"
             >
               FAQ
             </Link>
