@@ -277,11 +277,30 @@ body {
   animation-delay: -4s;
 }
 
+@keyframes snack-jiggle {
+  0%, 100% { transform: translateY(0) rotate(var(--snack-rot, 0deg)); }
+  20%      { transform: translateY(-6px) rotate(calc(var(--snack-rot, 0deg) + 4deg)); }
+  45%      { transform: translateY(-2px) rotate(calc(var(--snack-rot, 0deg) - 3deg)); }
+  70%      { transform: translateY(-8px) rotate(calc(var(--snack-rot, 0deg) + 2deg)); }
+}
+
+.snack-jiggle {
+  animation: snack-jiggle 4.2s ease-in-out infinite;
+  will-change: transform;
+  transform-origin: 50% 60%;
+}
+
+.snack-jiggle-delay-1 { animation-delay: -0.8s; animation-duration: 4.8s; }
+.snack-jiggle-delay-2 { animation-delay: -1.6s; animation-duration: 5.4s; }
+.snack-jiggle-delay-3 { animation-delay: -2.4s; animation-duration: 3.9s; }
+.snack-jiggle-delay-4 { animation-delay: -3.0s; animation-duration: 4.5s; }
+
 @media (prefers-reduced-motion: reduce) {
   .float-animation,
   .carnival-balloon-float,
   .carnival-balloon-sway,
-  .carnival-bob {
+  .carnival-bob,
+  .snack-jiggle {
     animation: none !important;
   }
 }
