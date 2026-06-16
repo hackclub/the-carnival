@@ -329,13 +329,22 @@ export default function AdminUsersClient({
   return (
     <div className="space-y-6">
       <div className="platform-surface-card p-4">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search users by name or email…"
-          className="w-full bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-        />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search users by name or email…"
+            className="w-full bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+          />
+          <a
+            href="/api/admin/users/export"
+            download
+            className="shrink-0 rounded-[var(--radius-xl)] bg-carnival-blue px-4 py-2.5 text-center text-sm font-semibold text-white hover:opacity-90"
+          >
+            Export CSV
+          </a>
+        </div>
         {searchQuery.trim() && (
           <div className="mt-2 text-xs text-muted-foreground">
             {sortedUsers.length} of {users.length} users match
