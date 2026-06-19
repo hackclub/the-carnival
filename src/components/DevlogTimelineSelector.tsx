@@ -11,6 +11,7 @@ export type TimelineSpan = {
   editors: string[];
   languages: string[];
   hasLinkedProject: boolean;
+  isAlreadyLogged?: boolean;
 };
 
 type Props = {
@@ -87,26 +88,36 @@ function TimelineBar({
         const width = Math.max(0.5, ((span.endTime - span.startTime) / range) * 100);
         const isSelected = selectedIndices.has(i);
         const isLinked = span.hasLinkedProject;
+        const isAlreadyLogged = span.isAlreadyLogged;
+
+        let title = `${formatTime(span.startTime)} – ${formatTime(span.endTime)} (${formatDuration(span.duration)})\n${span.projectsEdited.map((p) => p.name).join(", ") || "No projects"}`;
+        if (isAlreadyLogged) title += "\n(Already logged in another devlog)";
 
         return (
           <button
             key={i}
             type="button"
-            onClick={() => onToggle(i)}
-            title={`${formatTime(span.startTime)} – ${formatTime(span.endTime)} (${formatDuration(span.duration)})\n${span.projectsEdited.map((p) => p.name).join(", ") || "No projects"}`}
+            onClick={() => {
+              if (!isAlreadyLogged) onToggle(i);
+            }}
+            title={title}
+            disabled={isAlreadyLogged}
             className={[
-              "absolute top-1 bottom-1 rounded transition-all cursor-pointer",
-              isSelected
+              "absolute top-1 bottom-1 rounded transition-all",
+              isAlreadyLogged ? "cursor-not-allowed opacity-30 bg-muted-foreground/30" : "cursor-pointer",
+              !isAlreadyLogged && isSelected
                 ? "opacity-100 ring-2 ring-white/50"
-                : "opacity-60 hover:opacity-80",
-              isLinked
+                : !isAlreadyLogged && "opacity-60 hover:opacity-80",
+              !isAlreadyLogged && isLinked
                 ? isSelected
                   ? "bg-carnival-blue"
                   : "bg-carnival-blue/70"
-                : isSelected
+                : !isAlreadyLogged && isSelected
                   ? "bg-muted-foreground"
-                  : "bg-muted-foreground/50",
-            ].join(" ")}
+                  : !isAlreadyLogged && "bg-muted-foreground/50",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             style={{ left: `${left}%`, width: `${width}%`, minWidth: "4px" }}
           />
         );
@@ -151,7 +162,10 @@ export default function DevlogTimelineSelector({
   }
 
   function selectAll() {
-    const all = new Set(spans.map((_, i) => i));
+    const all = new Set<number>();
+    spans.forEach((span, i) => {
+      if (!span.isAlreadyLogged) all.add(i);
+    });
     setSelectedIndices(all);
     onWindowChange(windowFromIndices(spans, all));
   }
@@ -209,28 +223,37 @@ export default function DevlogTimelineSelector({
       <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
         {spans.map((span, i) => {
           const isSelected = selectedIndices.has(i);
+          const isAlreadyLogged = span.isAlreadyLogged;
           const projectNames = span.projectsEdited.map((p) => p.name).join(", ");
 
           return (
             <button
               key={i}
               type="button"
-              onClick={() => toggle(i)}
+              onClick={() => {
+                if (!isAlreadyLogged) toggle(i);
+              }}
+              disabled={isAlreadyLogged}
               className={[
                 "w-full text-left rounded-[var(--radius-xl)] border px-3 py-2 transition-colors",
-                isSelected
+                isAlreadyLogged ? "cursor-not-allowed opacity-50 bg-muted/50 border-border" : "cursor-pointer",
+                !isAlreadyLogged && isSelected
                   ? "border-carnival-blue/50 bg-carnival-blue/10"
-                  : "border-border bg-background hover:border-muted-foreground/30",
-              ].join(" ")}
+                  : !isAlreadyLogged && "border-border bg-background hover:border-muted-foreground/30",
+              ]
+                .filter(Boolean)
+                .join(" ")}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span
                     className={[
                       "flex-shrink-0 h-3.5 w-3.5 rounded border-2 mt-0.5",
-                      isSelected
-                        ? "border-carnival-blue bg-carnival-blue"
-                        : "border-muted-foreground/40 bg-transparent",
+                      isAlreadyLogged
+                        ? "border-muted-foreground/20 bg-muted-foreground/10"
+                        : isSelected
+                          ? "border-carnival-blue bg-carnival-blue"
+                          : "border-muted-foreground/40 bg-transparent",
                     ].join(" ")}
                   />
                   <div className="min-w-0">
@@ -238,6 +261,7 @@ export default function DevlogTimelineSelector({
                       {formatTime(span.startTime)} – {formatTime(span.endTime)}
                       <span className="ml-2 text-xs text-muted-foreground font-normal">
                         ({formatDuration(span.duration)})
+                        {isAlreadyLogged ? " · Already logged" : ""}
                       </span>
                     </div>
                     {projectNames ? (
