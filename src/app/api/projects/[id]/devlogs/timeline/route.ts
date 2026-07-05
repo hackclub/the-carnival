@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { user } from "@/db/schema";
+import { devlog, user } from "@/db/schema";
 import { listProjectHackatimeProjects } from "@/lib/devlogs";
 import { fetchHackatimeAdminTimeline } from "@/lib/hackatime";
 import { resolveProjectAccess } from "@/lib/project-route";
@@ -59,6 +59,11 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     );
   }
 
+  const existingDevlogs = await db
+    .select({ startedAt: devlog.startedAt, endedAt: devlog.endedAt })
+    .from(devlog)
+    .where(eq(devlog.projectId, projectId));
+
   const linkedProjects = await listProjectHackatimeProjects(projectId);
   const linkedNameSet = new Set(linkedProjects.map((lp) => lp.name.toLowerCase()));
 
@@ -68,17 +73,26 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     // The API supports multiple user_ids; we only query one, so pick the match.
     const userData = timeline.users.find((u) => String(u.userId) === hackatimeUserId);
 
-    const spans = (userData?.spans ?? []).map((span) => ({
-      startTime: span.startTime,
-      endTime: span.endTime,
-      duration: span.duration,
-      projectsEdited: span.projectsEdited,
-      editors: span.editors,
-      languages: span.languages,
-      hasLinkedProject: span.projectsEdited.some((pe) =>
-        linkedNameSet.has(pe.name.toLowerCase()),
-      ),
-    }));
+    const spans = (userData?.spans ?? []).map((span) => {
+      const isAlreadyLogged = existingDevlogs.some((d) => {
+        const dStart = d.startedAt.getTime() / 1000;
+        const dEnd = d.endedAt.getTime() / 1000;
+        return span.startTime < dEnd && span.endTime > dStart;
+      });
+
+      return {
+        startTime: span.startTime,
+        endTime: span.endTime,
+        duration: span.duration,
+        projectsEdited: span.projectsEdited,
+        editors: span.editors,
+        languages: span.languages,
+        hasLinkedProject: span.projectsEdited.some((pe) =>
+          linkedNameSet.has(pe.name.toLowerCase()),
+        ),
+        isAlreadyLogged,
+      };
+    });
 
     return NextResponse.json({
       date,
