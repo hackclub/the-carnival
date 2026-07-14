@@ -21,12 +21,12 @@ const caveat = Caveat({
 export const metadata: Metadata = {
   title: "Snacks — Carnival",
   description:
-    "Build a new Carnival extension before June 30. If it's worth 12+ hours, you get $1.50 per hour in snacks on top of your normal grant.",
+    "Build a new Carnival extension before July 31. If it's worth 12+ hours, you get $1.50 per hour in snacks on top of your normal grant.",
   openGraph: {
     type: "website",
     title: "Snacks — Carnival",
     description:
-      "Build a new Carnival extension before June 30. If it's worth 12+ hours, you get $1.50 per hour in snacks on top of your normal grant.",
+      "Build a new Carnival extension before July 31. If it's worth 12+ hours, you get $1.50 per hour in snacks on top of your normal grant.",
     siteName: "Carnival",
     images: ["/snacks/snacks banner.png"],
   },
@@ -87,7 +87,7 @@ const beats: StoryBeat[] = [
   },
   {
     eyebrow: "step two",
-    title: "Ship before June 30",
+    title: "Ship before July 31",
     body: "Submit it the normal Carnival way. You get the regular grant — snacks come on top.",
     snack: { src: "/snacks/ice cream.png", alt: "An animated ice cream cone" },
     rotate: 7,
@@ -174,7 +174,7 @@ export default function SnacksPage() {
             .
           </p>
           <p className="mt-3 max-w-xl text-[15px] leading-6 text-[#6d3510] [text-wrap:pretty] sm:mt-4 sm:text-base sm:leading-7">
-            Build a <strong>new</strong> extension for Carnival before June 30.
+            Build a <strong>new</strong> extension for Carnival before July 31.
             If it&apos;s worth 12+ hours, you get $1.50 per hour in snacks — on
             top of your normal grant.
           </p>
@@ -292,7 +292,7 @@ export default function SnacksPage() {
             <li className="flex gap-3">
               <span aria-hidden="true" className="shrink-0 text-[#e08609]">•</span>
               <span>
-                Submit by June 30, 2026. Reviews can finish after — you just
+                Submit by July 31, 2026. Reviews can finish after — you just
                 need to be in by then.
               </span>
             </li>
