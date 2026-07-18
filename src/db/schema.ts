@@ -586,3 +586,14 @@ export const userNudge = pgTable(
     userCreatedAtIdx: index("user_nudge_user_created_at_idx").on(t.userId, t.createdAt),
   }),
 );
+
+// ============================================================================
+// Site settings (admin-editable key/value config, e.g. deadlines)
+// ============================================================================
+
+export const siteSetting = pgTable("site_setting", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").$type<unknown>().notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+  updatedByUserId: text("updated_by_user_id").references(() => user.id, { onDelete: "set null" }),
+});
