@@ -8,6 +8,7 @@ import { signOut } from "@/lib/auth-client";
 import { useSidebar } from "@/components/SidebarContext";
 import {
   Ban,
+  BarChart3,
   BookOpen,
   ChevronLeft,
   ChevronRight,
@@ -84,6 +85,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
   { href: "/admin/review/comments", label: "Reviewer comments", icon: MessageSquare },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/insights", label: "Insights", icon: BarChart3 },
   { href: "/admin/audit", label: "Audit log", icon: Shield },
 ];
 
