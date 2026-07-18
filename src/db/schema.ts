@@ -559,3 +559,36 @@ export const shopOrder = pgTable("shop_order", {
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
+
+// ============================================================================
+// Site announcements (banner shown across the site)
+// ============================================================================
+
+export const announcementVariant = pgEnum("announcement_variant", [
+  "carnival",
+  "info",
+  "success",
+  "warning",
+]);
+export type AnnouncementVariant = (typeof announcementVariant.enumValues)[number];
+
+export const announcement = pgTable(
+  "announcement",
+  {
+    id: text("id").primaryKey(),
+    message: text("message").notNull(),
+    href: text("href"),
+    linkLabel: text("link_label"),
+    variant: announcementVariant("variant").notNull().default("carnival"),
+    isActive: boolean("is_active").notNull().default(true),
+    // Optional scheduling window (UTC). Null bounds mean "no bound".
+    startsAt: timestamp("starts_at"),
+    endsAt: timestamp("ends_at"),
+    createdByUserId: text("created_by_user_id").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (t) => ({
+    activeCreatedAtIdx: index("announcement_active_created_at_idx").on(t.isActive, t.createdAt),
+  }),
+);
