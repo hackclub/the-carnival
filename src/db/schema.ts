@@ -59,6 +59,9 @@ export const devlogAssessmentDecision = pgEnum("devlog_assessment_decision", [
 ]);
 export type DevlogAssessmentDecision = (typeof devlogAssessmentDecision.enumValues)[number];
 
+export const nudgeChannel = pgEnum("nudge_channel", ["slack", "email"]);
+export type NudgeChannel = (typeof nudgeChannel.enumValues)[number];
+
 export type ProjectSubmissionChecklist = {
   readmeInstructions: boolean;
   testedWorking: boolean;
@@ -558,4 +561,39 @@ export const shopOrder = pgTable("shop_order", {
   fulfilledAt: timestamp("fulfilled_at"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
+});
+
+// ============================================================================
+// Activation nudges (admin outreach)
+// ============================================================================
+
+export const userNudge = pgTable(
+  "user_nudge",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    channel: nudgeChannel("channel").notNull(),
+    // Which activation segment this nudge targeted (e.g. "never_activated",
+    // "zero_hours", "stalled_with_hours", "verification_blocked").
+    kind: text("kind").notNull(),
+    message: text("message").notNull(),
+    sentByUserId: text("sent_by_user_id").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (t) => ({
+    userCreatedAtIdx: index("user_nudge_user_created_at_idx").on(t.userId, t.createdAt),
+  }),
+);
+
+// ============================================================================
+// Site settings (admin-editable key/value config, e.g. deadlines)
+// ============================================================================
+
+export const siteSetting = pgTable("site_setting", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").$type<unknown>().notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+  updatedByUserId: text("updated_by_user_id").references(() => user.id, { onDelete: "set null" }),
 });

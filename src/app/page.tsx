@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Header from "@/components/Header";
 import FAQ from "@/components/home/FAQ";
 import Countdown from "@/components/landing/Countdown";
+import { getSiteSettingIso } from "@/lib/site-settings";
 import FloatingBalloons from "@/components/landing/FloatingBalloons";
 import HeroTypewriter from "@/components/landing/HeroTypewriter";
 import LandingCTAButtons from "@/components/landing/LandingCTAButtons";
@@ -154,6 +155,7 @@ function PrizeBalloon({
 }
 
 export default async function Home() {
+  const carnivalDeadlineIso = await getSiteSettingIso("carnival_deadline");
   const session = await getServerSession();
   const userId = (session?.user as { id?: string } | undefined)?.id ?? null;
 
@@ -269,7 +271,7 @@ export default async function Home() {
           />
         </div>
 
-        <Countdown />
+        <Countdown deadlineIso={carnivalDeadlineIso} />
       </section>
 
       {/* How it works */}
