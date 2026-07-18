@@ -77,3 +77,19 @@ export async function notifyReviewDM(input: ReviewMessage) {
 		console.error("[Slack] Failed to send review DM", err);
 	}
 }
+
+export function isSlackNudgeEnabled(): boolean {
+	return Boolean(slack);
+}
+
+/** Send an admin activation nudge as a DM. Returns whether the send succeeded. */
+export async function sendNudgeDM(slackId: string, text: string): Promise<boolean> {
+	if (!slack || !slackId.trim() || !text.trim()) return false;
+	try {
+		await slack.chat.postMessage({ channel: slackId, text });
+		return true;
+	} catch (err) {
+		console.error("[Slack] Failed to send nudge DM", err);
+		return false;
+	}
+}
