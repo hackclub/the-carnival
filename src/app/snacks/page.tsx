@@ -4,6 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { Fredoka, Caveat } from "next/font/google";
 import LandingCTAButtons from "@/components/landing/LandingCTAButtons";
+import {
+  formatDeadlineMonthDay,
+  formatDeadlineMonthDayYear,
+  getSiteSettingIso,
+} from "@/lib/site-settings";
 import SnacksCountdown from "./countdown";
 
 const fredoka = Fredoka({
@@ -18,19 +23,21 @@ const caveat = Caveat({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Snacks — Carnival",
-  description:
-    "Build a new Carnival extension before July 31. If it's worth 12+ hours, you get $1.50 per hour in snacks on top of your normal grant.",
-  openGraph: {
-    type: "website",
+export async function generateMetadata(): Promise<Metadata> {
+  const deadlineIso = await getSiteSettingIso("snacks_deadline");
+  const description = `Build a new Carnival extension before ${formatDeadlineMonthDay(deadlineIso)}. If it's worth 12+ hours, you get $1.50 per hour in snacks on top of your normal grant.`;
+  return {
     title: "Snacks — Carnival",
-    description:
-      "Build a new Carnival extension before July 31. If it's worth 12+ hours, you get $1.50 per hour in snacks on top of your normal grant.",
-    siteName: "Carnival",
-    images: ["/snacks/snacks banner.png"],
-  },
-};
+    description,
+    openGraph: {
+      type: "website",
+      title: "Snacks — Carnival",
+      description,
+      siteName: "Carnival",
+      images: ["/snacks/snacks banner.png"],
+    },
+  };
+}
 
 const heroStats = [
   { value: "12+ hours", label: "minimum to qualify" },
@@ -76,7 +83,7 @@ type StoryBeat = {
   delay: string;
 };
 
-const beats: StoryBeat[] = [
+const getBeats = (deadlineMonthDay: string): StoryBeat[] => [
   {
     eyebrow: "step one",
     title: "Make something new",
@@ -87,7 +94,7 @@ const beats: StoryBeat[] = [
   },
   {
     eyebrow: "step two",
-    title: "Ship before July 31",
+    title: `Ship before ${deadlineMonthDay}`,
     body: "Submit it the normal Carnival way. You get the regular grant — snacks come on top.",
     snack: { src: "/snacks/ice cream.png", alt: "An animated ice cream cone" },
     rotate: 7,
@@ -108,7 +115,12 @@ function snackStyle(rotate: number): CSSProperties {
   return { ["--snack-rot" as string]: `${rotate}deg`, transform: `rotate(${rotate}deg)` };
 }
 
-export default function SnacksPage() {
+export default async function SnacksPage() {
+  const deadlineIso = await getSiteSettingIso("snacks_deadline");
+  const deadlineMonthDay = formatDeadlineMonthDay(deadlineIso);
+  const deadlineMonthDayYear = formatDeadlineMonthDayYear(deadlineIso);
+  const beats = getBeats(deadlineMonthDay);
+
   return (
     <main
       className={`${fredoka.className} carnival-home-bg relative min-h-screen overflow-x-clip text-[#5b1f0a]`}
@@ -174,7 +186,7 @@ export default function SnacksPage() {
             .
           </p>
           <p className="mt-3 max-w-xl text-[15px] leading-6 text-[#6d3510] [text-wrap:pretty] sm:mt-4 sm:text-base sm:leading-7">
-            Build a <strong>new</strong> extension for Carnival before July 31.
+            Build a <strong>new</strong> extension for Carnival before {deadlineMonthDay}.
             If it&apos;s worth 12+ hours, you get $1.50 per hour in snacks — on
             top of your normal grant.
           </p>
@@ -204,7 +216,7 @@ export default function SnacksPage() {
           <LandingCTAButtons />
 
           <div className="mt-8 sm:mt-10">
-            <SnacksCountdown />
+            <SnacksCountdown deadlineIso={deadlineIso} />
           </div>
         </div>
       </section>
@@ -292,8 +304,8 @@ export default function SnacksPage() {
             <li className="flex gap-3">
               <span aria-hidden="true" className="shrink-0 text-[#e08609]">•</span>
               <span>
-                Submit by July 31, 2026. Reviews can finish after — you just
-                need to be in by then.
+                Submit by {deadlineMonthDayYear}. Reviews can finish after — you
+                just need to be in by then.
               </span>
             </li>
             <li className="flex gap-3">

@@ -7,6 +7,7 @@ export const ADMIN_AUDIT_ACTIONS = [
   "user_unfrozen",
   "ledger_adjustment_created",
   "user_nudge_sent",
+  "site_setting_updated",
   "announcement_created",
   "announcement_updated",
   "announcement_deleted",

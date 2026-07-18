@@ -318,6 +318,13 @@
       "breakpoints": true
     },
     {
+      "idx": 45,
+      "version": "7",
+      "when": 1784332800001,
+      "tag": "0045_add_site_setting",
+      "breakpoints": true
+    },
+    {
       "idx": 46,
       "version": "7",
       "when": 1784332800002,

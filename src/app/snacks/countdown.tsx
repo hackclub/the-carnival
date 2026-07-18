@@ -19,8 +19,8 @@ function getTimeLeft(targetDate: Date): TimeLeft {
   return { days, hours, minutes, seconds };
 }
 
-export default function SnacksCountdown() {
-  const deadline = useMemo(() => new Date("2026-07-31T23:59:59Z"), []);
+export default function SnacksCountdown({ deadlineIso }: { deadlineIso: string }) {
+  const deadline = useMemo(() => new Date(deadlineIso), [deadlineIso]);
   const deadlineLabel = useMemo(
     () =>
       new Intl.DateTimeFormat("en-US", {
