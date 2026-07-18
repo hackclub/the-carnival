@@ -7,6 +7,8 @@ import Countdown from "@/components/landing/Countdown";
 import FloatingBalloons from "@/components/landing/FloatingBalloons";
 import HeroTypewriter from "@/components/landing/HeroTypewriter";
 import LandingCTAButtons from "@/components/landing/LandingCTAButtons";
+import OnboardingChecklist from "@/components/OnboardingChecklist";
+import { getServerSession } from "@/lib/server-session";
 
 const finePrint = [
   "Solve a real annoyance or quality-of-life problem.",
@@ -151,7 +153,10 @@ function PrizeBalloon({
   );
 }
 
-export default function Home() {
+export default async function Home() {
+  const session = await getServerSession();
+  const userId = (session?.user as { id?: string } | undefined)?.id ?? null;
+
   return (
     <main className="carnival-home-bg relative min-h-screen overflow-x-clip text-[#5b1f0a]">
       <FloatingBalloons />
@@ -159,6 +164,12 @@ export default function Home() {
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.32)_0%,_transparent_68%)]" />
 
       <Header />
+
+      {userId ? (
+        <div className="relative z-10 px-4 pt-4 sm:px-6">
+          <OnboardingChecklist userId={userId} variant="landing" />
+        </div>
+      ) : null}
 
       {/* Hero */}
       <section className="relative px-4 pt-4 sm:px-6 sm:pt-8">
