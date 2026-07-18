@@ -6,6 +6,7 @@ export const ADMIN_AUDIT_ACTIONS = [
   "user_frozen",
   "user_unfrozen",
   "ledger_adjustment_created",
+  "site_setting_updated",
 ] as const;
 
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];

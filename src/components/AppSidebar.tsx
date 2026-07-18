@@ -85,6 +85,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/review/comments", label: "Reviewer comments", icon: MessageSquare },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/audit", label: "Audit log", icon: Shield },
+  { href: "/admin/settings", label: "Site settings", icon: Settings },
 ];
 
 function asUserRole(value: unknown): UserRole {

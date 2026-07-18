@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Header from "@/components/Header";
 import FAQ from "@/components/home/FAQ";
 import Countdown from "@/components/landing/Countdown";
+import { getSiteSettingIso } from "@/lib/site-settings";
 import FloatingBalloons from "@/components/landing/FloatingBalloons";
 import HeroTypewriter from "@/components/landing/HeroTypewriter";
 import LandingCTAButtons from "@/components/landing/LandingCTAButtons";
@@ -151,7 +152,8 @@ function PrizeBalloon({
   );
 }
 
-export default function Home() {
+export default async function Home() {
+  const carnivalDeadlineIso = await getSiteSettingIso("carnival_deadline");
   return (
     <main className="carnival-home-bg relative min-h-screen overflow-x-clip text-[#5b1f0a]">
       <FloatingBalloons />
@@ -258,7 +260,7 @@ export default function Home() {
           />
         </div>
 
-        <Countdown />
+        <Countdown deadlineIso={carnivalDeadlineIso} />
       </section>
 
       {/* How it works */}
