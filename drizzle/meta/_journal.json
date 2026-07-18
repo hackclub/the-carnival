@@ -309,6 +309,13 @@
       "when": 1781136000000,
       "tag": "0043_devlog_assessment_hackatime_adjustments",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1784332800000,
+      "tag": "0044_add_user_nudge",
+      "breakpoints": true
     }
   ]
 }
