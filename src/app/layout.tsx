@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Parkinsans } from "next/font/google";
 import "./globals.css";
+import SiteBanner from "@/components/SiteBanner";
 import ToasterProvider from "@/components/ToasterProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { NavigationProgressProvider } from "@/components/NavigationProgress";
@@ -41,6 +42,7 @@ export default function RootLayout({
         className={`${parkinsans.variable} ${geistMono.variable} antialiased sparkles`}
       >
         <ToasterProvider />
+        <SiteBanner />
         <TooltipProvider>
           <NavigationProgressProvider>{children}</NavigationProgressProvider>
         </TooltipProvider>

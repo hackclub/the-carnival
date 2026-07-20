@@ -8,6 +8,9 @@ export const ADMIN_AUDIT_ACTIONS = [
   "ledger_adjustment_created",
   "user_nudge_sent",
   "site_setting_updated",
+  "announcement_created",
+  "announcement_updated",
+  "announcement_deleted",
 ] as const;
 
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];

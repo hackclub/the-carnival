@@ -19,6 +19,7 @@ import {
   Gift,
   LogOut,
   LucideIcon,
+  Megaphone,
   MessageSquare,
   NotebookPen,
   Settings,
@@ -86,6 +87,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/review/comments", label: "Reviewer comments", icon: MessageSquare },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/insights", label: "Insights", icon: BarChart3 },
+  { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
   { href: "/admin/audit", label: "Audit log", icon: Shield },
   { href: "/admin/settings", label: "Site settings", icon: Settings },
 ];
