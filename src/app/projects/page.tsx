@@ -4,6 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import CreateProjectModal from "@/components/CreateProjectModal";
+import OnboardingChecklist from "@/components/OnboardingChecklist";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import { db } from "@/db";
 import { project } from "@/db/schema";
@@ -44,6 +45,7 @@ export default async function ProjectsPage() {
 
   return (
     <AppShell title="My projects">
+      <OnboardingChecklist userId={session.user.id} variant="app" className="mb-6" />
       {myProjects.length === 0 ? (
         <div className="platform-surface-card p-8">
           <div className="text-foreground font-semibold text-lg">No projects yet</div>
