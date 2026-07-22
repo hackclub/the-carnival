@@ -269,7 +269,9 @@ export default function BountiesClient({
   const onCreate = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      const fd = new FormData(e.currentTarget);
+      // e.currentTarget is nulled by React after the handler yields, so grab it now.
+      const form = e.currentTarget;
+      const fd = new FormData(form);
       const name = String(fd.get("name") ?? "").trim();
       const description = createDescription.trim();
       const prizeUsd = Number(fd.get("prizeUsd") ?? 0);
@@ -306,17 +308,20 @@ export default function BountiesClient({
           return;
         }
         toast.success(isAdmin ? "Created." : "Proposal submitted for admin review.", { id: toastId });
-        e.currentTarget.reset();
-        setCreateDescription("");
-        setCreateRequirements("");
-        setPreviewImageUrl("");
-        setHelpfulLinksDraft([createEmptyHelpfulLink()]);
-        await refresh();
-        setCreating(false);
       } catch {
         toast.error("Failed to create bounty.", { id: toastId });
         setCreating(false);
+        return;
       }
+
+      // Creation succeeded — cleanup failures below must not report it as a failure.
+      form.reset();
+      setCreateDescription("");
+      setCreateRequirements("");
+      setPreviewImageUrl("");
+      setHelpfulLinksDraft([createEmptyHelpfulLink()]);
+      await refresh().catch(() => undefined);
+      setCreating(false);
     },
     [createDescription, createRequirements, helpfulLinksDraft, isAdmin, previewImageUrl, refresh],
   );
