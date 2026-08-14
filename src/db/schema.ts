@@ -533,6 +533,8 @@ export const tokenLedger = pgTable(
   },
   (t) => [
     uniqueIndex("token_ledger_ref_kind_uniq").on(t.referenceType, t.referenceId, t.kind),
+    index("token_ledger_created_at_idx").on(t.createdAt),
+    index("token_ledger_issued_to_created_at_idx").on(t.issuedToUserId, t.createdAt),
   ],
 );
 
