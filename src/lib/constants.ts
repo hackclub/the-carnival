@@ -36,10 +36,12 @@ export function buildHackatimeDevlogReviewUrls(input: {
     return null;
   }
 
-  const startIso = start.toISOString();
-  const endIso = end.toISOString();
+  // Billy/joe.fraud only understand date-only ranges (YYYY-MM-DD); full ISO
+  // timestamps in the `d` param break their range parsing.
+  const startDate = start.toISOString().slice(0, 10);
+  const endDate = end.toISOString().slice(0, 10);
   return {
-    billyUrl: buildBillyUrl(hackatimeId, startIso, endIso),
-    joeFraudUrl: buildJoeFraudUrl(hackatimeId, startIso, endIso),
+    billyUrl: buildBillyUrl(hackatimeId, startDate, endDate),
+    joeFraudUrl: buildJoeFraudUrl(hackatimeId, startDate, endDate),
   };
 }
