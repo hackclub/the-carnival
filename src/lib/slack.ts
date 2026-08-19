@@ -31,10 +31,12 @@ export async function notifyReviewDM(input: ReviewMessage) {
 			"🎪 We got your submission.",
 			"A reviewer will take a look soon.",
 		],
+		// Sent only at GRANT time (pass 2) — never on pass-1 approval — so the
+		// tokens really have been credited when the creator reads this.
 		approved: [
 			`Hey${ownerMention ? ` <@${ownerMention}>` : ""},`,
-			"✅ Congrats! Your project was approved.",
-			"We’ll mark it as shipped and your payout should be credited within next few minutes !. If not , please DM @Josias !",
+			"✅ Congrats! Your project was approved and granted.",
+			"Your tokens have been credited to your Carnival wallet. If you don't see them, please DM @Josias!",
 		],
 		rejected: [
 			`Hey${ownerMention ? ` <@${ownerMention}>` : ""},`,

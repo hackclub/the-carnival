@@ -5,7 +5,11 @@ const HALF_HOUR_EPSILON = 1e-9;
 const APPROVED_HOUR_INCREMENT = 0.1;
 const APPROVED_HOUR_MULTIPLIER = 1 / APPROVED_HOUR_INCREMENT;
 const APPROVED_HOUR_SECONDS = 60 * 60 * APPROVED_HOUR_INCREMENT;
-const DEFALTION_REASON_THRESHOLD_HOURS = 0.5;
+// YSWS Handbook: every deflation must carry a human-written "deflated from X
+// to Y because ..." justification. One 0.1h increment is the smallest
+// deflation the system can express (plain floor-rounding loses less than
+// that), so anything >= 0.1h counts as a real deflation.
+const DEFLATION_REASON_THRESHOLD_HOURS = 0.1;
 export const REVIEW_EVIDENCE_ITEMS = [
   { key: "hackatimeProjectReviewed", label: "Hackatime project reviewed" },
   { key: "githubReviewed", label: "GitHub project and commit messages reviewed" },
@@ -22,6 +26,14 @@ export const REVIEW_DEFLATION_REASON_OPTIONS = [
   { key: "scopeCouldNotBeVerified", label: "Some claimed work could not be verified" },
   { key: "lessSubstantiveWork", label: "Delivered work was less substantive than logged time" },
   { key: "qualityOrBreakages", label: "Quality issues reduced accepted hours" },
+  // AI-assisted slices are approved at 1/3 of claimed time (see
+  // src/lib/review/config.ts AI_APPROVED_HOURS_FACTOR).
+  { key: "aiUsage", label: "AI usage — approved at 1/3 of claimed time" },
+  // Devlog windows can overlap (e.g. Jul 12-15 and Jul 14-23); time already
+  // counted by another devlog is trimmed via the reviewed-window override.
+  { key: "overlappingWindow", label: "Time range overlaps another devlog (window trimmed)" },
+  { key: "singleCommitHistory", label: "Commit history too thin for the claimed hours" },
+  { key: "artAssetCap", label: "Art/asset time above the 25% cap" },
   { key: "other", label: "Other (add context in note)" },
 ] as const;
 
@@ -137,7 +149,7 @@ export function calculateHoursReduction(loggedHackatimeHours: number | null, app
 }
 
 export function requiresDeflationReason(loggedHackatimeHours: number | null, approvedHours: number | null) {
-  return calculateHoursReduction(loggedHackatimeHours, approvedHours) + HALF_HOUR_EPSILON >= DEFALTION_REASON_THRESHOLD_HOURS;
+  return calculateHoursReduction(loggedHackatimeHours, approvedHours) + HALF_HOUR_EPSILON >= DEFLATION_REASON_THRESHOLD_HOURS;
 }
 
 export function validateRequiredReviewJustification(input: {
@@ -221,19 +233,14 @@ export function validateRequiredReviewJustification(input: {
     input.decision === "approved"
       ? requiresDeflationReason(input.loggedHackatimeHours, input.approvedHours)
       : false;
-  if (reasonRequired && reasons.length === 0) {
-    return {
-      ok: false,
-      error:
-        "Approved hours are at least 0.5 lower than Hackatime hours. Select at least one deflation reason.",
-    };
-  }
-  if (reduction > HALF_HOUR_EPSILON && reasons.includes("other") && !note) {
-    return {
-      ok: false,
-      error: "Add a deflation note when selecting Other.",
-    };
-  }
+  // NOTE: there is deliberately NO project-level deflation reason/note
+  // requirement anymore. Deflation is tied to time ranges: every devlog
+  // assessment that counts fewer seconds than the devlog logged must carry
+  // its own reasons + comment (enforced in /api/review/[id] against
+  // REVIEW_DEFLATION_REASON_OPTIONS), and those per-devlog entries — not a
+  // generic summary — are what the Airtable justification renders. The
+  // project-level fields below are still parsed for backward compatibility
+  // with reviews recorded before this change.
 
   return {
     ok: true,

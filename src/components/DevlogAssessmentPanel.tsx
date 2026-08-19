@@ -5,12 +5,25 @@ import { useMemo, useState } from "react";
 import { Badge, Card, CardContent, FormLabel, Input, Textarea } from "@/components/ui";
 import type { DevlogAssessmentDecision, DevlogHackatimeProjectAdjustment } from "@/db/schema";
 import {
+  assessmentDeflatesHours,
   effectiveSecondsForAssessment,
   sumHackatimeAdjustmentSeconds,
   type DevlogAssessmentDraft,
 } from "@/lib/devlog-assessments";
 import { buildHackatimeDevlogReviewUrls } from "@/lib/constants";
 import { formatDurationHM } from "@/lib/devlog-shared";
+import { aiDeflatedSeconds } from "@/lib/review/config";
+import { REVIEW_DEFLATION_REASON_OPTIONS } from "@/lib/review-rules";
+import { DateTimePicker } from "@/components/ui/date-picker";
+import toast from "react-hot-toast";
+
+/** ISO timestamp → datetime-local input value (local time, minute precision). */
+function toDatetimeLocalValue(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export type ReviewDevlogFull = {
   id: string;
@@ -37,7 +50,12 @@ type Props = {
   hackatimeUserId?: string | null;
   devlogs: ReviewDevlogFull[];
   assessments: Record<string, DevlogAssessmentDraft>;
-  onChange: (next: Record<string, DevlogAssessmentDraft>) => void;
+  // Must accept functional updates (React setState dispatch): draft edits are
+  // applied against the LATEST state, never against a render-time snapshot.
+  // With a plain `(next) => void` signature, async flows (e.g. the reviewed-
+  // window Hackatime pull resolving after the reviewer ticked reasons or
+  // typed a note) would overwrite those fields with a stale copy.
+  onChange: React.Dispatch<React.SetStateAction<Record<string, DevlogAssessmentDraft>>>;
   onRefreshHackatime?: (devlogId: string) => void;
   refreshingDevlogIds?: Set<string>;
   readOnly?: boolean;
@@ -260,7 +278,9 @@ function DevlogItem({
   hackatimeUserId?: string | null;
   devlog: ReviewDevlogFull;
   draft: DevlogAssessmentDraft | undefined;
-  onChange: (next: DevlogAssessmentDraft | null) => void;
+  onChange: (
+    update: (prev: DevlogAssessmentDraft | undefined) => DevlogAssessmentDraft | null,
+  ) => void;
   onRefreshHackatime?: (devlogId: string) => void;
   refreshing?: boolean;
   readOnly?: boolean;
@@ -304,6 +324,22 @@ function DevlogItem({
     : 0;
   const adjustedPreview = formatDurationHM(adjustedPreviewSeconds);
 
+  // Deflation is tied to this devlog's time range: whenever the assessment
+  // counts fewer seconds than the devlog logged, the reviewer must pick at
+  // least one reason and write a note HERE — these feed the per-devlog
+  // deflation breakdown in the Airtable justification. There is no generic
+  // project-level deflation reason anymore.
+  const deflates = draft
+    ? assessmentDeflatesHours(
+        {
+          devlogId: devlog.id,
+          durationSeconds: devlog.durationSeconds,
+          hackatimeBreakdownTotalSeconds: breakdownConfigured ? breakdownTotalSeconds : null,
+        },
+        { decision: draft.decision, adjustedSeconds: draft.adjustedSeconds ?? null },
+      )
+    : false;
+
   const [adjustedHours, adjustedMinutes] = useMemo(() => {
     if (!draft || draft.decision !== "adjusted") return [undefined, undefined];
     const s = Math.max(0, Math.floor(draft.adjustedSeconds ?? 0));
@@ -318,44 +354,63 @@ function DevlogItem({
     if (readOnly) return;
     if (next === "adjusted") {
       if (multiProject) {
-        const adjustments = draft?.hackatimeAdjustments?.length
-          ? draft.hackatimeAdjustments
-          : defaultProjectAdjustments();
-        onChange({
-          devlogId: devlog.id,
-          decision: "adjusted",
-          adjustedSeconds: sumHackatimeAdjustmentSeconds(adjustments),
-          hackatimeAdjustments: adjustments,
-          comment: draft?.comment ?? null,
+        onChange((prev) => {
+          const adjustments = prev?.hackatimeAdjustments?.length
+            ? prev.hackatimeAdjustments
+            : defaultProjectAdjustments();
+          return {
+            devlogId: devlog.id,
+            decision: "adjusted",
+            adjustedSeconds: sumHackatimeAdjustmentSeconds(adjustments),
+            hackatimeAdjustments: adjustments,
+            deflationReasons: prev?.deflationReasons ?? null,
+            // Per-project splits are scoped to the original window.
+            reviewedWindow: null,
+            reviewedWindowSeconds: null,
+            comment: prev?.comment ?? null,
+          };
         });
       } else {
-        onChange({
+        onChange((prev) => ({
           devlogId: devlog.id,
           decision: "adjusted",
-          adjustedSeconds: draft?.adjustedSeconds ?? devlog.durationSeconds,
+          adjustedSeconds: prev?.adjustedSeconds ?? devlog.durationSeconds,
           hackatimeAdjustments: null,
-          comment: draft?.comment ?? null,
-        });
+          deflationReasons: prev?.deflationReasons ?? null,
+          reviewedWindow: prev?.reviewedWindow ?? null,
+          reviewedWindowSeconds: prev?.reviewedWindowSeconds ?? null,
+          comment: prev?.comment ?? null,
+        }));
       }
     } else {
-      onChange({
+      onChange((prev) => ({
         devlogId: devlog.id,
         decision: next,
         adjustedSeconds: null,
         hackatimeAdjustments: null,
-        comment: draft?.comment ?? null,
-      });
+        // Accepting a devlog is not a deflation — clear any lingering reasons.
+        deflationReasons: next === "accepted" ? null : prev?.deflationReasons ?? null,
+        // A reviewed window only exists on adjusted assessments.
+        reviewedWindow: null,
+        reviewedWindowSeconds: null,
+        comment: prev?.comment ?? null,
+      }));
     }
   }
 
   function setAdjustedSeconds(next: number) {
-    onChange({
+    onChange((prev) => ({
       devlogId: devlog.id,
       decision: "adjusted",
       adjustedSeconds: Math.max(0, Math.floor(next)),
       hackatimeAdjustments: null,
-      comment: draft?.comment ?? null,
-    });
+      deflationReasons: prev?.deflationReasons ?? null,
+      // Manual hour edits keep the reviewed window — the reviewer may deflate
+      // below the window's pulled time, never above it (server-enforced).
+      reviewedWindow: prev?.reviewedWindow ?? null,
+      reviewedWindowSeconds: prev?.reviewedWindowSeconds ?? null,
+      comment: prev?.comment ?? null,
+    }));
   }
 
   function setAdjustedHM(h: number, m: number) {
@@ -367,27 +422,192 @@ function DevlogItem({
   function setProjectAdjustmentSeconds(name: string, nextSeconds: number) {
     const cap = contributingEntries.find((e) => e.name === name)?.seconds ?? 0;
     const clamped = Math.min(Math.max(0, Math.floor(nextSeconds)), cap);
-    const current = draft?.hackatimeAdjustments?.length
-      ? draft.hackatimeAdjustments
-      : defaultProjectAdjustments();
-    const next = current.map((e) => (e.name === name ? { ...e, seconds: clamped } : e));
-    onChange({
-      devlogId: devlog.id,
-      decision: "adjusted",
-      adjustedSeconds: sumHackatimeAdjustmentSeconds(next),
-      hackatimeAdjustments: next,
-      comment: draft?.comment ?? null,
+    onChange((prev) => {
+      const current = prev?.hackatimeAdjustments?.length
+        ? prev.hackatimeAdjustments
+        : defaultProjectAdjustments();
+      const next = current.map((e) => (e.name === name ? { ...e, seconds: clamped } : e));
+      return {
+        devlogId: devlog.id,
+        decision: "adjusted",
+        adjustedSeconds: sumHackatimeAdjustmentSeconds(next),
+        hackatimeAdjustments: next,
+        deflationReasons: prev?.deflationReasons ?? null,
+        reviewedWindow: null,
+        reviewedWindowSeconds: null,
+        comment: prev?.comment ?? null,
+      };
     });
   }
 
   function setComment(next: string) {
-    onChange({
+    onChange((prev) => ({
       devlogId: devlog.id,
-      decision: draft?.decision ?? "accepted",
-      adjustedSeconds: draft?.adjustedSeconds ?? null,
-      hackatimeAdjustments: draft?.hackatimeAdjustments ?? null,
+      decision: prev?.decision ?? "accepted",
+      adjustedSeconds: prev?.adjustedSeconds ?? null,
+      hackatimeAdjustments: prev?.hackatimeAdjustments ?? null,
+      deflationReasons: prev?.deflationReasons ?? null,
+      reviewedWindow: prev?.reviewedWindow ?? null,
+      reviewedWindowSeconds: prev?.reviewedWindowSeconds ?? null,
       comment: next.trim() ? next : null,
+    }));
+  }
+
+  function toggleDeflationReason(reason: string) {
+    if (readOnly || !draft) return;
+    onChange((prev) => {
+      if (!prev) return null;
+      const current = prev.deflationReasons ?? [];
+      const next = current.includes(reason)
+        ? current.filter((item) => item !== reason)
+        : [...current, reason];
+      return {
+        devlogId: devlog.id,
+        decision: prev.decision,
+        adjustedSeconds: prev.adjustedSeconds ?? null,
+        hackatimeAdjustments: prev.hackatimeAdjustments ?? null,
+        deflationReasons: next,
+        reviewedWindow: prev.reviewedWindow ?? null,
+        reviewedWindowSeconds: prev.reviewedWindowSeconds ?? null,
+        comment: prev.comment ?? null,
+      };
     });
+  }
+
+  // ---------------------------------------------------------------------
+  // Reviewer-overridden considered window ("trim overlap").
+  // Devlog windows can overlap (Jul 12-15 and Jul 14-23): time already
+  // counted by one devlog gets trimmed from the other by narrowing the
+  // window considered for it. Applying pulls Hackatime for exactly the
+  // trimmed range and uses THAT as the counted time; the server re-pulls
+  // and enforces the same number on submit, and the justification shows the
+  // reviewer's window instead of the creator's original.
+  // ---------------------------------------------------------------------
+  const [windowStart, setWindowStart] = useState(() => toDatetimeLocalValue(devlog.startedAt));
+  const [windowEnd, setWindowEnd] = useState(() => toDatetimeLocalValue(devlog.endedAt));
+  const [windowPulling, setWindowPulling] = useState(false);
+
+  async function pullAndApplyWindow() {
+    if (readOnly || windowPulling) return;
+    const start = new Date(windowStart);
+    const end = new Date(windowEnd);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+      toast.error("Pick a valid window (end after start).");
+      return;
+    }
+    const origStart = new Date(devlog.startedAt);
+    const origEnd = new Date(devlog.endedAt);
+    if (start < origStart || end > origEnd) {
+      toast.error("The reviewed window must lie inside the devlog's own time range.");
+      return;
+    }
+    setWindowPulling(true);
+    const toastId = toast.loading("Pulling Hackatime for the window…");
+    try {
+      const res = await fetch(`/api/review/${encodeURIComponent(projectId)}/hackatime-range`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startedAt: start.toISOString(),
+          endedAt: end.toISOString(),
+          hackatimeProjectName: devlog.hackatimeProjectNameSnapshot || undefined,
+        }),
+      });
+      const data = (await res.json().catch(() => null)) as
+        | { totalSeconds?: number; error?: unknown }
+        | null;
+      if (!res.ok || typeof data?.totalSeconds !== "number") {
+        toast.error(
+          typeof data?.error === "string" ? data.error : "Failed to pull Hackatime for the window.",
+          { id: toastId },
+        );
+        setWindowPulling(false);
+        return;
+      }
+      const seconds = Math.max(0, Math.floor(data.totalSeconds));
+      // Functional update: the fetch may resolve AFTER the reviewer ticked
+      // reasons or typed the note — merge against the latest draft, never the
+      // click-time snapshot, so nothing they entered meanwhile is lost.
+      onChange((prev) => {
+        const existingReasons = prev?.deflationReasons ?? [];
+        return {
+          devlogId: devlog.id,
+          decision: "adjusted",
+          adjustedSeconds: seconds,
+          hackatimeAdjustments: null,
+          // Trimming an overlapping window is the typical cause — preselect it,
+          // the reviewer can still change the reasons.
+          deflationReasons: existingReasons.length > 0 ? existingReasons : ["overlappingWindow"],
+          reviewedWindow: { startedAt: start.toISOString(), endedAt: end.toISOString() },
+          reviewedWindowSeconds: seconds,
+          comment: prev?.comment ?? null,
+        };
+      });
+      toast.success(`Window applied: ${formatDurationHM(seconds).label} counted.`, { id: toastId });
+      setWindowPulling(false);
+    } catch {
+      toast.error("Failed to pull Hackatime for the window.", { id: toastId });
+      setWindowPulling(false);
+    }
+  }
+
+  function clearReviewedWindow() {
+    if (readOnly || !draft) return;
+    onChange((prev) => {
+      if (!prev) return null;
+      return {
+        devlogId: devlog.id,
+        decision: prev.decision,
+        adjustedSeconds: prev.adjustedSeconds ?? null,
+        hackatimeAdjustments: prev.hackatimeAdjustments ?? null,
+        deflationReasons: prev.deflationReasons ?? null,
+        reviewedWindow: null,
+        reviewedWindowSeconds: null,
+        comment: prev.comment ?? null,
+      };
+    });
+  }
+
+  // One-click AI deflation: when AI use was declared (or determined) for this
+  // devlog, Carnival's rule approves one third of the claimed time
+  // (AI_APPROVED_HOURS_FACTOR in src/lib/review/config.ts). Reviewers can
+  // still lower the result further, never raise it above the cap.
+  function applyAiDeflation() {
+    if (readOnly) return;
+    if (multiProject) {
+      const adjustments = defaultProjectAdjustments().map((e) => ({
+        ...e,
+        seconds: aiDeflatedSeconds(e.seconds),
+      }));
+      onChange((prev) => ({
+        devlogId: devlog.id,
+        decision: "adjusted",
+        adjustedSeconds: sumHackatimeAdjustmentSeconds(adjustments),
+        hackatimeAdjustments: adjustments,
+        deflationReasons: ["aiUsage"],
+        reviewedWindow: null,
+        reviewedWindowSeconds: null,
+        comment: prev?.comment ?? "AI usage — approved at 1/3 of claimed time per program rule.",
+      }));
+    } else {
+      onChange((prev) => {
+        // When a reviewed window is applied, the AI rule takes 1/3 of THAT
+        // window's pulled time (the window already excludes trimmed overlap).
+        const baseSeconds = prev?.reviewedWindowSeconds ?? devlog.durationSeconds;
+        return {
+          devlogId: devlog.id,
+          decision: "adjusted",
+          adjustedSeconds: aiDeflatedSeconds(baseSeconds),
+          hackatimeAdjustments: null,
+          deflationReasons: prev?.reviewedWindow
+            ? Array.from(new Set([...(prev?.deflationReasons ?? []), "aiUsage"]))
+            : ["aiUsage"],
+          reviewedWindow: prev?.reviewedWindow ?? null,
+          reviewedWindowSeconds: prev?.reviewedWindowSeconds ?? null,
+          comment: prev?.comment ?? "AI usage — approved at 1/3 of claimed time per program rule.",
+        };
+      });
+    }
   }
 
   return (
@@ -424,24 +644,14 @@ function DevlogItem({
             </button>
           ) : null}
           {reviewUrls ? (
-            <>
-              <a
-                href={reviewUrls.billyUrl}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
-              >
-                Billy ↗
-              </a>
-              <a
-                href={reviewUrls.joeFraudUrl}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
-              >
-                Joe.fraud ↗
-              </a>
-            </>
+            <a
+              href={reviewUrls.joeFraudUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+            >
+              Joe.fraud ↗
+            </a>
           ) : null}
           <Link
             href={`/projects/${projectId}/devlogs/${devlog.id}`}
@@ -504,12 +714,24 @@ function DevlogItem({
 
       <div className="border-t border-border pt-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <AssessmentButtons
-            devlogId={devlog.id}
-            current={decision}
-            onSelect={setDecision}
-            disabled={readOnly}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <AssessmentButtons
+              devlogId={devlog.id}
+              current={decision}
+              onSelect={setDecision}
+              disabled={readOnly}
+            />
+            {devlog.usedAi && !readOnly ? (
+              <button
+                type="button"
+                onClick={applyAiDeflation}
+                className="rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/20"
+                title="AI-assisted work is approved at 1/3 of the claimed time (program rule)."
+              >
+                Apply AI rule (1/3)
+              </button>
+            ) : null}
+          </div>
           {decision ? (
             <Badge variant="info">
               Counts as {adjustedPreview.label} toward approved hours
@@ -549,6 +771,7 @@ function DevlogItem({
               </div>
             </div>
           ) : (
+            <div className="space-y-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[auto_auto_1fr]">
               <label className="block">
                 <FormLabel size="small">Hours</FormLabel>
@@ -583,13 +806,108 @@ function DevlogItem({
                 Can&apos;t exceed the devlog&apos;s logged time ({duration.label}).
               </div>
             </div>
+
+            {/* Reviewer-overridden considered window: trim time already
+                counted by an overlapping devlog. Applying pulls Hackatime for
+                exactly this range and counts that instead of the creator's
+                original window; the server re-verifies the pull on submit. */}
+            <div className="space-y-2 rounded-[var(--radius-xl)] border border-border bg-muted/30 px-3 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-xs font-semibold text-foreground">
+                  Considered window (override)
+                </div>
+                {draft?.reviewedWindow ? (
+                  <span className="rounded-full bg-carnival-blue/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-carnival-blue">
+                    Window applied
+                    {typeof draft.reviewedWindowSeconds === "number"
+                      ? ` — ${formatDurationHM(draft.reviewedWindowSeconds).label} in range`
+                      : ""}
+                  </span>
+                ) : null}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Overlapping with another devlog? Narrow the window considered for this one —
+                must stay inside {formatDateTime(devlog.startedAt)} → {formatDateTime(devlog.endedAt)}.
+                Applying pulls Hackatime for the trimmed range and counts that time.
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="block">
+                  <FormLabel size="small">Window start</FormLabel>
+                  <DateTimePicker value={windowStart} onChange={setWindowStart} />
+                </label>
+                <label className="block">
+                  <FormLabel size="small">Window end</FormLabel>
+                  <DateTimePicker value={windowEnd} onChange={setWindowEnd} />
+                </label>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={pullAndApplyWindow}
+                  disabled={readOnly || windowPulling}
+                  className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {windowPulling ? "Pulling Hackatime…" : "Pull Hackatime & apply window"}
+                </button>
+                {draft?.reviewedWindow ? (
+                  <button
+                    type="button"
+                    onClick={clearReviewedWindow}
+                    disabled={readOnly || windowPulling}
+                    className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                  >
+                    Clear window
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </div>
           )
+        ) : null}
+
+        {deflates ? (
+          <div className="space-y-2 rounded-[var(--radius-xl)] border border-amber-500/30 bg-amber-500/5 px-3 py-3">
+            <div className="text-xs font-semibold text-foreground">
+              Deflation reasons for this time range ({formatDateTime(devlog.startedAt)} →{" "}
+              {formatDateTime(devlog.endedAt)})
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Required: this assessment counts less time than the devlog logged. These reasons go
+              into the hours justification for exactly this range.
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {REVIEW_DEFLATION_REASON_OPTIONS.map((option) => (
+                <label
+                  key={option.key}
+                  className="flex items-start gap-2 rounded-[var(--radius-xl)] border border-border bg-background px-2.5 py-1.5"
+                >
+                  <input
+                    type="checkbox"
+                    checked={(draft?.deflationReasons ?? []).includes(option.key)}
+                    onChange={() => toggleDeflationReason(option.key)}
+                    disabled={readOnly}
+                    className="mt-0.5 h-3.5 w-3.5 rounded border-border accent-carnival-blue"
+                  />
+                  <span className="text-xs text-foreground">{option.label}</span>
+                </label>
+              ))}
+            </div>
+            {(draft?.deflationReasons ?? []).length === 0 ? (
+              <div className="text-xs font-semibold text-red-300">
+                Tick at least one reason — the review can’t be submitted without it.
+              </div>
+            ) : null}
+          </div>
         ) : null}
 
         {decision && decision !== "accepted" ? (
           <label className="block">
             <FormLabel size="small">
-              {decision === "rejected" ? "Why is this devlog rejected?" : "Why the adjustment?"}
+              {decision === "rejected"
+                ? "Why is this devlog rejected? (required)"
+                : deflates
+                  ? "Why the reduction? (required)"
+                  : "Why the adjustment?"}
             </FormLabel>
             <Textarea
               size="small"
@@ -604,6 +922,12 @@ function DevlogItem({
               }
               disabled={readOnly}
             />
+            {deflates && !(draft?.comment ?? "").trim() ? (
+              <div className="mt-1 text-xs font-semibold text-red-300">
+                A note is required here for this reduction — the project-level review comment
+                doesn’t count.
+              </div>
+            ) : null}
           </label>
         ) : null}
       </div>
@@ -655,14 +979,23 @@ export default function DevlogAssessmentPanel({
   const totalFormatted = formatDurationHM(totalAssessed);
   const loggedFormatted = formatDurationHM(totalLogged);
 
-  function setDraft(devlogId: string, next: DevlogAssessmentDraft | null) {
-    const clone = { ...assessments };
-    if (next === null) {
-      delete clone[devlogId];
-    } else {
-      clone[devlogId] = next;
-    }
-    onChange(clone);
+  // Functional update against the LATEST drafts map. Building the next map
+  // from the `assessments` prop (a render-time snapshot) would let a slow
+  // async edit clobber fields the reviewer changed in the meantime.
+  function setDraft(
+    devlogId: string,
+    update: (prev: DevlogAssessmentDraft | undefined) => DevlogAssessmentDraft | null,
+  ) {
+    onChange((prevMap) => {
+      const next = update(prevMap[devlogId]);
+      const clone = { ...prevMap };
+      if (next === null) {
+        delete clone[devlogId];
+      } else {
+        clone[devlogId] = next;
+      }
+      return clone;
+    });
   }
 
   return (
@@ -703,7 +1036,7 @@ export default function DevlogAssessmentPanel({
                 hackatimeUserId={hackatimeUserId}
                 devlog={d}
                 draft={assessments[d.id]}
-                onChange={(next) => setDraft(d.id, next)}
+                onChange={(update) => setDraft(d.id, update)}
                 onRefreshHackatime={onRefreshHackatime}
                 refreshing={refreshingDevlogIds?.has(d.id) ?? false}
                 readOnly={readOnly}

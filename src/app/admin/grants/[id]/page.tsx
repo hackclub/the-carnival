@@ -35,6 +35,9 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
       submissionChecklist: project.submissionChecklist,
       status: project.status,
       approvedHours: project.approvedHours,
+      airtableRecordId: project.airtableRecordId,
+      airtableRecordIsPreview: project.airtableRecordIsPreview,
+      grantTechnicalJustification: project.grantTechnicalJustification,
       createdAt: project.createdAt,
       submittedAt: project.submittedAt,
       updatedAt: project.updatedAt,
@@ -66,6 +69,8 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
       reviewedHackatimeRangeStart: peerReview.reviewedHackatimeRangeStart,
       reviewedHackatimeRangeEnd: peerReview.reviewedHackatimeRangeEnd,
       hourAdjustmentReasonMetadata: peerReview.hourAdjustmentReasonMetadata,
+      specificTechnicalFeatures: peerReview.specificTechnicalFeatures,
+      rejectionCategory: peerReview.rejectionCategory,
       ...(reviewJustificationColumn ? { reviewJustification: reviewJustificationColumn } : {}),
       createdAt: peerReview.createdAt,
       reviewerName: user.name,
@@ -118,6 +123,9 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
             hackatimeHours: hackatimeHours ? { hours: hackatimeHours.hours, minutes: hackatimeHours.minutes } : null,
             hackatimeStartedAt: p.hackatimeStartedAt ? p.hackatimeStartedAt.toISOString() : null,
             hackatimeStoppedAt: p.hackatimeStoppedAt ? p.hackatimeStoppedAt.toISOString() : null,
+            airtableRecordId: p.airtableRecordId ?? null,
+            airtableRecordIsPreview: p.airtableRecordIsPreview === true,
+            grantTechnicalJustification: p.grantTechnicalJustification ?? null,
           },
           creator: {
             id: p.creatorId || "",
@@ -143,6 +151,8 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
             createdAt: r.createdAt.toISOString(),
             reviewerName: r.reviewerName || "Unknown reviewer",
             reviewerEmail: r.reviewerEmail || "",
+            specificTechnicalFeatures: r.specificTechnicalFeatures ?? null,
+            rejectionCategory: r.rejectionCategory ?? null,
           })),
         }}
       />

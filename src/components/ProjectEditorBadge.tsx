@@ -18,6 +18,9 @@ const LABELS: Record<ProjectEditor, string> = {
   inkscape: "Inkscape",
   "godot-engine": "Godot Engine",
   unity: "Unity",
+  minecraft: "Minecraft",
+  discord: "Discord",
+  slack: "Slack",
   other: "Other",
 };
 

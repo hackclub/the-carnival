@@ -7,7 +7,11 @@ import type {
   ProjectSubmissionChecklist,
   ReviewDecision,
 } from "@/db/schema";
-import { buildBillyUrl, buildJoeFraudUrl } from "@/lib/constants";
+import { buildJoeFraudUrl } from "@/lib/constants";
+import {
+  AI_SLOP_REJECTION_MESSAGE,
+  UNCLEAR_README_REJECTION_MESSAGE,
+} from "@/lib/review/config";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
@@ -17,6 +21,7 @@ import DevlogAssessmentPanel, {
   type ReviewDevlogFull,
 } from "@/components/DevlogAssessmentPanel";
 import {
+  assessmentDeflatesHours,
   assessmentSecondsToApprovedHours,
   effectiveSecondsForAssessment,
   type DevlogAssessmentDraft,
@@ -29,11 +34,8 @@ import {
   calculateHoursReduction,
   isApprovedHourIncrement,
   normalizeApprovedHours,
-  requiresDeflationReason,
-  REVIEW_DEFLATION_REASON_OPTIONS,
   REVIEW_EVIDENCE_ITEMS,
   validateRequiredReviewJustification,
-  type ReviewDeflationReason,
   type ReviewJustificationDraft,
   type ReviewJustificationPayload,
 } from "@/lib/review-rules";
@@ -289,6 +291,12 @@ export default function ReviewProjectClient({
   const [assignments, setAssignments] = useState<AssignmentItem[]>(initial.assignments);
   const [reviewDevlogs, setReviewDevlogs] = useState<ReviewDevlogFull[]>(initial.devlogs);
   const [decision, setDecision] = useState<ReviewDecision>("comment");
+  // One-click rejection cause ("ai-slop" | "unclear-readme"). Recorded on the
+  // review and paired with the program's canned creator-facing message.
+  const [rejectionCategory, setRejectionCategory] = useState<"" | "ai-slop" | "unclear-readme">("");
+  // Optional pass-1 draft of the human-written "Specific Technical Features"
+  // hours justification — the granting admin edits/finalizes it at pass 2.
+  const [technicalFeaturesDraft, setTechnicalFeaturesDraft] = useState("");
   const [comment, setComment] = useState("");
   const [devlogAssessments, setDevlogAssessments] = useState<Record<string, DevlogAssessmentDraft>>({});
   const [refreshingDevlogIds, setRefreshingDevlogIds] = useState<Set<string>>(() => new Set());
@@ -576,24 +584,44 @@ export default function ReviewProjectClient({
     return calculateHoursReduction(approvalHackatimeHoursValue, approvedHoursValue);
   }, [approvalHackatimeHoursValue, approvedHoursValue, decision]);
 
-  const deflationReasonRequired = useMemo(() => {
-    if (decision !== "approved") return false;
-    return requiresDeflationReason(approvalHackatimeHoursValue, approvedHoursValue);
-  }, [approvalHackatimeHoursValue, approvedHoursValue, decision]);
-
   const isApprovedHoursReduced = approvedHoursReduction > 0;
-  const otherDeflationReasonSelected = reviewJustificationDraft.deflationReasons.includes("other");
+
+  // Deflation is recorded per devlog (reasons + note on each assessment that
+  // counts less time than logged) — not as a generic project-level rationale.
+  // This lists any assessed devlogs still missing their deflation info, so we
+  // can block submission with a specific message before the server does.
+  const devlogsMissingDeflationInfo = useMemo(() => {
+    const missing: string[] = [];
+    for (const d of reviewDevlogs) {
+      const a = assessmentsMap.get(d.id);
+      if (!a) continue;
+      const deflates = assessmentDeflatesHours(
+        {
+          devlogId: d.id,
+          durationSeconds: d.durationSeconds,
+          hackatimeBreakdownTotalSeconds: breakdownTotalByDevlogId.get(d.id) ?? null,
+        },
+        { decision: a.decision, adjustedSeconds: a.adjustedSeconds ?? null },
+      );
+      if (!deflates) continue;
+      const missingReasons = (a.deflationReasons ?? []).length === 0;
+      const missingNote = !(a.comment ?? "").trim();
+      if (missingReasons || missingNote) {
+        const parts = [
+          missingReasons ? "a deflation reason checkbox" : null,
+          missingNote ? "the note" : null,
+        ].filter(Boolean);
+        missing.push(`"${d.title}" is missing ${parts.join(" and ")}`);
+      }
+    }
+    return missing;
+  }, [assessmentsMap, breakdownTotalByDevlogId, reviewDevlogs]);
 
   const isAssignedToMe = useMemo(
     () => assignments.some((a) => a.reviewerId === initial.viewerUserId),
     [assignments, initial.viewerUserId],
   );
 
-  const billyLink = useMemo(() => {
-    const hackatimeId = project.hackatimeUserId?.trim();
-    if (!hackatimeId || !canonicalProjectRange) return null;
-    return buildBillyUrl(hackatimeId, canonicalProjectRange.startDate, canonicalProjectRange.endDate);
-  }, [canonicalProjectRange, project.hackatimeUserId]);
   const joeFraudLink = useMemo(() => {
     const hackatimeId = project.hackatimeUserId?.trim();
     if (!hackatimeId || !canonicalProjectRange) return null;
@@ -644,6 +672,15 @@ export default function ReviewProjectClient({
               })),
             }
           : {}),
+        ...(a.deflationReasons?.length ? { deflationReasons: a.deflationReasons } : {}),
+        ...(a.decision === "adjusted" && a.reviewedWindow
+          ? {
+              reviewedWindow: {
+                startedAt: a.reviewedWindow.startedAt,
+                endedAt: a.reviewedWindow.endedAt,
+              },
+            }
+          : {}),
         ...(a.comment ? { comment: a.comment } : {}),
       }));
 
@@ -657,6 +694,10 @@ export default function ReviewProjectClient({
           reviewJustification: input.requestReviewJustification,
           consideredHackatimeRange: input.consideredHackatimeRange,
           devlogAssessments: assessmentsPayload,
+          ...(decision === "rejected" && rejectionCategory ? { rejectionCategory } : {}),
+          ...(decision === "approved" && technicalFeaturesDraft.trim()
+            ? { specificTechnicalFeatures: technicalFeaturesDraft.trim() }
+            : {}),
           ...(dismiss ? { dismiss: true, dismissReason: trimmedDismissReason } : {}),
         }),
       });
@@ -717,6 +758,8 @@ export default function ReviewProjectClient({
 
       setComment("");
       setDecision("comment");
+      setRejectionCategory("");
+      setTechnicalFeaturesDraft("");
       setDevlogAssessments({});
       setShowConfirmationModal(false);
       setShowDismissConfirmationModal(false);
@@ -739,11 +782,21 @@ export default function ReviewProjectClient({
     decision,
     devlogAssessments,
     project.id,
+    rejectionCategory,
     resetReviewJustificationDraft,
+    technicalFeaturesDraft,
   ]);
 
   const onSubmit = useCallback(() => {
     if (!canSubmit) return;
+    // Per-devlog deflation info must be complete before anything is submitted:
+    // every reduced/rejected devlog carries its own reasons + note.
+    if (devlogsMissingDeflationInfo.length > 0) {
+      setError(
+        `${devlogsMissingDeflationInfo.join("; ")}. On each reduced/rejected devlog card, tick at least one deflation-reason checkbox AND write the note in its "Why the reduction?" box (the project-level review comment doesn't count).`,
+      );
+      return;
+    }
     if (decision !== "approved") {
       void submitReview({
         requestReviewJustification: null,
@@ -754,7 +807,7 @@ export default function ReviewProjectClient({
     }
     setModalError(null);
     setShowConfirmationModal(true);
-  }, [canSubmit, decision, submitReview]);
+  }, [canSubmit, decision, devlogsMissingDeflationInfo, submitReview]);
 
   const onConfirmSubmission = useCallback(() => {
     if (decision !== "approved") return;
@@ -822,17 +875,6 @@ export default function ReviewProjectClient({
         [key]: !prev.evidence[key],
       },
     }));
-    setModalError(null);
-  }, [setReviewJustificationDraft]);
-
-  const onToggleDeflationReason = useCallback((reason: ReviewDeflationReason) => {
-    setReviewJustificationDraft((prev) => {
-      const exists = prev.deflationReasons.includes(reason);
-      const nextReasons = exists
-        ? prev.deflationReasons.filter((item) => item !== reason)
-        : [...prev.deflationReasons, reason];
-      return { ...prev, deflationReasons: nextReasons };
-    });
     setModalError(null);
   }, [setReviewJustificationDraft]);
 
@@ -1075,22 +1117,6 @@ export default function ReviewProjectClient({
             <div className="text-sm text-muted-foreground">Hackatime hours (this project)</div>
             <div className="text-foreground font-semibold">{hackatimeLoggedLabel}</div>
           </div>
-          {billyLink ? (
-            <a
-              href={billyLink}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
-            >
-              <div className="text-sm text-muted-foreground">Billy review link</div>
-              <div className="text-foreground font-semibold truncate">{billyLink}</div>
-            </a>
-          ) : (
-            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
-              <div className="text-sm text-muted-foreground">Billy review link</div>
-              <div className="text-foreground font-semibold">—</div>
-            </div>
-          )}
           {joeFraudLink ? (
             <a
               href={joeFraudLink}
@@ -1201,8 +1227,10 @@ export default function ReviewProjectClient({
                 : "border-border bg-muted hover:bg-muted/70",
             ].join(" ")}
           >
-            <div className="text-foreground font-semibold">Approve</div>
-            <div className="text-sm text-muted-foreground">Mark as shipped.</div>
+            <div className="text-foreground font-semibold">Approve (pass 1)</div>
+            <div className="text-sm text-muted-foreground">
+              Moves to the admin grant queue. The creator is not notified until granted.
+            </div>
           </button>
           <button
             type="button"
@@ -1297,6 +1325,57 @@ export default function ReviewProjectClient({
           ) : null}
         </div>
 
+        {decision === "rejected" ? (
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 space-y-2">
+            <div className="text-sm font-semibold text-foreground">One-click rejections</div>
+            <div className="text-xs text-muted-foreground">
+              These record a structured cause and prefill a friendly message the creator will
+              receive. You can still edit the comment before submitting.
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRejectionCategory("ai-slop");
+                  setComment(AI_SLOP_REJECTION_MESSAGE);
+                }}
+                className={[
+                  "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                  rejectionCategory === "ai-slop"
+                    ? "border-carnival-red/60 bg-carnival-red/15 text-carnival-red"
+                    : "border-border bg-background text-foreground hover:bg-muted/70",
+                ].join(" ")}
+              >
+                AI slop
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRejectionCategory("unclear-readme");
+                  setComment(UNCLEAR_README_REJECTION_MESSAGE);
+                }}
+                className={[
+                  "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                  rejectionCategory === "unclear-readme"
+                    ? "border-carnival-red/60 bg-carnival-red/15 text-carnival-red"
+                    : "border-border bg-background text-foreground hover:bg-muted/70",
+                ].join(" ")}
+              >
+                Unclear README
+              </button>
+              {rejectionCategory ? (
+                <button
+                  type="button"
+                  onClick={() => setRejectionCategory("")}
+                  className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/70"
+                >
+                  Clear
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
         <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">Comment</div>
           <textarea
@@ -1307,6 +1386,25 @@ export default function ReviewProjectClient({
             placeholder="Be specific and kind. What should they improve?"
           />
         </label>
+
+        {decision === "approved" ? (
+          <label className="block">
+            <div className="text-sm text-muted-foreground font-medium mb-2">
+              Specific technical features (draft, internal)
+            </div>
+            <textarea
+              value={technicalFeaturesDraft}
+              onChange={(e) => setTechnicalFeaturesDraft(e.target.value)}
+              rows={3}
+              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              placeholder='Technical qualities that justify the hours — be specific (e.g. "OAuth flow, content-script messaging, custom build pipeline"), not just a list of languages.'
+            />
+            <div className="mt-1 text-xs text-muted-foreground">
+              Optional draft for the granting admin. It seeds the human-written hours
+              justification sent to the Unified Database — the creator never sees it.
+            </div>
+          </label>
+        ) : null}
 
         {error ? (
           <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
@@ -1572,50 +1670,10 @@ export default function ReviewProjectClient({
           )}
 
           {decision === "approved" && isApprovedHoursReduced ? (
-            <div className="space-y-3">
-              <div className="text-sm font-semibold text-foreground">
-                Hours deflation rationale
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {deflationReasonRequired
-                  ? "At least one reason is required because approved hours are 0.5h or more below logged Hackatime."
-                  : "Reason is optional for reductions under 0.5h, but still recommended."}{" "}
-                The reduction itself can be any amount based on logged Hackatime.
-              </div>
-              <div className="space-y-2">
-                {REVIEW_DEFLATION_REASON_OPTIONS.map((option) => (
-                  <label
-                    key={option.key}
-                    className="flex items-start gap-3 rounded-[var(--radius-xl)]  border border-border bg-background px-3 py-2"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={reviewJustificationDraft.deflationReasons.includes(option.key)}
-                      onChange={() => onToggleDeflationReason(option.key)}
-                      className="mt-0.5 h-4 w-4 rounded border-border accent-carnival-blue"
-                    />
-                    <span className="text-sm text-foreground">{option.label}</span>
-                  </label>
-                ))}
-              </div>
-              <label className="block">
-                <div className="text-xs text-muted-foreground mb-1">
-                  {otherDeflationReasonSelected ? "Note (required when selecting Other)" : "Optional note"}
-                </div>
-                <textarea
-                  value={reviewJustificationDraft.deflationNote}
-                  onChange={(e) => {
-                    setReviewJustificationDraft((prev) => ({
-                      ...prev,
-                      deflationNote: e.target.value,
-                    }));
-                    setModalError(null);
-                  }}
-                  rows={3}
-                  className="w-full bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                  placeholder="Explain context for the reduced approved hours."
-                />
-              </label>
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
+              Hours are reduced versus logged time. The reasons live on the individual devlog
+              assessments (each tied to its time range) — those, not a generic summary, go into
+              the Airtable justification.
             </div>
           ) : null}
 

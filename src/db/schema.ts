@@ -13,6 +13,23 @@ export const projectStatus = pgEnum("project_status", [
 
 export type ProjectStatus = (typeof projectStatus.enumValues)[number];
 
+// Universal project-type catalog from the YSWS Handbook ("What Makes a
+// Project Shipped?"). Which types a program enables — and its default — is
+// code configuration in src/lib/review/config.ts, not the schema.
+export const projectType = pgEnum("project_type", [
+  "extension-plugin",
+  "website-webapp",
+  "game-web",
+  "game-downloadable",
+  "mobile-app",
+  "desktop-app",
+  "cli",
+  "library",
+  "hardware",
+  "other",
+]);
+export type ProjectType = (typeof projectType.enumValues)[number];
+
 export const projectEditor = pgEnum("project_editor", [
   "vscode",
   "chrome",
@@ -30,6 +47,9 @@ export const projectEditor = pgEnum("project_editor", [
   "inkscape",
   "godot-engine",
   "unity",
+  "minecraft",
+  "discord",
+  "slack",
   "other",
 ]);
 
@@ -64,11 +84,19 @@ export type NudgeChannel = (typeof nudgeChannel.enumValues)[number];
 
 export type ProjectSubmissionChecklist = {
   readmeInstructions: boolean;
+  // README clearly explains what the project is about. An unclear README is
+  // an automatic rejection per the submission gates, so this is a blocking
+  // declaration (see src/lib/review/submission-gates.ts).
+  readmeDescribesProject: boolean;
   testedWorking: boolean;
   usedAi: boolean;
   githubPublic: boolean;
   descriptionClear: boolean;
   screenshotsWorking: boolean;
+  // Type-specific promise: the project works on the platform declared at
+  // submission (e.g. the extension installs and runs on the chosen browser
+  // or editor; a web game runs in its web build).
+  worksOnDeclaredPlatform: boolean;
   didNotManipulateHackatimeData: boolean;
   didNotCopyCodeWithoutAttribution: boolean;
 };
@@ -122,6 +150,10 @@ export const project = pgTable("project", {
   description: text("description").notNull(),
   category: text("category"),
   tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+  // What kind of ship this is. Drives the per-type playable-URL rules in
+  // src/lib/review/submission-gates.ts. Carnival's default (extension-plugin)
+  // covers all pre-existing rows via the column default.
+  projectType: projectType("project_type").notNull().default("extension-plugin"),
   editor: projectEditor("editor").notNull().default("vscode"),
   editorOther: text("editor_other"),
   hackatimeProjectName: text("hackatime_project_name").notNull(),
@@ -157,6 +189,21 @@ export const project = pgTable("project", {
   // Denormalized sum of all devlog.durationSeconds for this project. Kept in sync
   // on every devlog insert/update/delete so that hour displays stay cheap.
   hoursSpentSeconds: integer("hours_spent_seconds").notNull().default(0),
+  // Airtable record id (recXXXX) of this project's row in the YSWS Unified
+  // Database. Set the first time the grant is pushed; later pushes UPDATE this
+  // record instead of creating duplicates (an explicit "create another record"
+  // escape hatch exists on the grant page).
+  airtableRecordId: text("airtable_record_id"),
+  // True while airtableRecordId points at a [PREVIEW]-marked record pushed
+  // before granting (so the admin can inspect the justification in Airtable).
+  // Granting promotes that record in place (markers removed, flag cleared);
+  // sending the project back to review deletes it.
+  airtableRecordIsPreview: boolean("airtable_record_is_preview").notNull().default(false),
+  // The final, admin-confirmed "Specific Technical Features" justification
+  // sent to Airtable at grant time (pass 2). Starts as the pass-1 reviewer's
+  // draft (peer_review.specific_technical_features) and is edited/approved by
+  // the granting admin. Never shown to the submitter.
+  grantTechnicalJustification: text("grant_technical_justification"),
   bountyProjectId: text("bounty_project_id").references(() => bountyProject.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
@@ -245,6 +292,26 @@ export const peerReviewDevlogAssessment = pgTable(
       .$type<DevlogHackatimeProjectAdjustment[]>()
       .notNull()
       .default(sql`'[]'::jsonb`),
+    // Deflation is tied to the devlog's time range, not the whole project:
+    // whenever this assessment counts fewer seconds than the devlog logged
+    // (rejected, or adjusted below the cap), the reviewer must record at
+    // least one reason here (keys from REVIEW_DEFLATION_REASON_OPTIONS) plus
+    // a comment. These feed the per-devlog deflation breakdown in the
+    // Airtable hours justification.
+    deflationReasons: jsonb("deflation_reasons")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    // Reviewer-overridden considered window for this devlog (e.g. trimming
+    // days already counted by an overlapping devlog). Must lie inside the
+    // devlog's own [startedAt, endedAt]. When set, the server re-pulls
+    // Hackatime for exactly this window (reviewedWindowSeconds — never the
+    // client's number) and that becomes both the assessment's cap and the
+    // window shown in the Airtable justification instead of the creator's
+    // original range.
+    reviewedStartedAt: timestamp("reviewed_started_at"),
+    reviewedEndedAt: timestamp("reviewed_ended_at"),
+    reviewedWindowSeconds: integer("reviewed_window_seconds"),
     comment: text("comment"),
     createdAt: timestamp("created_at").notNull(),
   },
@@ -284,6 +351,13 @@ export const peerReview = pgTable("peer_review", {
     .$type<HourAdjustmentReasonMetadata>()
     .notNull()
     .default(sql`'{}'::jsonb`),
+  // Pass-1 reviewer's optional draft of the human-written "Specific Technical
+  // Features" justification (YSWS Handbook). The granting admin edits and
+  // finalizes it into project.grant_technical_justification at pass 2.
+  specificTechnicalFeatures: text("specific_technical_features"),
+  // Structured cause for a rejection, set by the one-click reject actions
+  // ("ai-slop", "unclear-readme"). Null for ordinary rejections/approvals.
+  rejectionCategory: text("rejection_category"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });

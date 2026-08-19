@@ -124,6 +124,54 @@ export type AirtableGrantCreateInput = {
   reviewStatus?: string | null; // e.g. "Approved"
   reviewer?: string | null;
   reviews?: AirtableGrantReview[];
+  /**
+   * The final human-written "Specific Technical Features" justification
+   * (YSWS Handbook), confirmed by the granting admin at pass 2. Required for
+   * the grant push — the justification is not spot-check-proof without it.
+   */
+  technicalJustification?: string | null;
+  /** Every Hackatime project linked to this Carnival project. */
+  hackatimeProjectNames?: string[];
+  /**
+   * Per-devlog assessments from the latest approved review. Deflation is
+   * tied to time ranges: each reduced/rejected devlog renders its own
+   * deflation line (range, logged → approved, reasons, note, verification
+   * links) in the justification — there is no generic deflation summary.
+   */
+  devlogAssessments?: AirtableDevlogDeflationEntry[];
+  /**
+   * PREVIEW push: the record is clearly marked so nobody processes it —
+   * "[PREVIEW]" is prepended to the Code URL (the first thing seen on the
+   * record), Review Status is left BLANK (never "Approved"; it's a
+   * single-select, so no new option is invented), and the justification
+   * carries a banner line. Granting later overwrites the same record with
+   * the real, unmarked payload.
+   */
+  preview?: boolean;
+};
+
+export type AirtableDevlogDeflationEntry = {
+  title: string;
+  startIso: string;
+  endIso: string;
+  loggedSeconds: number;
+  approvedSeconds: number;
+  decision: "accepted" | "rejected" | "adjusted";
+  /** Keys from REVIEW_DEFLATION_REASON_OPTIONS. */
+  deflationReasons: string[];
+  note: string | null;
+  /**
+   * Reviewer-overridden considered window (trimmed inside the devlog's own
+   * range, e.g. to exclude time already counted by an overlapping devlog).
+   * When set, the justification shows THIS window as the considered one and
+   * reviewedWindowSeconds is the server-verified Hackatime pull for it.
+   */
+  reviewedStartIso: string | null;
+  reviewedEndIso: string | null;
+  reviewedWindowSeconds: number | null;
+  /** joe.fraud link scoped to the window actually considered. */
+  hackatimeReviewUrl: string | null;
+  devlogUrl: string | null;
 };
 
 export type AirtableGrantReview = {
@@ -147,7 +195,7 @@ export type ValidationResult<T> =
   | { success: true; data: T }
   | { success: false; errors: string[] };
 
-const DEFLATION_REASON_LABELS = new Map(
+const DEFLATION_REASON_LABELS = new Map<string, string>(
   REVIEW_DEFLATION_REASON_OPTIONS.map((option) => [option.key, option.label]),
 );
 
@@ -266,16 +314,53 @@ function formatHoursAwarded(value: number | null | undefined) {
   return Number.isInteger(value) ? `${value}h` : `${value.toFixed(1)}h`;
 }
 
+/** Handbook date format for justification ranges: M/D/YYYY (e.g. 7/20/2026). */
+function formatHandbookDate(isoDate: string | null | undefined): string | null {
+  if (!isoDate) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDate.trim());
+  if (!match) return null;
+  return `${Number(match[2])}/${Number(match[3])}/${match[1]}`;
+}
+
+export type AirtableJustificationContext = {
+  projectId?: string | null;
+  appUrl?: string | null;
+  codeUrl?: string | null;
+  hackatimeUserId?: string | null;
+  approvedHours?: number | null;
+  approvedAtIso?: string | null;
+  technicalJustification?: string | null;
+  hackatimeProjectNames?: string[];
+  hackatimeReviewLink?: string | null;
+  devlogAssessments?: AirtableDevlogDeflationEntry[];
+};
+
+function formatSecondsAsHours(seconds: number): string {
+  return `${(Math.max(0, seconds) / 3600).toFixed(1)}h`;
+}
+
+/**
+ * Assemble the "Optional - Override Hours Spent Justification" text.
+ *
+ * The structure mirrors the YSWS Handbook's Justification Fields, in order:
+ *   1. Hackatime Project Name(s) and Date Range(s) — automated, in the
+ *      handbook's comma-separated "name M/D/YYYY-M/D/YYYY" format.
+ *   2. Submitter Hackatime ID — automated.
+ *   3. Specific Technical Features — human-written (pass-1 reviewer drafts,
+ *      granting admin finalizes). Always required.
+ *   4. Deflation Justification — human-written, "Deflated from X to Y
+ *      because ..." with the numbers filled in automatically.
+ *   5. Additional Justification — evidence checklist, review links
+ *      (joe.fraud, Carnival project/devlog pages), reviewer, approval time —
+ *      everything a spot-checker needs to retrace the review.
+ *
+ * The standard (per the handbook): someone not involved in the review must be
+ * able to read this, follow the links, and reach the same conclusion.
+ * This text is internal — the submitter never sees it.
+ */
 export function formatAirtableHoursJustification(
   reviews: AirtableGrantReview[] | undefined,
-  context?: {
-    projectId?: string | null;
-    appUrl?: string | null;
-    codeUrl?: string | null;
-    hackatimeUserId?: string | null;
-    approvedHours?: number | null;
-    approvedAtIso?: string | null;
-  },
+  context?: AirtableJustificationContext,
 ) {
   const ctx = context ?? {};
   const latestApproved = pickLatestApprovedReview(reviews ?? []);
@@ -284,64 +369,133 @@ export function formatAirtableHoursJustification(
 
   const sections: string[] = [];
 
-  const criteriaLines = [
-    "[APPROVAL CRITERIA]",
-    "Approved by Carnival because:",
-    "- The project works as intended (manual test performed by the reviewer).",
-    "- The GitHub repository and commit history were reviewed and deemed appropriate.",
-    "- A working demo/video was included and reviewed.",
-    "- The devlogs describe the work done while building the project.",
-  ];
-  sections.push(criteriaLines.join("\n"));
+  // 1. Hackatime Project Name(s) and Date Range(s)
+  const rangeStart = formatHandbookDate(justification?.reviewDateRange.startDate);
+  const rangeEnd = formatHandbookDate(justification?.reviewDateRange.endDate);
+  const rangeLabel = rangeStart && rangeEnd ? `${rangeStart}-${rangeEnd}` : null;
+  const projectNames =
+    ctx.hackatimeProjectNames && ctx.hackatimeProjectNames.length > 0
+      ? ctx.hackatimeProjectNames
+      : justification?.hackatimeProjectName
+        ? [justification.hackatimeProjectName]
+        : [];
+  const namesWithRanges =
+    projectNames.length > 0
+      ? projectNames.map((name) => (rangeLabel ? `${name} ${rangeLabel}` : name)).join(", ")
+      : "—";
+  sections.push(["[HACKATIME PROJECT NAME(S) AND DATE RANGE(S)]", namesWithRanges].join("\n"));
 
-  const hoursLines: string[] = ["[HOURS]"];
-  hoursLines.push(`- Hours awarded: ${formatHoursAwarded(ctx.approvedHours ?? null)}`);
-  if (justification) {
-    hoursLines.push(`- Hours reduced: ${justification.deflation.reduced ? "Yes" : "No"}`);
-    if (justification.deflation.reduced) {
-      hoursLines.push(`- Hours reduced by: ${justification.deflation.hoursReducedBy.toFixed(2)}h`);
-      const reasons = justification.deflation.reasons
+  // 2. Submitter Hackatime ID
+  sections.push(["[SUBMITTER HACKATIME ID]", ctx.hackatimeUserId?.trim() || "—"].join("\n"));
+
+  // 3. Specific Technical Features (human-written)
+  sections.push(
+    ["[SPECIFIC TECHNICAL FEATURES]", ctx.technicalJustification?.trim() || "—"].join("\n"),
+  );
+
+  // 4. Deflation Justification — per devlog, tied to each time range.
+  // Every reduced/rejected devlog renders its own line: window, logged →
+  // approved, the reviewer's reasons and note, and verification links
+  // (joe.fraud scoped to the window + the devlog page), so a spot-checker
+  // can retrace every individual reduction. Reviews recorded before
+  // per-devlog deflation fall back to the legacy project-level fields.
+  const deflationLines: string[] = ["[DEFLATION JUSTIFICATION]"];
+  const assessments = ctx.devlogAssessments ?? [];
+  if (assessments.length > 0) {
+    const loggedTotal = assessments.reduce((acc, a) => acc + a.loggedSeconds, 0);
+    const approvedLabel = formatHoursAwarded(ctx.approvedHours ?? null);
+    deflationLines.push(
+      `Logged ${formatSecondsAsHours(loggedTotal)} across the reviewed devlogs; ${approvedLabel} approved.`,
+    );
+    for (const entry of assessments) {
+      const originalRange = `${formatHandbookDate(entry.startIso) ?? entry.startIso}-${formatHandbookDate(entry.endIso) ?? entry.endIso}`;
+      // When the reviewer overrode the considered window (e.g. trimming days
+      // an overlapping devlog already covered), the justification names THAT
+      // window as the one considered, with the original noted alongside.
+      const hasReviewedWindow = !!(entry.reviewedStartIso && entry.reviewedEndIso);
+      const reviewedRange = hasReviewedWindow
+        ? `${formatHandbookDate(entry.reviewedStartIso!) ?? entry.reviewedStartIso}-${formatHandbookDate(entry.reviewedEndIso!) ?? entry.reviewedEndIso}`
+        : null;
+      const rangeLabel = hasReviewedWindow
+        ? `considered ${reviewedRange}, trimmed from ${originalRange}`
+        : originalRange;
+      const header = `- "${entry.title}" (${rangeLabel}):`;
+      // Sub-minute differences are rounding from the reviewer's hour/minute
+      // inputs, not deflation (mirrors assessmentDeflatesHours' tolerance).
+      if (
+        entry.decision !== "rejected" &&
+        entry.loggedSeconds - entry.approvedSeconds <= 59
+      ) {
+        deflationLines.push(
+          `${header} accepted as logged (${formatSecondsAsHours(entry.loggedSeconds)}).`,
+        );
+        continue;
+      }
+      const windowNote =
+        hasReviewedWindow && typeof entry.reviewedWindowSeconds === "number"
+          ? ` Hackatime in the considered window: ${formatSecondsAsHours(entry.reviewedWindowSeconds)}.`
+          : "";
+      const outcome =
+        entry.decision === "rejected"
+          ? `rejected — logged ${formatSecondsAsHours(entry.loggedSeconds)}, 0.0h approved`
+          : `deflated from ${formatSecondsAsHours(entry.loggedSeconds)} to ${formatSecondsAsHours(entry.approvedSeconds)}`;
+      const reasons = entry.deflationReasons
         .map((reason) => DEFLATION_REASON_LABELS.get(reason) ?? reason)
         .join(", ");
-      hoursLines.push(`- Deflation reasons: ${reasons || "—"}`);
-      hoursLines.push(`- Deflation note: ${justification.deflation.note ?? "—"}`);
+      const parts = [
+        `${header} ${outcome}.${windowNote}`,
+        `Reasons: ${reasons || "—"}.`,
+        entry.note ? `Note: ${entry.note}` : null,
+        entry.hackatimeReviewUrl
+          ? `Hackatime (considered range): ${entry.hackatimeReviewUrl}`
+          : null,
+        entry.devlogUrl ? `Devlog: ${entry.devlogUrl}` : null,
+      ].filter(Boolean);
+      deflationLines.push(parts.join(" "));
     }
-  }
-  sections.push(hoursLines.join("\n"));
-
-  const hackatimeLines: string[] = ["[HACKATIME]"];
-  hackatimeLines.push(`- Hackatime project: ${justification?.hackatimeProjectName ?? "—"}`);
-  hackatimeLines.push(`- Hackatime user ID: ${ctx.hackatimeUserId?.trim() || "—"}`);
-  if (justification) {
-    hackatimeLines.push(
-      `- Reviewed range: ${justification.reviewDateRange.startDate} to ${justification.reviewDateRange.endDate}`,
+  } else if (justification?.deflation.reduced) {
+    // Legacy reviews (pre per-devlog deflation): the old project-level fields.
+    const approved = ctx.approvedHours ?? null;
+    const tracked =
+      approved !== null && Number.isFinite(approved)
+        ? approved + justification.deflation.hoursReducedBy
+        : null;
+    deflationLines.push(
+      `Deflated from ${formatHoursAwarded(tracked)} to ${formatHoursAwarded(approved)}.`,
     );
+    const reasons = justification.deflation.reasons
+      .map((reason) => DEFLATION_REASON_LABELS.get(reason) ?? reason)
+      .join(", ");
+    deflationLines.push(`- Reasons: ${reasons || "—"}`);
+    deflationLines.push(`- Reviewer note: ${justification.deflation.note ?? "—"}`);
+  } else {
+    deflationLines.push("No deflation — hours approved as tracked.");
   }
-  sections.push(hackatimeLines.join("\n"));
+  sections.push(deflationLines.join("\n"));
 
-  const linkLines: string[] = ["[LINKS]"];
-  linkLines.push(formatLinkLine("Project page", urls.projectPage));
-  linkLines.push(formatLinkLine("Devlogs", urls.devlogs));
-  linkLines.push(formatLinkLine("Review comments", urls.reviewComments));
-  linkLines.push(formatLinkLine("GitHub repository", ctx.codeUrl ?? null));
-  sections.push(linkLines.join("\n"));
-
-  const evidenceLines: string[] = ["[EVIDENCE]"];
+  // 5. Additional Justification (evidence + verifiable links)
+  const additionalLines: string[] = ["[ADDITIONAL JUSTIFICATION]"];
+  additionalLines.push(`- Hours awarded: ${formatHoursAwarded(ctx.approvedHours ?? null)}`);
   if (justification) {
-    for (const item of REVIEW_EVIDENCE_ITEMS) {
-      evidenceLines.push(`- ${item.label}: ${justification.evidence[item.key] ? "Yes" : "No"}`);
+    const confirmed = REVIEW_EVIDENCE_ITEMS.filter((item) => justification.evidence[item.key]);
+    const unconfirmed = REVIEW_EVIDENCE_ITEMS.filter((item) => !justification.evidence[item.key]);
+    additionalLines.push(
+      `- Reviewer evidence confirmed: ${confirmed.map((i) => i.label).join("; ") || "none"}`,
+    );
+    if (unconfirmed.length > 0) {
+      additionalLines.push(`- NOT confirmed: ${unconfirmed.map((i) => i.label).join("; ")}`);
     }
   } else {
-    evidenceLines.push("- Structured review confirmation: unavailable");
+    additionalLines.push("- Structured review confirmation: unavailable");
   }
-  evidenceLines.push(`- Hours awarded: ${formatHoursAwarded(ctx.approvedHours ?? null)}`);
-  evidenceLines.push(formatLinkLine("Review comments", urls.reviewComments));
-  sections.push(evidenceLines.join("\n"));
-
+  additionalLines.push(formatLinkLine("Hackatime review (joe.fraud)", ctx.hackatimeReviewLink));
+  additionalLines.push(formatLinkLine("Carnival project page", urls.projectPage));
+  additionalLines.push(formatLinkLine("Devlogs", urls.devlogs));
+  additionalLines.push(formatLinkLine("Source repository", ctx.codeUrl ?? null));
   const approvedAt = ctx.approvedAtIso ?? latestApproved?.createdAtIso ?? null;
-  const approvalLines: string[] = ["[APPROVED BY CARNIVAL]"];
-  approvalLines.push(`- Approved at: ${approvedAt ?? "—"}`);
-  sections.push(approvalLines.join("\n"));
+  additionalLines.push(`- Reviewed by: ${latestApproved?.reviewerName ?? "—"}`);
+  additionalLines.push(`- Approved at: ${approvedAt ?? "—"}`);
+  sections.push(additionalLines.join("\n"));
 
   return sections.join("\n\n");
 }
@@ -411,19 +565,12 @@ export function toAirtableCreateErrorDetails(err: unknown): AirtableCreateErrorD
   return { message, statusCode, airtableError, hints };
 }
 
-export async function createAirtableGrantRecord(input: AirtableGrantCreateInput): Promise<AirtableCreateResult> {
-  const missing = getAirtableConfigErrors(process.env);
-  if (missing.length) {
-    throw Object.assign(new Error(`Missing Airtable env vars: ${missing.join(", ")}`), {
-      statusCode: 500,
-      error: "missing_env",
-      missing,
-    });
-  }
-
-  const tableName = process.env[AIRTABLE_GRANTS_TABLE_ENV] as string;
-  const b = getAirtableBase(process.env);
-
+/**
+ * Build the exact Airtable `fields` object for a grant record. This is the
+ * single source of truth used by create, update, AND the admin's pre-grant
+ * payload preview — so what the admin sees is byte-for-byte what gets sent.
+ */
+export function buildAirtableGrantFields(input: AirtableGrantCreateInput): Record<string, unknown> {
   const ghUser = getGithubUsernameFromUrl(input.project.codeUrl);
   const { firstName, lastName } = splitFirstLastName(input.creator.name);
 
@@ -444,8 +591,18 @@ export async function createAirtableGrantRecord(input: AirtableGrantCreateInput)
     fields[label] = value;
   };
 
-  // Project
-  setIf(YSWS_AIRTABLE_FIELDS.codeUrl, input.project.codeUrl);
+  const isPreview = input.preview === true;
+
+  // Project. The demo video URL is deliberately NOT sent: it is a
+  // Carnival-side review requirement, not a Unified Database field.
+  // Preview pushes prepend [PREVIEW] to the Code URL — the first thing an
+  // admin sees on the record — so it is unmistakably a dry run that must not
+  // be pushed on to the main database. (Kept out of single-select fields:
+  // typecast can't create new select options without schema permissions.)
+  setIf(
+    YSWS_AIRTABLE_FIELDS.codeUrl,
+    isPreview ? `[PREVIEW] ${input.project.codeUrl}` : input.project.codeUrl,
+  );
   setIf(YSWS_AIRTABLE_FIELDS.playableDemoUrl, input.project.playableDemoUrl);
   setIf(YSWS_AIRTABLE_FIELDS.description, input.project.description);
   if (screenshotAttachments.length) {
@@ -473,12 +630,17 @@ export async function createAirtableGrantRecord(input: AirtableGrantCreateInput)
   setIf(YSWS_AIRTABLE_FIELDS.zipPostalCode, input.shipping.zipPostalCode);
 
   // Review metadata (optional; omit collaborator-ish fields like Reviewer unless you know the Airtable type)
-  setIf(YSWS_AIRTABLE_FIELDS.reviewStatus, input.reviewStatus ?? "Need Review");
+  // Review Status is a single-select in Airtable: typecast cannot invent new
+  // options without schema permissions, so previews simply OMIT the field —
+  // a blank status can never be read as "Approved" downstream.
+  if (!isPreview) {
+    setIf(YSWS_AIRTABLE_FIELDS.reviewStatus, input.reviewStatus ?? "Need Review");
+  }
   if (input.hackatimeReviewLink) {
     setIf(YSWS_AIRTABLE_FIELDS.hackatimeReviewLink, input.hackatimeReviewLink);
   }
 
-  // Hours justification (structured text)
+  // Hours justification (handbook-structured text; see formatAirtableHoursJustification)
   const hoursJustification = formatAirtableHoursJustification(input.reviews, {
     projectId: input.project.id,
     appUrl: input.appUrl ?? null,
@@ -486,14 +648,91 @@ export async function createAirtableGrantRecord(input: AirtableGrantCreateInput)
     hackatimeUserId: input.creator.hackatimeUserId,
     approvedHours: input.project.approvedHours,
     approvedAtIso: input.project.approvedAtIso,
+    technicalJustification: input.technicalJustification ?? null,
+    hackatimeProjectNames: input.hackatimeProjectNames ?? [],
+    hackatimeReviewLink: input.hackatimeReviewLink ?? null,
+    devlogAssessments: input.devlogAssessments ?? [],
   });
-  setIf(YSWS_AIRTABLE_FIELDS.overrideHoursSpentJustification, hoursJustification);
+  setIf(
+    YSWS_AIRTABLE_FIELDS.overrideHoursSpentJustification,
+    isPreview
+      ? `[PREVIEW PUSH — NOT A GRANT. This record will be overwritten by the real grant or deleted.]\n\n${hoursJustification}`
+      : hoursJustification,
+  );
+
+  return fields;
+}
+
+export async function createAirtableGrantRecord(input: AirtableGrantCreateInput): Promise<AirtableCreateResult> {
+  const missing = getAirtableConfigErrors(process.env);
+  if (missing.length) {
+    throw Object.assign(new Error(`Missing Airtable env vars: ${missing.join(", ")}`), {
+      statusCode: 500,
+      error: "missing_env",
+      missing,
+    });
+  }
+
+  const tableName = process.env[AIRTABLE_GRANTS_TABLE_ENV] as string;
+  const b = getAirtableBase(process.env);
+  const fields = buildAirtableGrantFields(input);
 
   // Airtable's FieldSet types are intentionally loose, but TS treats `unknown` as too strict.
   // Cast to `any` for the library boundary.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const record = (await (b(tableName) as any).create(fields as any, { typecast: true })) as { id: string };
   return { id: record.id };
+}
+
+/**
+ * Update the existing Airtable record for a project (idempotent re-push).
+ * The stored record id (project.airtable_record_id) makes "Push to Airtable"
+ * an UPDATE by default — duplicates only happen through the explicit
+ * "create another record" escape hatch on the grant page.
+ */
+export async function updateAirtableGrantRecord(
+  recordId: string,
+  input: AirtableGrantCreateInput,
+): Promise<AirtableCreateResult> {
+  const missing = getAirtableConfigErrors(process.env);
+  if (missing.length) {
+    throw Object.assign(new Error(`Missing Airtable env vars: ${missing.join(", ")}`), {
+      statusCode: 500,
+      error: "missing_env",
+      missing,
+    });
+  }
+
+  const tableName = process.env[AIRTABLE_GRANTS_TABLE_ENV] as string;
+  const b = getAirtableBase(process.env);
+  const fields = buildAirtableGrantFields(input);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const record = (await (b(tableName) as any).update(recordId, fields as any, {
+    typecast: true,
+  })) as { id: string };
+  return { id: record.id };
+}
+
+/**
+ * Delete an Airtable grant record. Used ONLY to clean up [PREVIEW]-marked
+ * records when a previewed project is sent back to review instead of being
+ * granted — real grant records are never deleted through this path.
+ */
+export async function deleteAirtableGrantRecord(recordId: string): Promise<void> {
+  const missing = getAirtableConfigErrors(process.env);
+  if (missing.length) {
+    throw Object.assign(new Error(`Missing Airtable env vars: ${missing.join(", ")}`), {
+      statusCode: 500,
+      error: "missing_env",
+      missing,
+    });
+  }
+
+  const tableName = process.env[AIRTABLE_GRANTS_TABLE_ENV] as string;
+  const b = getAirtableBase(process.env);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (b(tableName) as any).destroy(recordId);
 }
 
 /**

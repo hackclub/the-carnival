@@ -146,24 +146,14 @@ export default function DevlogDetailClient({
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
               {reviewUrls ? (
-                <>
-                  <a
-                    href={reviewUrls.billyUrl}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className={buttonVariants.secondary}
-                  >
-                    Billy ↗
-                  </a>
-                  <a
-                    href={reviewUrls.joeFraudUrl}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className={buttonVariants.secondary}
-                  >
-                    Joe.fraud ↗
-                  </a>
-                </>
+                <a
+                  href={reviewUrls.joeFraudUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className={buttonVariants.secondary}
+                >
+                  Joe.fraud ↗
+                </a>
               ) : null}
               {canRefreshHackatime ? (
                 <Button

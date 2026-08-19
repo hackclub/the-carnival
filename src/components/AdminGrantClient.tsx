@@ -7,7 +7,7 @@ import type {
   ProjectSubmissionChecklist,
   ReviewDecision,
 } from "@/db/schema";
-import { buildBillyUrl, buildJoeFraudUrl } from "@/lib/constants";
+import { buildJoeFraudUrl } from "@/lib/constants";
 import { Modal } from "@/components/ui";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
@@ -49,6 +49,12 @@ type GrantProject = {
   hackatimeHours: { hours: number; minutes: number } | null;
   hackatimeStartedAt: string | null;
   hackatimeStoppedAt: string | null;
+  /** Airtable record id once pushed — pushes UPDATE this record by default. */
+  airtableRecordId: string | null;
+  /** True while the linked record is a pre-grant [PREVIEW] push. */
+  airtableRecordIsPreview: boolean;
+  /** Final human-written "Specific Technical Features" justification. */
+  grantTechnicalJustification: string | null;
 };
 
 type GrantCreator = {
@@ -68,6 +74,9 @@ type GrantReviewItem = {
   createdAt: string; // ISO
   reviewerName: string;
   reviewerEmail: string;
+  /** Pass-1 reviewer's draft of the technical justification, if any. */
+  specificTechnicalFeatures: string | null;
+  rejectionCategory: string | null;
 };
 
 function trustLevelColor(level: string | null): string {
@@ -89,6 +98,90 @@ export default function AdminGrantClient({
   const [showReviews, setShowReviews] = useState(false);
   const [showScreenshots, setShowScreenshots] = useState(false);
   const [screenshotIndex, setScreenshotIndex] = useState(0);
+
+  // Pass 2: the human-written "Specific Technical Features" justification.
+  // Seeded from the saved value, falling back to the pass-1 reviewer's draft.
+  const passOneDraft = useMemo(() => {
+    const approvedWithDraft = [...initial.reviews]
+      .reverse()
+      .find((r) => r.decision === "approved" && (r.specificTechnicalFeatures ?? "").trim());
+    return approvedWithDraft?.specificTechnicalFeatures?.trim() ?? "";
+  }, [initial.reviews]);
+  const [technicalJustification, setTechnicalJustification] = useState(
+    initial.project.grantTechnicalJustification?.trim() || passOneDraft,
+  );
+  const [justificationSaving, setJustificationSaving] = useState(false);
+
+  // Airtable payload preview (dry run of the exact fields a grant would send).
+  const [preview, setPreview] = useState<{
+    fields: Record<string, unknown>;
+    justificationText: string;
+    hoursInvariantOk: boolean;
+    hoursInvariantError: string | null;
+  } | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const loadAirtablePreview = useCallback(async () => {
+    setPreviewLoading(true);
+    try {
+      const res = await fetch(
+        `/api/admin/projects/${encodeURIComponent(project.id)}/airtable-preview`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ technicalJustification }),
+        },
+      );
+      const data = (await res.json().catch(() => null)) as {
+        fields?: Record<string, unknown>;
+        justificationText?: string;
+        hoursInvariantOk?: boolean;
+        hoursInvariantError?: string | null;
+        error?: unknown;
+      } | null;
+      if (!res.ok || !data?.fields) {
+        toast.error(typeof data?.error === "string" ? data.error : "Failed to load preview.");
+        setPreviewLoading(false);
+        return;
+      }
+      setPreview({
+        fields: data.fields,
+        justificationText: data.justificationText ?? "",
+        hoursInvariantOk: data.hoursInvariantOk !== false,
+        hoursInvariantError: data.hoursInvariantError ?? null,
+      });
+      setPreviewOpen(true);
+      setPreviewLoading(false);
+    } catch {
+      toast.error("Failed to load preview.");
+      setPreviewLoading(false);
+    }
+  }, [project.id, technicalJustification]);
+
+  const saveTechnicalJustification = useCallback(async () => {
+    setJustificationSaving(true);
+    const toastId = toast.loading("Saving justification…");
+    try {
+      const res = await fetch(`/api/admin/projects/${encodeURIComponent(project.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ grantTechnicalJustification: technicalJustification }),
+      });
+      const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+      if (!res.ok) {
+        toast.error(typeof data?.error === "string" ? data.error : "Failed to save.", { id: toastId });
+        setJustificationSaving(false);
+        return;
+      }
+      setProject((p) => ({ ...p, grantTechnicalJustification: technicalJustification || null }));
+      toast.success("Justification saved.", { id: toastId });
+      setJustificationSaving(false);
+    } catch {
+      toast.error("Failed to save.", { id: toastId });
+      setJustificationSaving(false);
+    }
+  }, [project.id, technicalJustification]);
 
   const [trustLevel, setTrustLevel] = useState<{ level: string | null; value: number | null } | null>(null);
   useEffect(() => {
@@ -167,11 +260,6 @@ export default function AdminGrantClient({
     return project.hackatimeHours ? formatHoursMinutes(project.hackatimeHours.hours, project.hackatimeHours.minutes) : "—";
   }, [project.hackatimeHours, rangePreview]);
 
-  const billyLink = useMemo(() => {
-    const hackatimeId = project.hackatimeUserId?.trim();
-    if (!hackatimeId || !canonicalProjectRange) return null;
-    return buildBillyUrl(hackatimeId, canonicalProjectRange.startDate, canonicalProjectRange.endDate);
-  }, [canonicalProjectRange, project.hackatimeUserId]);
   const joeFraudLink = useMemo(() => {
     const hackatimeId = project.hackatimeUserId?.trim();
     if (!hackatimeId || !canonicalProjectRange) return null;
@@ -264,7 +352,14 @@ export default function AdminGrantClient({
         const res = await fetch(`/api/admin/projects/${encodeURIComponent(project.id)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status }),
+          body: JSON.stringify({
+            status,
+            // Grants carry the pass-2 technical justification; the server
+            // refuses to grant without it.
+            ...(status === "granted"
+              ? { grantTechnicalJustification: technicalJustification }
+              : {}),
+          }),
         });
         const data = (await res.json().catch(() => null)) as
           | {
@@ -333,15 +428,24 @@ export default function AdminGrantClient({
           setBusy(false);
           return;
         }
-        setProject((p) => ({ ...p, status: (data?.project?.status ?? status) as ProjectStatus }));
-        toast.success("Updated.", { id: toastId });
+        setProject((p) => ({
+          ...p,
+          status: (data?.project?.status ?? status) as ProjectStatus,
+          ...(status === "granted"
+            ? { grantTechnicalJustification: technicalJustification || null }
+            : {}),
+        }));
+        toast.success(
+          status === "granted" ? "Granted — the creator has been notified." : "Updated.",
+          { id: toastId },
+        );
         setBusy(false);
       } catch {
         toast.error("Failed to update status.", { id: toastId });
         setBusy(false);
       }
     },
-    [project.id],
+    [project.id, technicalJustification],
   );
 
   const onDeleteProject = useCallback(async () => {
@@ -367,16 +471,38 @@ export default function AdminGrantClient({
     }
   }, [project.id]);
 
-  const onPushToAirtable = useCallback(async () => {
-    const confirmed = confirm(
-      "Push this project to Airtable? Only do this if the project is missing from Airtable. If it already exists, this will create a duplicate submission.",
-    );
+  const onPushToAirtable = useCallback(async (opts?: { createNew?: boolean; preview?: boolean }) => {
+    const createNew = opts?.createNew === true;
+    const preview = opts?.preview === true;
+    // Default push UPDATES the linked Airtable record (idempotent). Creating
+    // an additional record is an explicit, warned escape hatch. Preview
+    // pushes a [PREVIEW]-marked record before granting; the grant later
+    // promotes it in place.
+    const confirmed = preview
+      ? confirm(
+          "Push a [PREVIEW] record to Airtable? It is clearly marked (Review Status: \"[PREVIEW] Do not process\") so you can inspect the justification in Airtable before granting. Granting will overwrite it with the real record; sending the project back to review deletes it.",
+        )
+      : createNew
+        ? confirm(
+            "Create an ADDITIONAL Airtable record for this project? This is only for when the existing record must be kept and a second submission row is genuinely needed. It WILL result in two records.",
+          )
+        : project.airtableRecordId
+          ? confirm(
+              `Push to Airtable? This updates the existing record (${project.airtableRecordId}) with the current data — no duplicate is created.`,
+            )
+          : confirm("Push this project to Airtable? A new record will be created and linked.");
     if (!confirmed) return;
     setBusy(true);
-    const toastId = toast.loading("Pushing to Airtable…");
+    const toastId = toast.loading(preview ? "Pushing preview to Airtable…" : "Pushing to Airtable…");
     try {
       const res = await fetch(`/api/admin/projects/${encodeURIComponent(project.id)}`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          preview
+            ? { preview: true, technicalJustification }
+            : { createNew },
+        ),
       });
       const data = (await res.json().catch(() => null)) as
         | {
@@ -445,15 +571,24 @@ export default function AdminGrantClient({
       }
 
       const recordId = typeof data?.airtableRecordId === "string" ? data.airtableRecordId : null;
-      toast.success(recordId ? `Airtable created (${recordId}).` : "Pushed to Airtable.", {
-        id: toastId,
-      });
+      const mode = (data as { mode?: unknown } | null)?.mode === "updated" ? "updated" : "created";
+      if (recordId) {
+        setProject((p) => ({ ...p, airtableRecordId: recordId, airtableRecordIsPreview: preview }));
+      }
+      toast.success(
+        recordId
+          ? preview
+            ? `Preview record ${mode} in Airtable (${recordId}) — open the table to inspect the justification.`
+            : `Airtable record ${mode} (${recordId}).`
+          : "Pushed to Airtable.",
+        { id: toastId },
+      );
       setBusy(false);
     } catch {
       toast.error("Failed to push to Airtable.", { id: toastId });
       setBusy(false);
     }
-  }, [project.id]);
+  }, [project.id, project.airtableRecordId, technicalJustification]);
 
   return (
     <div className="space-y-6">
@@ -618,16 +753,6 @@ export default function AdminGrantClient({
               {project.submittedAt ? new Date(project.submittedAt).toLocaleString() : "—"} • Considered range:{" "}
               {canonicalProjectRangeLabel}
             </div>
-            {billyLink ? (
-              <a
-                href={billyLink}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm font-semibold text-carnival-blue hover:underline"
-              >
-                Review Hackatime (billy)
-              </a>
-            ) : null}
             {joeFraudLink ? (
               <a
                 href={joeFraudLink}
@@ -700,17 +825,106 @@ export default function AdminGrantClient({
         </div>
       </div>
 
+      {/* Pass 2 — the human-written hours justification. The server refuses
+          to grant without it; the pass-1 reviewer's draft (if any) seeds the
+          editor. This text is internal — the creator never sees it. */}
+      <div className="platform-surface-card p-6 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-foreground font-semibold text-lg">
+              Specific technical features (hours justification)
+            </div>
+            <div className="text-sm text-muted-foreground mt-1">
+              Human-written, required to grant. Name the technical qualities that justify the
+              approved hours — specific features, not just languages. Goes to the Unified
+              Database; never shown to the creator.
+            </div>
+          </div>
+          <a
+            href={`/review/${encodeURIComponent(project.id)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="shrink-0 text-sm font-semibold text-carnival-blue hover:underline"
+          >
+            Open full review view ↗
+          </a>
+        </div>
+        {passOneDraft && passOneDraft !== technicalJustification ? (
+          <div className="rounded-[var(--radius-xl)] border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
+            Pass-1 reviewer draft: “{passOneDraft}”{" "}
+            <button
+              type="button"
+              onClick={() => setTechnicalJustification(passOneDraft)}
+              className="font-semibold text-carnival-blue hover:underline"
+            >
+              Use draft
+            </button>
+          </div>
+        ) : null}
+        <textarea
+          value={technicalJustification}
+          onChange={(e) => setTechnicalJustification(e.target.value)}
+          rows={4}
+          disabled={busy || project.status === "granted"}
+          className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+          placeholder='e.g. "content-script messaging between tabs, OAuth device flow, custom esbuild pipeline, options page with synced storage"'
+        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-xs text-muted-foreground">
+            {project.airtableRecordId
+              ? project.airtableRecordIsPreview
+                ? `Linked Airtable record: ${project.airtableRecordId} (PREVIEW — promoted on grant, deleted if sent back to review)`
+                : `Linked Airtable record: ${project.airtableRecordId}`
+              : "No Airtable record yet — a preview push or the grant creates one."}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={saveTechnicalJustification}
+              disabled={busy || justificationSaving || project.status === "granted"}
+              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
+            >
+              {justificationSaving ? "Saving…" : "Save draft"}
+            </button>
+            <button
+              type="button"
+              onClick={loadAirtablePreview}
+              disabled={previewLoading}
+              className="inline-flex items-center justify-center bg-carnival-blue/15 hover:bg-carnival-blue/25 disabled:opacity-50 text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
+            >
+              {previewLoading ? "Building preview…" : "Preview Airtable payload"}
+            </button>
+            {project.status === "shipped" ? (
+              <button
+                type="button"
+                onClick={() => onPushToAirtable({ preview: true })}
+                disabled={busy}
+                className="inline-flex items-center justify-center bg-carnival-blue/15 hover:bg-carnival-blue/25 disabled:opacity-50 text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
+                title="Push a [PREVIEW]-marked record to Airtable so you can inspect the justification in the table itself. The grant later overwrites it in place."
+              >
+                Push [PREVIEW] to Airtable
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
       <div className="platform-surface-card p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="text-muted-foreground">
           {project.status === "granted"
             ? "Granted projects are locked for creators."
-            : "Granting will lock this project for the creator."}
+            : "Granting sends the record to Airtable, credits tokens, and notifies the creator — the only approval notification they receive."}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={() => setStatus("granted")}
-            disabled={busy || !canGrant}
+            disabled={busy || !canGrant || !technicalJustification.trim()}
+            title={
+              !technicalJustification.trim()
+                ? "Write the Specific Technical Features justification first."
+                : undefined
+            }
             className="inline-flex items-center justify-center bg-carnival-blue/20 hover:bg-carnival-blue/30 disabled:bg-carnival-blue/10 disabled:cursor-not-allowed text-foreground px-5 py-3 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
           >
             Grant
@@ -733,12 +947,23 @@ export default function AdminGrantClient({
           </button>
           <button
             type="button"
-            onClick={onPushToAirtable}
+            onClick={() => onPushToAirtable()}
             disabled={busy || project.status !== "granted"}
             className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-foreground px-5 py-3 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
           >
-            Push to Airtable
+            {project.airtableRecordId ? "Push update to Airtable" : "Push to Airtable"}
           </button>
+          {project.airtableRecordId ? (
+            <button
+              type="button"
+              onClick={() => onPushToAirtable({ createNew: true })}
+              disabled={busy || project.status !== "granted"}
+              className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 disabled:bg-muted/40 disabled:cursor-not-allowed text-muted-foreground px-4 py-3 rounded-[var(--radius-xl)] text-sm transition-colors border border-border"
+              title="Creates a second Airtable record. Only for exceptional cases."
+            >
+              Create additional record…
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onDeleteProject}
@@ -840,6 +1065,50 @@ export default function AdminGrantClient({
           </div>
         ) : (
           <div className="text-muted-foreground">No screenshots.</div>
+        )}
+      </Modal>
+
+      {/* Dry run of the EXACT payload a grant/push would send — same builder
+          as the live push, so this can never diverge from reality. */}
+      <Modal
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        title="Airtable payload preview"
+        description="This is exactly what will be sent to the Unified Database."
+        maxWidth="2xl"
+      >
+        {preview ? (
+          <div className="space-y-4">
+            {!preview.hoursInvariantOk ? (
+              <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
+                {preview.hoursInvariantError ??
+                  "Hours invariant violated — the payload hours do not match the approved hours."}
+              </div>
+            ) : (
+              <div className="rounded-[var(--radius-2xl)] border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+                Hours check passed: Override Hours Spent matches the approved hours derived from
+                the review.
+              </div>
+            )}
+
+            <div>
+              <div className="text-foreground font-semibold mb-2">
+                Override Hours Spent Justification (as sent)
+              </div>
+              <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words bg-muted border border-border rounded-[var(--radius-xl)] p-3 max-h-[320px] overflow-y-auto">
+                {preview.justificationText || "—"}
+              </pre>
+            </div>
+
+            <div>
+              <div className="text-foreground font-semibold mb-2">All fields</div>
+              <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words bg-muted border border-border rounded-[var(--radius-xl)] p-3 max-h-[320px] overflow-y-auto">
+                {JSON.stringify(preview.fields, null, 2)}
+              </pre>
+            </div>
+          </div>
+        ) : (
+          <div className="text-muted-foreground">No preview loaded.</div>
         )}
       </Modal>
     </div>

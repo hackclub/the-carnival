@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { project } from "@/db/schema";
 import { getAuthUser, parseJsonBody, toCleanString } from "@/lib/api-utils";
 import { makeR2ObjectKey, presignR2PutObject, r2PublicUrlForKey, type R2UploadKind } from "@/lib/r2";
+import { ALLOWED_IMAGE_CONTENT_TYPES } from "@/lib/review/config";
 
 type PresignBody = {
   kind?: unknown;
@@ -37,12 +38,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const contentType = toCleanString(body.contentType) || "application/octet-stream";
-  if (!contentType.toLowerCase().startsWith("image/")) {
-    return NextResponse.json({ error: "Only image uploads are allowed" }, { status: 400 });
-  }
-  if (contentType.includes("\n") || contentType.includes("\r")) {
-    return NextResponse.json({ error: "Invalid contentType" }, { status: 400 });
+  // Only PNG/JPEG are ever signed (see src/lib/review/config.ts). GIFs are
+  // banned by the YSWS Handbook (no animated screenshots), and WebP/SVG are
+  // banned program-wide — SVG in particular is an XSS vector when served from
+  // the public bucket. Since this presigner is the only way bytes reach R2,
+  // rejecting here locks the whole platform to safe image types.
+  const contentType = toCleanString(body.contentType).toLowerCase();
+  if (!ALLOWED_IMAGE_CONTENT_TYPES.includes(contentType)) {
+    return NextResponse.json(
+      { error: "Only PNG or JPG images can be uploaded (no GIF, WebP, or SVG)." },
+      { status: 400 },
+    );
   }
 
   const projectId = toCleanString(body.projectId);

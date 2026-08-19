@@ -7,6 +7,15 @@ export type DevlogAssessmentDraft = {
   // Per-linked-Hackatime-project seconds when the reviewer adjusted individual
   // contributions. Sums to adjustedSeconds.
   hackatimeAdjustments?: DevlogHackatimeProjectAdjustment[] | null;
+  // Required whenever the assessment deflates the devlog's time (see
+  // assessmentDeflatesHours). Keys from REVIEW_DEFLATION_REASON_OPTIONS.
+  deflationReasons?: string[] | null;
+  // Reviewer-overridden considered window (ISO strings), inside the devlog's
+  // own window — e.g. trimming days already counted by an overlapping devlog.
+  // The server re-pulls Hackatime for this range itself; reviewedWindowSeconds
+  // is only the client-side preview of that pull.
+  reviewedWindow?: { startedAt: string; endedAt: string } | null;
+  reviewedWindowSeconds?: number | null;
   comment?: string | null;
 };
 
@@ -68,6 +77,34 @@ export function effectiveSecondsForAssessment(
     default:
       return 0;
   }
+}
+
+/**
+ * Whether an assessment DEFLATES this devlog: it counts fewer seconds than
+ * the devlog's logged time (its recorded duration, or the multi-project
+ * breakdown total when larger). Deflation is always tied to the devlog's
+ * time range — a deflating assessment must carry deflation reasons and a
+ * comment, which flow into the per-devlog breakdown of the Airtable hours
+ * justification (YSWS Handbook "Deflation Justification").
+ */
+// The reviewer's hour/minute inputs have minute granularity, so an adjusted
+// value can sit up to 59 seconds below the devlog's exact logged seconds from
+// rounding alone. That is NOT a deflation — without this tolerance, merely
+// touching the hours inputs would demand deflation reasons for a sub-minute
+// "reduction" the reviewer never intended.
+const DEFLATION_TOLERANCE_SECONDS = 59;
+
+export function assessmentDeflatesHours(
+  devlog: DevlogAssessmentInput,
+  assessment: { decision: DevlogAssessmentDecision; adjustedSeconds?: number | null },
+): boolean {
+  // Accepting counts the devlog exactly as it logged its time — never a deflation.
+  if (assessment.decision === "accepted") return false;
+  const logged = maxAdjustableSeconds(devlog);
+  if (logged <= 0) return false;
+  return (
+    effectiveSecondsForAssessment(devlog, assessment) < logged - DEFLATION_TOLERANCE_SECONDS
+  );
 }
 
 /**
