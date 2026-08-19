@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { db } from "@/db";
-import { project, type ProjectEditor } from "@/db/schema";
+import { project, projectEditor, type ProjectEditor } from "@/db/schema";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
 import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
 import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
@@ -9,10 +9,14 @@ import { validateCreatorOriginalityDeclaration } from "@/lib/project-originality
 import { normalizeCategory, normalizeProjectTags } from "@/lib/project-taxonomy";
 import { getServerSession } from "@/lib/server-session";
 import { validateLinkableBountyProjectId } from "@/lib/bounties";
+import { DEFAULT_PROJECT_TYPE, isEnabledProjectType } from "@/lib/review/config";
+import { isValidHttpUrlString } from "@/lib/review/urls";
+import { validatePlatformImageUrls } from "@/lib/review/uploads";
 
 type CreateProjectBody = {
   name?: unknown;
   description?: unknown;
+  projectType?: unknown;
   editor?: unknown;
   editorOther?: unknown;
   hackatimeProjectName?: unknown;
@@ -37,15 +41,6 @@ function toCleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function isValidUrlString(value: string) {
-  try {
-    const u = new URL(value);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 function toOptionalTrimmedString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -54,23 +49,8 @@ function toOptionalTrimmedString(value: unknown): string | null {
 
 function isProjectEditor(value: unknown): value is ProjectEditor {
   return (
-    value === "vscode" ||
-    value === "chrome" ||
-    value === "firefox" ||
-    value === "figma" ||
-    value === "neovim" ||
-    value === "gnu-emacs" ||
-    value === "jupyterlab" ||
-    value === "obsidian" ||
-    value === "blender" ||
-    value === "freecad" ||
-    value === "kicad" ||
-    value === "krita" ||
-    value === "gimp" ||
-    value === "inkscape" ||
-    value === "godot-engine" ||
-    value === "unity" ||
-    value === "other"
+    typeof value === "string" &&
+    (projectEditor.enumValues as readonly string[]).includes(value)
   );
 }
 
@@ -132,6 +112,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsedRange.error }, { status: 400 });
   }
 
+  // Project type defaults to the program's configured type (Carnival:
+  // extension/plugin) and must be one this program has enabled.
+  const projectTypeValue =
+    body.projectType === undefined || body.projectType === null || body.projectType === ""
+      ? DEFAULT_PROJECT_TYPE
+      : body.projectType;
+  if (!isEnabledProjectType(projectTypeValue)) {
+    return NextResponse.json({ error: "Invalid project type for this program." }, { status: 400 });
+  }
+
   const editor =
     editorRaw === undefined || editorRaw === null || editorRaw === "" ? ("vscode" as const) : editorRaw;
 
@@ -151,15 +141,26 @@ export async function POST(req: Request) {
     );
   }
 
-  // URL fields are optional at creation; validated only if provided
-  if (videoUrl && !isValidUrlString(videoUrl)) {
+  // URL fields are optional at creation; validated only if provided. The full
+  // per-type rules (allowlists, blocklists) are enforced by the submission
+  // gates when the project is submitted for review.
+  if (videoUrl && !isValidHttpUrlString(videoUrl)) {
     return NextResponse.json({ error: "Video link must be http(s)" }, { status: 400 });
   }
-  if (playableDemoUrl && !isValidUrlString(playableDemoUrl)) {
+  if (playableDemoUrl && !isValidHttpUrlString(playableDemoUrl)) {
     return NextResponse.json({ error: "Playable demo link must be http(s)" }, { status: 400 });
   }
-  if (codeUrl && !isValidUrlString(codeUrl)) {
+  if (codeUrl && !isValidHttpUrlString(codeUrl)) {
     return NextResponse.json({ error: "Code URL must be http(s)" }, { status: 400 });
+  }
+
+  // Screenshots must come from the platform's own upload flow (PNG/JPG on our
+  // R2 bucket) — pasted external image URLs are rejected at write time.
+  if (screenshots.length > 0) {
+    const screenshotValidation = validatePlatformImageUrls(screenshots, "Screenshot");
+    if (!screenshotValidation.ok) {
+      return NextResponse.json({ error: screenshotValidation.error }, { status: 400 });
+    }
   }
 
   // Originality declaration is optional at creation; defaults if not provided
@@ -241,6 +242,7 @@ export async function POST(req: Request) {
     creatorId: userId,
     name,
     description,
+    projectType: projectTypeValue,
     editor,
     editorOther: editorOther || null,
     hackatimeProjectName: hackatimeProjectName || "",

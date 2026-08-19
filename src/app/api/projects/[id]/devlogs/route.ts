@@ -20,6 +20,7 @@ import {
 } from "@/lib/devlogs";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
 import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
+import { validatePlatformImageUrls } from "@/lib/review/uploads";
 import { getServerSession } from "@/lib/server-session";
 
 type CreateDevlogBody = {
@@ -203,6 +204,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const attachments = parseAttachmentUrls(body.attachments, { projectId });
   if (!attachments.ok) {
     return NextResponse.json({ error: attachments.error }, { status: 400 });
+  }
+  // Attachments must have been uploaded through the platform (PNG/JPG on our
+  // R2 bucket) — pasted external image URLs are rejected at write time.
+  const attachmentOriginCheck = validatePlatformImageUrls(attachments.value, "Attachment");
+  if (!attachmentOriginCheck.ok) {
+    return NextResponse.json({ error: attachmentOriginCheck.error }, { status: 400 });
   }
 
   if (body.usedAi !== undefined && typeof body.usedAi !== "boolean") {

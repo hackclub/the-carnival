@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { Button, Input } from "@/components/ui";
+import { Button } from "@/components/ui";
 import type { R2UploadKind } from "@/lib/r2";
 
 type PresignResponse = { uploadUrl?: unknown; publicUrl?: unknown; error?: unknown };
@@ -49,9 +49,11 @@ export function R2ImageUpload({
     async (file: File) => {
       setLocalError(null);
       if (!file) return;
-      const contentType = file.type || "application/octet-stream";
-      if (!contentType.toLowerCase().startsWith("image/")) {
-        setLocalError("Please choose an image file.");
+      // PNG/JPG only — mirrors the server-side presign allowlist
+      // (src/lib/review/config.ts).
+      const contentType = (file.type || "").toLowerCase();
+      if (!["image/png", "image/jpeg", "image/jpg"].includes(contentType)) {
+        setLocalError("Please choose a PNG or JPG image (no GIF, WebP, or SVG).");
         return;
       }
 
@@ -188,7 +190,7 @@ export function R2ImageUpload({
         <input
           ref={inputRef}
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg"
           className="hidden"
           disabled={disabled || uploading}
           onChange={async (e) => {
@@ -200,14 +202,8 @@ export function R2ImageUpload({
         />
       </div>
 
-      <Input
-        label="Image URL"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="https://…"
-        disabled={disabled || uploading}
-        size="small"
-      />
+      {/* No manual URL input on purpose: images must go through the platform
+          upload flow so the server can trust their origin and format. */}
 
       {helperText ? <div className="text-xs text-muted-foreground">{helperText}</div> : null}
       {localError ? (

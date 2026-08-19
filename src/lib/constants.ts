@@ -1,16 +1,13 @@
-/** Hackatime Billy review tool base URL. Override with NEXT_PUBLIC_HACKATIME_BILLY_URL if needed. */
-export const HACKATIME_BILLY_BASE_URL =
-  process.env.NEXT_PUBLIC_HACKATIME_BILLY_URL ?? "https://billy.3kh0.net/";
-
-/** Joe.fraud Billy-compatible review tool base URL. */
+/**
+ * External Hackatime review tool: joe.fraud (Billy-compatible).
+ *
+ * Billy (billy.3kh0.net) was retired — joe.fraud is the single supported tool.
+ * When Telescope (its successor) ships, update the base URL here and add it to
+ * REVIEW_TOOL_LINKS in src/lib/review/config.ts; every review surface and the
+ * Airtable justification pick it up from these two places.
+ */
 export const HACKATIME_JOE_FRAUD_BASE_URL =
   process.env.NEXT_PUBLIC_HACKATIME_JOE_FRAUD_URL ?? "https://joe.fraud.hackclub.com/billy";
-
-export function buildBillyUrl(hackatimeId: string, start: string, end: string): string {
-  return `${HACKATIME_BILLY_BASE_URL}?u=${encodeURIComponent(hackatimeId)}&d=${encodeURIComponent(
-    `${start}-${end}`,
-  )}`;
-}
 
 export function buildJoeFraudUrl(hackatimeId: string, start: string, end: string): string {
   return `${HACKATIME_JOE_FRAUD_BASE_URL}?u=${encodeURIComponent(hackatimeId)}&d=${encodeURIComponent(
@@ -36,12 +33,11 @@ export function buildHackatimeDevlogReviewUrls(input: {
     return null;
   }
 
-  // Billy/joe.fraud only understand date-only ranges (YYYY-MM-DD); full ISO
-  // timestamps in the `d` param break their range parsing.
+  // joe.fraud only understands date-only ranges (YYYY-MM-DD); full ISO
+  // timestamps in the `d` param break its range parsing.
   const startDate = start.toISOString().slice(0, 10);
   const endDate = end.toISOString().slice(0, 10);
   return {
-    billyUrl: buildBillyUrl(hackatimeId, startDate, endDate),
     joeFraudUrl: buildJoeFraudUrl(hackatimeId, startDate, endDate),
   };
 }

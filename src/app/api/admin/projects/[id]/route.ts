@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { bountyProject, peerReview, project, tokenLedger, user, type ProjectStatus, type ReviewDecision } from "@/db/schema";
+import { bountyProject, project, tokenLedger, type ProjectStatus } from "@/db/schema";
 import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
 import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
 import { getServerSession } from "@/lib/server-session";
@@ -11,18 +11,27 @@ import { bountyPrizeUsdToTokens } from "@/lib/bounties";
 import { generateId, isUniqueConstraintError } from "@/lib/api-utils";
 import { appendReviewAudit } from "@/lib/review-audit";
 import {
-  type AirtableGrantCreateInput,
   createAirtableGrantRecord,
+  updateAirtableGrantRecord,
+  deleteAirtableGrantRecord,
   toAirtableCreateErrorDetails,
   getAirtableConfigErrors,
   AIRTABLE_GRANTS_TABLE_ENV,
 } from "@/lib/airtable";
-import { hydrateReviewJustification } from "@/lib/review-justification";
+import { assertGrantHoursInvariant, loadGrantContext } from "@/lib/review/grant";
+import { sendReviewEmail } from "@/lib/loops";
+import { notifyReviewDM } from "@/lib/slack";
 
 type AdminProjectPatchBody = {
   status?: unknown;
   consideredHackatimeRange?: unknown;
   resubmissionBlocked?: unknown;
+  /**
+   * Final human-written "Specific Technical Features" hours justification.
+   * Can be saved on its own (draft) or sent along with status="granted".
+   * Required (non-empty, saved or inline) before a grant can proceed.
+   */
+  grantTechnicalJustification?: unknown;
 };
 
 function isAdmin(role: unknown): role is "admin" {
@@ -42,295 +51,51 @@ function hasOwnProperty<T extends object>(value: T, key: PropertyKey) {
   return Object.prototype.hasOwnProperty.call(value, key);
 }
 
-type IdentityGrantProfile = {
-  name: string | null;
-  email: string | null;
-  slackId: string | null;
-  birthday: string | null;
-  addressLine1: string | null;
-  addressLine2: string | null;
-  city: string | null;
-  stateProvince: string | null;
-  country: string | null;
-  zipPostalCode: string | null;
-};
-
-const EMPTY_IDENTITY_GRANT_PROFILE: IdentityGrantProfile = {
-  name: null,
-  email: null,
-  slackId: null,
-  birthday: null,
-  addressLine1: null,
-  addressLine2: null,
-  city: null,
-  stateProvince: null,
-  country: null,
-  zipPostalCode: null,
-};
-
-type GrantProjectRow = {
-  id: string;
-  name: string;
-  description: string;
-  hackatimeProjectName: string;
-  codeUrl: string;
-  playableDemoUrl: string;
-  videoUrl: string;
-  screenshots: string[] | null;
-  submittedAt: Date | null;
-  approvedHours: number | null;
-  creatorName: string | null;
+/**
+ * The ONLY "approved" notification the creator ever receives — sent at grant
+ * time (pass 2), when tokens really are in their wallet. Pass-1 approval is
+ * deliberately silent (see /api/review/[id]).
+ */
+async function notifyCreatorGranted(input: {
+  projectId: string;
+  projectName: string;
   creatorEmail: string | null;
   creatorSlackId: string | null;
-  creatorBirthday: string | null;
-  creatorHackatimeUserId: string | null;
-  addressLine1: string | null;
-  addressLine2: string | null;
-  city: string | null;
-  stateProvince: string | null;
-  country: string | null;
-  zipPostalCode: string | null;
-};
-
-type GrantReviewRow = {
-  reviewerName: string | null;
-  decision: ReviewDecision;
-  reviewComment: string;
-  reviewEvidenceChecklist: unknown;
-  reviewedHackatimeRangeStart: Date | null;
-  reviewedHackatimeRangeEnd: Date | null;
-  hourAdjustmentReasonMetadata: unknown;
-  reviewJustification?: unknown;
-  createdAt: Date;
-};
-
-type AirtableGrantReview = NonNullable<AirtableGrantCreateInput["reviews"]>[number];
-
-const reviewJustificationColumn = (
-  peerReview as unknown as { reviewJustification?: typeof peerReview.id }
-).reviewJustification;
-
-function toNullableString(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function toIsoDateOnlyOrNull(value: unknown): string | null {
-  const raw = toNullableString(value);
-  if (!raw) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
-}
-
-function getAddressSource(payload: unknown): Record<string, unknown> | null {
-  if (!payload || typeof payload !== "object") return null;
-  const root = payload as Record<string, unknown>;
-
-  if (root.address && typeof root.address === "object" && !Array.isArray(root.address)) {
-    return root.address as Record<string, unknown>;
+  approvedHours: number | null;
+  tokensIssued: number;
+}) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "";
+  let projectLink = `/projects/${input.projectId}`;
+  if (appUrl) {
+    try {
+      projectLink = new URL(`/projects/${input.projectId}`, appUrl).toString();
+    } catch {
+      // fall back to relative
+    }
   }
 
-  if (Array.isArray(root.addresses)) {
-    const primary = root.addresses.find((a) => {
-      if (!a || typeof a !== "object" || Array.isArray(a)) return false;
-      const row = a as { primary?: unknown };
-      return row.primary === true;
+  const message =
+    `Your project "${input.projectName}" has been approved` +
+    `${input.approvedHours !== null ? ` (${input.approvedHours} hours)` : ""} and granted! ` +
+    `${input.tokensIssued} tokens have been credited to your Carnival wallet.`;
+
+  if (input.creatorEmail) {
+    await sendReviewEmail(input.creatorEmail, message, "The Carnival", projectLink).catch((err) => {
+      console.warn("sendReviewEmail on grant failed", err);
     });
-    const first =
-      primary ?? root.addresses.find((a) => a && typeof a === "object" && !Array.isArray(a));
-    if (first && typeof first === "object") return first as Record<string, unknown>;
   }
-
-  return root;
-}
-
-function parseIdentityGrantProfile(payload: unknown): IdentityGrantProfile {
-  const out: IdentityGrantProfile = {
-    name: null,
-    email: null,
-    slackId: null,
-    birthday: null,
-    addressLine1: null,
-    addressLine2: null,
-    city: null,
-    stateProvince: null,
-    country: null,
-    zipPostalCode: null,
-  };
-
-  if (!payload || typeof payload !== "object") return out;
-  const root = payload as Record<string, unknown>;
-  const identity =
-    root.identity && typeof root.identity === "object" && !Array.isArray(root.identity)
-      ? (root.identity as Record<string, unknown>)
-      : root;
-
-  const firstName = toNullableString(identity.first_name ?? identity.firstName);
-  const lastName = toNullableString(identity.last_name ?? identity.lastName);
-  const legalFirstName = toNullableString(identity.legal_first_name ?? identity.legalFirstName);
-  const legalLastName = toNullableString(identity.legal_last_name ?? identity.legalLastName);
-
-  const joined = [firstName, lastName].filter((p): p is string => !!p).join(" ").trim();
-  const legalJoined = [legalFirstName, legalLastName]
-    .filter((p): p is string => !!p)
-    .join(" ")
-    .trim();
-  out.name = joined || legalJoined || null;
-  out.email = toNullableString(identity.primary_email ?? identity.email);
-  out.slackId = toNullableString(identity.slack_id ?? identity.slackId);
-
-  out.birthday = toIsoDateOnlyOrNull(
-    identity.birthday ?? identity.birthdate ?? identity.date_of_birth ?? identity.dob,
-  );
-
-  const address = getAddressSource(identity);
-  if (!address) return out;
-
-  out.addressLine1 = toNullableString(
-    address.line_1 ??
-      address.address_line_1 ??
-      address.addressLine1 ??
-      address.line1 ??
-      address.street_1,
-  );
-  out.addressLine2 = toNullableString(
-    address.line_2 ??
-      address.address_line_2 ??
-      address.addressLine2 ??
-      address.line2 ??
-      address.street_2,
-  );
-  out.city = toNullableString(address.city ?? address.locality ?? address.town);
-  out.stateProvince = toNullableString(
-    address.state ??
-      address.state_province ??
-      address.stateProvince ??
-      address.region,
-  );
-  out.country = toNullableString(address.country ?? address.country_code ?? address.countryCode);
-  out.zipPostalCode = toNullableString(
-    address.postal_code ??
-      address.zip_postal_code ??
-      address.zipPostalCode ??
-      address.postcode,
-  );
-
-  return out;
-}
-
-async function fetchIdentityGrantProfile(identityToken: string | null): Promise<IdentityGrantProfile> {
-  if (!identityToken) return EMPTY_IDENTITY_GRANT_PROFILE;
-
-  const identityHost = process.env.HC_IDENTITY_HOST ?? "https://auth.hackclub.com";
-  if (!identityHost) return EMPTY_IDENTITY_GRANT_PROFILE;
-
-  try {
-    const res = await fetch(`${identityHost}/api/v1/me`, {
-      headers: { Authorization: `Bearer ${identityToken}` },
-      cache: "no-store",
+  if (input.creatorSlackId) {
+    await notifyReviewDM({
+      slackId: input.creatorSlackId,
+      projectName: input.projectName,
+      status: "approved",
+      comment: message,
+      projectUrl: projectLink,
+      creatorSlackId: input.creatorSlackId,
+    }).catch((err) => {
+      console.warn("notifyReviewDM on grant failed", err);
     });
-    if (!res.ok) return EMPTY_IDENTITY_GRANT_PROFILE;
-    const raw = (await res.json().catch(() => null)) as unknown;
-    return parseIdentityGrantProfile(raw);
-  } catch {
-    return EMPTY_IDENTITY_GRANT_PROFILE;
   }
-}
-
-function mapReviewsForAirtable(
-  reviews: GrantReviewRow[],
-  fallbackHackatimeProjectName: string,
-): AirtableGrantReview[] {
-  return reviews
-    .filter((r) => r.decision !== "comment")
-    .map((r) => ({
-      reviewerName: r.reviewerName || "Unknown reviewer",
-      decision: r.decision,
-      message: r.reviewComment,
-      createdAtIso: r.createdAt.toISOString(),
-      reviewJustification: hydrateReviewJustification({
-        decision: r.decision,
-        fallbackHackatimeProjectName,
-        reviewEvidenceChecklist: r.reviewEvidenceChecklist,
-        reviewedHackatimeRangeStart: r.reviewedHackatimeRangeStart,
-        reviewedHackatimeRangeEnd: r.reviewedHackatimeRangeEnd,
-        hourAdjustmentReasonMetadata: r.hourAdjustmentReasonMetadata,
-        reviewJustification: r.reviewJustification,
-      }),
-    }));
-}
-
-async function loadGrantReviewsForAirtable(
-  projectId: string,
-  fallbackHackatimeProjectName: string,
-) {
-  const rows = (await db
-    .select({
-      decision: peerReview.decision,
-      reviewComment: peerReview.reviewComment,
-      reviewerName: user.name,
-      reviewEvidenceChecklist: peerReview.reviewEvidenceChecklist,
-      reviewedHackatimeRangeStart: peerReview.reviewedHackatimeRangeStart,
-      reviewedHackatimeRangeEnd: peerReview.reviewedHackatimeRangeEnd,
-      hourAdjustmentReasonMetadata: peerReview.hourAdjustmentReasonMetadata,
-      ...(reviewJustificationColumn ? { reviewJustification: reviewJustificationColumn } : {}),
-      createdAt: peerReview.createdAt,
-    })
-    .from(peerReview)
-    .leftJoin(user, eq(peerReview.reviewerId, user.id))
-    .where(eq(peerReview.projectId, projectId))
-    .orderBy(peerReview.createdAt)) as GrantReviewRow[];
-
-  return mapReviewsForAirtable(rows, fallbackHackatimeProjectName);
-}
-
-function buildAirtableGrantInput(
-  current: GrantProjectRow,
-  identityProfile: IdentityGrantProfile,
-  reviews: AirtableGrantReview[],
-): AirtableGrantCreateInput {
-  const latestApprovedAtIso = reviews
-    .filter((r) => r.decision === "approved" && r.createdAtIso)
-    .map((r) => r.createdAtIso as string)
-    .sort()
-    .pop() ?? null;
-
-  return {
-    project: {
-      id: current.id,
-      name: current.name,
-      description: current.description,
-      hackatimeProjectName: current.hackatimeProjectName,
-      codeUrl: current.codeUrl,
-      playableDemoUrl: current.playableDemoUrl,
-      videoUrl: current.videoUrl,
-      screenshots: current.screenshots ?? [],
-      submittedAtIso: current.submittedAt ? current.submittedAt.toISOString() : null,
-      approvedHours: current.approvedHours ?? null,
-      approvedAtIso: latestApprovedAtIso,
-    },
-    creator: {
-      name: identityProfile.name ?? current.creatorName ?? "Unknown",
-      email: identityProfile.email ?? current.creatorEmail ?? "",
-      slackId: identityProfile.slackId ?? current.creatorSlackId ?? null,
-      birthdayIso: identityProfile.birthday ?? current.creatorBirthday ?? null,
-      hackatimeUserId: current.creatorHackatimeUserId ?? null,
-    },
-    shipping: {
-      addressLine1: identityProfile.addressLine1 ?? current.addressLine1 ?? null,
-      addressLine2: identityProfile.addressLine2 ?? current.addressLine2 ?? null,
-      city: identityProfile.city ?? current.city ?? null,
-      stateProvince: identityProfile.stateProvince ?? current.stateProvince ?? null,
-      country: identityProfile.country ?? current.country ?? null,
-      zipPostalCode: identityProfile.zipPostalCode ?? current.zipPostalCode ?? null,
-    },
-    appUrl: process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || null,
-    reviewStatus: "Approved" as const,
-    reviews,
-  };
 }
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -352,8 +117,30 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const hasStatusUpdate = hasOwnProperty(body, "status");
   const hasRangeUpdate = hasOwnProperty(body, "consideredHackatimeRange");
   const hasResubmissionBlockUpdate = hasOwnProperty(body, "resubmissionBlocked");
-  if (!hasStatusUpdate && !hasRangeUpdate && !hasResubmissionBlockUpdate) {
+  const hasTechnicalJustificationUpdate = hasOwnProperty(body, "grantTechnicalJustification");
+  if (
+    !hasStatusUpdate &&
+    !hasRangeUpdate &&
+    !hasResubmissionBlockUpdate &&
+    !hasTechnicalJustificationUpdate
+  ) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+  }
+  const technicalJustificationInput = hasTechnicalJustificationUpdate
+    ? typeof body.grantTechnicalJustification === "string"
+      ? body.grantTechnicalJustification.trim().slice(0, 8000)
+      : ""
+    : null;
+
+  // Standalone save of the technical justification draft (no status change).
+  if (hasTechnicalJustificationUpdate && !hasStatusUpdate && !hasRangeUpdate && !hasResubmissionBlockUpdate) {
+    const updated = await db
+      .update(project)
+      .set({ grantTechnicalJustification: technicalJustificationInput || null, updatedAt: new Date() })
+      .where(eq(project.id, id))
+      .returning({ id: project.id, grantTechnicalJustification: project.grantTechnicalJustification });
+    if (!updated[0]) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ project: updated[0] });
   }
   if (hasStatusUpdate && !isAdminEditableStatus(body.status)) {
     return NextResponse.json(
@@ -566,44 +353,21 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     }
   }
 
-  try {
-    // If granting, create the Airtable record first. If Airtable fails, we abort the grant
-    // (so admins see the error immediately and we don't issue tokens without a record).
-    if (nextStatus === "granted") {
-      const rows = await db
-        .select({
-          id: project.id,
-          status: project.status,
-          creatorId: project.creatorId,
-          approvedHours: project.approvedHours,
-          name: project.name,
-          hackatimeProjectName: project.hackatimeProjectName,
-          description: project.description,
-          codeUrl: project.codeUrl,
-          videoUrl: project.videoUrl,
-          playableDemoUrl: project.playableDemoUrl,
-          screenshots: project.screenshots,
-          submittedAt: project.submittedAt,
-          creatorName: user.name,
-          creatorEmail: user.email,
-          creatorSlackId: user.slackId,
-          creatorIdentityToken: user.identityToken,
-          creatorBirthday: user.birthday,
-          creatorHackatimeUserId: user.hackatimeUserId,
-          addressLine1: user.addressLine1,
-          addressLine2: user.addressLine2,
-          city: user.city,
-          stateProvince: user.stateProvince,
-          country: user.country,
-          zipPostalCode: user.zipPostalCode,
-        })
-        .from(project)
-        .leftJoin(user, eq(project.creatorId, user.id))
-        .where(eq(project.id, id))
-        .limit(1);
+  let grantNotification: Parameters<typeof notifyCreatorGranted>[0] | null = null;
 
-      const current = rows[0];
-      if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  try {
+    // If granting, create/update the Airtable record first. If Airtable fails,
+    // we abort the grant (so admins see the error immediately and we don't
+    // issue tokens without a Unified Database record).
+    if (nextStatus === "granted") {
+      const context = await loadGrantContext(id, {
+        // Justification sent inline with the grant wins; otherwise the stored one.
+        ...(hasTechnicalJustificationUpdate
+          ? { technicalJustificationOverride: technicalJustificationInput }
+          : {}),
+      });
+      if (!context) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      const current = context.projectRow;
 
       // Only allow granting from shipped (or no-op if already granted).
       if (current.status !== "shipped" && current.status !== "granted") {
@@ -613,7 +377,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         );
       }
 
-      // If already granted, don't re-insert into Airtable.
+      // If already granted, don't re-push to Airtable.
       if (current.status !== "granted") {
         if (!current.creatorId) {
           return NextResponse.json(
@@ -626,6 +390,24 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
             { error: "Project has no approved hours; cannot create Airtable record." },
             { status: 409 },
           );
+        }
+
+        // Pass 2 requires the human-written "Specific Technical Features"
+        // justification — a grant without it fails YSWS spot-check standards.
+        if (!context.input.technicalJustification) {
+          return NextResponse.json(
+            {
+              error:
+                "Write the Specific Technical Features justification before granting. It is the human-written evidence for the approved hours.",
+              code: "technical_justification_required",
+            },
+            { status: 400 },
+          );
+        }
+
+        const invariant = assertGrantHoursInvariant(context);
+        if (!invariant.ok) {
+          return NextResponse.json({ error: invariant.error }, { status: 409 });
         }
 
         const missingEnv = getAirtableConfigErrors(process.env);
@@ -644,12 +426,23 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         }
 
         try {
-          const identityProfile = await fetchIdentityGrantProfile(current.creatorIdentityToken ?? null);
-          const reviews = await loadGrantReviewsForAirtable(id, current.hackatimeProjectName);
+          // Idempotent by record id: if a record already exists — including a
+          // [PREVIEW] push — update it instead of creating a duplicate. A
+          // preview record is thereby PROMOTED in place: the real payload
+          // overwrites the markers.
+          const record = current.airtableRecordId
+            ? await updateAirtableGrantRecord(current.airtableRecordId, context.input)
+            : await createAirtableGrantRecord(context.input);
 
-          await createAirtableGrantRecord(
-            buildAirtableGrantInput(current, identityProfile, reviews),
-          );
+          await db
+            .update(project)
+            .set({
+              airtableRecordId: record.id,
+              airtableRecordIsPreview: false,
+              grantTechnicalJustification: context.input.technicalJustification,
+              updatedAt: new Date(),
+            })
+            .where(eq(project.id, id));
         } catch (err) {
           const details = toAirtableCreateErrorDetails(err);
           return NextResponse.json(
@@ -663,6 +456,15 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
             { status: 502 },
           );
         }
+
+        grantNotification = {
+          projectId: id,
+          projectName: current.name,
+          creatorEmail: current.creatorEmail,
+          creatorSlackId: current.creatorSlackId,
+          approvedHours: current.approvedHours,
+          tokensIssued: tokensForApprovedHours(current.approvedHours),
+        };
       }
     }
 
@@ -817,6 +619,38 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
     if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
 
+    // Tokens are issued and the Airtable record exists — this is the moment
+    // the creator finally hears "approved" (best-effort, outside the txn).
+    if (grantNotification) {
+      await notifyCreatorGranted(grantNotification);
+    }
+
+    // If the project moves away from the grant queue while a [PREVIEW]
+    // Airtable record exists, delete that record (best-effort) so no preview
+    // rows linger in the Unified Database.
+    if (nextStatus && nextStatus !== "granted") {
+      try {
+        const rows = await db
+          .select({
+            airtableRecordId: project.airtableRecordId,
+            airtableRecordIsPreview: project.airtableRecordIsPreview,
+          })
+          .from(project)
+          .where(eq(project.id, id))
+          .limit(1);
+        const row = rows[0];
+        if (row?.airtableRecordId && row.airtableRecordIsPreview) {
+          await deleteAirtableGrantRecord(row.airtableRecordId);
+          await db
+            .update(project)
+            .set({ airtableRecordId: null, airtableRecordIsPreview: false, updatedAt: new Date() })
+            .where(eq(project.id, id));
+        }
+      } catch (err) {
+        console.warn("Failed to clean up preview Airtable record", err);
+      }
+    }
+
     const updated = await db
       .select({ id: project.id, status: project.status, updatedAt: project.updatedAt })
       .from(project)
@@ -844,7 +678,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
 }
 
-export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
   const adminUserId = (session?.user as { id?: string } | undefined)?.id;
   const role = (session?.user as { role?: unknown } | undefined)?.role;
@@ -853,64 +687,75 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
 
   const { id } = await ctx.params;
 
-  const rows = await db
-    .select({
-      id: project.id,
-      status: project.status,
-      creatorId: project.creatorId,
-      approvedHours: project.approvedHours,
-      name: project.name,
-      hackatimeProjectName: project.hackatimeProjectName,
-      description: project.description,
-      codeUrl: project.codeUrl,
-      videoUrl: project.videoUrl,
-      playableDemoUrl: project.playableDemoUrl,
-      screenshots: project.screenshots,
-      submittedAt: project.submittedAt,
-      creatorName: user.name,
-      creatorEmail: user.email,
-      creatorSlackId: user.slackId,
-      creatorIdentityToken: user.identityToken,
-      creatorBirthday: user.birthday,
-      creatorHackatimeUserId: user.hackatimeUserId,
-      addressLine1: user.addressLine1,
-      addressLine2: user.addressLine2,
-      city: user.city,
-      stateProvince: user.stateProvince,
-      country: user.country,
-      zipPostalCode: user.zipPostalCode,
-    })
-    .from(project)
-    .leftJoin(user, eq(project.creatorId, user.id))
-    .where(eq(project.id, id))
-    .limit(1);
-
-  const current = rows[0];
-  if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (current.status !== "granted") {
-    return NextResponse.json(
-      { error: "Project must be granted before pushing to Airtable." },
-      { status: 409 },
-    );
+  // Manual "Push to Airtable". Idempotent by default: when the project already
+  // has an Airtable record id, the push UPDATES that record. Creating an
+  // ADDITIONAL record requires the explicit createNew flag (the UI warns
+  // before sending it), and the stored id then points at the newest record.
+  //
+  // Preview mode (preview: true) pushes a clearly [PREVIEW]-marked record for
+  // a SHIPPED (pass-1 approved, not yet granted) project so the admin can see
+  // the justification in Airtable itself before granting. The record is
+  // promoted in place by the grant, or deleted if the project leaves the
+  // grant queue.
+  let createNew = false;
+  let preview = false;
+  let previewTechnicalJustification: string | undefined;
+  try {
+    const body = (await req.json().catch(() => null)) as
+      | { createNew?: unknown; preview?: unknown; technicalJustification?: unknown }
+      | null;
+    createNew = body?.createNew === true;
+    preview = body?.preview === true;
+    previewTechnicalJustification =
+      typeof body?.technicalJustification === "string"
+        ? body.technicalJustification.trim().slice(0, 8000)
+        : undefined;
+  } catch {
+    createNew = false;
   }
 
-  const issued = await db
-    .select({ id: tokenLedger.id })
-    .from(tokenLedger)
-    .where(
-      and(
-        eq(tokenLedger.referenceType, "project_grant"),
-        eq(tokenLedger.referenceId, id),
-        eq(tokenLedger.kind, "issue"),
-      ),
-    )
-    .limit(1);
+  const context = await loadGrantContext(id, {
+    // Preview reflects the justification the admin is editing right now.
+    ...(preview && previewTechnicalJustification !== undefined
+      ? { technicalJustificationOverride: previewTechnicalJustification }
+      : {}),
+  });
+  if (!context) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const current = context.projectRow;
 
-  if (!issued[0]) {
-    return NextResponse.json(
-      { error: "Tokens have not been issued for this project." },
-      { status: 409 },
-    );
+  if (preview) {
+    if (current.status !== "shipped") {
+      return NextResponse.json(
+        { error: "Preview pushes are for shipped (pass-1 approved) projects awaiting grant." },
+        { status: 409 },
+      );
+    }
+  } else {
+    if (current.status !== "granted") {
+      return NextResponse.json(
+        { error: "Project must be granted before pushing to Airtable." },
+        { status: 409 },
+      );
+    }
+
+    const issued = await db
+      .select({ id: tokenLedger.id })
+      .from(tokenLedger)
+      .where(
+        and(
+          eq(tokenLedger.referenceType, "project_grant"),
+          eq(tokenLedger.referenceId, id),
+          eq(tokenLedger.kind, "issue"),
+        ),
+      )
+      .limit(1);
+
+    if (!issued[0]) {
+      return NextResponse.json(
+        { error: "Tokens have not been issued for this project." },
+        { status: 409 },
+      );
+    }
   }
 
   if (!current.creatorId) {
@@ -924,6 +769,10 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       { error: "Project has no approved hours; cannot create Airtable record." },
       { status: 409 },
     );
+  }
+  const invariant = assertGrantHoursInvariant(context);
+  if (!invariant.ok) {
+    return NextResponse.json({ error: invariant.error }, { status: 409 });
   }
 
   const missingEnv = getAirtableConfigErrors(process.env);
@@ -942,19 +791,33 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   try {
-    const identityProfile = await fetchIdentityGrantProfile(current.creatorIdentityToken ?? null);
-    const reviews = await loadGrantReviewsForAirtable(id, current.hackatimeProjectName);
+    // Preview always upserts the stored record (never duplicates).
+    const shouldUpdate = preview ? !!current.airtableRecordId : !createNew && !!current.airtableRecordId;
+    const input = preview ? { ...context.input, preview: true } : context.input;
+    const record = shouldUpdate
+      ? await updateAirtableGrantRecord(current.airtableRecordId as string, input)
+      : await createAirtableGrantRecord(input);
 
-    const record = await createAirtableGrantRecord(
-      buildAirtableGrantInput(current, identityProfile, reviews),
-    );
+    await db
+      .update(project)
+      .set({
+        airtableRecordId: record.id,
+        airtableRecordIsPreview: preview,
+        updatedAt: new Date(),
+      })
+      .where(eq(project.id, id));
 
-    return NextResponse.json({ ok: true, airtableRecordId: record.id });
+    return NextResponse.json({
+      ok: true,
+      airtableRecordId: record.id,
+      preview,
+      mode: shouldUpdate ? "updated" : "created",
+    });
   } catch (err) {
     const details = toAirtableCreateErrorDetails(err);
     return NextResponse.json(
       {
-        error: "Failed to create Airtable grant record.",
+        error: "Failed to push the Airtable grant record.",
         details: details.message,
         statusCode: details.statusCode,
         airtableError: details.airtableError,

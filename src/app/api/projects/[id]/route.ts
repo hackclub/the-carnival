@@ -3,11 +3,17 @@ import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   project,
+  projectEditor,
   user,
   type ProjectEditor,
   type ProjectStatus,
   type ProjectSubmissionChecklist,
+  type ProjectType,
 } from "@/db/schema";
+import { isEnabledProjectType } from "@/lib/review/config";
+import { validateSubmissionRequirements } from "@/lib/review/submission-gates";
+import { isValidHttpUrlString } from "@/lib/review/urls";
+import { getR2PublicBaseUrl, validatePlatformImageUrl } from "@/lib/review/uploads";
 import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
 import {
   getProjectConsideredHackatimeRange,
@@ -28,6 +34,7 @@ import { validateLinkableBountyProjectId } from "@/lib/bounties";
 type UpdateProjectBody = {
   name?: unknown;
   description?: unknown;
+  projectType?: unknown;
   editor?: unknown;
   editorOther?: unknown;
   hackatimeProjectName?: unknown;
@@ -52,15 +59,6 @@ type UpdateProjectBody = {
 
 function toCleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function isValidUrlString(value: string) {
-  try {
-    const u = new URL(value);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 function toOptionalIsoDate(value: unknown): Date | null {
@@ -90,23 +88,8 @@ function toOptionalTrimmedString(value: unknown): string | null {
 
 function isProjectEditor(value: unknown): value is ProjectEditor {
   return (
-    value === "vscode" ||
-    value === "chrome" ||
-    value === "firefox" ||
-    value === "figma" ||
-    value === "neovim" ||
-    value === "gnu-emacs" ||
-    value === "jupyterlab" ||
-    value === "obsidian" ||
-    value === "blender" ||
-    value === "freecad" ||
-    value === "kicad" ||
-    value === "krita" ||
-    value === "gimp" ||
-    value === "inkscape" ||
-    value === "godot-engine" ||
-    value === "unity" ||
-    value === "other"
+    typeof value === "string" &&
+    (projectEditor.enumValues as readonly string[]).includes(value)
   );
 }
 
@@ -135,6 +118,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       description: project.description,
       category: project.category,
       tags: project.tags,
+      projectType: project.projectType,
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
@@ -198,6 +182,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       description: project.description,
       category: project.category,
       tags: project.tags,
+      projectType: project.projectType,
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
@@ -247,6 +232,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     description: string;
     category: string | null;
     tags: string[];
+    projectType: ProjectType;
     editor: ProjectEditor;
     editorOther: string | null;
     hackatimeProjectName: string;
@@ -331,6 +317,16 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     set.tags = normalizeProjectTags(body.tags);
   }
 
+  if (body.projectType !== undefined) {
+    if (!isEnabledProjectType(body.projectType)) {
+      return NextResponse.json(
+        { error: "Invalid project type for this program." },
+        { status: 400 },
+      );
+    }
+    set.projectType = body.projectType;
+  }
+
   if (editorRaw !== undefined) {
     if (!isProjectEditor(editorRaw)) {
       return NextResponse.json({ error: "Invalid editor" }, { status: 400 });
@@ -388,7 +384,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   if (body.videoUrl !== undefined) {
     const videoUrl = toCleanString(body.videoUrl);
-    if (videoUrl && !isValidUrlString(videoUrl)) {
+    if (videoUrl && !isValidHttpUrlString(videoUrl)) {
       return NextResponse.json({ error: "Video link must be http(s)" }, { status: 400 });
     }
     set.videoUrl = videoUrl;
@@ -396,7 +392,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   if (body.playableDemoUrl !== undefined) {
     const playableDemoUrl = toCleanString(body.playableDemoUrl);
-    if (playableDemoUrl && !isValidUrlString(playableDemoUrl)) {
+    if (playableDemoUrl && !isValidHttpUrlString(playableDemoUrl)) {
       return NextResponse.json({ error: "Playable demo link must be http(s)" }, { status: 400 });
     }
     set.playableDemoUrl = playableDemoUrl;
@@ -405,14 +401,24 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (body.codeUrl !== undefined) {
     const codeUrl = toCleanString(body.codeUrl);
     if (!codeUrl) return NextResponse.json({ error: "Code URL is required" }, { status: 400 });
-    if (!isValidUrlString(codeUrl)) {
+    if (!isValidHttpUrlString(codeUrl)) {
       return NextResponse.json({ error: "Code URL must be http(s)" }, { status: 400 });
     }
     set.codeUrl = codeUrl;
   }
 
+  // Images are validated at WRITE time (not just at submission): every stored
+  // image must have been uploaded through the platform (our R2 bucket, PNG/JPG
+  // only). There is deliberately no way to save a pasted image URL.
   if (body.previewImage !== undefined) {
-    set.previewImage = toCleanString(body.previewImage);
+    const previewImage = toCleanString(body.previewImage);
+    if (previewImage) {
+      const validation = validatePlatformImageUrl(previewImage, "Preview image");
+      if (!validation.ok) {
+        return NextResponse.json({ error: validation.error }, { status: 400 });
+      }
+    }
+    set.previewImage = previewImage;
   }
 
   if (body.screenshots !== undefined) {
@@ -422,6 +428,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           .map((s) => s.trim())
           .filter(Boolean)
       : [];
+    for (const screenshot of screenshots) {
+      const validation = validatePlatformImageUrl(screenshot, "Screenshot");
+      if (!validation.ok) {
+        return NextResponse.json({ error: validation.error }, { status: 400 });
+      }
+    }
     set.screenshots = screenshots;
   }
 
@@ -483,11 +495,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       body.creatorDeclaredOriginality !== undefined
         ? body.creatorDeclaredOriginality
         : current.creatorDeclaredOriginality;
-    let nextCreatorDuplicateExplanation =
+    const nextCreatorDuplicateExplanation =
       body.creatorDuplicateExplanation !== undefined
         ? toOptionalTrimmedString(body.creatorDuplicateExplanation)
         : current.creatorDuplicateExplanation;
-    let nextCreatorOriginalityRationale =
+    const nextCreatorOriginalityRationale =
       body.creatorOriginalityRationale !== undefined
         ? toOptionalTrimmedString(body.creatorOriginalityRationale)
         : current.creatorOriginalityRationale;
@@ -551,50 +563,41 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         { status: 403 },
       );
     }
-    const nextName = (set.name ?? current.name).trim();
-    const nextDescription = (set.description ?? current.description).trim();
     const nextHackatime = nextHackatimeProjectName;
-    const nextVideo = (set.videoUrl ?? current.videoUrl).trim();
-    const nextPlayableDemo = (set.playableDemoUrl ?? current.playableDemoUrl).trim();
-    const nextCodeUrl = (set.codeUrl ?? current.codeUrl).trim();
-    const nextScreenshots = (set.screenshots ?? current.screenshots) ?? [];
-    if (!nextName) return NextResponse.json({ error: "Project name is required" }, { status: 400 });
-    if (!nextDescription) {
-      return NextResponse.json({ error: "Description is required" }, { status: 400 });
-    }
     if (!nextHackatime) {
       return NextResponse.json(
         { error: "Hackatime project name is required to submit for review" },
         { status: 400 },
       );
     }
-    if (!nextVideo) {
+
+    // The consolidated pre-review filter (src/lib/review/submission-gates.ts):
+    // screenshot count/format/hosting, code-host allowlist, per-type playable
+    // URL rules, and the required declarations. Enforced here so a direct API
+    // call can never route around what the UI shows.
+    const gateFailures = validateSubmissionRequirements({
+      name: set.name ?? current.name,
+      description: set.description ?? current.description,
+      projectType: set.projectType ?? current.projectType,
+      editor: nextEditor,
+      editorOther: nextEditorOther,
+      videoUrl: set.videoUrl ?? current.videoUrl,
+      playableDemoUrl: set.playableDemoUrl ?? current.playableDemoUrl,
+      codeUrl: set.codeUrl ?? current.codeUrl,
+      screenshots: (set.screenshots ?? current.screenshots) ?? [],
+      checklist:
+        (set.submissionChecklist !== undefined
+          ? set.submissionChecklist
+          : current.submissionChecklist) as Record<string, boolean> | null,
+      r2PublicBaseUrl: getR2PublicBaseUrl(),
+    });
+    if (gateFailures.length > 0) {
       return NextResponse.json(
-        { error: "Video link is required to submit for review" },
-        { status: 400 },
-      );
-    }
-    if (!isValidUrlString(nextVideo)) {
-      return NextResponse.json({ error: "Video link must be http(s)" }, { status: 400 });
-    }
-    if (!nextPlayableDemo) {
-      return NextResponse.json(
-        { error: "Playable demo link is required to submit for review" },
-        { status: 400 },
-      );
-    }
-    if (!isValidUrlString(nextPlayableDemo)) {
-      return NextResponse.json({ error: "Playable demo link must be http(s)" }, { status: 400 });
-    }
-    if (!nextCodeUrl) {
-      return NextResponse.json({ error: "GitHub URL is required" }, { status: 400 });
-    }
-    if (!isValidUrlString(nextCodeUrl)) {
-      return NextResponse.json({ error: "GitHub URL must be http(s)" }, { status: 400 });
-    }
-    if (!Array.isArray(nextScreenshots) || nextScreenshots.length === 0) {
-      return NextResponse.json(
-        { error: "At least one screenshot is required to submit for review" },
+        {
+          error: gateFailures[0].message,
+          code: "submission_requirements",
+          failures: gateFailures,
+        },
         { status: 400 },
       );
     }
@@ -715,6 +718,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       description: project.description,
       category: project.category,
       tags: project.tags,
+      projectType: project.projectType,
       editor: project.editor,
       editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,

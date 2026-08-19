@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   devlog,
@@ -16,6 +16,7 @@ import {
   type UserRole,
 } from "@/db/schema";
 import {
+  assessmentDeflatesHours,
   assessmentSecondsToApprovedHours,
   effectiveSecondsForAssessment,
   isValidAssessmentDecision,
@@ -32,6 +33,7 @@ import {
   normalizeSnapshotSeconds,
   normalizeApprovedHours,
   validateRequiredReviewJustification,
+  REVIEW_DEFLATION_REASON_OPTIONS,
   type ReviewJustificationPayload,
 } from "@/lib/review-rules";
 import {
@@ -40,10 +42,15 @@ import {
   type ConsideredHackatimeRange,
 } from "@/lib/hackatime-range";
 import {
+  fetchHackatimeProjectTotalSecondsForInstantRange,
   loadDevlogHackatimeBreakdown,
   refreshHackatimeProjectSnapshotForRange,
 } from "@/lib/hackatime";
 import { notifyReviewDM } from "@/lib/slack";
+import {
+  AI_SLOP_REJECTION_MESSAGE,
+  UNCLEAR_README_REJECTION_MESSAGE,
+} from "@/lib/review/config";
 
 type ReviewBody = {
   decision?: unknown;
@@ -54,6 +61,24 @@ type ReviewBody = {
   dismiss?: unknown;
   dismissReason?: unknown;
   devlogAssessments?: unknown;
+  /**
+   * One-click rejection categories ("ai-slop", "unclear-readme"). When set,
+   * the rejection is recorded with a structured cause and — if the reviewer
+   * didn't write a comment — the program's canned, creator-friendly message
+   * is used as the comment.
+   */
+  rejectionCategory?: unknown;
+  /**
+   * Pass-1 reviewer's optional draft of the human-written "Specific Technical
+   * Features" hours justification (YSWS Handbook). The granting admin edits
+   * and finalizes it at pass 2.
+   */
+  specificTechnicalFeatures?: unknown;
+};
+
+const REJECTION_CATEGORY_MESSAGES: Record<string, string> = {
+  "ai-slop": AI_SLOP_REJECTION_MESSAGE,
+  "unclear-readme": UNCLEAR_README_REJECTION_MESSAGE,
 };
 
 type ParsedAssessmentInput = {
@@ -61,10 +86,45 @@ type ParsedAssessmentInput = {
   decision: DevlogAssessmentDecision;
   adjustedSeconds: number | null;
   hackatimeAdjustments: DevlogHackatimeProjectAdjustment[] | null;
+  // Required (>= 1) whenever the assessment deflates the devlog's time.
+  deflationReasons: string[];
+  // Reviewer-overridden considered window (must lie inside the devlog's own
+  // window). The server re-pulls Hackatime for this range itself — client
+  // numbers are never trusted — and that pull caps adjustedSeconds.
+  reviewedWindow: { startedAt: Date; endedAt: Date } | null;
   comment: string | null;
 };
 
 const MAX_HACKATIME_ADJUSTMENT_ENTRIES = 50;
+
+const VALID_DEFLATION_REASON_KEYS = new Set<string>(
+  REVIEW_DEFLATION_REASON_OPTIONS.map((option) => option.key),
+);
+
+/** undefined => invalid payload; null => none provided. */
+function parseReviewedWindow(value: unknown): { startedAt: Date; endedAt: Date } | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const { startedAt, endedAt } = value as Record<string, unknown>;
+  if (typeof startedAt !== "string" || typeof endedAt !== "string") return undefined;
+  const start = new Date(startedAt);
+  const end = new Date(endedAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return undefined;
+  if (end.getTime() <= start.getTime()) return undefined;
+  return { startedAt: start, endedAt: end };
+}
+
+/** undefined => invalid payload; [] => none provided. */
+function parseAssessmentDeflationReasons(value: unknown): string[] | undefined {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) return undefined;
+  const unique = new Set<string>();
+  for (const item of value) {
+    if (typeof item !== "string" || !VALID_DEFLATION_REASON_KEYS.has(item)) return undefined;
+    unique.add(item);
+  }
+  return Array.from(unique);
+}
 
 function parseHackatimeAdjustments(value: unknown): DevlogHackatimeProjectAdjustment[] | null | undefined {
   // undefined => invalid payload; null => not provided
@@ -94,10 +154,31 @@ function parseDevlogAssessments(value: unknown): ParsedAssessmentInput[] | null 
   const out: ParsedAssessmentInput[] = [];
   for (const item of value) {
     if (!item || typeof item !== "object") return null;
-    const { devlogId, decision, adjustedSeconds, hackatimeAdjustments, comment } =
-      item as Record<string, unknown>;
+    const {
+      devlogId,
+      decision,
+      adjustedSeconds,
+      hackatimeAdjustments,
+      deflationReasons,
+      reviewedWindow,
+      comment,
+    } = item as Record<string, unknown>;
     if (typeof devlogId !== "string" || !devlogId.trim()) return null;
     if (!isValidAssessmentDecision(decision)) return null;
+    const parsedDeflationReasons = parseAssessmentDeflationReasons(deflationReasons);
+    if (parsedDeflationReasons === undefined) return null;
+    const parsedReviewedWindow = parseReviewedWindow(reviewedWindow);
+    if (parsedReviewedWindow === undefined) return null;
+    // A reviewed window only makes sense on an adjusted assessment, and not
+    // combined with per-project splits (those are scoped to the original window).
+    if (parsedReviewedWindow && decision !== "adjusted") return null;
+    if (
+      parsedReviewedWindow &&
+      Array.isArray(hackatimeAdjustments) &&
+      hackatimeAdjustments.length > 0
+    ) {
+      return null;
+    }
     let adj: number | null = null;
     let perProject: DevlogHackatimeProjectAdjustment[] | null = null;
     if (decision === "adjusted") {
@@ -126,6 +207,8 @@ function parseDevlogAssessments(value: unknown): ParsedAssessmentInput[] | null 
       decision,
       adjustedSeconds: adj,
       hackatimeAdjustments: perProject,
+      deflationReasons: parsedDeflationReasons,
+      reviewedWindow: parsedReviewedWindow,
       comment: cmt,
     });
   }
@@ -217,10 +300,32 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     );
   }
 
-  const comment = toCleanString(body.comment);
+  const rejectionCategoryRaw = toCleanString(body.rejectionCategory);
+  let rejectionCategory: string | null = null;
+  if (rejectionCategoryRaw) {
+    if (decision !== "rejected") {
+      return NextResponse.json(
+        { error: "rejectionCategory is only valid when rejecting." },
+        { status: 400 },
+      );
+    }
+    if (!(rejectionCategoryRaw in REJECTION_CATEGORY_MESSAGES)) {
+      return NextResponse.json({ error: "Invalid rejectionCategory." }, { status: 400 });
+    }
+    rejectionCategory = rejectionCategoryRaw;
+  }
+
+  // One-click category rejections fall back to the program's canned,
+  // creator-friendly message when the reviewer doesn't add their own words.
+  let comment = toCleanString(body.comment);
+  if (!comment && rejectionCategory) {
+    comment = REJECTION_CATEGORY_MESSAGES[rejectionCategory];
+  }
   if (!comment) {
     return NextResponse.json({ error: "Comment is required" }, { status: 400 });
   }
+
+  const specificTechnicalFeatures = toCleanString(body.specificTechnicalFeatures).slice(0, 4000) || null;
 
   const parsedAssessments = parseDevlogAssessments(body.devlogAssessments);
   if (body.devlogAssessments !== undefined && parsedAssessments === null) {
@@ -383,6 +488,97 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
   }
 
+  // Reviewer-overridden considered windows: validate each against its
+  // devlog's own window and re-pull Hackatime for exactly that range (same
+  // fetch devlogs use to capture their hours). Upstream fetches happen here,
+  // outside the transaction; the pulled seconds — never the client's number —
+  // cap the assessment and are stored for the justification.
+  type ReviewedWindowInfo = { startedAt: Date; endedAt: Date; windowSeconds: number };
+  const reviewedWindowByDevlogId = new Map<string, ReviewedWindowInfo>();
+  const windowedAssessments = (parsedAssessments ?? []).filter((a) => a.reviewedWindow);
+  if (windowedAssessments.length > 0) {
+    const windowProjectRows = await db
+      .select({ creatorId: project.creatorId, hackatimeProjectName: project.hackatimeProjectName })
+      .from(project)
+      .where(eq(project.id, projectId))
+      .limit(1);
+    const windowProject = windowProjectRows[0];
+    if (!windowProject?.creatorId) {
+      return NextResponse.json(
+        { error: "Project has no creator; cannot re-pull Hackatime for reviewed windows." },
+        { status: 409 },
+      );
+    }
+    const windowDevlogRows = await db
+      .select({
+        id: devlog.id,
+        startedAt: devlog.startedAt,
+        endedAt: devlog.endedAt,
+        hackatimeProjectNameSnapshot: devlog.hackatimeProjectNameSnapshot,
+      })
+      .from(devlog)
+      .where(
+        inArray(
+          devlog.id,
+          windowedAssessments.map((a) => a.devlogId),
+        ),
+      );
+    const windowDevlogById = new Map(windowDevlogRows.map((d) => [d.id, d]));
+
+    for (const a of windowedAssessments) {
+      const row = windowDevlogById.get(a.devlogId);
+      const window = a.reviewedWindow as { startedAt: Date; endedAt: Date };
+      if (!row) {
+        return NextResponse.json(
+          { error: `Reviewed window references unknown devlog ${a.devlogId}.` },
+          { status: 400 },
+        );
+      }
+      // The override must stay inside the devlog's own attested window — a
+      // reviewer trims overlap, they don't extend what the devlog claims.
+      if (
+        window.startedAt.getTime() < row.startedAt.getTime() ||
+        window.endedAt.getTime() > row.endedAt.getTime()
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "The reviewed window must lie inside the devlog's own time range. Trim the overlap; don't extend the window.",
+          },
+          { status: 400 },
+        );
+      }
+      const projectName =
+        row.hackatimeProjectNameSnapshot.trim() || windowProject.hackatimeProjectName.trim();
+      if (!projectName) {
+        return NextResponse.json(
+          { error: "The devlog has no Hackatime project to re-pull the reviewed window from." },
+          { status: 400 },
+        );
+      }
+      try {
+        const { totalSeconds } = await fetchHackatimeProjectTotalSecondsForInstantRange(
+          windowProject.creatorId,
+          { projectName, startedAt: window.startedAt, endedAt: window.endedAt },
+        );
+        reviewedWindowByDevlogId.set(a.devlogId, {
+          startedAt: window.startedAt,
+          endedAt: window.endedAt,
+          windowSeconds: Math.max(0, Math.floor(totalSeconds || 0)),
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message.trim()
+            ? error.message.trim()
+            : "Failed to re-pull Hackatime for the reviewed window.";
+        return NextResponse.json(
+          { error: `Could not verify the reviewed window against Hackatime. ${message}` },
+          { status: 400 },
+        );
+      }
+    }
+  }
+
   const txResult = await db
     .transaction(async (tx) => {
       const rows = await tx
@@ -501,15 +697,23 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
                 400,
               );
             }
-            const maxSeconds = maxAdjustableSeconds({
-              devlogId: a.devlogId,
-              durationSeconds: base,
-              hackatimeBreakdownTotalSeconds: breakdown?.totalSeconds ?? null,
-            });
+            // A reviewer-overridden window replaces the cap entirely: the
+            // server's own Hackatime pull for that window is the most the
+            // assessment may count.
+            const windowInfo = reviewedWindowByDevlogId.get(a.devlogId) ?? null;
+            const maxSeconds = windowInfo
+              ? windowInfo.windowSeconds
+              : maxAdjustableSeconds({
+                  devlogId: a.devlogId,
+                  durationSeconds: base,
+                  hackatimeBreakdownTotalSeconds: breakdown?.totalSeconds ?? null,
+                });
             if (a.adjustedSeconds > maxSeconds) {
               throw new ReviewSubmitError(
                 "validation",
-                "adjustedSeconds cannot exceed the Hackatime time logged in the devlog window.",
+                windowInfo
+                  ? "adjustedSeconds cannot exceed the Hackatime time logged in the reviewed window."
+                  : "adjustedSeconds cannot exceed the Hackatime time logged in the devlog window.",
                 400,
               );
             }
@@ -547,6 +751,35 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
               }
             }
           }
+
+          // Deflation is tied to the devlog's time range: any assessment that
+          // counts fewer seconds than the devlog logged must say why, right
+          // here — there is no generic project-level deflation reason anymore.
+          // These entries become the per-devlog deflation breakdown in the
+          // Airtable hours justification.
+          const deflates = assessmentDeflatesHours(
+            {
+              devlogId: a.devlogId,
+              durationSeconds: durationLookup.get(a.devlogId) ?? 0,
+              hackatimeBreakdownTotalSeconds:
+                breakdownByDevlogId.get(a.devlogId)?.totalSeconds ?? null,
+            },
+            { decision: a.decision, adjustedSeconds: a.adjustedSeconds ?? null },
+          );
+          if (deflates && a.deflationReasons.length === 0) {
+            throw new ReviewSubmitError(
+              "validation",
+              "Select at least one deflation reason on every devlog whose hours you reduced or rejected.",
+              400,
+            );
+          }
+          if (deflates && !a.comment) {
+            throw new ReviewSubmitError(
+              "validation",
+              "Add a note on every devlog whose hours you reduced or rejected — each deflation needs a human-written justification for its time range.",
+              400,
+            );
+          }
         }
 
         if (decision === "approved") {
@@ -561,12 +794,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
         let totalSeconds = 0;
         for (const a of parsedAssessments) {
+          // For windowed assessments the reviewed window's Hackatime pull is
+          // the ceiling, so pass it as the breakdown total to keep
+          // effectiveSecondsForAssessment's clamp consistent with maxSeconds.
+          const windowInfo = reviewedWindowByDevlogId.get(a.devlogId) ?? null;
           totalSeconds += effectiveSecondsForAssessment(
             {
               devlogId: a.devlogId,
               durationSeconds: durationLookup.get(a.devlogId) ?? 0,
-              hackatimeBreakdownTotalSeconds:
-                breakdownByDevlogId.get(a.devlogId)?.totalSeconds ?? null,
+              hackatimeBreakdownTotalSeconds: windowInfo
+                ? windowInfo.windowSeconds
+                : breakdownByDevlogId.get(a.devlogId)?.totalSeconds ?? null,
             },
             { decision: a.decision, adjustedSeconds: a.adjustedSeconds ?? null },
           );
@@ -650,6 +888,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         reviewedHackatimeRangeStart: structuredReviewColumns.reviewedHackatimeRangeStart,
         reviewedHackatimeRangeEnd: structuredReviewColumns.reviewedHackatimeRangeEnd,
         hourAdjustmentReasonMetadata: structuredReviewColumns.hourAdjustmentReasonMetadata,
+        specificTechnicalFeatures: decision === "approved" ? specificTechnicalFeatures : null,
+        rejectionCategory,
       };
 
       const inserted = (await tx
@@ -677,17 +917,24 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           .where(eq(peerReviewDevlogAssessment.reviewId, reviewId));
 
         await tx.insert(peerReviewDevlogAssessment).values(
-          parsedAssessments.map((a) => ({
-            id: randomUUID(),
-            reviewId,
-            devlogId: a.devlogId,
-            decision: a.decision,
-            adjustedSeconds: a.decision === "adjusted" ? a.adjustedSeconds ?? null : null,
-            hackatimeProjectAdjustments:
-              a.decision === "adjusted" && a.hackatimeAdjustments ? a.hackatimeAdjustments : [],
-            comment: a.comment,
-            createdAt: now,
-          })),
+          parsedAssessments.map((a) => {
+            const windowInfo = reviewedWindowByDevlogId.get(a.devlogId) ?? null;
+            return {
+              id: randomUUID(),
+              reviewId,
+              devlogId: a.devlogId,
+              decision: a.decision,
+              adjustedSeconds: a.decision === "adjusted" ? a.adjustedSeconds ?? null : null,
+              hackatimeProjectAdjustments:
+                a.decision === "adjusted" && a.hackatimeAdjustments ? a.hackatimeAdjustments : [],
+              deflationReasons: a.deflationReasons,
+              reviewedStartedAt: windowInfo?.startedAt ?? null,
+              reviewedEndedAt: windowInfo?.endedAt ?? null,
+              reviewedWindowSeconds: windowInfo?.windowSeconds ?? null,
+              comment: a.comment,
+              createdAt: now,
+            };
+          }),
         );
       }
 
@@ -781,10 +1028,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: txResult.handledError.message }, { status: txResult.handledError.status });
   }
 
-  // Best-effort: notify the project creator about the new reviewer comment.
+  // Best-effort: notify the project creator about the review outcome.
   // Only reviewer/admin users can reach this route (enforced above by canReview()).
+  //
+  // IMPORTANT: an approval here is only PASS 1 of the two-pass review — an
+  // admin still reviews everything on the granting page (pass 2) before
+  // anything is final. The creator therefore gets NO notification on pass-1
+  // approval (their dashboard just shows the status change); the "approved +
+  // tokens granted" email is sent by the grant flow. Rejections and plain
+  // comments still notify immediately.
   try {
-    if (txResult.project.creatorId) {
+    if (decision !== "approved" && txResult.project.creatorId) {
       const creatorRows = await db
         .select({ email: user.email, slackId: user.slackId })
         .from(user)
@@ -797,13 +1051,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         const reviewerName = (session?.user as { name?: string | null } | undefined)?.name ?? "Reviewer";
 
         const decisionPrefix =
-          decision === "comment"
-            ? ""
-            : decision === "approved"
-              ? `Approved${Number.isFinite(approvedHours) ? ` (${approvedHours} hours)` : ""}: `
-              : dismiss
-                ? "Rejected and dismissed: "
-                : "Rejected: ";
+          decision === "comment" ? "" : dismiss ? "Rejected and dismissed: " : "Rejected: ";
 
         const dismissNote = dismiss
           ? `\n\nAn admin has dismissed this project, so it cannot be resubmitted for review.${

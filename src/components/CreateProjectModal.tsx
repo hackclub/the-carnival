@@ -7,14 +7,25 @@ import {
   cleanString,
   type EditorOptionValue,
 } from "@/lib/project-form-utils";
+import {
+  DEFAULT_PROJECT_TYPE,
+  ENABLED_PROJECT_TYPES,
+  PROJECT_TYPE_CATALOG,
+  type ProjectTypeId,
+} from "@/lib/review/config";
 
 type CreateProjectPayload = {
   name: string;
   description: string;
+  projectType: string;
   editor: string;
   editorOther: string;
   bountyProjectId?: string;
 };
+
+const PROJECT_TYPE_OPTIONS = PROJECT_TYPE_CATALOG.filter((t) =>
+  (ENABLED_PROJECT_TYPES as readonly string[]).includes(t.id),
+);
 
 export default function CreateProjectModal() {
   const router = useRouter();
@@ -24,6 +35,7 @@ export default function CreateProjectModal() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [projectType, setProjectType] = useState<ProjectTypeId>(DEFAULT_PROJECT_TYPE);
   const [editor, setEditor] = useState<EditorOptionValue>("vscode");
   const [editorOther, setEditorOther] = useState("");
   const [bountyProjectId, setBountyProjectId] = useState("");
@@ -95,6 +107,7 @@ export default function CreateProjectModal() {
     const onClose = () => {
       setIsSubmitting(false);
       setError(null);
+      setProjectType(DEFAULT_PROJECT_TYPE);
       setEditor("vscode");
       setEditorOther("");
       setBountyProjectId("");
@@ -138,6 +151,7 @@ export default function CreateProjectModal() {
       const payload: CreateProjectPayload = {
         name,
         description,
+        projectType,
         editor,
         editorOther: editor === "other" ? editorOther.trim() : "",
         ...(bountyProjectId ? { bountyProjectId } : {}),
@@ -171,7 +185,7 @@ export default function CreateProjectModal() {
         setIsSubmitting(false);
       }
     },
-    [editor, editorOther, bountyProjectId, router],
+    [projectType, editor, editorOther, bountyProjectId, router],
   );
 
   const editorLabel =
@@ -242,7 +256,34 @@ export default function CreateProjectModal() {
 
           <div>
             <div className="text-sm text-muted-foreground font-medium mb-1.5">
-              Editor / app
+              Project type
+            </div>
+            {/* Which shipping rules apply at submission (src/lib/review/config.ts). */}
+            <select
+              value={projectType}
+              onChange={(e) => setProjectType(e.target.value as ProjectTypeId)}
+              className="w-full bg-background border border-border rounded-[var(--radius-xl)] px-4 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40 appearance-none"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%237b240a' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                backgroundPosition: "right 0.75rem center",
+                backgroundRepeat: "no-repeat",
+                backgroundSize: "1.25em 1.25em",
+              }}
+            >
+              {PROJECT_TYPE_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <div className="text-xs text-muted-foreground mt-1">
+              {PROJECT_TYPE_OPTIONS.find((t) => t.id === projectType)?.description}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-sm text-muted-foreground font-medium mb-1.5">
+              {projectType === "extension-plugin" ? "Platform it extends" : "Editor / app"}
             </div>
             {/* Native select to avoid portal-in-dialog issues */}
             <select

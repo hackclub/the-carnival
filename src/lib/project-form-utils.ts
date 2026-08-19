@@ -17,6 +17,9 @@ export const EDITOR_OPTIONS = [
   { value: "inkscape", label: "Inkscape" },
   { value: "godot-engine", label: "Godot Engine" },
   { value: "unity", label: "Unity" },
+  { value: "minecraft", label: "Minecraft (mod/plugin)" },
+  { value: "discord", label: "Discord (bot)" },
+  { value: "slack", label: "Slack (bot/app)" },
   { value: "other", label: "Other" },
 ] as const satisfies ReadonlyArray<{ value: ProjectEditor; label: string }>;
 

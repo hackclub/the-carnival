@@ -17,6 +17,7 @@ import {
 } from "@/lib/devlogs";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
 import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
+import { validatePlatformImageUrls } from "@/lib/review/uploads";
 import { getServerSession } from "@/lib/server-session";
 
 type UpdateDevlogBody = {
@@ -205,6 +206,10 @@ export async function PATCH(
   if (body.attachments !== undefined) {
     const parsed = parseAttachmentUrls(body.attachments, { projectId });
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    // Attachments must have been uploaded through the platform (PNG/JPG on
+    // our R2 bucket) — pasted external image URLs are rejected at write time.
+    const originCheck = validatePlatformImageUrls(parsed.value, "Attachment");
+    if (!originCheck.ok) return NextResponse.json({ error: originCheck.error }, { status: 400 });
     set.attachments = parsed.value;
   }
 

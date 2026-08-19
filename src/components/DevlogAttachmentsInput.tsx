@@ -41,11 +41,13 @@ export function DevlogAttachmentsInput({
         return;
       }
 
+      // PNG/JPG only — mirrors the server-side presign allowlist
+      // (src/lib/review/config.ts).
       const invalid = trimmedFiles.find(
-        (file) => !(file.type || "").toLowerCase().startsWith("image/"),
+        (file) => !["image/png", "image/jpeg", "image/jpg"].includes((file.type || "").toLowerCase()),
       );
       if (invalid) {
-        setLocalError("Attachments must be image files.");
+        setLocalError("Attachments must be PNG or JPG images (no GIF, WebP, or SVG).");
         return;
       }
 
@@ -206,7 +208,7 @@ export function DevlogAttachmentsInput({
         <input
           ref={inputRef}
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg"
           multiple
           className="hidden"
           disabled={disabled || uploading || atLimit}

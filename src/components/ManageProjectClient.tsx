@@ -7,8 +7,14 @@ import type {
   ProjectEditor,
   ProjectStatus,
   ProjectSubmissionChecklist,
+  ProjectType,
   ReviewDecision,
 } from "@/db/schema";
+import {
+  ENABLED_PROJECT_TYPES,
+  PROJECT_TYPE_CATALOG,
+} from "@/lib/review/config";
+import { validateSubmissionRequirements } from "@/lib/review/submission-gates";
 import LinkedHackatimeProjectsPanel from "@/components/LinkedHackatimeProjectsPanel";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
@@ -25,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import type { ReviewJustificationPayload } from "@/lib/review-rules";
 import {
+  isBlockingChecklistKey,
   normalizeProjectSubmissionChecklist,
   PROJECT_SUBMISSION_CHECKLIST_ITEMS,
 } from "@/lib/project-submission-checklist";
@@ -50,6 +57,7 @@ export type ManageProjectInitial = {
   description: string;
   category: string | null;
   tags: string[];
+  projectType: ProjectType;
   editor: ProjectEditor;
   editorOther: string;
   hackatimeProjectName: string;
@@ -112,7 +120,13 @@ export default function ManageProjectClient({
     initial.submissionChecklist ?? null,
   );
   const [checkReadme, setCheckReadme] = useState(initialSubmissionChecklist.readmeInstructions);
+  const [checkReadmeDescribes, setCheckReadmeDescribes] = useState(
+    initialSubmissionChecklist.readmeDescribesProject,
+  );
   const [checkTested, setCheckTested] = useState(initialSubmissionChecklist.testedWorking);
+  const [checkWorksOnPlatform, setCheckWorksOnPlatform] = useState(
+    initialSubmissionChecklist.worksOnDeclaredPlatform,
+  );
   const [aiUsage, setAiUsage] = useState(initialSubmissionChecklist.usedAi);
   const [checkGithubPublic, setCheckGithubPublic] = useState(initialSubmissionChecklist.githubPublic);
   const [checkDescriptionClear, setCheckDescriptionClear] = useState(
@@ -138,6 +152,9 @@ export default function ManageProjectClient({
   const [description, setDescription] = useState(initial.description);
   const [category, setCategory] = useState(initial.category ?? "");
   const [tagsInput, setTagsInput] = useState((initial.tags ?? []).join(", "));
+  const [projectType, setProjectType] = useState<ProjectType>(
+    initial.projectType ?? "extension-plugin",
+  );
   const [editor, setEditor] = useState<ProjectEditor>(initial.editor);
   const [editorOther, setEditorOther] = useState(initial.editorOther);
   const [hackatimeProjectName, setHackatimeProjectName] = useState(initial.hackatimeProjectName);
@@ -193,9 +210,11 @@ export default function ManageProjectClient({
   }, [initial.bountyProjectId]);
 
   const uploadPreviewImage = useCallback(async (file: File) => {
-    const contentType = file.type || "application/octet-stream";
-    if (!contentType.startsWith("image/")) {
-      toast.error("Please choose an image file.");
+    // PNG/JPG only — mirrors the server-side presign allowlist
+    // (src/lib/review/config.ts).
+    const contentType = (file.type || "").toLowerCase();
+    if (!["image/png", "image/jpeg", "image/jpg"].includes(contentType)) {
+      toast.error("Please choose a PNG or JPG image (no GIF, WebP, or SVG).");
       return;
     }
     setPreviewUploading(true);
@@ -321,24 +340,43 @@ export default function ManageProjectClient({
     [effectiveHackatimeTotalSeconds],
   );
 
-  function isValidUrlString(value: string) {
-    try {
-      const u = new URL(value);
-      return u.protocol === "http:" || u.protocol === "https:";
-    } catch {
-      return false;
-    }
-  }
+  // The exact same gate the server enforces on submission
+  // (src/lib/review/submission-gates.ts), run client-side for live feedback.
+  // Declarations are evaluated separately (they live on the second modal
+  // step), and the R2-origin check is server-only (base URL isn't public).
+  const gateFailures = useMemo(
+    () =>
+      validateSubmissionRequirements({
+        name,
+        description,
+        projectType,
+        editor,
+        editorOther,
+        videoUrl: videoUrl.trim(),
+        playableDemoUrl: playableDemoUrl.trim(),
+        codeUrl: codeUrl.trim(),
+        screenshots,
+        checklist: null, // declarations checked separately below
+        r2PublicBaseUrl: null,
+      }).filter((f) => f.code !== "declarations"),
+    [codeUrl, description, editor, editorOther, name, playableDemoUrl, projectType, videoUrl, screenshots],
+  );
 
   const submitRequirements = useMemo(() => {
-    const nameOk = name.trim().length > 0;
-    const descriptionOk = description.trim().length > 0;
-    const githubOk = codeUrl.trim().length > 0 && isValidUrlString(codeUrl.trim());
-    const demoOk = videoUrl.trim().length > 0 && isValidUrlString(videoUrl.trim());
-    const playableOk = playableDemoUrl.trim().length > 0 && isValidUrlString(playableDemoUrl.trim());
+    const failedCodes = new Set(gateFailures.map((f) => f.code));
+    const nameOk = !failedCodes.has("name");
+    const descriptionOk = !failedCodes.has("description");
+    const githubOk = !failedCodes.has("code_url") && !failedCodes.has("code_url_host");
+    const demoOk = !failedCodes.has("video_url");
+    const playableOk =
+      !failedCodes.has("playable_url") &&
+      !failedCodes.has("playable_url_public") &&
+      !failedCodes.has("playable_url_host") &&
+      !failedCodes.has("playable_url_type");
     const hackatimeOk = hackatimeProjectName.trim().length > 0;
-    const screenshotsOk = screenshots.length >= 3;
-    const editorOk = editor !== "other" || editorOther.trim().length > 0;
+    const screenshotsOk =
+      !failedCodes.has("screenshots_count") && !failedCodes.has("screenshots_format");
+    const editorOk = !failedCodes.has("editor_other");
     return {
       nameOk,
       descriptionOk,
@@ -348,20 +386,20 @@ export default function ManageProjectClient({
       hackatimeOk,
       screenshotsOk,
       editorOk,
-      allOk:
-        nameOk && descriptionOk && githubOk && demoOk && playableOk &&
-        hackatimeOk && screenshotsOk && editorOk,
+      allOk: gateFailures.length === 0 && hackatimeOk,
     };
-  }, [codeUrl, description, editor, editorOther, hackatimeProjectName, name, playableDemoUrl, videoUrl, screenshots]);
+  }, [gateFailures, hackatimeProjectName]);
 
   const submissionChecklist = useMemo<ProjectSubmissionChecklist>(
     () => ({
       readmeInstructions: checkReadme,
+      readmeDescribesProject: checkReadmeDescribes,
       testedWorking: checkTested,
       usedAi: aiUsage,
       githubPublic: checkGithubPublic,
       descriptionClear: checkDescriptionClear,
       screenshotsWorking: checkScreenshotsWorking,
+      worksOnDeclaredPlatform: checkWorksOnPlatform,
       didNotManipulateHackatimeData: checkDidNotManipulateHackatimeData,
       didNotCopyCodeWithoutAttribution: checkDidNotCopyCodeWithoutAttribution,
     }),
@@ -372,18 +410,31 @@ export default function ManageProjectClient({
       checkDidNotManipulateHackatimeData,
       checkGithubPublic,
       checkReadme,
+      checkReadmeDescribes,
       checkScreenshotsWorking,
       checkTested,
+      checkWorksOnPlatform,
     ],
+  );
+  // Blocking declarations (everything except the usedAi disclosure) must all
+  // be checked before the submit button activates — mirroring the server gate.
+  const declarationsOk = useMemo(
+    () =>
+      PROJECT_SUBMISSION_CHECKLIST_ITEMS.every(
+        ({ key }) => !isBlockingChecklistKey(key) || submissionChecklist[key] === true,
+      ),
+    [submissionChecklist],
   );
   const setChecklistValue = useCallback(
     (key: keyof ProjectSubmissionChecklist, checked: boolean) => {
       if (key === "readmeInstructions") setCheckReadme(checked);
+      else if (key === "readmeDescribesProject") setCheckReadmeDescribes(checked);
       else if (key === "testedWorking") setCheckTested(checked);
       else if (key === "usedAi") setAiUsage(checked);
       else if (key === "githubPublic") setCheckGithubPublic(checked);
       else if (key === "descriptionClear") setCheckDescriptionClear(checked);
       else if (key === "screenshotsWorking") setCheckScreenshotsWorking(checked);
+      else if (key === "worksOnDeclaredPlatform") setCheckWorksOnPlatform(checked);
       else if (key === "didNotManipulateHackatimeData") setCheckDidNotManipulateHackatimeData(checked);
       else if (key === "didNotCopyCodeWithoutAttribution") setCheckDidNotCopyCodeWithoutAttribution(checked);
     },
@@ -497,6 +548,7 @@ export default function ManageProjectClient({
       description: description.trim(),
       category: category.trim(),
       tags: tagsInput,
+      projectType,
       editor,
       editorOther: editor === "other" ? editorOther.trim() : "",
       hackatimeProjectName: hackatimeProjectName.trim(),
@@ -542,6 +594,7 @@ export default function ManageProjectClient({
         setDescription(p.description);
         setCategory(p.category ?? "");
         setTagsInput((p.tags ?? []).join(", "));
+        setProjectType(p.projectType ?? "extension-plugin");
         setEditor(p.editor);
         setEditorOther(p.editorOther ?? "");
         setHackatimeProjectName(p.hackatimeProjectName);
@@ -589,7 +642,9 @@ export default function ManageProjectClient({
     // Rehydrate from the last saved submission state.
     const checklist = normalizeProjectSubmissionChecklist(savedSubmissionChecklist);
     setCheckReadme(checklist.readmeInstructions);
+    setCheckReadmeDescribes(checklist.readmeDescribesProject);
     setCheckTested(checklist.testedWorking);
+    setCheckWorksOnPlatform(checklist.worksOnDeclaredPlatform);
     setAiUsage(checklist.usedAi);
     setCheckGithubPublic(checklist.githubPublic);
     setCheckDescriptionClear(checklist.descriptionClear);
@@ -651,6 +706,7 @@ export default function ManageProjectClient({
       description: description.trim(),
       category: category.trim(),
       tags: tagsInput,
+      projectType,
       editor,
       editorOther: editor === "other" ? editorOther.trim() : "",
       hackatimeProjectName: hackatimeProjectName.trim(),
@@ -728,6 +784,7 @@ export default function ManageProjectClient({
         setDescription(p.description);
         setCategory(p.category ?? "");
         setTagsInput((p.tags ?? []).join(", "));
+        setProjectType(p.projectType ?? "extension-plugin");
         setEditor(p.editor);
         setEditorOther(p.editorOther ?? "");
         setHackatimeProjectName(p.hackatimeProjectName);
@@ -1021,7 +1078,7 @@ export default function ManageProjectClient({
         <input
           ref={previewInputRef}
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg"
           className="hidden"
           disabled={saving || isGranted}
           onChange={async (e) => {
@@ -1037,7 +1094,30 @@ export default function ManageProjectClient({
 
         <fieldset disabled={saving || isGranted} className={isGranted ? "opacity-60" : ""}>
         <label className="block">
-          <div className="text-sm text-muted-foreground font-medium mb-2">Editor / app</div>
+          <div className="text-sm text-muted-foreground font-medium mb-2">Project type</div>
+          <Select value={projectType} onValueChange={(v) => { if (v) setProjectType(v as ProjectType); }}>
+            <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
+              <SelectValue placeholder="Select project type" />
+            </SelectTrigger>
+            <SelectContent>
+              {PROJECT_TYPE_CATALOG.filter((t) =>
+                (ENABLED_PROJECT_TYPES as readonly string[]).includes(t.id),
+              ).map((opt) => (
+                <SelectItem key={opt.id} value={opt.id}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="text-xs text-muted-foreground mt-1.5">
+            {PROJECT_TYPE_CATALOG.find((t) => t.id === projectType)?.description}
+          </div>
+        </label>
+
+        <label className="block">
+          <div className="text-sm text-muted-foreground font-medium mb-2">
+            {projectType === "extension-plugin" ? "Platform it extends" : "Editor / app"}
+          </div>
           <Select value={editor} onValueChange={(v) => { if (v) setEditor(v as ProjectEditor); }}>
             <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
               <SelectValue placeholder="Select editor" />
@@ -1387,17 +1467,17 @@ export default function ManageProjectClient({
         {submitStep === 0 ? (
           <div className="space-y-4">
             <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
-              Complete all project requirements before submitting: GitHub URL, video link, playable demo link, Hackatime project, considered range, and at least 3 screenshots.
+              Complete all project requirements before submitting: source code on a known forge, video link, a valid playable link for your project type, Hackatime project, considered range, and at least 3 PNG/JPG screenshots.
             </div>
 
             <div className="space-y-1.5 text-sm">
               {[
-                { ok: submitRequirements.githubOk, label: "GitHub URL" },
+                { ok: submitRequirements.githubOk, label: "Source code URL (GitHub, GitLab, Bitbucket, Codeberg, SourceHut, ...)" },
                 { ok: submitRequirements.demoOk, label: "Video link" },
-                { ok: submitRequirements.playableOk, label: "Playable demo link" },
+                { ok: submitRequirements.playableOk, label: "Playable link (valid for your project type)" },
                 { ok: submitRequirements.hackatimeOk, label: "Hackatime project name" },
                 { ok: submitConsideredRange.ok, label: "Considered Hackatime range" },
-                { ok: submitRequirements.screenshotsOk, label: submitRequirements.screenshotsOk ? `Screenshots (${screenshots.length} uploaded)` : `Screenshots (${screenshots.length}/3 needed)` },
+                { ok: submitRequirements.screenshotsOk, label: submitRequirements.screenshotsOk ? `Screenshots (${screenshots.length} uploaded)` : `Screenshots (${screenshots.length}/3 PNG or JPG needed)` },
               ].map((item) => (
                 <div key={item.label} className="flex items-center gap-2.5 border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                   {item.ok ? (
@@ -1408,6 +1488,15 @@ export default function ManageProjectClient({
                   <span className={item.ok ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
                 </div>
               ))}
+              {gateFailures.length > 0 ? (
+                <div className="rounded-[var(--radius-xl)] border border-carnival-red/40 bg-carnival-red/10 px-3 py-2 space-y-1">
+                  {gateFailures.map((f) => (
+                    <div key={f.code} className="text-xs text-red-200">
+                      {f.message}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               {editor === "other" ? (
                 <div className="flex items-center gap-2.5 border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
                   {editorOther.trim().length > 0 ? (
@@ -1493,6 +1582,27 @@ export default function ManageProjectClient({
                 </div>
               </label>
 
+              {/* Re-submissions must re-confirm the same blocking declarations
+                  as first submissions — the server gate requires them. */}
+              <div className="space-y-3 border-t border-border pt-4">
+                {PROJECT_SUBMISSION_CHECKLIST_ITEMS.map((item) => (
+                  <label key={item.key} className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={submissionChecklist[item.key]}
+                      onChange={(e) => setChecklistValue(item.key, e.target.checked)}
+                      className="mt-1"
+                    />
+                    <div>
+                      <div className="text-foreground font-semibold">
+                        {item.label}
+                      </div>
+                      <div className="text-sm text-muted-foreground">{item.helper}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+
               <div className="flex items-center justify-between gap-3 pt-2">
                 <button
                   type="button"
@@ -1506,7 +1616,7 @@ export default function ManageProjectClient({
                   type="button"
                   onClick={onSubmitForReview}
                   className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
-                  disabled={!submitRequirements.allOk || !checkAddressedRejection || submitting}
+                  disabled={!submitRequirements.allOk || !declarationsOk || !checkAddressedRejection || submitting}
                 >
                   {submitting ? "Submitting…" : "Submit for re-review"}
                 </button>
@@ -1515,7 +1625,7 @@ export default function ManageProjectClient({
           ) : (
             <div className="space-y-4">
               <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
-                These answers are recorded for reviewer context. Unchecked answers are saved too and will not block submission.
+                Every declaration below (except the AI disclosure) is required to submit. Reviewers verify them — an unclear README or untrue declaration is an automatic rejection.
               </div>
               <div className="space-y-3">
                 {PROJECT_SUBMISSION_CHECKLIST_ITEMS.map((item) => (
@@ -1549,7 +1659,7 @@ export default function ManageProjectClient({
                   type="button"
                   onClick={onSubmitForReview}
                   className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
-                  disabled={!submitRequirements.allOk || submitting}
+                  disabled={!submitRequirements.allOk || !declarationsOk || submitting}
                 >
                   {submitting ? "Submitting…" : "Submit for review"}
                 </button>
