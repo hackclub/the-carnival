@@ -277,9 +277,12 @@ export const peerReviewDevlogAssessment = pgTable(
     reviewId: text("review_id")
       .notNull()
       .references(() => peerReview.id, { onDelete: "cascade" }),
-    devlogId: text("devlog_id")
-      .notNull()
-      .references(() => devlog.id, { onDelete: "cascade" }),
+    // Nullable + SET NULL so historical assessments survive devlog deletion:
+    // past reviews must stay frozen in time even when the creator deletes a
+    // devlog after a rejection. Display falls back to the snapshot columns.
+    devlogId: text("devlog_id").references(() => devlog.id, {
+      onDelete: "set null",
+    }),
     decision: devlogAssessmentDecision("decision").notNull(),
     // When decision = 'adjusted', this is the reviewer's overridden seconds for
     // this devlog. Null for accepted (=> use devlog.durationSeconds) or rejected
@@ -313,6 +316,13 @@ export const peerReviewDevlogAssessment = pgTable(
     reviewedEndedAt: timestamp("reviewed_ended_at"),
     reviewedWindowSeconds: integer("reviewed_window_seconds"),
     comment: text("comment"),
+    // Point-in-time copy of the devlog as the reviewer saw it, captured at
+    // review-submit time. Later edits or deletion of the devlog must not
+    // change what a past review appears to have assessed/deflated.
+    devlogTitleSnapshot: text("devlog_title_snapshot"),
+    devlogDurationSecondsSnapshot: integer("devlog_duration_seconds_snapshot"),
+    devlogStartedAtSnapshot: timestamp("devlog_started_at_snapshot"),
+    devlogEndedAtSnapshot: timestamp("devlog_ended_at_snapshot"),
     createdAt: timestamp("created_at").notNull(),
   },
   (t) => ({
