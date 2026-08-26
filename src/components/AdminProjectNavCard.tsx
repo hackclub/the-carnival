@@ -11,21 +11,24 @@ export type AdminProjectNavTarget = "grant" | "record" | "workspace";
 
 type Accent = "emerald" | "blue" | "amber";
 
+// The app renders on a light cream surface only, so accents use the same
+// 50/200/700 pairing as the shared Badge component rather than Tailwind's
+// light-on-dark shades.
 const ACCENT_CLASSES: Record<Accent, { icon: string; tag: string; hover: string }> = {
   emerald: {
-    icon: "text-emerald-300",
-    tag: "bg-emerald-500/15 text-emerald-300",
-    hover: "hover:border-emerald-500/40",
+    icon: "text-emerald-600",
+    tag: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    hover: "hover:border-emerald-300",
   },
   blue: {
-    icon: "text-carnival-blue",
-    tag: "bg-carnival-blue/15 text-carnival-blue",
-    hover: "hover:border-carnival-blue/40",
+    icon: "text-blue-600",
+    tag: "border-blue-200 bg-blue-50 text-blue-700",
+    hover: "hover:border-blue-300",
   },
   amber: {
-    icon: "text-amber-300",
-    tag: "bg-amber-500/15 text-amber-300",
-    hover: "hover:border-amber-500/40",
+    icon: "text-amber-600",
+    tag: "border-amber-200 bg-amber-50 text-amber-700",
+    hover: "hover:border-amber-300",
   },
 };
 
@@ -61,8 +64,8 @@ function NavTile({
       <div className="mt-2 text-sm text-muted-foreground">{description}</div>
       <span
         className={[
-          "mt-3 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-          current ? "bg-muted-foreground/15 text-muted-foreground" : accentClasses.tag,
+          "mt-3 w-fit inline-flex rounded-full border px-2.5 py-0.5 text-[0.68rem] font-semibold tracking-wide",
+          current ? "border-border bg-muted text-muted-foreground" : accentClasses.tag,
         ].join(" ")}
       >
         {current ? "You are here" : tag}

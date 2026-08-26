@@ -7,6 +7,7 @@ import LinkChip from "@/components/LinkChip";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { db } from "@/db";
 import {
   devlog,
@@ -50,17 +51,18 @@ function formatDateTime(value: Date | null): string {
   });
 }
 
-function reviewDecisionBadgeClass(decision: ReviewDecision): string {
-  if (decision === "approved") return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
-  if (decision === "rejected") return "bg-rose-500/15 text-rose-300 border-rose-500/30";
-  return "bg-gray-500/15 text-gray-300 border-gray-500/30";
-}
+const REVIEW_DECISION_VARIANT: Record<ReviewDecision, BadgeVariant> = {
+  approved: "success",
+  rejected: "error",
+  // Not "default" — its bg-muted would vanish against the bg-muted card.
+  comment: "info",
+};
 
-function assessmentDecisionBadgeClass(decision: DevlogAssessmentDecision): string {
-  if (decision === "accepted") return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
-  if (decision === "rejected") return "bg-rose-500/15 text-rose-300 border-rose-500/30";
-  return "bg-amber-500/15 text-amber-300 border-amber-500/30";
-}
+const ASSESSMENT_DECISION_VARIANT: Record<DevlogAssessmentDecision, BadgeVariant> = {
+  accepted: "success",
+  adjusted: "warning",
+  rejected: "error",
+};
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -305,7 +307,7 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
             <Fact label="Airtable record">
               <span className="font-mono">{p.airtableRecordId || "—"}</span>
               {p.airtableRecordId && p.airtableRecordIsPreview ? (
-                <span className="block text-xs font-normal text-amber-300">preview</span>
+                <span className="block text-xs font-normal text-amber-700">preview</span>
               ) : null}
             </Fact>
             <Fact label="Slack">
@@ -364,11 +366,12 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span
-                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${reviewDecisionBadgeClass(finalReview.decision)}`}
+                    <Badge
+                      variant={REVIEW_DECISION_VARIANT[finalReview.decision]}
+                      className="uppercase"
                     >
                       {finalReview.decision}
-                    </span>
+                    </Badge>
                     {finalReview.approvedHours !== null &&
                     finalReview.approvedHours !== undefined ? (
                       <span className="text-xs font-semibold text-foreground">
@@ -436,11 +439,12 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
                               UTC
                             </div>
                           </div>
-                          <span
-                            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${assessmentDecisionBadgeClass(entry.decision)}`}
+                          <Badge
+                            variant={ASSESSMENT_DECISION_VARIANT[entry.decision]}
+                            className="uppercase"
                           >
                             {entry.decision}
-                          </span>
+                          </Badge>
                         </div>
 
                         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -478,13 +482,12 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
 
                         {entry.deflationReasons.length > 0 ? (
                           <div className="mt-3 flex flex-wrap gap-1.5">
+                            {/* Sentence case, not uppercase: these labels are full
+                                phrases and read far better unshouted. */}
                             {entry.deflationReasons.map((reason) => (
-                              <span
-                                key={reason}
-                                className="inline-flex rounded-full bg-carnival-red/15 px-2 py-0.5 text-[10px] uppercase tracking-wide text-red-200"
-                              >
+                              <Badge key={reason} variant="error">
                                 {reason}
-                              </span>
+                              </Badge>
                             ))}
                           </div>
                         ) : null}
@@ -576,11 +579,9 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span
-                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${reviewDecisionBadgeClass(r.decision)}`}
-                      >
+                      <Badge variant={REVIEW_DECISION_VARIANT[r.decision]} className="uppercase">
                         {r.decision}
-                      </span>
+                      </Badge>
                       {r.approvedHours !== null && r.approvedHours !== undefined ? (
                         <span className="text-xs font-semibold text-foreground">
                           {r.approvedHours}h approved
@@ -589,7 +590,7 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
                     </div>
                   </div>
                   {r.rejectionCategory ? (
-                    <div className="mt-2 text-xs uppercase tracking-wide text-red-200">
+                    <div className="mt-2 text-xs font-semibold text-red-700">
                       Rejection category: {r.rejectionCategory}
                     </div>
                   ) : null}

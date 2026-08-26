@@ -4,6 +4,7 @@ import {
   type ReviewJustificationPayload,
 } from "@/lib/review-rules";
 import { PlatformNestedSurface } from "@/components/ui";
+import { Badge } from "@/components/ui/badge";
 import { formatDateOnlyForDisplay } from "@/lib/hackatime-range";
 
 const DEFLATION_REASON_LABELS = new Map(
@@ -51,17 +52,12 @@ export default function ReviewJustificationSummary({
         </div>
         <div className="mt-1 flex flex-wrap gap-1.5">
           {REVIEW_EVIDENCE_ITEMS.map((item) => (
-            <span
+            <Badge
               key={item.key}
-              className={[
-                "inline-flex rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide",
-                justification.evidence[item.key]
-                  ? "bg-emerald-500/15 text-emerald-300"
-                  : "bg-carnival-red/15 text-red-200",
-              ].join(" ")}
+              variant={justification.evidence[item.key] ? "success" : "error"}
             >
               {item.label}
-            </span>
+            </Badge>
           ))}
         </div>
       </div>
@@ -77,12 +73,9 @@ export default function ReviewJustificationSummary({
           {reasons.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {reasons.map((reason) => (
-                <span
-                  key={reason}
-                  className="inline-flex rounded-full bg-carnival-red/15 px-2 py-0.5 text-[10px] uppercase tracking-wide text-red-200"
-                >
+                <Badge key={reason} variant="error">
                   {reason}
-                </span>
+                </Badge>
               ))}
             </div>
           ) : null}
