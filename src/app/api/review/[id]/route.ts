@@ -646,6 +646,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         .select({
           id: devlog.id,
           durationSeconds: devlog.durationSeconds,
+          title: devlog.title,
+          startedAt: devlog.startedAt,
+          endedAt: devlog.endedAt,
         })
         .from(devlog)
         .where(
@@ -916,9 +919,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           .delete(peerReviewDevlogAssessment)
           .where(eq(peerReviewDevlogAssessment.reviewId, reviewId));
 
+        const devlogById = new Map(projectDevlogs.map((d) => [d.id, d]));
         await tx.insert(peerReviewDevlogAssessment).values(
           parsedAssessments.map((a) => {
             const windowInfo = reviewedWindowByDevlogId.get(a.devlogId) ?? null;
+            const assessedDevlog = devlogById.get(a.devlogId) ?? null;
             return {
               id: randomUUID(),
               reviewId,
@@ -932,6 +937,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
               reviewedEndedAt: windowInfo?.endedAt ?? null,
               reviewedWindowSeconds: windowInfo?.windowSeconds ?? null,
               comment: a.comment,
+              devlogTitleSnapshot: assessedDevlog?.title ?? null,
+              devlogDurationSecondsSnapshot:
+                assessedDevlog === null
+                  ? null
+                  : Math.max(0, Math.floor(assessedDevlog.durationSeconds || 0)),
+              devlogStartedAtSnapshot: assessedDevlog?.startedAt ?? null,
+              devlogEndedAtSnapshot: assessedDevlog?.endedAt ?? null,
               createdAt: now,
             };
           }),

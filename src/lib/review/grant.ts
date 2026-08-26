@@ -265,19 +265,36 @@ async function loadDevlogDeflationEntries(input: {
       reviewedEndedAt: peerReviewDevlogAssessment.reviewedEndedAt,
       reviewedWindowSeconds: peerReviewDevlogAssessment.reviewedWindowSeconds,
       comment: peerReviewDevlogAssessment.comment,
-      title: devlog.title,
-      startedAt: devlog.startedAt,
-      endedAt: devlog.endedAt,
-      durationSeconds: devlog.durationSeconds,
+      // Prefer the frozen snapshot captured at review time; fall back to the
+      // live devlog only for pre-snapshot rows.
+      titleSnapshot: peerReviewDevlogAssessment.devlogTitleSnapshot,
+      startedAtSnapshot: peerReviewDevlogAssessment.devlogStartedAtSnapshot,
+      endedAtSnapshot: peerReviewDevlogAssessment.devlogEndedAtSnapshot,
+      durationSecondsSnapshot: peerReviewDevlogAssessment.devlogDurationSecondsSnapshot,
+      liveTitle: devlog.title,
+      liveStartedAt: devlog.startedAt,
+      liveEndedAt: devlog.endedAt,
+      liveDurationSeconds: devlog.durationSeconds,
     })
     .from(peerReviewDevlogAssessment)
-    .innerJoin(devlog, eq(peerReviewDevlogAssessment.devlogId, devlog.id))
+    .leftJoin(devlog, eq(peerReviewDevlogAssessment.devlogId, devlog.id))
     .where(eq(peerReviewDevlogAssessment.reviewId, reviewId))
-    .orderBy(devlog.startedAt);
+    .orderBy(peerReviewDevlogAssessment.devlogStartedAtSnapshot, devlog.startedAt);
 
   const base = input.appUrl ? input.appUrl.replace(/\/+$/g, "") : "";
 
-  return rows.map((row) => {
+  const entries: AirtableDevlogDeflationEntry[] = [];
+  for (const rawRow of rows) {
+    const row = {
+      ...rawRow,
+      title: rawRow.titleSnapshot ?? rawRow.liveTitle,
+      startedAt: rawRow.startedAtSnapshot ?? rawRow.liveStartedAt,
+      endedAt: rawRow.endedAtSnapshot ?? rawRow.liveEndedAt,
+      durationSeconds: rawRow.durationSecondsSnapshot ?? rawRow.liveDurationSeconds,
+    };
+    // Assessment rows without a snapshot whose devlog was deleted have no
+    // window/time data left to justify — skip them rather than fabricate.
+    if (row.title === null || row.startedAt === null || row.endedAt === null) continue;
     const loggedSeconds = Math.max(0, Math.floor(row.durationSeconds || 0));
     const approvedSeconds =
       row.decision === "accepted"
@@ -293,7 +310,7 @@ async function loadDevlogDeflationEntries(input: {
       startedAt: (hasReviewedWindow ? row.reviewedStartedAt! : row.startedAt).toISOString(),
       endedAt: (hasReviewedWindow ? row.reviewedEndedAt! : row.endedAt).toISOString(),
     });
-    return {
+    entries.push({
       title: row.title,
       startIso: row.startedAt.toISOString(),
       endIso: row.endedAt.toISOString(),
@@ -309,11 +326,13 @@ async function loadDevlogDeflationEntries(input: {
           ? Math.max(0, Math.floor(row.reviewedWindowSeconds))
           : null,
       hackatimeReviewUrl: reviewUrls?.joeFraudUrl ?? null,
-      devlogUrl: base
-        ? `${base}/projects/${encodeURIComponent(input.projectId)}/devlogs/${encodeURIComponent(row.devlogId)}`
-        : null,
-    };
-  });
+      devlogUrl:
+        base && row.devlogId
+          ? `${base}/projects/${encodeURIComponent(input.projectId)}/devlogs/${encodeURIComponent(row.devlogId)}`
+          : null,
+    });
+  }
+  return entries;
 }
 
 export type GrantContext = {

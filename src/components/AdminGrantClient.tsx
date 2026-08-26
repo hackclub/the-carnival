@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   ProjectEditor,
@@ -12,7 +13,6 @@ import { Modal } from "@/components/ui";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import { PROJECT_SUBMISSION_CHECKLIST_ITEMS } from "@/lib/project-submission-checklist";
-import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
 import LinkChip from "@/components/LinkChip";
 import { DatePicker } from "@/components/ui/date-picker";
 import type { ReviewJustificationPayload } from "@/lib/review-rules";
@@ -95,7 +95,6 @@ export default function AdminGrantClient({
 }) {
   const [project, setProject] = useState(initial.project);
   const [busy, setBusy] = useState(false);
-  const [showReviews, setShowReviews] = useState(false);
   const [showScreenshots, setShowScreenshots] = useState(false);
   const [screenshotIndex, setScreenshotIndex] = useState(0);
 
@@ -613,13 +612,12 @@ export default function AdminGrantClient({
                 <ProjectEditorBadge editor={project.editor} editorOther={project.editorOther} />
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowReviews(true)}
+            <Link
+              href={`/admin/grants/${encodeURIComponent(project.id)}/reviews`}
               className="text-sm font-semibold text-carnival-blue hover:underline"
             >
               View review comments
-            </button>
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -974,50 +972,6 @@ export default function AdminGrantClient({
           </button>
         </div>
       </div>
-
-      <Modal
-        open={showReviews}
-        onClose={() => setShowReviews(false)}
-        title="Review comments"
-        description="All review history for this project."
-        maxWidth="lg"
-      >
-        {initial.reviews.length === 0 ? (
-          <div className="text-muted-foreground">No reviews yet.</div>
-        ) : (
-          <div className="space-y-3">
-            {initial.reviews.map((r) => (
-              <div key={r.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="text-foreground font-semibold truncate">
-                      {r.reviewerName}
-                      {r.reviewerEmail ? ` • ${r.reviewerEmail}` : ""}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(r.createdAt).toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {r.decision}
-                    </span>
-                    {r.approvedHours !== null && r.approvedHours !== undefined ? (
-                      <span className="text-xs font-semibold text-foreground">
-                        {r.approvedHours}h approved
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="text-foreground mt-3 whitespace-pre-wrap">{r.reviewComment}</div>
-                {r.reviewJustification ? (
-                  <ReviewJustificationSummary justification={r.reviewJustification} />
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )}
-      </Modal>
 
       <Modal
         open={showScreenshots}
