@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
+import AdminProjectNavCard from "@/components/AdminProjectNavCard";
+import LinkChip from "@/components/LinkChip";
+import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
 import { db } from "@/db";
@@ -14,6 +17,11 @@ import {
   type DevlogAssessmentDecision,
   type ReviewDecision,
 } from "@/db/schema";
+import { buildJoeFraudUrl } from "@/lib/constants";
+import {
+  formatConsideredHackatimeRangeLabel,
+  getProjectConsideredHackatimeRange,
+} from "@/lib/hackatime-range";
 import { hydrateReviewJustification } from "@/lib/review-justification";
 import { REVIEW_DEFLATION_REASON_OPTIONS } from "@/lib/review-rules";
 import { getServerSession } from "@/lib/server-session";
@@ -54,6 +62,15 @@ function assessmentDecisionBadgeClass(decision: DevlogAssessmentDecision): strin
   return "bg-amber-500/15 text-amber-300 border-amber-500/30";
 }
 
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="text-foreground font-semibold truncate">{children}</div>
+    </div>
+  );
+}
+
 export default async function AdminGrantReviewsPage(props: { params: Promise<{ id: string }> }) {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
@@ -66,11 +83,29 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
     .select({
       id: project.id,
       name: project.name,
+      description: project.description,
       status: project.status,
+      editor: project.editor,
+      editorOther: project.editorOther,
       hackatimeProjectName: project.hackatimeProjectName,
+      hackatimeStartedAt: project.hackatimeStartedAt,
+      hackatimeStoppedAt: project.hackatimeStoppedAt,
+      hackatimeTotalSeconds: project.hackatimeTotalSeconds,
+      hoursSpentSeconds: project.hoursSpentSeconds,
       approvedHours: project.approvedHours,
+      codeUrl: project.codeUrl,
+      playableDemoUrl: project.playableDemoUrl,
+      videoUrl: project.videoUrl,
+      screenshots: project.screenshots,
+      grantTechnicalJustification: project.grantTechnicalJustification,
+      airtableRecordId: project.airtableRecordId,
+      airtableRecordIsPreview: project.airtableRecordIsPreview,
+      createdAt: project.createdAt,
+      submittedAt: project.submittedAt,
       creatorName: user.name,
       creatorEmail: user.email,
+      creatorSlackId: user.slackId,
+      creatorHackatimeUserId: user.hackatimeUserId,
     })
     .from(project)
     .leftJoin(user, eq(project.creatorId, user.id))
@@ -86,7 +121,6 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
       decision: peerReview.decision,
       reviewComment: peerReview.reviewComment,
       approvedHours: peerReview.approvedHours,
-      hackatimeSnapshotSeconds: peerReview.hackatimeSnapshotSeconds,
       reviewEvidenceChecklist: peerReview.reviewEvidenceChecklist,
       reviewedHackatimeRangeStart: peerReview.reviewedHackatimeRangeStart,
       reviewedHackatimeRangeEnd: peerReview.reviewedHackatimeRangeEnd,
@@ -170,6 +204,9 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
 
   const totalLoggedSeconds = assessmentEntries.reduce((acc, e) => acc + e.loggedSeconds, 0);
   const totalCountedSeconds = assessmentEntries.reduce((acc, e) => acc + e.countedSeconds, 0);
+  const acceptedCount = assessmentEntries.filter((e) => e.decision === "accepted").length;
+  const adjustedCount = assessmentEntries.filter((e) => e.decision === "adjusted").length;
+  const rejectedCount = assessmentEntries.filter((e) => e.decision === "rejected").length;
 
   const finalJustification = finalReview
     ? hydrateReviewJustification({
@@ -182,34 +219,132 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
       })
     : null;
 
+  const consideredRange = getProjectConsideredHackatimeRange({
+    hackatimeStartedAt: p.hackatimeStartedAt,
+    hackatimeStoppedAt: p.hackatimeStoppedAt,
+    submittedAt: p.submittedAt,
+    createdAt: p.createdAt,
+  });
+  const joeFraudUrl =
+    p.creatorHackatimeUserId?.trim() && consideredRange
+      ? buildJoeFraudUrl(
+          p.creatorHackatimeUserId.trim(),
+          consideredRange.startDate,
+          consideredRange.endDate,
+        )
+      : null;
+
+  const devlogSeconds = Math.max(0, Math.floor(p.hoursSpentSeconds ?? 0));
+  const legacySeconds = Math.max(0, Math.floor(p.hackatimeTotalSeconds ?? 0));
+  const loggedSeconds = devlogSeconds > 0 ? devlogSeconds : legacySeconds;
+
+  const screenshots = p.screenshots ?? [];
+  const grantJustification = p.grantTechnicalJustification?.trim() || null;
+  const passOneDraft = finalReview?.specificTechnicalFeatures?.trim() || null;
+
   return (
-    <AppShell title="Review details">
-      <div className="mb-6 flex items-center justify-between gap-4">
+    <AppShell title="Review record">
+      <div className="mb-6">
         <Link
           href={`/admin/grants/${encodeURIComponent(p.id)}`}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
           ← Back to grant page
         </Link>
-        <ProjectStatusBadge status={p.status} />
       </div>
 
       <div className="space-y-6">
-        <div className="platform-surface-card p-6">
-          <div className="text-foreground font-bold text-2xl">{p.name}</div>
-          <div className="text-muted-foreground mt-1">
-            Frozen review record: the final review that determined this project&apos;s
-            acceptance, with each devlog&apos;s decision and deflation, plus every review
-            comment over time.
+        {/* 1 — What this project is. */}
+        <div className="platform-surface-card p-6 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-foreground font-bold text-2xl truncate">{p.name}</div>
+              <div className="text-muted-foreground mt-1">
+                Frozen review record — what was accepted, what was not, and why.
+              </div>
+            </div>
+            <ProjectStatusBadge status={p.status} />
           </div>
-          <div className="text-sm text-muted-foreground mt-2">
-            Creator: <span className="text-foreground">{p.creatorName || "Unknown"}</span>
-            {p.creatorEmail ? ` • ${p.creatorEmail}` : ""}
+
+          <div className="text-muted-foreground">{p.description}</div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {p.codeUrl ? <LinkChip label="GitHub" url={p.codeUrl} /> : null}
+            {p.playableDemoUrl ? <LinkChip label="Demo / release" url={p.playableDemoUrl} /> : null}
+            {p.videoUrl ? <LinkChip label="Video" url={p.videoUrl} /> : null}
+            {!p.codeUrl && !p.playableDemoUrl && !p.videoUrl ? (
+              <span className="text-sm text-muted-foreground">No project links submitted.</span>
+            ) : null}
           </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Fact label="Creator">
+              {p.creatorName || "Unknown"}
+              {p.creatorEmail ? (
+                <span className="block text-xs font-normal text-muted-foreground font-mono truncate">
+                  {p.creatorEmail}
+                </span>
+              ) : null}
+            </Fact>
+            <Fact label="Editor">
+              <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther ?? ""} />
+            </Fact>
+            <Fact label="Hackatime project">
+              <span className="font-mono">{p.hackatimeProjectName || "—"}</span>
+            </Fact>
+            <Fact label="Hours logged">{formatSeconds(loggedSeconds)}</Fact>
+            <Fact label="Approved hours">
+              {p.approvedHours !== null && p.approvedHours !== undefined
+                ? `${p.approvedHours}h`
+                : "—"}
+            </Fact>
+            <Fact label="Considered Hackatime range">
+              {formatConsideredHackatimeRangeLabel(consideredRange)}
+            </Fact>
+            <Fact label="Submitted">{formatDateTime(p.submittedAt)}</Fact>
+            <Fact label="Airtable record">
+              <span className="font-mono">{p.airtableRecordId || "—"}</span>
+              {p.airtableRecordId && p.airtableRecordIsPreview ? (
+                <span className="block text-xs font-normal text-amber-300">preview</span>
+              ) : null}
+            </Fact>
+            <Fact label="Slack">
+              <span className="font-mono">{p.creatorSlackId || "—"}</span>
+            </Fact>
+          </div>
+
+          {screenshots.length > 0 ? (
+            <div className="space-y-2">
+              <div className="text-foreground font-semibold">Screenshots</div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {screenshots.map((url) => (
+                  <a key={url} href={url} target="_blank" rel="noreferrer noopener">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url}
+                      alt=""
+                      className="w-full rounded-[var(--radius-2xl)] border border-border object-cover bg-muted hover:opacity-90 transition-opacity"
+                      referrerPolicy="no-referrer"
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
 
+        {/* 2 — Where else an admin can go from here. */}
+        <AdminProjectNavCard projectId={p.id} current="record" joeFraudUrl={joeFraudUrl} />
+
+        {/* 3 — The decision that granted the project. */}
         <div className="platform-surface-card p-6 space-y-4">
-          <div className="text-foreground font-semibold text-lg">Final review</div>
+          <div>
+            <div className="text-foreground font-semibold text-lg">Final review</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              The approving review that determined this project&apos;s acceptance, with the
+              per-devlog decisions behind its approved hours.
+            </div>
+          </div>
 
           {!finalReview ? (
             <div className="text-muted-foreground">
@@ -251,26 +386,24 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
               </div>
 
               <div>
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="text-foreground font-semibold">Devlog decisions</div>
                   {assessmentEntries.length > 0 ? (
                     <div className="text-sm text-muted-foreground">
-                      Logged{" "}
-                      <span className="text-foreground font-semibold">
-                        {formatSeconds(totalLoggedSeconds)}
-                      </span>{" "}
-                      • Counted{" "}
+                      {acceptedCount} accepted • {adjustedCount} adjusted • {rejectedCount} rejected
+                      {" — "}
                       <span className="text-foreground font-semibold">
                         {formatSeconds(totalCountedSeconds)}
-                      </span>
+                      </span>{" "}
+                      counted of {formatSeconds(totalLoggedSeconds)} logged
                     </div>
                   ) : null}
                 </div>
 
                 {assessmentEntries.length === 0 ? (
                   <div className="text-muted-foreground mt-2">
-                    This review has no per-devlog assessments (it predates the per-devlog
-                    review flow).
+                    This review has no per-devlog assessments (it predates the per-devlog review
+                    flow).
                   </div>
                 ) : (
                   <div className="mt-3 space-y-3">
@@ -370,8 +503,57 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
           )}
         </div>
 
+        {/* 4 — The written rationale that justifies the approved hours. */}
+        <div className="platform-surface-card p-6 space-y-3">
+          <div>
+            <div className="text-foreground font-semibold text-lg">
+              Specific technical features (hours justification)
+            </div>
+            <div className="text-sm text-muted-foreground mt-1">
+              The human-written justification sent to the Unified Database. Read-only here — edit it
+              on the{" "}
+              <Link
+                href={`/admin/grants/${encodeURIComponent(p.id)}`}
+                className="font-semibold text-carnival-blue hover:underline"
+              >
+                grant page
+              </Link>
+              . Never shown to the creator.
+            </div>
+          </div>
+
+          {grantJustification ? (
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                Final justification
+              </div>
+              <div className="text-foreground mt-2 whitespace-pre-wrap">{grantJustification}</div>
+            </div>
+          ) : (
+            <div className="text-muted-foreground">
+              No justification saved yet — the grant is blocked until an admin writes one.
+            </div>
+          )}
+
+          {passOneDraft && passOneDraft !== grantJustification ? (
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                Pass-1 reviewer draft
+              </div>
+              <div className="text-muted-foreground mt-2 whitespace-pre-wrap">{passOneDraft}</div>
+            </div>
+          ) : null}
+        </div>
+
+        {/* 5 — The whole conversation, oldest first. */}
         <div className="platform-surface-card p-6 space-y-4">
-          <div className="text-foreground font-semibold text-lg">Review comments over time</div>
+          <div>
+            <div className="text-foreground font-semibold text-lg">Review comments over time</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              Every review left on this project, oldest first — including the rejections that sent
+              it back.
+            </div>
+          </div>
 
           {reviews.length === 0 ? (
             <div className="text-muted-foreground">No reviews yet.</div>

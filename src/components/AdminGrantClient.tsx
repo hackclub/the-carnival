@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   ProjectEditor,
@@ -10,6 +9,7 @@ import type {
 } from "@/db/schema";
 import { buildJoeFraudUrl } from "@/lib/constants";
 import { Modal } from "@/components/ui";
+import AdminProjectNavCard from "@/components/AdminProjectNavCard";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import { PROJECT_SUBMISSION_CHECKLIST_ITEMS } from "@/lib/project-submission-checklist";
@@ -601,23 +601,17 @@ export default function AdminGrantClient({
         </div>
       </div>
 
+      <AdminProjectNavCard projectId={project.id} current="grant" joeFraudUrl={joeFraudLink} />
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="platform-surface-card p-6 space-y-4">
           <div className="text-foreground font-semibold text-lg">Project</div>
           <div className="text-muted-foreground">{project.description}</div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-sm text-muted-foreground">
-              Editor:{" "}
-              <span className="text-foreground">
-                <ProjectEditorBadge editor={project.editor} editorOther={project.editorOther} />
-              </span>
-            </div>
-            <Link
-              href={`/admin/grants/${encodeURIComponent(project.id)}/reviews`}
-              className="text-sm font-semibold text-carnival-blue hover:underline"
-            >
-              View review comments
-            </Link>
+          <div className="text-sm text-muted-foreground">
+            Editor:{" "}
+            <span className="text-foreground">
+              <ProjectEditorBadge editor={project.editor} editorOther={project.editorOther} />
+            </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -745,22 +739,10 @@ export default function AdminGrantClient({
             {project.codeUrl ? <LinkChip label="GitHub" url={project.codeUrl} /> : null}
           </div>
 
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-xs text-muted-foreground">
-              Created: {new Date(project.createdAt).toLocaleString()} • Submitted:{" "}
-              {project.submittedAt ? new Date(project.submittedAt).toLocaleString() : "—"} • Considered range:{" "}
-              {canonicalProjectRangeLabel}
-            </div>
-            {joeFraudLink ? (
-              <a
-                href={joeFraudLink}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
-              >
-                Review Hackatime (Joe.fraud)
-              </a>
-            ) : null}
+          <div className="text-xs text-muted-foreground">
+            Created: {new Date(project.createdAt).toLocaleString()} • Submitted:{" "}
+            {project.submittedAt ? new Date(project.submittedAt).toLocaleString() : "—"} • Considered range:{" "}
+            {canonicalProjectRangeLabel}
           </div>
 
           {project.screenshots?.length ? (
@@ -827,25 +809,15 @@ export default function AdminGrantClient({
           to grant without it; the pass-1 reviewer's draft (if any) seeds the
           editor. This text is internal — the creator never sees it. */}
       <div className="platform-surface-card p-6 space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-foreground font-semibold text-lg">
-              Specific technical features (hours justification)
-            </div>
-            <div className="text-sm text-muted-foreground mt-1">
-              Human-written, required to grant. Name the technical qualities that justify the
-              approved hours — specific features, not just languages. Goes to the Unified
-              Database; never shown to the creator.
-            </div>
+        <div>
+          <div className="text-foreground font-semibold text-lg">
+            Specific technical features (hours justification)
           </div>
-          <a
-            href={`/review/${encodeURIComponent(project.id)}`}
-            target="_blank"
-            rel="noreferrer"
-            className="shrink-0 text-sm font-semibold text-carnival-blue hover:underline"
-          >
-            Open full review view ↗
-          </a>
+          <div className="text-sm text-muted-foreground mt-1">
+            Human-written, required to grant. Name the technical qualities that justify the
+            approved hours — specific features, not just languages. Goes to the Unified
+            Database; never shown to the creator.
+          </div>
         </div>
         {passOneDraft && passOneDraft !== technicalJustification ? (
           <div className="rounded-[var(--radius-xl)] border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
