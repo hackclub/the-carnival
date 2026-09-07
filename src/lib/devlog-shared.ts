@@ -104,6 +104,40 @@ export function parseDevlogWindow(input: {
   return { ok: true, startedAt: start, endedAt: end };
 }
 
+export function formatUtcInstant(value: Date) {
+  return `${value.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+}
+
+/**
+ * A devlog window must sit inside the project's considered Hackatime range.
+ * Returns an explanatory error, or null when the window is acceptable (or the
+ * project has no usable range to check against).
+ */
+export function devlogWindowOutsideProjectRangeError(input: {
+  startedAt: Date;
+  endedAt: Date;
+  projectRangeStart: Date | null | undefined;
+  projectRangeEnd: Date | null | undefined;
+}): string | null {
+  const { projectRangeStart: rangeStart, projectRangeEnd: rangeEnd } = input;
+  if (
+    !(rangeStart instanceof Date) ||
+    Number.isNaN(rangeStart.getTime()) ||
+    !(rangeEnd instanceof Date) ||
+    Number.isNaN(rangeEnd.getTime()) ||
+    rangeStart.getTime() > rangeEnd.getTime()
+  ) {
+    return null;
+  }
+  if (
+    input.startedAt.getTime() >= rangeStart.getTime() &&
+    input.endedAt.getTime() <= rangeEnd.getTime()
+  ) {
+    return null;
+  }
+  return `This devlog's window (${formatUtcInstant(input.startedAt)} → ${formatUtcInstant(input.endedAt)}) must be within the project's considered Hackatime range (${formatUtcInstant(rangeStart)} → ${formatUtcInstant(rangeEnd)}).`;
+}
+
 /**
  * Window ceiling: now, clamped by project.submittedAt if already submitted.
  */

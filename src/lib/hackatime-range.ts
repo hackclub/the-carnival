@@ -47,6 +47,19 @@ export function toUtcBoundaryDate(dateStr: string, boundary: "start" | "end") {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+/**
+ * Normalize a range-picker value to a precise UTC instant (ISO string).
+ * Datetime-local values are interpreted in the caller's timezone — call this
+ * on the CLIENT so the instant reflects the picker's local time, not the
+ * server's. Date-only values pass through (the server applies day boundaries).
+ */
+export function toPreciseRangeValue(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed || isIsoDateOnly(trimmed)) return trimmed;
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? trimmed : parsed.toISOString();
+}
+
 export function parseConsideredHackatimeRange(input: unknown) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return { ok: false as const, error: "Select both considered Hackatime start and end dates." };
