@@ -3,13 +3,8 @@ import { and, desc, eq, gte, inArray, lte, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { adminAuditLog, user } from "@/db/schema";
 import { parseAuditLimit } from "@/lib/admin-safety";
+import { coerceDate } from "@/lib/devlog-shared";
 import { getAuthUser, toCleanString } from "@/lib/api-utils";
-
-function toOptionalDate(value: string | null): Date | null {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
 
 export async function GET(req: Request) {
   const currentUser = await getAuthUser();
@@ -21,8 +16,8 @@ export async function GET(req: Request) {
   const actorId = toCleanString(url.searchParams.get("actorId"));
   const targetUserId = toCleanString(url.searchParams.get("targetUserId"));
   const limit = parseAuditLimit(url.searchParams.get("limit"));
-  const fromDate = toOptionalDate(url.searchParams.get("from"));
-  const toDate = toOptionalDate(url.searchParams.get("to"));
+  const fromDate = coerceDate(url.searchParams.get("from"));
+  const toDate = coerceDate(url.searchParams.get("to"));
 
   const conditions: SQL<unknown>[] = [];
   if (action) conditions.push(eq(adminAuditLog.action, action));

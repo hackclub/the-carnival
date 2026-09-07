@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { project, user } from "@/db/schema";
+import { toIsoDateOnly } from "@/lib/hackatime-range";
 import { getServerSession } from "@/lib/server-session";
 
 /**
@@ -41,13 +42,6 @@ type HackatimeStatsResponse = {
     trust_value?: number;
   };
 };
-
-function toDateOnly(value: Date | string | null | undefined): string | null {
-  if (!value) return null;
-  const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
-}
 
 function toSafeSeconds(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -125,11 +119,11 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const overrideStart = url.searchParams.get("start");
   const overrideEnd = url.searchParams.get("end");
 
-  const defaultStart = toDateOnly(p.startedOnCarnivalAt ?? p.createdAt);
-  const defaultEnd = toDateOnly(p.submittedAt ?? new Date());
+  const defaultStart = toIsoDateOnly(p.startedOnCarnivalAt ?? p.createdAt);
+  const defaultEnd = toIsoDateOnly(p.submittedAt ?? new Date());
 
-  const startDate = toDateOnly(overrideStart) ?? defaultStart;
-  const endDate = toDateOnly(overrideEnd) ?? defaultEnd;
+  const startDate = toIsoDateOnly(overrideStart) ?? defaultStart;
+  const endDate = toIsoDateOnly(overrideEnd) ?? defaultEnd;
 
   if (!startDate || !endDate) {
     return NextResponse.json(

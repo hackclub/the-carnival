@@ -3,13 +3,8 @@ import { and, desc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { tokenLedger, user } from "@/db/schema";
 import { parseAuditLimit } from "@/lib/admin-safety";
+import { coerceDate } from "@/lib/devlog-shared";
 import { getAuthUser, toCleanString } from "@/lib/api-utils";
-
-function toOptionalDate(value: string | null): Date | null {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
 
 export async function GET(req: Request) {
   const currentUser = await getAuthUser();
@@ -21,8 +16,8 @@ export async function GET(req: Request) {
   const kind = toCleanString(url.searchParams.get("kind"));
   const referenceType = toCleanString(url.searchParams.get("referenceType"));
   const limit = parseAuditLimit(url.searchParams.get("limit"));
-  const fromDate = toOptionalDate(url.searchParams.get("from"));
-  const toDate = toOptionalDate(url.searchParams.get("to"));
+  const fromDate = coerceDate(url.searchParams.get("from"));
+  const toDate = coerceDate(url.searchParams.get("to"));
 
   if (kind && kind !== "issue" && kind !== "deduct") {
     return NextResponse.json({ error: "kind must be either issue or deduct" }, { status: 400 });

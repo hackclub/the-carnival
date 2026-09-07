@@ -17,12 +17,13 @@ import LinkChip from "@/components/LinkChip";
 import { DateTimePicker } from "@/components/ui/date-picker";
 import type { ReviewJustificationPayload } from "@/lib/review-rules";
 import {
+  consideredRangeBoundaries,
   formatConsideredHackatimeRangeLabel,
   getProjectConsideredHackatimeRange,
   parseConsideredHackatimeRange,
   toPreciseRangeValue,
-  toUtcBoundaryDate,
 } from "@/lib/hackatime-range";
+import { coerceDate } from "@/lib/devlog-shared";
 import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
 import {
   formatHoursMinutes,
@@ -234,16 +235,16 @@ export default function AdminGrantClient({
   );
 
   const localRangePreview = useMemo<HackatimeRangePreview | null>(() => {
-    const storedStart = project.hackatimeStartedAt ? new Date(project.hackatimeStartedAt) : null;
-    const storedEnd = project.hackatimeStoppedAt ? new Date(project.hackatimeStoppedAt) : null;
-    if (!editableRange.ok || !storedStart || !storedEnd) return null;
-    const rangeStart = toUtcBoundaryDate(editableRange.value.startDate, "start");
-    const rangeEnd = toUtcBoundaryDate(editableRange.value.endDate, "end");
+    if (!editableRange.ok) return null;
+    const bounds = consideredRangeBoundaries(editableRange.value);
+    const storedStart = coerceDate(project.hackatimeStartedAt);
+    const storedEnd = coerceDate(project.hackatimeStoppedAt);
     if (
-      !rangeStart ||
-      !rangeEnd ||
-      rangeStart.getTime() !== storedStart.getTime() ||
-      rangeEnd.getTime() !== storedEnd.getTime()
+      !bounds ||
+      !storedStart ||
+      !storedEnd ||
+      bounds.start.getTime() !== storedStart.getTime() ||
+      bounds.end.getTime() !== storedEnd.getTime()
     ) {
       return null;
     }

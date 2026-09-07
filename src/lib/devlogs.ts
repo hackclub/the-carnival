@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { and, asc, desc, eq, gt, gte, lt, lte, ne, sql, sum } from "drizzle-orm";
 import { db } from "@/db";
 import { devlog, project, projectHackatimeProject } from "@/db/schema";
+import { isValidDate } from "@/lib/devlog-shared";
 
 /**
  * Returns the latest devlog.endedAt for a project (excluding `excludeDevlogId` when editing).
@@ -24,9 +25,7 @@ export async function getDevlogWindowFloor(
     .limit(1);
 
   const prior = rows[0]?.endedAt;
-  if (prior instanceof Date && !Number.isNaN(prior.getTime())) {
-    if (prior.getTime() > fallbackStart.getTime()) return prior;
-  }
+  if (isValidDate(prior) && prior > fallbackStart) return prior;
   return fallbackStart;
 }
 
@@ -115,10 +114,6 @@ export type ReviewableDevlogRange = {
   start: Date | null | undefined;
   end: Date | null | undefined;
 };
-
-function isValidDate(value: Date | null | undefined): value is Date {
-  return value instanceof Date && !Number.isNaN(value.getTime());
-}
 
 export function devlogWindowOverlapsRange(input: {
   devlogStart: Date;

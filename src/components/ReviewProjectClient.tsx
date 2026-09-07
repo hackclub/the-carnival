@@ -40,12 +40,12 @@ import {
   type ReviewJustificationPayload,
 } from "@/lib/review-rules";
 import {
+  consideredRangeBoundaries,
   formatConsideredHackatimeRangeLabel,
   getProjectConsideredHackatimeRange,
   parseConsideredHackatimeRange,
   toIsoDateOnly,
   toPreciseRangeValue,
-  toUtcBoundaryDate,
   type ConsideredHackatimeRange,
 } from "@/lib/hackatime-range";
 import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
@@ -53,7 +53,7 @@ import {
   formatHoursMinutes,
   type HackatimeRangePreview,
 } from "@/lib/project-form-utils";
-import { formatDurationHM } from "@/lib/devlog-shared";
+import { coerceDate, formatDurationHM } from "@/lib/devlog-shared";
 import toast from "react-hot-toast";
 
 type ReviewItem = {
@@ -380,27 +380,15 @@ export default function ReviewProjectClient({
     if (!parsed.ok) return parsed;
     // The considered range may narrow the project's Hackatime window but never
     // extend it — devlogs outside the stored window aren't listed on this page.
-    const windowStart = project.hackatimeStartedAt ? new Date(project.hackatimeStartedAt) : null;
-    const windowEnd = project.hackatimeStoppedAt ? new Date(project.hackatimeStoppedAt) : null;
-    if (
-      windowStart &&
-      windowEnd &&
-      !Number.isNaN(windowStart.getTime()) &&
-      !Number.isNaN(windowEnd.getTime())
-    ) {
-      const rangeStart = toUtcBoundaryDate(parsed.value.startDate, "start");
-      const rangeEnd = toUtcBoundaryDate(parsed.value.endDate, "end");
-      if (
-        rangeStart &&
-        rangeEnd &&
-        (rangeStart.getTime() < windowStart.getTime() || rangeEnd.getTime() > windowEnd.getTime())
-      ) {
-        return {
-          ok: false as const,
-          error:
-            "The considered range must stay within the project's Hackatime window — it can be narrowed, not extended.",
-        };
-      }
+    const bounds = consideredRangeBoundaries(parsed.value);
+    const windowStart = coerceDate(project.hackatimeStartedAt);
+    const windowEnd = coerceDate(project.hackatimeStoppedAt);
+    if (bounds && windowStart && windowEnd && (bounds.start < windowStart || bounds.end > windowEnd)) {
+      return {
+        ok: false as const,
+        error:
+          "The considered range must stay within the project's Hackatime window — it can be narrowed, not extended.",
+      };
     }
     return parsed;
   }, [approvalProjectRange, project.hackatimeStartedAt, project.hackatimeStoppedAt]);
@@ -475,16 +463,16 @@ export default function ReviewProjectClient({
     // Skip the network preview only when the selected range is exactly the
     // project's stored window (compared as instants — values may be precise
     // ISO timestamps or date-only strings).
-    const storedStart = project.hackatimeStartedAt ? new Date(project.hackatimeStartedAt) : null;
-    const storedEnd = project.hackatimeStoppedAt ? new Date(project.hackatimeStoppedAt) : null;
-    if (!adminApprovalRange.ok || !storedStart || !storedEnd) return null;
-    const rangeStart = toUtcBoundaryDate(adminApprovalRange.value.startDate, "start");
-    const rangeEnd = toUtcBoundaryDate(adminApprovalRange.value.endDate, "end");
+    if (!adminApprovalRange.ok) return null;
+    const bounds = consideredRangeBoundaries(adminApprovalRange.value);
+    const storedStart = coerceDate(project.hackatimeStartedAt);
+    const storedEnd = coerceDate(project.hackatimeStoppedAt);
     if (
-      !rangeStart ||
-      !rangeEnd ||
-      rangeStart.getTime() !== storedStart.getTime() ||
-      rangeEnd.getTime() !== storedEnd.getTime()
+      !bounds ||
+      !storedStart ||
+      !storedEnd ||
+      bounds.start.getTime() !== storedStart.getTime() ||
+      bounds.end.getTime() !== storedEnd.getTime()
     ) {
       return null;
     }

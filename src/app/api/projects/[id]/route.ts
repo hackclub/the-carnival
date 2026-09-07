@@ -14,7 +14,7 @@ import { isEnabledProjectType } from "@/lib/review/config";
 import { validateSubmissionRequirements } from "@/lib/review/submission-gates";
 import { isValidHttpUrlString } from "@/lib/review/urls";
 import { getR2PublicBaseUrl, validatePlatformImageUrl } from "@/lib/review/uploads";
-import { formatUtcInstant } from "@/lib/devlog-shared";
+import { coerceDate, formatUtcInstant } from "@/lib/devlog-shared";
 import { listDevlogsOutsideRange } from "@/lib/devlogs";
 import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
 import {
@@ -61,13 +61,6 @@ type UpdateProjectBody = {
 
 function toCleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function toOptionalIsoDate(value: unknown): Date | null {
-  if (value === null || value === undefined || value === "") return null;
-  if (typeof value !== "string") return null;
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 function toOptionalNonNegativeInt(value: unknown): number | null {
@@ -349,10 +342,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     set.hackatimeProjectName = hackatimeProjectName;
   }
   if (body.hackatimeStartedAt !== undefined) {
-    set.hackatimeStartedAt = toOptionalIsoDate(body.hackatimeStartedAt);
+    set.hackatimeStartedAt = coerceDate(body.hackatimeStartedAt);
   }
   if (body.hackatimeStoppedAt !== undefined) {
-    set.hackatimeStoppedAt = toOptionalIsoDate(body.hackatimeStoppedAt);
+    set.hackatimeStoppedAt = coerceDate(body.hackatimeStoppedAt);
   }
   if (body.hackatimeTotalSeconds !== undefined) {
     set.hackatimeTotalSeconds = toOptionalNonNegativeInt(body.hackatimeTotalSeconds);

@@ -62,15 +62,19 @@ export type ParsedDevlogWindow =
   | { ok: true; startedAt: Date; endedAt: Date }
   | { ok: false; error: string };
 
-function coerceDate(value: unknown) {
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+export function isValidDate(value: Date | null | undefined): value is Date {
+  return value instanceof Date && !Number.isNaN(value.getTime());
+}
+
+export function coerceDate(value: unknown): Date | null {
+  if (value instanceof Date) return isValidDate(value) ? value : null;
   if (typeof value === "string" && value.trim()) {
     const d = new Date(value.trim());
-    return Number.isNaN(d.getTime()) ? null : d;
+    return isValidDate(d) ? d : null;
   }
   if (typeof value === "number" && Number.isFinite(value)) {
     const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? null : d;
+    return isValidDate(d) ? d : null;
   }
   return null;
 }
@@ -119,23 +123,11 @@ export function devlogWindowOutsideProjectRangeError(input: {
   projectRangeStart: Date | null | undefined;
   projectRangeEnd: Date | null | undefined;
 }): string | null {
-  const { projectRangeStart: rangeStart, projectRangeEnd: rangeEnd } = input;
-  if (
-    !(rangeStart instanceof Date) ||
-    Number.isNaN(rangeStart.getTime()) ||
-    !(rangeEnd instanceof Date) ||
-    Number.isNaN(rangeEnd.getTime()) ||
-    rangeStart.getTime() > rangeEnd.getTime()
-  ) {
-    return null;
-  }
-  if (
-    input.startedAt.getTime() >= rangeStart.getTime() &&
-    input.endedAt.getTime() <= rangeEnd.getTime()
-  ) {
-    return null;
-  }
-  return `This devlog's window (${formatUtcInstant(input.startedAt)} → ${formatUtcInstant(input.endedAt)}) must be within the project's considered Hackatime range (${formatUtcInstant(rangeStart)} → ${formatUtcInstant(rangeEnd)}).`;
+  const { startedAt, endedAt, projectRangeStart: start, projectRangeEnd: end } = input;
+  // Like reviewableDevlogWhere: a missing or inverted stored range filters nothing.
+  if (!isValidDate(start) || !isValidDate(end) || start > end) return null;
+  if (startedAt >= start && endedAt <= end) return null;
+  return `This devlog's window (${formatUtcInstant(startedAt)} → ${formatUtcInstant(endedAt)}) must be within the project's considered Hackatime range (${formatUtcInstant(start)} → ${formatUtcInstant(end)}).`;
 }
 
 /**

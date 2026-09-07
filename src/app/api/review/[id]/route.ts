@@ -38,6 +38,7 @@ import {
   type ReviewJustificationPayload,
 } from "@/lib/review-rules";
 import {
+  consideredRangeBoundaries,
   parseConsideredHackatimeRange,
   toUtcBoundaryDate,
   type ConsideredHackatimeRange,
@@ -625,9 +626,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         // window but never extend it: the review page listed devlogs using the
         // stored window, so a wider range would count devlogs the reviewer was
         // never shown (and could not assess).
-        const overrideStart = toUtcBoundaryDate(consideredHackatimeRange.startDate, "start");
-        const overrideEnd = toUtcBoundaryDate(consideredHackatimeRange.endDate, "end");
-        if (!overrideStart || !overrideEnd) {
+        const override = consideredRangeBoundaries(consideredHackatimeRange);
+        if (!override) {
           throw new ReviewSubmitError(
             "validation",
             "Choose a valid considered Hackatime range before approving.",
@@ -637,12 +637,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         if (
           current.hackatimeStartedAt &&
           current.hackatimeStoppedAt &&
-          (overrideStart.getTime() < current.hackatimeStartedAt.getTime() ||
-            overrideEnd.getTime() > current.hackatimeStoppedAt.getTime())
+          (override.start < current.hackatimeStartedAt || override.end > current.hackatimeStoppedAt)
         ) {
           throw new ReviewSubmitError(
             "validation",
-            `The considered range (${formatUtcInstant(overrideStart)} → ${formatUtcInstant(overrideEnd)}) must stay within the project's Hackatime window (${formatUtcInstant(current.hackatimeStartedAt)} → ${formatUtcInstant(current.hackatimeStoppedAt)}).`,
+            `The considered range (${formatUtcInstant(override.start)} → ${formatUtcInstant(override.end)}) must stay within the project's Hackatime window (${formatUtcInstant(current.hackatimeStartedAt)} → ${formatUtcInstant(current.hackatimeStoppedAt)}).`,
             400,
           );
         }

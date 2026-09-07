@@ -51,13 +51,25 @@ export function toUtcBoundaryDate(dateStr: string, boundary: "start" | "end") {
  * Normalize a range-picker value to a precise UTC instant (ISO string).
  * Datetime-local values are interpreted in the caller's timezone — call this
  * on the CLIENT so the instant reflects the picker's local time, not the
- * server's. Date-only values pass through (the server applies day boundaries).
+ * server's. Date-only values pass through (the server applies day boundaries);
+ * unparseable values pass through so parseConsideredHackatimeRange reports them.
  */
 export function toPreciseRangeValue(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed || isIsoDateOnly(trimmed)) return trimmed;
-  const parsed = new Date(trimmed);
-  return Number.isNaN(parsed.getTime()) ? trimmed : parsed.toISOString();
+  if (!value || isIsoDateOnly(value)) return value;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+}
+
+/**
+ * The UTC instants a considered range resolves to on the server: precise
+ * values as-is, date-only values widened to day boundaries.
+ */
+export function consideredRangeBoundaries(
+  range: ConsideredHackatimeRange,
+): { start: Date; end: Date } | null {
+  const start = toUtcBoundaryDate(range.startDate, "start");
+  const end = toUtcBoundaryDate(range.endDate, "end");
+  return start && end ? { start, end } : null;
 }
 
 export function parseConsideredHackatimeRange(input: unknown) {

@@ -37,10 +37,12 @@ import {
 } from "@/lib/project-submission-checklist";
 import {
   formatConsideredHackatimeRangeLabel,
+  consideredRangeBoundaries,
   getProjectConsideredHackatimeRange,
   parseConsideredHackatimeRange,
   toPreciseRangeValue,
 } from "@/lib/hackatime-range";
+import { coerceDate } from "@/lib/devlog-shared";
 import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
 import {
   EDITOR_OPTIONS,
@@ -301,19 +303,15 @@ export default function ManageProjectClient({
     if (!selectedHackatimeProject || !submitConsideredRange.ok) return null;
     // Compare as instants: the range values are precise ISO timestamps now,
     // with date-only strings only as a legacy fallback.
-    const sameInstant = (a: string | null | undefined, b: string) => {
-      if (!a) return false;
-      const parsedA = new Date(a);
-      const parsedB = new Date(b);
-      return (
-        !Number.isNaN(parsedA.getTime()) &&
-        !Number.isNaN(parsedB.getTime()) &&
-        parsedA.getTime() === parsedB.getTime()
-      );
-    };
+    const bounds = consideredRangeBoundaries(submitConsideredRange.value);
+    const selectedStart = coerceDate(selectedHackatimeProject.startedAt);
+    const selectedEnd = coerceDate(selectedHackatimeProject.stoppedAt);
     return selectedHackatimeProject.name === hackatimeProjectName &&
-      sameInstant(selectedHackatimeProject.startedAt, submitConsideredRange.value.startDate) &&
-      sameInstant(selectedHackatimeProject.stoppedAt, submitConsideredRange.value.endDate)
+      bounds &&
+      selectedStart &&
+      selectedEnd &&
+      bounds.start.getTime() === selectedStart.getTime() &&
+      bounds.end.getTime() === selectedEnd.getTime()
       ? {
         hackatimeStartedAt: selectedHackatimeProject.startedAt,
         hackatimeStoppedAt: selectedHackatimeProject.stoppedAt,
