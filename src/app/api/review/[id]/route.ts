@@ -23,6 +23,7 @@ import {
   maxAdjustableSeconds,
   sumHackatimeAdjustmentSeconds,
 } from "@/lib/devlog-assessments";
+import { formatUtcInstant } from "@/lib/devlog-shared";
 import { listProjectHackatimeProjects, reviewableDevlogWhere } from "@/lib/devlogs";
 import { getServerSession } from "@/lib/server-session";
 import { sendReviewEmail } from "@/lib/loops";
@@ -620,6 +621,32 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           );
         }
 
+        // The reviewer's considered range may narrow the project's Hackatime
+        // window but never extend it: the review page listed devlogs using the
+        // stored window, so a wider range would count devlogs the reviewer was
+        // never shown (and could not assess).
+        const overrideStart = toUtcBoundaryDate(consideredHackatimeRange.startDate, "start");
+        const overrideEnd = toUtcBoundaryDate(consideredHackatimeRange.endDate, "end");
+        if (!overrideStart || !overrideEnd) {
+          throw new ReviewSubmitError(
+            "validation",
+            "Choose a valid considered Hackatime range before approving.",
+            400,
+          );
+        }
+        if (
+          current.hackatimeStartedAt &&
+          current.hackatimeStoppedAt &&
+          (overrideStart.getTime() < current.hackatimeStartedAt.getTime() ||
+            overrideEnd.getTime() > current.hackatimeStoppedAt.getTime())
+        ) {
+          throw new ReviewSubmitError(
+            "validation",
+            `The considered range (${formatUtcInstant(overrideStart)} → ${formatUtcInstant(overrideEnd)}) must stay within the project's Hackatime window (${formatUtcInstant(current.hackatimeStartedAt)} → ${formatUtcInstant(current.hackatimeStoppedAt)}).`,
+            400,
+          );
+        }
+
         try {
           const refreshed = await refreshHackatimeProjectSnapshotForRange(current.creatorId, {
             projectName: current.hackatimeProjectName,
@@ -677,7 +704,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           if (!knownIds.has(a.devlogId)) {
             throw new ReviewSubmitError(
               "validation",
-              `Assessment references unknown devlog ${a.devlogId}.`,
+              `Assessment references devlog ${a.devlogId}, which is outside the considered Hackatime range (or no longer exists).`,
               400,
             );
           }
@@ -787,9 +814,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
         if (decision === "approved") {
           if (seenAssessmentIds.size !== projectDevlogs.length) {
+            const missing = projectDevlogs
+              .filter((d) => !seenAssessmentIds.has(d.id))
+              .map((d) => `"${d.title}" (${formatUtcInstant(d.startedAt)} → ${formatUtcInstant(d.endedAt)})`);
             throw new ReviewSubmitError(
               "validation",
-              "Every devlog must be assessed (accepted, rejected, or adjusted) before approval.",
+              `Every devlog must be assessed (accepted, rejected, or adjusted) before approval. Unassessed: ${missing.join(", ")}.`,
               400,
             );
           }
