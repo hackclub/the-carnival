@@ -14,6 +14,8 @@ import { isEnabledProjectType } from "@/lib/review/config";
 import { validateSubmissionRequirements } from "@/lib/review/submission-gates";
 import { isValidHttpUrlString } from "@/lib/review/urls";
 import { getR2PublicBaseUrl, validatePlatformImageUrl } from "@/lib/review/uploads";
+import { formatUtcInstant } from "@/lib/devlog-shared";
+import { listDevlogsOutsideRange } from "@/lib/devlogs";
 import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
 import {
   getProjectConsideredHackatimeRange,
@@ -376,10 +378,42 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         { status: 400 },
       );
     }
+
   } else if (body.hackatimeProjectName !== undefined && !nextHackatimeProjectName) {
     set.hackatimeStartedAt = null;
     set.hackatimeStoppedAt = null;
     set.hackatimeTotalSeconds = null;
+  }
+
+  // Every existing devlog must stay inside the (possibly updated) considered
+  // Hackatime range — otherwise it becomes invisible to reviewers while still
+  // blocking approval. Checked for both range paths: the refreshed considered
+  // range and directly supplied hackatimeStartedAt/StoppedAt timestamps.
+  if (set.hackatimeStartedAt !== undefined || set.hackatimeStoppedAt !== undefined) {
+    const nextRangeStart =
+      set.hackatimeStartedAt !== undefined ? set.hackatimeStartedAt : current.hackatimeStartedAt;
+    const nextRangeEnd =
+      set.hackatimeStoppedAt !== undefined ? set.hackatimeStoppedAt : current.hackatimeStoppedAt;
+    if (nextRangeStart && nextRangeEnd) {
+      const outside = await listDevlogsOutsideRange(id, {
+        start: nextRangeStart,
+        end: nextRangeEnd,
+      });
+      if (outside.length > 0) {
+        const listed = outside
+          .slice(0, 3)
+          .map((d) => `"${d.title}" (${formatUtcInstant(d.startedAt)} → ${formatUtcInstant(d.endedAt)})`)
+          .join(", ");
+        const suffix = outside.length > 3 ? ` and ${outside.length - 3} more` : "";
+        return NextResponse.json(
+          {
+            error: `The considered Hackatime range must cover all of this project's devlogs. Outside the selected range: ${listed}${suffix}. Widen the range or fix the devlog windows first.`,
+            code: "range_excludes_devlogs",
+          },
+          { status: 400 },
+        );
+      }
+    }
   }
 
   if (body.videoUrl !== undefined) {
