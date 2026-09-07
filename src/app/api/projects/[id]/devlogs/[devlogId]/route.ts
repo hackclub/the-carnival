@@ -7,11 +7,14 @@ import {
   DEVLOG_MAX_CONTENT_LENGTH,
   DEVLOG_MAX_TITLE_LENGTH,
   computeDevlogWindowCeiling,
+  devlogWindowOutsideProjectRangeError,
+  formatUtcInstant,
   parseAttachmentUrls,
   parseDevlogWindow,
   parseOptionalTrimmedString,
 } from "@/lib/devlog-shared";
 import {
+  findOverlappingDevlog,
   recomputeProjectHoursSpentSeconds,
   upsertProjectHackatimeProject,
 } from "@/lib/devlogs";
@@ -61,6 +64,8 @@ async function loadDevlog(projectId: string, devlogId: string) {
       projectCreatorId: project.creatorId,
       projectStatus: project.status,
       projectHackatimeProjectName: project.hackatimeProjectName,
+      projectHackatimeStartedAt: project.hackatimeStartedAt,
+      projectHackatimeStoppedAt: project.hackatimeStoppedAt,
       projectSubmittedAt: project.submittedAt,
     })
     .from(devlog)
@@ -270,6 +275,31 @@ export async function PATCH(
       ceiling,
     });
     if (!window.ok) return NextResponse.json({ error: window.error }, { status: 400 });
+
+    const rangeError = devlogWindowOutsideProjectRangeError({
+      startedAt: window.startedAt,
+      endedAt: window.endedAt,
+      projectRangeStart: row.projectHackatimeStartedAt,
+      projectRangeEnd: row.projectHackatimeStoppedAt,
+    });
+    if (rangeError) {
+      return NextResponse.json({ error: rangeError, code: "devlog_outside_range" }, { status: 400 });
+    }
+
+    const overlapping = await findOverlappingDevlog(
+      projectId,
+      { startedAt: window.startedAt, endedAt: window.endedAt },
+      { excludeDevlogId: devlogId },
+    );
+    if (overlapping) {
+      return NextResponse.json(
+        {
+          error: `This devlog's window overlaps "${overlapping.title}" (${formatUtcInstant(overlapping.startedAt)} → ${formatUtcInstant(overlapping.endedAt)}). Devlog windows can touch but must not overlap — adjust the start or end time.`,
+          code: "devlog_overlap",
+        },
+        { status: 400 },
+      );
+    }
 
     const requestedHackatimeProjectName =
       typeof body.hackatimeProjectName === "string" ? body.hackatimeProjectName.trim() : "";

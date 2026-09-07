@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { bountyProject, project, tokenLedger, type ProjectStatus } from "@/db/schema";
+import { formatUtcInstant } from "@/lib/devlog-shared";
+import { listDevlogsOutsideRange } from "@/lib/devlogs";
 import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
 import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
 import { getServerSession } from "@/lib/server-session";
@@ -283,6 +285,27 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         projectName: current.hackatimeProjectName,
         range: parsedRange.value,
       });
+
+      // The considered range must keep covering every devlog; otherwise those
+      // devlogs disappear from review while still blocking approval.
+      const outside = await listDevlogsOutsideRange(id, {
+        start: refreshed.hackatimeStartedAt,
+        end: refreshed.hackatimeStoppedAt,
+      });
+      if (outside.length > 0) {
+        const listed = outside
+          .slice(0, 3)
+          .map((d) => `"${d.title}" (${formatUtcInstant(d.startedAt)} → ${formatUtcInstant(d.endedAt)})`)
+          .join(", ");
+        const suffix = outside.length > 3 ? ` and ${outside.length - 3} more` : "";
+        return NextResponse.json(
+          {
+            error: `The considered Hackatime range must cover all of this project's devlogs. Outside the selected range: ${listed}${suffix}.`,
+            code: "range_excludes_devlogs",
+          },
+          { status: 400 },
+        );
+      }
 
       let statusAfter = current.status;
       let approvedHoursAfter = current.approvedHours;

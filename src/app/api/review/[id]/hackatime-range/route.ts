@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { project, type UserRole } from "@/db/schema";
+import { coerceDate } from "@/lib/devlog-shared";
 import { listProjectHackatimeProjects } from "@/lib/devlogs";
 import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
 import { getServerSession } from "@/lib/server-session";
@@ -23,12 +24,6 @@ function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin
   return role === "reviewer" || role === "admin";
 }
 
-function toDate(value: unknown): Date | null {
-  if (typeof value !== "string" || !value.trim()) return null;
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
 const MAX_WINDOW_MS = 366 * 24 * 60 * 60 * 1000;
 const MAX_PROJECTS_QUERIED = 10;
 
@@ -44,8 +39,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const body = (await req.json().catch(() => null)) as
     | { startedAt?: unknown; endedAt?: unknown; hackatimeProjectName?: unknown }
     | null;
-  const startedAt = toDate(body?.startedAt);
-  const endedAt = toDate(body?.endedAt);
+  const startedAt = coerceDate(body?.startedAt);
+  const endedAt = coerceDate(body?.endedAt);
   if (!startedAt || !endedAt) {
     return NextResponse.json(
       { error: "startedAt and endedAt must be valid timestamps." },

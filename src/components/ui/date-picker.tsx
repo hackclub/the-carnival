@@ -87,7 +87,7 @@ type DateTimePickerProps = {
   max?: string;
 };
 
-function toDatetimeLocalValue(iso: string | null | undefined): string {
+export function toDatetimeLocalValue(iso: string | null | undefined): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";

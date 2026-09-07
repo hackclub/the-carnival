@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
-import { and, asc, desc, eq, gte, lte, ne, sql, sum } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, lt, lte, ne, sql, sum } from "drizzle-orm";
 import { db } from "@/db";
 import { devlog, project, projectHackatimeProject } from "@/db/schema";
+import { isValidDate } from "@/lib/devlog-shared";
 
 /**
  * Returns the latest devlog.endedAt for a project (excluding `excludeDevlogId` when editing).
@@ -24,10 +25,63 @@ export async function getDevlogWindowFloor(
     .limit(1);
 
   const prior = rows[0]?.endedAt;
-  if (prior instanceof Date && !Number.isNaN(prior.getTime())) {
-    if (prior.getTime() > fallbackStart.getTime()) return prior;
-  }
+  if (isValidDate(prior) && prior > fallbackStart) return prior;
   return fallbackStart;
+}
+
+/**
+ * Devlog windows may touch (one ends exactly when the next starts) but must
+ * never overlap. Returns the first conflicting devlog, or null.
+ */
+export async function findOverlappingDevlog(
+  projectId: string,
+  window: { startedAt: Date; endedAt: Date },
+  opts?: { excludeDevlogId?: string },
+): Promise<{ id: string; title: string; startedAt: Date; endedAt: Date } | null> {
+  const overlap = and(
+    eq(devlog.projectId, projectId),
+    lt(devlog.startedAt, window.endedAt),
+    gt(devlog.endedAt, window.startedAt),
+  );
+  const whereClause = opts?.excludeDevlogId
+    ? and(overlap, ne(devlog.id, opts.excludeDevlogId))
+    : overlap;
+
+  const rows = await db
+    .select({
+      id: devlog.id,
+      title: devlog.title,
+      startedAt: devlog.startedAt,
+      endedAt: devlog.endedAt,
+    })
+    .from(devlog)
+    .where(whereClause)
+    .orderBy(asc(devlog.startedAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/**
+ * All devlogs of a project whose windows stick out of the given range —
+ * used to refuse considered-range changes that would orphan existing devlogs.
+ */
+export async function listDevlogsOutsideRange(
+  projectId: string,
+  range: { start: Date; end: Date },
+): Promise<Array<{ id: string; title: string; startedAt: Date; endedAt: Date }>> {
+  const rows = await db
+    .select({
+      id: devlog.id,
+      title: devlog.title,
+      startedAt: devlog.startedAt,
+      endedAt: devlog.endedAt,
+    })
+    .from(devlog)
+    .where(eq(devlog.projectId, projectId))
+    .orderBy(asc(devlog.startedAt));
+  return rows.filter(
+    (d) => d.startedAt.getTime() < range.start.getTime() || d.endedAt.getTime() > range.end.getTime(),
+  );
 }
 
 export async function recomputeProjectHoursSpentSeconds(
@@ -60,10 +114,6 @@ export type ReviewableDevlogRange = {
   start: Date | null | undefined;
   end: Date | null | undefined;
 };
-
-function isValidDate(value: Date | null | undefined): value is Date {
-  return value instanceof Date && !Number.isNaN(value.getTime());
-}
 
 export function devlogWindowOverlapsRange(input: {
   devlogStart: Date;

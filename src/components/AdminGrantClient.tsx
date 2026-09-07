@@ -14,17 +14,19 @@ import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import { PROJECT_SUBMISSION_CHECKLIST_ITEMS } from "@/lib/project-submission-checklist";
 import LinkChip from "@/components/LinkChip";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DateTimePicker } from "@/components/ui/date-picker";
 import type { ReviewJustificationPayload } from "@/lib/review-rules";
 import {
+  consideredRangeBoundaries,
   formatConsideredHackatimeRangeLabel,
   getProjectConsideredHackatimeRange,
   parseConsideredHackatimeRange,
+  toPreciseRangeValue,
 } from "@/lib/hackatime-range";
+import { coerceDate } from "@/lib/devlog-shared";
 import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
 import {
   formatHoursMinutes,
-  toDateInputValue,
   type HackatimeRangePreview,
 } from "@/lib/project-form-utils";
 import toast from "react-hot-toast";
@@ -213,25 +215,36 @@ export default function AdminGrantClient({
     () => formatConsideredHackatimeRangeLabel(canonicalProjectRange),
     [canonicalProjectRange],
   );
-  const [rangeStartDate, setRangeStartDate] = useState(canonicalProjectRange?.startDate ?? "");
-  const [rangeEndDate, setRangeEndDate] = useState(canonicalProjectRange?.endDate ?? "");
+  // Precise stored timestamps when available; the date-only canonical range is
+  // only a legacy fallback.
+  const [rangeStartDate, setRangeStartDate] = useState(
+    project.hackatimeStartedAt ?? canonicalProjectRange?.startDate ?? "",
+  );
+  const [rangeEndDate, setRangeEndDate] = useState(
+    project.hackatimeStoppedAt ?? canonicalProjectRange?.endDate ?? "",
+  );
   const [rangeSaving, setRangeSaving] = useState(false);
 
   const editableRange = useMemo(
     () =>
       parseConsideredHackatimeRange({
-        startDate: rangeStartDate,
-        endDate: rangeEndDate,
+        startDate: toPreciseRangeValue(rangeStartDate),
+        endDate: toPreciseRangeValue(rangeEndDate),
       }),
     [rangeEndDate, rangeStartDate],
   );
 
   const localRangePreview = useMemo<HackatimeRangePreview | null>(() => {
+    if (!editableRange.ok) return null;
+    const bounds = consideredRangeBoundaries(editableRange.value);
+    const storedStart = coerceDate(project.hackatimeStartedAt);
+    const storedEnd = coerceDate(project.hackatimeStoppedAt);
     if (
-      !editableRange.ok ||
-      !canonicalProjectRange ||
-      canonicalProjectRange.startDate !== editableRange.value.startDate ||
-      canonicalProjectRange.endDate !== editableRange.value.endDate
+      !bounds ||
+      !storedStart ||
+      !storedEnd ||
+      bounds.start.getTime() !== storedStart.getTime() ||
+      bounds.end.getTime() !== storedEnd.getTime()
     ) {
       return null;
     }
@@ -241,7 +254,7 @@ export default function AdminGrantClient({
           : null,
         hackatimeHours: project.hackatimeHours,
     };
-  }, [canonicalProjectRange, editableRange, project.hackatimeHours]);
+  }, [editableRange, project.hackatimeHours, project.hackatimeStartedAt, project.hackatimeStoppedAt]);
 
   const { preview: rangePreview, loading: rangePreviewLoading, error: rangePreviewError } =
     useHackatimeRangePreview({
@@ -330,8 +343,8 @@ export default function AdminGrantClient({
         submittedAt:
           data?.project?.submittedAt !== undefined ? data.project.submittedAt ?? null : prev.submittedAt,
       }));
-      setRangeStartDate(toDateInputValue(data?.project?.hackatimeStartedAt ?? null));
-      setRangeEndDate(toDateInputValue(data?.project?.hackatimeStoppedAt ?? null));
+      setRangeStartDate(data?.project?.hackatimeStartedAt ?? "");
+      setRangeEndDate(data?.project?.hackatimeStoppedAt ?? "");
       const notice = typeof data?.notice === "string" ? data.notice : null;
       toast.success(notice ?? "Updated.", { id: toastId });
       setRangeSaving(false);
@@ -667,11 +680,11 @@ export default function AdminGrantClient({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="block">
                 <div className="text-xs text-muted-foreground mb-1">Start date</div>
-                <DatePicker value={rangeStartDate} onChange={(v) => setRangeStartDate(v)} disabled={rangeSaving || project.status === "granted"} />
+                <DateTimePicker value={rangeStartDate} onChange={(v) => setRangeStartDate(v)} disabled={rangeSaving || project.status === "granted"} />
               </label>
               <label className="block">
                 <div className="text-xs text-muted-foreground mb-1">End date</div>
-                <DatePicker value={rangeEndDate} onChange={(v) => setRangeEndDate(v)} disabled={rangeSaving || project.status === "granted"} />
+                <DateTimePicker value={rangeEndDate} onChange={(v) => setRangeEndDate(v)} disabled={rangeSaving || project.status === "granted"} />
               </label>
             </div>
             {!editableRange.ok ? (

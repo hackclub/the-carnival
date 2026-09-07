@@ -16,7 +16,8 @@ import {
   PlatformNestedSurface,
   Textarea,
 } from "@/components/ui";
-import { DateTimePicker } from "@/components/ui/date-picker";
+import { DateTimePicker, toDatetimeLocalValue } from "@/components/ui/date-picker";
+import { toIsoDateOnly } from "@/lib/hackatime-range";
 import {
   Select,
   SelectContent,
@@ -24,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatDurationHM, parseDevlogWindow } from "@/lib/devlog-shared";
+import { coerceDate, formatDurationHM, parseDevlogWindow } from "@/lib/devlog-shared";
 import { NotebookPen } from "lucide-react";
 
 type DevlogFormMode = "create" | "edit";
@@ -57,31 +58,10 @@ type NewDevlogFormProps = {
   windowLockedReason?: string;
 };
 
-function toDatetimeLocalValue(iso: string | null | undefined): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function fromDatetimeLocalValue(value: string): string | null {
-  if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
-}
-
 function defaultStartedAtIso(ceilingIso: string) {
-  const ceiling = new Date(ceilingIso);
-  if (Number.isNaN(ceiling.getTime())) return "";
+  const ceiling = coerceDate(ceilingIso);
+  if (!ceiling) return "";
   return new Date(ceiling.getTime() - 60 * 60 * 1000).toISOString();
-}
-
-function toDateOnly(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0, 10);
 }
 
 type TimelineState =
@@ -138,7 +118,7 @@ export default function NewDevlogForm({
   const [selectedDate, setSelectedDate] = useState(() => {
     // Default to the date of the current endedAt or today
     const endIso = initial?.endedAtIso ?? ceilingIso;
-    return toDateOnly(endIso) || toDateOnly(new Date().toISOString());
+    return toIsoDateOnly(endIso) ?? toIsoDateOnly(new Date()) ?? "";
   });
   const [timeline, setTimeline] = useState<TimelineState>({ status: "idle" });
   const [timelineEnabled, setTimelineEnabled] = useState(true);
@@ -149,8 +129,8 @@ export default function NewDevlogForm({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const startedIso = useMemo(() => fromDatetimeLocalValue(startedAt), [startedAt]);
-  const endedIso = useMemo(() => fromDatetimeLocalValue(endedAt), [endedAt]);
+  const startedIso = useMemo(() => coerceDate(startedAt)?.toISOString() ?? null, [startedAt]);
+  const endedIso = useMemo(() => coerceDate(endedAt)?.toISOString() ?? null, [endedAt]);
   const parsedWindow = useMemo(() => {
     if (!canEditWindow || !startedIso || !endedIso) return null;
     const ceiling = new Date(ceilingIso);
@@ -670,7 +650,7 @@ export default function NewDevlogForm({
                   <input
                     type="date"
                     value={selectedDate}
-                    max={toDateOnly(ceilingIso)}
+                    max={toIsoDateOnly(ceilingIso) ?? ""}
                     onChange={(e) => {
                       setSelectedDate(e.target.value);
                       setTimeline({ status: "idle" });

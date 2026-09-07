@@ -62,15 +62,19 @@ export type ParsedDevlogWindow =
   | { ok: true; startedAt: Date; endedAt: Date }
   | { ok: false; error: string };
 
-function coerceDate(value: unknown) {
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+export function isValidDate(value: Date | null | undefined): value is Date {
+  return value instanceof Date && !Number.isNaN(value.getTime());
+}
+
+export function coerceDate(value: unknown): Date | null {
+  if (value instanceof Date) return isValidDate(value) ? value : null;
   if (typeof value === "string" && value.trim()) {
     const d = new Date(value.trim());
-    return Number.isNaN(d.getTime()) ? null : d;
+    return isValidDate(d) ? d : null;
   }
   if (typeof value === "number" && Number.isFinite(value)) {
     const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? null : d;
+    return isValidDate(d) ? d : null;
   }
   return null;
 }
@@ -102,6 +106,28 @@ export function parseDevlogWindow(input: {
   }
 
   return { ok: true, startedAt: start, endedAt: end };
+}
+
+export function formatUtcInstant(value: Date) {
+  return `${value.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+}
+
+/**
+ * A devlog window must sit inside the project's considered Hackatime range.
+ * Returns an explanatory error, or null when the window is acceptable (or the
+ * project has no usable range to check against).
+ */
+export function devlogWindowOutsideProjectRangeError(input: {
+  startedAt: Date;
+  endedAt: Date;
+  projectRangeStart: Date | null | undefined;
+  projectRangeEnd: Date | null | undefined;
+}): string | null {
+  const { startedAt, endedAt, projectRangeStart: start, projectRangeEnd: end } = input;
+  // Like reviewableDevlogWhere: a missing or inverted stored range filters nothing.
+  if (!isValidDate(start) || !isValidDate(end) || start > end) return null;
+  if (startedAt >= start && endedAt <= end) return null;
+  return `This devlog's window (${formatUtcInstant(startedAt)} → ${formatUtcInstant(endedAt)}) must be within the project's considered Hackatime range (${formatUtcInstant(start)} → ${formatUtcInstant(end)}).`;
 }
 
 /**
