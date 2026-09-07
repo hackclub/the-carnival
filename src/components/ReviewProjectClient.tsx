@@ -16,7 +16,7 @@ import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
 import LinkChip from "@/components/LinkChip";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
 import DevlogAssessmentPanel, {
   type ReviewDevlogFull,
 } from "@/components/DevlogAssessmentPanel";
@@ -43,6 +43,9 @@ import {
   formatConsideredHackatimeRangeLabel,
   getProjectConsideredHackatimeRange,
   parseConsideredHackatimeRange,
+  toIsoDateOnly,
+  toPreciseRangeValue,
+  toUtcBoundaryDate,
   type ConsideredHackatimeRange,
 } from "@/lib/hackatime-range";
 import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
@@ -344,28 +347,63 @@ export default function ReviewProjectClient({
         })?.endDate ?? "",
     }),
   );
+  // Seed the approval range with the project's PRECISE stored window (not
+  // date-only values): the review page lists devlogs using these exact
+  // timestamps, so a widened default would count devlogs the reviewer never saw.
   const [approvalProjectRange, setApprovalProjectRange] = useState<ConsideredHackatimeRange>({
     startDate:
+      initial.project.hackatimeStartedAt ??
       getProjectConsideredHackatimeRange({
         hackatimeStartedAt: initial.project.hackatimeStartedAt,
         hackatimeStoppedAt: initial.project.hackatimeStoppedAt,
         submittedAt: initial.project.submittedAt,
         createdAt: initial.project.createdAt,
-      })?.startDate ?? "",
+      })?.startDate ??
+      "",
     endDate:
+      initial.project.hackatimeStoppedAt ??
       getProjectConsideredHackatimeRange({
         hackatimeStartedAt: initial.project.hackatimeStartedAt,
         hackatimeStoppedAt: initial.project.hackatimeStoppedAt,
         submittedAt: initial.project.submittedAt,
         createdAt: initial.project.createdAt,
-      })?.endDate ?? "",
+      })?.endDate ??
+      "",
   });
   const reviewJustificationDraftRef = useRef(reviewJustificationDraft);
   const [modalError, setModalError] = useState<string | null>(null);
-  const adminApprovalRange = useMemo(
-    () => parseConsideredHackatimeRange(approvalProjectRange),
-    [approvalProjectRange],
-  );
+  const adminApprovalRange = useMemo(() => {
+    const parsed = parseConsideredHackatimeRange({
+      startDate: toPreciseRangeValue(approvalProjectRange.startDate),
+      endDate: toPreciseRangeValue(approvalProjectRange.endDate),
+    });
+    if (!parsed.ok) return parsed;
+    // The considered range may narrow the project's Hackatime window but never
+    // extend it — devlogs outside the stored window aren't listed on this page.
+    const windowStart = project.hackatimeStartedAt ? new Date(project.hackatimeStartedAt) : null;
+    const windowEnd = project.hackatimeStoppedAt ? new Date(project.hackatimeStoppedAt) : null;
+    if (
+      windowStart &&
+      windowEnd &&
+      !Number.isNaN(windowStart.getTime()) &&
+      !Number.isNaN(windowEnd.getTime())
+    ) {
+      const rangeStart = toUtcBoundaryDate(parsed.value.startDate, "start");
+      const rangeEnd = toUtcBoundaryDate(parsed.value.endDate, "end");
+      if (
+        rangeStart &&
+        rangeEnd &&
+        (rangeStart.getTime() < windowStart.getTime() || rangeEnd.getTime() > windowEnd.getTime())
+      ) {
+        return {
+          ok: false as const,
+          error:
+            "The considered range must stay within the project's Hackatime window — it can be narrowed, not extended.",
+        };
+      }
+    }
+    return parsed;
+  }, [approvalProjectRange, project.hackatimeStartedAt, project.hackatimeStoppedAt]);
 
   const setReviewJustificationDraft = useCallback(
     (next: SetStateAction<ReviewJustificationDraft>) => {
@@ -434,11 +472,19 @@ export default function ReviewProjectClient({
   }, [project.hackatimeHours]);
 
   const localAdminHackatimePreview = useMemo<HackatimeRangePreview | null>(() => {
+    // Skip the network preview only when the selected range is exactly the
+    // project's stored window (compared as instants — values may be precise
+    // ISO timestamps or date-only strings).
+    const storedStart = project.hackatimeStartedAt ? new Date(project.hackatimeStartedAt) : null;
+    const storedEnd = project.hackatimeStoppedAt ? new Date(project.hackatimeStoppedAt) : null;
+    if (!adminApprovalRange.ok || !storedStart || !storedEnd) return null;
+    const rangeStart = toUtcBoundaryDate(adminApprovalRange.value.startDate, "start");
+    const rangeEnd = toUtcBoundaryDate(adminApprovalRange.value.endDate, "end");
     if (
-      !adminApprovalRange.ok ||
-      !canonicalProjectRange ||
-      canonicalProjectRange.startDate !== adminApprovalRange.value.startDate ||
-      canonicalProjectRange.endDate !== adminApprovalRange.value.endDate
+      !rangeStart ||
+      !rangeEnd ||
+      rangeStart.getTime() !== storedStart.getTime() ||
+      rangeEnd.getTime() !== storedEnd.getTime()
     ) {
       return null;
     }
@@ -448,7 +494,7 @@ export default function ReviewProjectClient({
           : null,
         hackatimeHours: project.hackatimeHours,
     };
-  }, [adminApprovalRange, canonicalProjectRange, project.hackatimeHours]);
+  }, [adminApprovalRange, project.hackatimeHours, project.hackatimeStartedAt, project.hackatimeStoppedAt]);
 
   const {
     preview: adminHackatimePreview,
@@ -637,11 +683,11 @@ export default function ReviewProjectClient({
       }),
     );
     setApprovalProjectRange({
-      startDate: defaultReviewStartDate,
-      endDate: defaultReviewEndDate,
+      startDate: project.hackatimeStartedAt ?? defaultReviewStartDate,
+      endDate: project.hackatimeStoppedAt ?? defaultReviewEndDate,
     });
     setModalError(null);
-  }, [defaultReviewEndDate, defaultReviewStartDate, project.hackatimeProjectName, setReviewJustificationDraft]);
+  }, [defaultReviewEndDate, defaultReviewStartDate, project.hackatimeProjectName, project.hackatimeStartedAt, project.hackatimeStoppedAt, setReviewJustificationDraft]);
 
   const submitReview = useCallback(async (input: {
     requestReviewJustification: ReviewJustificationDraft | null;
@@ -821,11 +867,21 @@ export default function ReviewProjectClient({
       consideredHackatimeRange = adminApprovalRange.value;
     }
 
+    // The justification note keeps date-only values even though the considered
+    // range itself is a precise timestamp range.
+    const justificationDateRange = consideredHackatimeRange
+      ? {
+          startDate:
+            toIsoDateOnly(consideredHackatimeRange.startDate) ?? consideredHackatimeRange.startDate,
+          endDate:
+            toIsoDateOnly(consideredHackatimeRange.endDate) ?? consideredHackatimeRange.endDate,
+        }
+      : null;
     const draft = {
       ...reviewJustificationDraftRef.current,
       hackatimeProjectName: project.hackatimeProjectName,
       reviewDateRange: isAdmin
-        ? (consideredHackatimeRange ?? reviewJustificationDraftRef.current.reviewDateRange)
+        ? (justificationDateRange ?? reviewJustificationDraftRef.current.reviewDateRange)
         : reviewJustificationDraftRef.current.reviewDateRange,
     };
 
@@ -890,10 +946,10 @@ export default function ReviewProjectClient({
     }
     setApprovedHoursManuallyEdited(false);
     setApprovalProjectRange({
-      startDate: defaultReviewStartDate,
-      endDate: defaultReviewEndDate,
+      startDate: project.hackatimeStartedAt ?? defaultReviewStartDate,
+      endDate: project.hackatimeStoppedAt ?? defaultReviewEndDate,
     });
-  }, [defaultReviewEndDate, defaultReviewStartDate]);
+  }, [defaultReviewEndDate, defaultReviewStartDate, project.hackatimeStartedAt, project.hackatimeStoppedAt]);
 
   const onDeleteReview = useCallback(
     async (reviewId: string) => {
@@ -1631,12 +1687,12 @@ export default function ReviewProjectClient({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="block">
-                  <div className="text-xs text-muted-foreground mb-1">Start date</div>
-                  <DatePicker value={approvalProjectRange.startDate} onChange={(v) => { setApprovalProjectRange((prev) => ({ ...prev, startDate: v })); setModalError(null); }} />
+                  <div className="text-xs text-muted-foreground mb-1">Start</div>
+                  <DateTimePicker value={approvalProjectRange.startDate} onChange={(v) => { setApprovalProjectRange((prev) => ({ ...prev, startDate: v })); setModalError(null); }} />
                 </label>
                 <label className="block">
-                  <div className="text-xs text-muted-foreground mb-1">End date</div>
-                  <DatePicker value={approvalProjectRange.endDate} onChange={(v) => { setApprovalProjectRange((prev) => ({ ...prev, endDate: v })); setModalError(null); }} />
+                  <div className="text-xs text-muted-foreground mb-1">End</div>
+                  <DateTimePicker value={approvalProjectRange.endDate} onChange={(v) => { setApprovalProjectRange((prev) => ({ ...prev, endDate: v })); setModalError(null); }} />
                 </label>
               </div>
               {!adminApprovalRange.ok ? (

@@ -39,6 +39,7 @@ import {
   formatConsideredHackatimeRangeLabel,
   getProjectConsideredHackatimeRange,
   parseConsideredHackatimeRange,
+  toPreciseRangeValue,
 } from "@/lib/hackatime-range";
 import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
 import {
@@ -46,7 +47,6 @@ import {
   appendCsvToken,
   cleanList,
   formatTotalSeconds,
-  toDateInputValue,
   type HackatimeProjectOption,
   type HackatimeRangePreview,
 } from "@/lib/project-form-utils";
@@ -110,8 +110,14 @@ export default function ManageProjectClient({
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitStep, setSubmitStep] = useState<0 | 1>(0);
   const [submitting, setSubmitting] = useState(false);
-  const [submitRangeStartDate, setSubmitRangeStartDate] = useState(initialConsideredRange?.startDate ?? "");
-  const [submitRangeEndDate, setSubmitRangeEndDate] = useState(initialConsideredRange?.endDate ?? "");
+  // Seed with the project's precise stored timestamps when available; the
+  // date-only canonical range is only a fallback for legacy projects.
+  const [submitRangeStartDate, setSubmitRangeStartDate] = useState(
+    initial.hackatimeStartedAt ?? initialConsideredRange?.startDate ?? "",
+  );
+  const [submitRangeEndDate, setSubmitRangeEndDate] = useState(
+    initial.hackatimeStoppedAt ?? initialConsideredRange?.endDate ?? "",
+  );
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -278,9 +284,12 @@ export default function ManageProjectClient({
   const screenshots = useMemo(() => cleanList(screenshotUrls), [screenshotUrls]);
   const submitConsideredRange = useMemo(
     () =>
+      // Normalize picker values to precise UTC instants in the user's timezone
+      // before they leave the client — the server must not re-interpret
+      // datetime-local strings in its own timezone.
       parseConsideredHackatimeRange({
-        startDate: submitRangeStartDate,
-        endDate: submitRangeEndDate,
+        startDate: toPreciseRangeValue(submitRangeStartDate),
+        endDate: toPreciseRangeValue(submitRangeEndDate),
       }),
     [submitRangeEndDate, submitRangeStartDate],
   );
@@ -290,11 +299,21 @@ export default function ManageProjectClient({
   );
   const selectedHackatimePreview = useMemo<HackatimeRangePreview | null>(() => {
     if (!selectedHackatimeProject || !submitConsideredRange.ok) return null;
-    const selectedDefaultStartDate = toDateInputValue(selectedHackatimeProject.startedAt);
-    const selectedDefaultEndDate = toDateInputValue(selectedHackatimeProject.stoppedAt);
+    // Compare as instants: the range values are precise ISO timestamps now,
+    // with date-only strings only as a legacy fallback.
+    const sameInstant = (a: string | null | undefined, b: string) => {
+      if (!a) return false;
+      const parsedA = new Date(a);
+      const parsedB = new Date(b);
+      return (
+        !Number.isNaN(parsedA.getTime()) &&
+        !Number.isNaN(parsedB.getTime()) &&
+        parsedA.getTime() === parsedB.getTime()
+      );
+    };
     return selectedHackatimeProject.name === hackatimeProjectName &&
-      selectedDefaultStartDate === submitConsideredRange.value.startDate &&
-      selectedDefaultEndDate === submitConsideredRange.value.endDate
+      sameInstant(selectedHackatimeProject.startedAt, submitConsideredRange.value.startDate) &&
+      sameInstant(selectedHackatimeProject.stoppedAt, submitConsideredRange.value.endDate)
       ? {
         hackatimeStartedAt: selectedHackatimeProject.startedAt,
         hackatimeStoppedAt: selectedHackatimeProject.stoppedAt,
@@ -614,8 +633,8 @@ export default function ManageProjectClient({
         setCreatorOriginalityRationale(p.creatorOriginalityRationale ?? null);
         setStatus(p.status);
         setApprovedHours(p.approvedHours ?? null);
-        setSubmitRangeStartDate(toDateInputValue(p.hackatimeStartedAt ?? null));
-        setSubmitRangeEndDate(toDateInputValue(p.hackatimeStoppedAt ?? null));
+        setSubmitRangeStartDate(p.hackatimeStartedAt ?? "");
+        setSubmitRangeEndDate(p.hackatimeStoppedAt ?? "");
       }
 
       setSavedAt(Date.now());
@@ -804,8 +823,8 @@ export default function ManageProjectClient({
         setCreatorOriginalityRationale(p.creatorOriginalityRationale ?? null);
         setStatus(p.status);
         setApprovedHours(p.approvedHours ?? null);
-        setSubmitRangeStartDate(toDateInputValue(p.hackatimeStartedAt ?? null));
-        setSubmitRangeEndDate(toDateInputValue(p.hackatimeStoppedAt ?? null));
+        setSubmitRangeStartDate(p.hackatimeStartedAt ?? "");
+        setSubmitRangeEndDate(p.hackatimeStoppedAt ?? "");
       }
 
       const notice = typeof data?.notice === "string" ? data.notice : null;
@@ -1169,8 +1188,8 @@ export default function ManageProjectClient({
                 setHackatimeStartedAt(selected?.startedAt ?? null);
                 setHackatimeStoppedAt(selected?.stoppedAt ?? null);
                 setHackatimeTotalSeconds(selected?.totalSeconds ?? null);
-                setSubmitRangeStartDate(toDateInputValue(selected?.startedAt ?? null));
-                setSubmitRangeEndDate(toDateInputValue(selected?.stoppedAt ?? null));
+                setSubmitRangeStartDate(selected?.startedAt ?? "");
+                setSubmitRangeEndDate(selected?.stoppedAt ?? "");
               }}
               disabled={hackatimeLoading || (hackatimeProjects?.length ?? 0) === 0}
             >
