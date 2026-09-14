@@ -91,10 +91,7 @@ export const PROJECT_TYPE_CATALOG = [
 export type ProjectTypeId = (typeof PROJECT_TYPE_CATALOG)[number]["id"];
 
 /** Types this program accepts at submission time. */
-export const ENABLED_PROJECT_TYPES: readonly ProjectTypeId[] = [
-  "extension-plugin",
-  "website-webapp",
-];
+export const ENABLED_PROJECT_TYPES: readonly ProjectTypeId[] = ["extension-plugin"];
 
 /**
  * The default (and pre-selected) type for new projects. On Carnival every
@@ -165,8 +162,12 @@ export const PLAYABLE_URL_BLOCKED_HOSTS: readonly string[] = [
  * Per-platform store hosts for the "extension-plugin" type. The playable URL
  * for an extension must be a published store listing for its platform, OR a
  * release page/artifact on an allowed forge (e.g. a GitHub release with a
- * .crx/.zip/.vsix) for people who can't afford a store developer license yet
- * — mirroring the handbook's browser-extension carve-out.
+ * .zip/.vsix) for people who can't afford a store developer license yet.
+ *
+ * Exception: BROWSER extensions (platforms in BROWSER_EXTENSION_PLATFORMS)
+ * get no forge-release fallback — they must be published on the Chrome Web
+ * Store or Firefox Add-ons. Stricter than the handbook's browser-extension
+ * carve-out, which the handbook permits (stricter is always allowed).
  *
  * Keys are `project.editor` values; platforms not listed fall back to the
  * forge-release rule only.
@@ -185,6 +186,21 @@ export const EXTENSION_STORE_HOSTS_BY_PLATFORM: Readonly<
   discord: ["discord.com", "discordapp.com"],
   slack: ["slack.com"],
 };
+
+/**
+ * Platforms whose extensions are browser extensions. These must be PUBLISHED
+ * to count as shipped: the playable URL must be a listing on the Chrome Web
+ * Store or Firefox Add-ons (either store — cross-browser WebExtensions often
+ * publish on one), with no forge-release fallback. Policy effective
+ * 2026-09-14; enforced on every submission from then on.
+ */
+export const BROWSER_EXTENSION_PLATFORMS: readonly string[] = ["chrome", "firefox"];
+
+/** Store hosts a browser extension may link (union across browser platforms). */
+export const BROWSER_EXTENSION_STORE_HOSTS: readonly string[] =
+  BROWSER_EXTENSION_PLATFORMS.flatMap(
+    (platform) => EXTENSION_STORE_HOSTS_BY_PLATFORM[platform] ?? [],
+  );
 
 /** Web hosts allowed for web-playable games (handbook) besides itch.io. */
 export const GAME_WEB_ALLOWED_HOSTS: readonly string[] = [

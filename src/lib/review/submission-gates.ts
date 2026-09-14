@@ -18,6 +18,8 @@
 
 import {
   ALLOWED_SCREENSHOT_EXTENSIONS,
+  BROWSER_EXTENSION_PLATFORMS,
+  BROWSER_EXTENSION_STORE_HOSTS,
   CODE_HOST_ALLOWLIST,
   EXTENSION_STORE_HOSTS_BY_PLATFORM,
   MIN_SCREENSHOT_COUNT,
@@ -235,10 +237,25 @@ function validatePlayableUrl(input: SubmissionGateInput, failures: SubmissionGat
 
   switch (projectType) {
     case "extension-plugin": {
-      // Store listing for the declared platform, or a release on an allowed
-      // forge (.crx/.zip/.vsix/...) for platforms whose store needs a paid
-      // developer license — the handbook's browser-extension carve-out.
       const platform = (input.editor ?? "").trim();
+
+      // Browser extensions must be published — a listing on the Chrome Web
+      // Store or Firefox Add-ons (either store), with no forge-release
+      // fallback. Stricter than the handbook's carve-out, on purpose.
+      if (BROWSER_EXTENSION_PLATFORMS.includes(platform)) {
+        if (!hostMatchesAny(url.hostname, BROWSER_EXTENSION_STORE_HOSTS)) {
+          failures.push({
+            code: "playable_url_type",
+            message:
+              "Browser extensions must be published on the Chrome Web Store (chromewebstore.google.com) or Firefox Add-ons (addons.mozilla.org) — link your public store listing.",
+          });
+        }
+        return;
+      }
+
+      // Other platforms: store listing for the declared platform, or a
+      // release on an allowed forge (.zip/.vsix/...) for platforms whose
+      // store needs a paid developer license.
       const storeHosts = EXTENSION_STORE_HOSTS_BY_PLATFORM[platform] ?? [];
       const onStore = storeHosts.length > 0 && hostMatchesAny(url.hostname, storeHosts);
       const onForgeRelease = isForgeReleaseUrl(url, CODE_HOST_ALLOWLIST);
