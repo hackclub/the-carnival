@@ -1,5 +1,14 @@
 import { describe, expect, mock, test } from "bun:test";
 
+const dbState = {
+  userRow: {
+    hackatimeAccessToken: "token-1",
+    hackatimeUserId: "123",
+    slackId: "U123",
+  },
+  updateCalls: [],
+};
+
 mock.module("@/db", () => ({
   db: {
     select() {
@@ -8,14 +17,20 @@ mock.module("@/db", () => ({
           return {
             where() {
               return {
-                limit: async () => [
-                  {
-                    hackatimeAccessToken: "token-1",
-                    hackatimeUserId: "123",
-                    slackId: "U123",
-                  },
-                ],
+                limit: async () => [dbState.userRow],
               };
+            },
+          };
+        },
+      };
+    },
+    update() {
+      return {
+        set(values) {
+          return {
+            where: async () => {
+              dbState.updateCalls.push(values);
+              return [];
             },
           };
         },
@@ -26,11 +41,28 @@ mock.module("@/db", () => ({
 
 const {
   buildHackatimeAuthenticatedProjectsUrl,
+  disconnectHackatimeForUser,
+  fetchHackatimeProjectsForConnectedUser,
+  fetchHackatimeProjectsForUser,
   fetchHackatimeProjectTotalSecondsForInstantRange,
   matchingProjectOverlapSeconds,
   refreshHackatimeProjectSnapshotForRange,
   toHackatimeHoursBreakdown,
 } = await import("./hackatime.ts");
+const { isHackatimeAuthError } = await import("./hackatime-errors.ts");
+
+function unauthorizedResponse() {
+  return new Response("unauthorized", { status: 401, statusText: "Unauthorized" });
+}
+
+async function captureError(run) {
+  try {
+    await run();
+  } catch (error) {
+    return error;
+  }
+  return null;
+}
 
 const originalFetch = global.fetch;
 
@@ -178,5 +210,127 @@ describe("hackatime", () => {
     } finally {
       global.fetch = originalFetch;
     }
+  });
+
+  test("a 401 from Hackatime raises a revoked auth error and clears the stored token", async () => {
+    dbState.updateCalls = [];
+    try {
+      global.fetch = async () => unauthorizedResponse();
+
+      const caught = await captureError(() => fetchHackatimeProjectsForConnectedUser("user-1"));
+
+      expect(isHackatimeAuthError(caught)).toBe(true);
+      expect(caught.reason).toBe("revoked");
+      // Token and scope go; the Hackatime user id and connected-at stay so
+      // devlogs keep working and the UI can offer "reconnect".
+      expect(dbState.updateCalls).toHaveLength(1);
+      expect(dbState.updateCalls[0].hackatimeAccessToken).toBeNull();
+      expect(dbState.updateCalls[0].hackatimeScope).toBeNull();
+      expect("hackatimeUserId" in dbState.updateCalls[0]).toBe(false);
+      expect("hackatimeConnectedAt" in dbState.updateCalls[0]).toBe(false);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test("non-401 Hackatime failures stay generic and keep the token", async () => {
+    dbState.updateCalls = [];
+    try {
+      global.fetch = async () => new Response("forbidden", { status: 403, statusText: "Forbidden" });
+
+      const caught = await captureError(() => fetchHackatimeProjectsForConnectedUser("user-1"));
+
+      expect(isHackatimeAuthError(caught)).toBe(false);
+      expect(String(caught?.message)).toContain("403");
+      expect(dbState.updateCalls).toHaveLength(0);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test("a missing token raises not_connected without calling Hackatime", async () => {
+    const previousRow = dbState.userRow;
+    dbState.userRow = { ...previousRow, hackatimeAccessToken: null };
+    dbState.updateCalls = [];
+    try {
+      global.fetch = async () => {
+        throw new Error("Hackatime should not be called without a token");
+      };
+
+      const caught = await captureError(() => fetchHackatimeProjectsForConnectedUser("user-1"));
+
+      expect(isHackatimeAuthError(caught)).toBe(true);
+      expect(caught.reason).toBe("not_connected");
+      expect(dbState.updateCalls).toHaveLength(0);
+    } finally {
+      dbState.userRow = previousRow;
+      global.fetch = originalFetch;
+    }
+  });
+
+  test("a missing token with a connected-at timestamp keeps reading as revoked", async () => {
+    const previousRow = dbState.userRow;
+    dbState.userRow = {
+      ...previousRow,
+      hackatimeAccessToken: null,
+      hackatimeConnectedAt: new Date("2026-03-01T00:00:00.000Z"),
+    };
+    dbState.updateCalls = [];
+    try {
+      global.fetch = async () => {
+        throw new Error("Hackatime should not be called without a token");
+      };
+
+      const caught = await captureError(() => fetchHackatimeProjectsForConnectedUser("user-1"));
+
+      expect(isHackatimeAuthError(caught)).toBe(true);
+      expect(caught.reason).toBe("revoked");
+      expect(dbState.updateCalls).toHaveLength(0);
+    } finally {
+      dbState.userRow = previousRow;
+      global.fetch = originalFetch;
+    }
+  });
+
+  test("lenient project listing reads a revoked token as no projects", async () => {
+    try {
+      global.fetch = async () => unauthorizedResponse();
+      expect(await fetchHackatimeProjectsForUser("user-1")).toEqual([]);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test("range refresh surfaces the revoked error to callers", async () => {
+    try {
+      global.fetch = async () => unauthorizedResponse();
+
+      const caught = await captureError(() =>
+        refreshHackatimeProjectSnapshotForRange("user-1", {
+          projectName: "project-one",
+          range: { startDate: "2026-03-10", endDate: "2026-03-20" },
+        }),
+      );
+
+      expect(isHackatimeAuthError(caught)).toBe(true);
+      expect(caught.reason).toBe("revoked");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test("disconnect drops the OAuth grant but keeps the Hackatime user id", async () => {
+    dbState.updateCalls = [];
+
+    await disconnectHackatimeForUser("user-1");
+
+    expect(dbState.updateCalls).toHaveLength(1);
+    expect(dbState.updateCalls[0]).toMatchObject({
+      hackatimeAccessToken: null,
+      hackatimeScope: null,
+      hackatimeConnectedAt: null,
+    });
+    // Reviewer tools and devlog hours for in-review projects key on this.
+    expect("hackatimeUserId" in dbState.updateCalls[0]).toBe(false);
   });
 });

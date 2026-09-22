@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { user } from "@/db/schema";
+import { HackatimeAuthError, isHackatimeAuthError } from "@/lib/hackatime-errors";
 import { toUtcBoundaryDate, type ConsideredHackatimeRange } from "@/lib/hackatime-range";
 
 type HackatimeProjectsResponse = {
@@ -145,6 +146,56 @@ export async function getHackatimeAccessTokenForUser(userId: string): Promise<st
 }
 
 /**
+ * Hackatime answered 401 for the stored token, so it was revoked on
+ * Hackatime's side and can never work again. Drop it so the account page and
+ * the project pickers stop claiming a working connection and offer a
+ * reconnect instead. `hackatimeUserId` and `hackatimeConnectedAt` stay:
+ * devlog hours key on the former via the admin timeline, and the latter lets
+ * the UI say "reconnect" rather than "connect".
+ */
+export async function invalidateHackatimeAccessTokenForUser(userId: string) {
+  await db
+    .update(user)
+    .set({ hackatimeAccessToken: null, hackatimeScope: null, updatedAt: new Date() })
+    .where(eq(user.id, userId));
+}
+
+/**
+ * User-initiated disconnect from Account settings. Drops the OAuth grant
+ * (token, scope, connected-at) but keeps `hackatimeUserId`: it is a public
+ * identifier, and reviewer tools plus devlog hours for the user's existing
+ * projects key on it through the admin timeline. Disconnecting must not let a
+ * creator switch off verification of a project that is already in review.
+ */
+export async function disconnectHackatimeForUser(userId: string) {
+  await db
+    .update(user)
+    .set({
+      hackatimeAccessToken: null,
+      hackatimeScope: null,
+      hackatimeConnectedAt: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(user.id, userId));
+}
+
+async function getHackatimeConnectionRowForUser(userId: string) {
+  const rows = await db
+    .select({
+      hackatimeAccessToken: user.hackatimeAccessToken,
+      hackatimeConnectedAt: user.hackatimeConnectedAt,
+    })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+  const token = rows[0]?.hackatimeAccessToken;
+  return {
+    token: typeof token === "string" && token.trim() ? token : null,
+    connectedAt: rows[0]?.hackatimeConnectedAt ?? null,
+  };
+}
+
+/**
  * Public Hackatime identifier for a user. Preferred for the /users/{uid}/stats
  * endpoint which does not require OAuth. Falls back to slack_id when hackatime
  * has not yet been OAuth-connected but the user is known by Slack.
@@ -252,6 +303,12 @@ export async function fetchHackatimeProjectsByAccessToken(
     accessToken,
   );
 
+  // Exactly 401: Doorkeeper rejected the bearer token (revoked or expired).
+  // 403 means insufficient scope and 5xx means Hackatime trouble; neither
+  // says anything about the token, so they stay generic errors.
+  if (response.status === 401) {
+    throw new HackatimeAuthError("revoked");
+  }
   if (!response.ok) {
     const body = await response.text().catch(() => "");
     throw new Error(
@@ -286,12 +343,40 @@ export async function fetchHackatimeProjectsByAccessToken(
     });
 }
 
-export async function fetchHackatimeProjectsForUser(userId: string): Promise<HackatimeProjectSummary[]> {
-  const token = await getHackatimeAccessTokenForUser(userId);
-  if (!token) return [];
+/**
+ * Fetch a user's Hackatime projects with their own OAuth token.
+ *
+ * Throws HackatimeAuthError("not_connected") when no token is stored and
+ * HackatimeAuthError("revoked") when Hackatime rejects the stored one. In the
+ * revoked case the dead token is cleared first, so every other surface flips
+ * from "connected" to "reconnect" without waiting for another failure.
+ */
+export async function fetchHackatimeProjectsForConnectedUser(
+  userId: string,
+  query: AuthenticatedProjectsQuery = {},
+): Promise<HackatimeProjectSummary[]> {
+  const { token, connectedAt } = await getHackatimeConnectionRowForUser(userId);
+  if (!token) {
+    // Connected-at without a token means a revoked token was already dropped:
+    // keep answering "reconnect" on every later call, not only the first failure.
+    throw new HackatimeAuthError(connectedAt ? "revoked" : "not_connected");
+  }
 
   try {
-    return await fetchHackatimeProjectsByAccessToken(token);
+    return await fetchHackatimeProjectsByAccessToken(token, query);
+  } catch (error) {
+    if (isHackatimeAuthError(error) && error.reason === "revoked") {
+      // Best effort: the auth error is the important signal even if this write fails.
+      await invalidateHackatimeAccessTokenForUser(userId).catch(() => undefined);
+    }
+    throw error;
+  }
+}
+
+/** Lenient variant for read-only displays: any failure reads as "no projects". */
+export async function fetchHackatimeProjectsForUser(userId: string): Promise<HackatimeProjectSummary[]> {
+  try {
+    return await fetchHackatimeProjectsForConnectedUser(userId);
   } catch {
     return [];
   }
@@ -301,19 +386,25 @@ export async function fetchHackatimeProjectTotalSecondsForRange(
   userId: string,
   input: { projectName: string; range: ConsideredHackatimeRange },
 ) {
-  const token = await getHackatimeAccessTokenForUser(userId);
-  if (!token) {
-    throw new Error("Connect your Hackatime account to refresh the considered range.");
-  }
-
   const start = `${input.range.startDate}T00:00:00.000Z`;
   const end = `${input.range.endDate}T23:59:59.999Z`;
-  const projects = await fetchHackatimeProjectsByAccessToken(token, {
-    includeArchived: false,
-    projects: [input.projectName],
-    start,
-    end,
-  });
+  let projects: HackatimeProjectSummary[];
+  try {
+    projects = await fetchHackatimeProjectsForConnectedUser(userId, {
+      includeArchived: false,
+      projects: [input.projectName],
+      start,
+      end,
+    });
+  } catch (error) {
+    if (isHackatimeAuthError(error) && error.reason === "not_connected") {
+      throw new HackatimeAuthError(
+        "not_connected",
+        "Connect your Hackatime account to refresh the considered range.",
+      );
+    }
+    throw error;
+  }
 
   const wanted = input.projectName.trim().toLowerCase();
   const matched = projects.find((project) => project.name.trim().toLowerCase() === wanted);

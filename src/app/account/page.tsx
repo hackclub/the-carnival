@@ -23,31 +23,33 @@ export default async function AccountPage() {
       zipPostalCode: user.zipPostalCode,
       hackatimeUserId: user.hackatimeUserId,
       hackatimeConnectedAt: user.hackatimeConnectedAt,
+      hackatimeAccessToken: user.hackatimeAccessToken,
     })
     .from(user)
     .where(eq(user.id, session.user.id))
     .limit(1);
 
-  const initial = rows[0] ?? {
-    birthday: null,
-    addressLine1: null,
-    addressLine2: null,
-    city: null,
-    stateProvince: null,
-    country: null,
-    zipPostalCode: null,
-    hackatimeUserId: null,
-    hackatimeConnectedAt: null,
-  };
+  const row = rows[0];
 
   return (
     <AppShell title="Account settings">
       <AccountProfileClient
         initial={{
-          ...initial,
-          hackatimeConnectedAt: initial.hackatimeConnectedAt
-            ? initial.hackatimeConnectedAt.toISOString()
+          birthday: row?.birthday ?? null,
+          addressLine1: row?.addressLine1 ?? null,
+          addressLine2: row?.addressLine2 ?? null,
+          city: row?.city ?? null,
+          stateProvince: row?.stateProvince ?? null,
+          country: row?.country ?? null,
+          zipPostalCode: row?.zipPostalCode ?? null,
+          hackatimeUserId: row?.hackatimeUserId ?? null,
+          hackatimeConnectedAt: row?.hackatimeConnectedAt
+            ? row.hackatimeConnectedAt.toISOString()
             : null,
+          // Only the boolean crosses to the client; the token itself never does.
+          // A connected-at timestamp without a token means Hackatime revoked
+          // Carnival's access and the user needs to reconnect.
+          hackatimeConnected: !!row?.hackatimeAccessToken?.trim(),
         }}
       />
     </AppShell>

@@ -48,6 +48,7 @@ import {
   loadDevlogHackatimeBreakdown,
   refreshHackatimeProjectSnapshotForRange,
 } from "@/lib/hackatime";
+import { describeCreatorHackatimeAuthError, isHackatimeAuthError } from "@/lib/hackatime-errors";
 import { notifyReviewDM } from "@/lib/slack";
 import {
   AI_SLOP_REJECTION_MESSAGE,
@@ -656,8 +657,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           projectRangeUpdate.hackatimeStoppedAt = refreshed.hackatimeStoppedAt;
           projectRangeUpdate.hackatimeTotalSeconds = hackatimeSnapshotSeconds;
         } catch (error) {
-          const message =
-            error instanceof Error && error.message.trim()
+          // The token that failed is the creator's, so only they can fix it.
+          const message = isHackatimeAuthError(error)
+            ? describeCreatorHackatimeAuthError(error)
+            : error instanceof Error && error.message.trim()
               ? error.message.trim()
               : "Failed to refresh Hackatime for the selected range.";
           throw new ReviewSubmitError(

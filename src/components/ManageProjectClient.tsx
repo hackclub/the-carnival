@@ -155,6 +155,9 @@ export default function ManageProjectClient({
   const [hackatimeLoading, setHackatimeLoading] = useState(false);
   const [hackatimeError, setHackatimeError] = useState<string | null>(null);
   const [hackatimeConnectUrl, setHackatimeConnectUrl] = useState<string | null>(null);
+  // True when Hackatime rejected a previously stored token (revoked on their
+  // side), so the connect button reads "Reconnect" rather than "Connect".
+  const [hackatimeNeedsReconnect, setHackatimeNeedsReconnect] = useState(false);
 
   const [name, setName] = useState(initial.name);
   const [description, setDescription] = useState(initial.description);
@@ -468,11 +471,12 @@ export default function ManageProjectClient({
         { method: "GET" },
       );
       const data = (await res.json().catch(() => null)) as
-        | { projects?: unknown; error?: unknown; code?: unknown; connectUrl?: unknown }
+        | { projects?: unknown; error?: unknown; code?: unknown; reason?: unknown; connectUrl?: unknown }
         | null;
 
       if (!res.ok) {
         const code = typeof data?.code === "string" ? data.code : "";
+        const reason = typeof data?.reason === "string" ? data.reason : "";
         const connectUrl =
           typeof data?.connectUrl === "string" && data.connectUrl.trim() ? data.connectUrl : null;
         if (code === "oauth_required") {
@@ -480,6 +484,7 @@ export default function ManageProjectClient({
             connectUrl ??
               `/api/hackatime/oauth/start?returnTo=${encodeURIComponent(returnTo)}`,
           );
+          setHackatimeNeedsReconnect(reason === "revoked");
         }
         const message = typeof data?.error === "string" ? data.error : "Failed to load.";
         setHackatimeError(message);
@@ -1269,7 +1274,7 @@ export default function ManageProjectClient({
                 href={hackatimeConnectUrl}
                 className="inline-flex items-center justify-center bg-carnival-blue hover:bg-carnival-blue/80 text-white px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors"
               >
-                Connect Hackatime
+                {hackatimeNeedsReconnect ? "Reconnect Hackatime" : "Connect Hackatime"}
               </a>
             ) : null}
             {hackatimeError ? (

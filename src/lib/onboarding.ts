@@ -13,8 +13,11 @@ export async function getOnboardingProgress(
   userId: string,
 ): Promise<OnboardingProgress> {
   const [userRows, projectRows, devlogRows, submittedRows] = await Promise.all([
+    // A stored token, not the connected-at timestamp: the token is cleared
+    // when Hackatime revokes it, and the step should reopen so the user is
+    // pointed back to Account settings to reconnect.
     db
-      .select({ hackatimeConnectedAt: user.hackatimeConnectedAt })
+      .select({ hackatimeAccessToken: user.hackatimeAccessToken })
       .from(user)
       .where(eq(user.id, userId))
       .limit(1),
@@ -33,7 +36,7 @@ export async function getOnboardingProgress(
   ]);
 
   return {
-    hackatimeConnected: !!userRows[0]?.hackatimeConnectedAt,
+    hackatimeConnected: !!userRows[0]?.hackatimeAccessToken?.trim(),
     hasProject: projectRows.length > 0,
     hasDevlog: devlogRows.length > 0,
     hasSubmittedProject: submittedRows.length > 0,

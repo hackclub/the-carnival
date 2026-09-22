@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { project } from "@/db/schema";
 import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
+import { describeCreatorHackatimeAuthError, isHackatimeAuthError } from "@/lib/hackatime-errors";
 import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
 import { getServerSession } from "@/lib/server-session";
 
@@ -78,8 +79,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       },
     });
   } catch (error) {
-    const message =
-      error instanceof Error && error.message.trim()
+    // The token that failed is the creator's, so only they can fix it.
+    const message = isHackatimeAuthError(error)
+      ? describeCreatorHackatimeAuthError(error)
+      : error instanceof Error && error.message.trim()
         ? error.message.trim()
         : "Failed to refresh Hackatime for the selected range.";
     return NextResponse.json({ error: message }, { status: 400 });

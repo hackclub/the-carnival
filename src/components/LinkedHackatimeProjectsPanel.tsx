@@ -43,6 +43,12 @@ export default function LinkedHackatimeProjectsPanel({ projectId, readonly = fal
 
   const [userProjects, setUserProjects] = useState<HackatimeProject[]>([]);
   const [userProjectsLoading, setUserProjectsLoading] = useState(false);
+  // Set when /api/hackatime/projects answers 401 oauth_required: the user has
+  // to (re)connect Hackatime before suggestions can load.
+  const [hackatimeConnect, setHackatimeConnect] = useState<{
+    url: string;
+    reconnect: boolean;
+  } | null>(null);
 
   const [addName, setAddName] = useState("");
   const [adding, setAdding] = useState(false);
@@ -74,16 +80,29 @@ export default function LinkedHackatimeProjectsPanel({ projectId, readonly = fal
     if (readonly) return;
     setUserProjectsLoading(true);
     try {
-      const res = await fetch("/api/hackatime/projects");
+      const returnTo = `${window.location.pathname}${window.location.search}`;
+      const res = await fetch(
+        `/api/hackatime/projects?returnTo=${encodeURIComponent(returnTo)}`,
+      );
       const data = (await res.json().catch(() => null)) as
-        | { projects?: unknown; error?: unknown }
+        | { projects?: unknown; error?: unknown; code?: unknown; reason?: unknown; connectUrl?: unknown }
         | null;
       if (res.ok && Array.isArray(data?.projects)) {
+        setHackatimeConnect(null);
         setUserProjects(
           (data.projects as HackatimeProject[]).filter(
             (p): p is HackatimeProject => typeof p.name === "string" && p.name.trim().length > 0,
           ),
         );
+      } else if (res.status === 401 && data?.code === "oauth_required") {
+        setHackatimeConnect({
+          url:
+            typeof data.connectUrl === "string" && data.connectUrl.trim()
+              ? data.connectUrl
+              : `/api/hackatime/oauth/start?returnTo=${encodeURIComponent(returnTo)}`,
+          reconnect: data.reason === "revoked",
+        });
+        setUserProjects([]);
       }
     } catch {
       // Non-critical — user can still type a name manually
@@ -262,6 +281,19 @@ export default function LinkedHackatimeProjectsPanel({ projectId, readonly = fal
             </div>
             {addError ? (
               <div className="text-xs text-red-200">{addError}</div>
+            ) : null}
+            {hackatimeConnect ? (
+              <div className="text-xs text-muted-foreground">
+                {hackatimeConnect.reconnect
+                  ? "Carnival's access to your Hackatime account was revoked, so suggestions can't load. "
+                  : "Connect Hackatime to see your projects suggested here. "}
+                <a
+                  href={hackatimeConnect.url}
+                  className="font-semibold text-carnival-blue hover:underline"
+                >
+                  {hackatimeConnect.reconnect ? "Reconnect Hackatime" : "Connect Hackatime"}
+                </a>
+              </div>
             ) : null}
           </div>
         ) : null}
