@@ -1,6 +1,10 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { user } from "@/db/schema";
+import {
+  deriveHackatimeConnectionStatus,
+  type HackatimeConnectionStatus,
+} from "@/lib/hackatime-connection";
 import { HackatimeAuthError, isHackatimeAuthError } from "@/lib/hackatime-errors";
 import { toUtcBoundaryDate, type ConsideredHackatimeRange } from "@/lib/hackatime-range";
 
@@ -193,6 +197,49 @@ async function getHackatimeConnectionRowForUser(userId: string) {
     token: typeof token === "string" && token.trim() ? token : null,
     connectedAt: rows[0]?.hackatimeConnectedAt ?? null,
   };
+}
+
+/** Stored state only; does not contact Hackatime. Drives the in-app banner. */
+export async function getHackatimeConnectionStatusForUser(
+  userId: string,
+): Promise<HackatimeConnectionStatus> {
+  const { token, connectedAt } = await getHackatimeConnectionRowForUser(userId);
+  return deriveHackatimeConnectionStatus({ hasToken: !!token, connectedAt });
+}
+
+export type HackatimeTokenVerification = "ok" | "revoked" | "not_connected" | "unknown";
+
+const VERIFY_TIMEOUT_MS = 4000;
+
+/**
+ * Ask Hackatime whether the stored token still works. Used where the UI
+ * claims a live connection (Account settings), so a revoked token is caught
+ * even before any project page has tried to use it. A 401 drops the token
+ * like any other request would; network trouble or 5xx is `unknown` and
+ * leaves the stored state alone.
+ */
+export async function verifyHackatimeAccessTokenForUser(
+  userId: string,
+): Promise<HackatimeTokenVerification> {
+  const { token, connectedAt } = await getHackatimeConnectionRowForUser(userId);
+  if (!token) return connectedAt ? "revoked" : "not_connected";
+
+  let response: Response;
+  try {
+    response = await fetch("https://hackatime.hackclub.com/api/v1/authenticated/me", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(VERIFY_TIMEOUT_MS),
+    });
+  } catch {
+    return "unknown";
+  }
+
+  if (response.status === 401) {
+    await invalidateHackatimeAccessTokenForUser(userId).catch(() => undefined);
+    return "revoked";
+  }
+  return response.ok ? "ok" : "unknown";
 }
 
 /**

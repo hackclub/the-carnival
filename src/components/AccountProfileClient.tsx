@@ -6,6 +6,10 @@ import toast from "react-hot-toast";
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
 import { Input, FormLabel } from "@/components/ui/form";
 import { DatePicker } from "@/components/ui/date-picker";
+import {
+  deriveHackatimeConnectionStatus,
+  hackatimeConnectUrl,
+} from "@/lib/hackatime-connection";
 
 export type AccountProfileInitial = {
   birthday: string | null;
@@ -22,9 +26,7 @@ export type AccountProfileInitial = {
   hackatimeConnected: boolean;
 };
 
-type HackatimeStatus = "connected" | "needs_reconnect" | "not_connected";
-
-const HACKATIME_CONNECT_URL = "/api/hackatime/oauth/start?returnTo=/account";
+const HACKATIME_CONNECT_URL = hackatimeConnectUrl("/account");
 
 function toClean(v: string) {
   const s = v.trim();
@@ -36,11 +38,10 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
   const [saving, setSaving] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
-  const hackatimeStatus: HackatimeStatus = initial.hackatimeConnected
-    ? "connected"
-    : initial.hackatimeConnectedAt
-      ? "needs_reconnect"
-      : "not_connected";
+  const hackatimeStatus = deriveHackatimeConnectionStatus({
+    hasToken: initial.hackatimeConnected,
+    connectedAt: initial.hackatimeConnectedAt,
+  });
 
   const startHackatimeOAuth = useCallback(() => {
     window.location.href = HACKATIME_CONNECT_URL;

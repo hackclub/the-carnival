@@ -4,6 +4,7 @@ import AppShell from "@/components/AppShell";
 import AccountProfileClient from "@/components/AccountProfileClient";
 import { db } from "@/db";
 import { user } from "@/db/schema";
+import { verifyHackatimeAccessTokenForUser } from "@/lib/hackatime";
 import { getServerSession } from "@/lib/server-session";
 
 export default async function AccountPage() {
@@ -12,22 +13,27 @@ export default async function AccountPage() {
     redirect("/login?callbackUrl=/account");
   }
 
-  const rows = await db
-    .select({
-      birthday: user.birthday,
-      addressLine1: user.addressLine1,
-      addressLine2: user.addressLine2,
-      city: user.city,
-      stateProvince: user.stateProvince,
-      country: user.country,
-      zipPostalCode: user.zipPostalCode,
-      hackatimeUserId: user.hackatimeUserId,
-      hackatimeConnectedAt: user.hackatimeConnectedAt,
-      hackatimeAccessToken: user.hackatimeAccessToken,
-    })
-    .from(user)
-    .where(eq(user.id, session.user.id))
-    .limit(1);
+  // This page claims "Connected", so check with Hackatime first: a token
+  // revoked on their side is dropped here and the card offers Reconnect,
+  // even if no project page has tried to use the token yet.
+  const [rows, hackatimeVerification] = await Promise.all([
+    db
+      .select({
+        birthday: user.birthday,
+        addressLine1: user.addressLine1,
+        addressLine2: user.addressLine2,
+        city: user.city,
+        stateProvince: user.stateProvince,
+        country: user.country,
+        zipPostalCode: user.zipPostalCode,
+        hackatimeUserId: user.hackatimeUserId,
+        hackatimeConnectedAt: user.hackatimeConnectedAt,
+      })
+      .from(user)
+      .where(eq(user.id, session.user.id))
+      .limit(1),
+    verifyHackatimeAccessTokenForUser(session.user.id),
+  ]);
 
   const row = rows[0];
 
@@ -46,10 +52,10 @@ export default async function AccountPage() {
           hackatimeConnectedAt: row?.hackatimeConnectedAt
             ? row.hackatimeConnectedAt.toISOString()
             : null,
-          // Only the boolean crosses to the client; the token itself never does.
-          // A connected-at timestamp without a token means Hackatime revoked
-          // Carnival's access and the user needs to reconnect.
-          hackatimeConnected: !!row?.hackatimeAccessToken?.trim(),
+          // Only a boolean crosses to the client; the token itself never does.
+          // "unknown" (Hackatime unreachable) keeps the stored state.
+          hackatimeConnected:
+            hackatimeVerification === "ok" || hackatimeVerification === "unknown",
         }}
       />
     </AppShell>

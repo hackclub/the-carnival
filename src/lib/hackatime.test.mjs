@@ -45,9 +45,11 @@ const {
   fetchHackatimeProjectsForConnectedUser,
   fetchHackatimeProjectsForUser,
   fetchHackatimeProjectTotalSecondsForInstantRange,
+  getHackatimeConnectionStatusForUser,
   matchingProjectOverlapSeconds,
   refreshHackatimeProjectSnapshotForRange,
   toHackatimeHoursBreakdown,
+  verifyHackatimeAccessTokenForUser,
 } = await import("./hackatime.ts");
 const { isHackatimeAuthError } = await import("./hackatime-errors.ts");
 
@@ -315,6 +317,97 @@ describe("hackatime", () => {
       expect(isHackatimeAuthError(caught)).toBe(true);
       expect(caught.reason).toBe("revoked");
     } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test("connection status is derived from stored state without calling Hackatime", async () => {
+    const previousRow = dbState.userRow;
+    try {
+      global.fetch = async () => {
+        throw new Error("status derivation must not call Hackatime");
+      };
+
+      expect(await getHackatimeConnectionStatusForUser("user-1")).toBe("connected");
+
+      dbState.userRow = {
+        ...previousRow,
+        hackatimeAccessToken: null,
+        hackatimeConnectedAt: new Date("2026-03-01T00:00:00.000Z"),
+      };
+      expect(await getHackatimeConnectionStatusForUser("user-1")).toBe("needs_reconnect");
+
+      dbState.userRow = { ...previousRow, hackatimeAccessToken: null };
+      expect(await getHackatimeConnectionStatusForUser("user-1")).toBe("not_connected");
+    } finally {
+      dbState.userRow = previousRow;
+      global.fetch = originalFetch;
+    }
+  });
+
+  test("token verification reports ok for a working token", async () => {
+    dbState.updateCalls = [];
+    try {
+      global.fetch = async (url) => {
+        expect(String(url)).toContain("/api/v1/authenticated/me");
+        return new Response(JSON.stringify({ id: 123 }), { status: 200 });
+      };
+
+      expect(await verifyHackatimeAccessTokenForUser("user-1")).toBe("ok");
+      expect(dbState.updateCalls).toHaveLength(0);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test("token verification drops a revoked token", async () => {
+    dbState.updateCalls = [];
+    try {
+      global.fetch = async () => unauthorizedResponse();
+
+      expect(await verifyHackatimeAccessTokenForUser("user-1")).toBe("revoked");
+      expect(dbState.updateCalls).toHaveLength(1);
+      expect(dbState.updateCalls[0].hackatimeAccessToken).toBeNull();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test("token verification treats Hackatime outages as unknown and keeps the token", async () => {
+    dbState.updateCalls = [];
+    try {
+      global.fetch = async () => {
+        throw new Error("network down");
+      };
+      expect(await verifyHackatimeAccessTokenForUser("user-1")).toBe("unknown");
+
+      global.fetch = async () => new Response("oops", { status: 503 });
+      expect(await verifyHackatimeAccessTokenForUser("user-1")).toBe("unknown");
+
+      expect(dbState.updateCalls).toHaveLength(0);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test("token verification without a token mirrors the stored state", async () => {
+    const previousRow = dbState.userRow;
+    try {
+      global.fetch = async () => {
+        throw new Error("no token means no Hackatime call");
+      };
+
+      dbState.userRow = { ...previousRow, hackatimeAccessToken: null };
+      expect(await verifyHackatimeAccessTokenForUser("user-1")).toBe("not_connected");
+
+      dbState.userRow = {
+        ...previousRow,
+        hackatimeAccessToken: null,
+        hackatimeConnectedAt: new Date("2026-03-01T00:00:00.000Z"),
+      };
+      expect(await verifyHackatimeAccessTokenForUser("user-1")).toBe("revoked");
+    } finally {
+      dbState.userRow = previousRow;
       global.fetch = originalFetch;
     }
   });
