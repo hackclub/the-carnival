@@ -5,6 +5,7 @@ import { bountyProject, project, tokenLedger, type ProjectStatus } from "@/db/sc
 import { formatUtcInstant } from "@/lib/devlog-shared";
 import { listDevlogsOutsideRange } from "@/lib/devlogs";
 import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
+import { describeCreatorHackatimeAuthError, isHackatimeAuthError } from "@/lib/hackatime-errors";
 import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
 import { getServerSession } from "@/lib/server-session";
 import { approvedHoursWithinSnapshot } from "@/lib/review-rules";
@@ -365,8 +366,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         notice,
       });
     } catch (error) {
-      const message =
-        error instanceof Error && error.message.trim()
+      // The token that failed is the creator's, so only they can fix it.
+      const message = isHackatimeAuthError(error)
+        ? describeCreatorHackatimeAuthError(error)
+        : error instanceof Error && error.message.trim()
           ? error.message.trim()
           : "Failed to refresh Hackatime for the selected range.";
       return NextResponse.json(

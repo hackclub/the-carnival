@@ -1,10 +1,15 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
 import { Input, FormLabel } from "@/components/ui/form";
 import { DatePicker } from "@/components/ui/date-picker";
+import {
+  deriveHackatimeConnectionStatus,
+  hackatimeConnectUrl,
+} from "@/lib/hackatime-connection";
 
 export type AccountProfileInitial = {
   birthday: string | null;
@@ -16,7 +21,12 @@ export type AccountProfileInitial = {
   zipPostalCode: string | null;
   hackatimeUserId: string | null;
   hackatimeConnectedAt: string | null;
+  // A working token is stored. False with a connectedAt timestamp means the
+  // token was revoked on Hackatime's side and the user needs to reconnect.
+  hackatimeConnected: boolean;
 };
+
+const HACKATIME_CONNECT_URL = hackatimeConnectUrl("/account");
 
 function toClean(v: string) {
   const s = v.trim();
@@ -24,7 +34,43 @@ function toClean(v: string) {
 }
 
 export default function AccountProfileClient({ initial }: { initial: AccountProfileInitial }) {
+  const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  const hackatimeStatus = deriveHackatimeConnectionStatus({
+    hasToken: initial.hackatimeConnected,
+    connectedAt: initial.hackatimeConnectedAt,
+  });
+
+  const startHackatimeOAuth = useCallback(() => {
+    window.location.href = HACKATIME_CONNECT_URL;
+  }, []);
+
+  const onDisconnectHackatime = useCallback(async () => {
+    const confirmed = window.confirm(
+      "Disconnect Hackatime from Carnival? You'll need to reconnect before Carnival can list your Hackatime projects or refresh project hours.",
+    );
+    if (!confirmed) return;
+    setDisconnecting(true);
+    const toastId = toast.loading("Disconnecting Hackatime…");
+    try {
+      const res = await fetch("/api/hackatime/disconnect", { method: "POST" });
+      const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+      if (!res.ok) {
+        const message =
+          typeof data?.error === "string" ? data.error : "Failed to disconnect Hackatime.";
+        toast.error(message, { id: toastId });
+        return;
+      }
+      toast.success("Hackatime disconnected.", { id: toastId });
+      router.refresh();
+    } catch {
+      toast.error("Failed to disconnect Hackatime.", { id: toastId });
+    } finally {
+      setDisconnecting(false);
+    }
+  }, [router]);
 
   const [birthday, setBirthday] = useState(initial.birthday ?? "");
   const [addressLine1, setAddressLine1] = useState(initial.addressLine1 ?? "");
@@ -85,37 +131,69 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
               <CardTitle>Hackatime</CardTitle>
               <CardDescription>Connection status for project time tracking.</CardDescription>
             </div>
-            <Badge variant={initial.hackatimeConnectedAt ? "success" : "warning"}>
-              {initial.hackatimeConnectedAt ? "Connected" : "Not connected"}
+            <Badge
+              variant={
+                hackatimeStatus === "connected"
+                  ? "success"
+                  : hackatimeStatus === "needs_reconnect"
+                    ? "error"
+                    : "warning"
+              }
+            >
+              {hackatimeStatus === "connected"
+                ? "Connected"
+                : hackatimeStatus === "needs_reconnect"
+                  ? "Needs reconnect"
+                  : "Not connected"}
             </Badge>
           </div>
         </CardHeader>
         <CardContent>
-          {initial.hackatimeConnectedAt ? (
-            <div className="text-sm text-muted-foreground">
-              Connected
-              {initial.hackatimeConnectedAt
-                ? ` ${new Date(initial.hackatimeConnectedAt).toLocaleString()}`
-                : ""}
-              {initial.hackatimeUserId ? (
-                <>
-                  {" "}
-                  as <span className="font-mono text-foreground">{initial.hackatimeUserId}</span>
-                </>
-              ) : null}
+          {hackatimeStatus === "connected" ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-muted-foreground">
+                Connected
+                {initial.hackatimeConnectedAt
+                  ? ` ${new Date(initial.hackatimeConnectedAt).toLocaleString()}`
+                  : ""}
+                {initial.hackatimeUserId ? (
+                  <>
+                    {" "}
+                    as <span className="font-mono text-foreground">{initial.hackatimeUserId}</span>
+                  </>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="secondary" onClick={startHackatimeOAuth}>
+                  Reconnect
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={onDisconnectHackatime}
+                  disabled={disconnecting}
+                >
+                  {disconnecting ? "Disconnecting…" : "Disconnect"}
+                </Button>
+              </div>
+            </div>
+          ) : hackatimeStatus === "needs_reconnect" ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-muted-foreground">
+                Carnival&apos;s access to your Hackatime account is no longer valid. This usually
+                happens when Carnival is removed from Hackatime&apos;s Authorized Applications.
+                Reconnect to load your projects and refresh hours again.
+              </div>
+              <Button type="button" variant="primary" onClick={startHackatimeOAuth}>
+                Reconnect Hackatime
+              </Button>
             </div>
           ) : (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm text-muted-foreground">
                 Connect Hackatime so Carnival can read your coding time.
               </div>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  window.location.href = "/api/hackatime/oauth/start?returnTo=/account";
-                }}
-              >
+              <Button type="button" variant="secondary" onClick={startHackatimeOAuth}>
                 Connect Hackatime
               </Button>
             </div>

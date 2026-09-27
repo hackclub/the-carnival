@@ -101,6 +101,7 @@ export default function NewDevlogForm({
   const [hackatimeLoading, setHackatimeLoading] = useState(false);
   const [hackatimeError, setHackatimeError] = useState<string | null>(null);
   const [hackatimeConnectUrl, setHackatimeConnectUrl] = useState<string | null>(null);
+  const [hackatimeNeedsReconnect, setHackatimeNeedsReconnect] = useState(false);
   const [attachments, setAttachments] = useState<string[]>(initial?.attachments ?? []);
   const [devlogCategory, setDevlogCategory] = useState<"learning" | "design" | "coding">(
     (initial as { category?: string } | undefined)?.category as "learning" | "design" | "coding" ?? "coding",
@@ -175,16 +176,18 @@ export default function NewDevlogForm({
         { method: "GET" },
       );
       const data = (await res.json().catch(() => null)) as
-        | { projects?: unknown; error?: unknown; code?: unknown; connectUrl?: unknown }
+        | { projects?: unknown; error?: unknown; code?: unknown; reason?: unknown; connectUrl?: unknown }
         | null;
       if (!res.ok) {
         const code = typeof data?.code === "string" ? data.code : "";
+        const reason = typeof data?.reason === "string" ? data.reason : "";
         if (code === "oauth_required") {
           setHackatimeConnectUrl(
             typeof data?.connectUrl === "string" && data.connectUrl.trim()
               ? data.connectUrl
               : `/api/hackatime/oauth/start?returnTo=${encodeURIComponent(returnTo)}`,
           );
+          setHackatimeNeedsReconnect(reason === "revoked");
         }
         setHackatimeError(
           typeof data?.error === "string" ? data.error : "Failed to load Hackatime projects.",
@@ -551,7 +554,7 @@ export default function NewDevlogForm({
                 href={hackatimeConnectUrl}
                 className="mt-3 inline-flex items-center justify-center rounded-[var(--radius-xl)] bg-carnival-blue px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-carnival-blue/80"
               >
-                Connect Hackatime
+                {hackatimeNeedsReconnect ? "Reconnect Hackatime" : "Connect Hackatime"}
               </a>
             ) : null}
             {hackatimeError ? (
