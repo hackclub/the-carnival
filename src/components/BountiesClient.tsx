@@ -7,8 +7,10 @@ import { Input, Textarea, Button, Card, Badge, EmptyState, FormLabel, Modal } fr
 import { R2ImageUpload } from "@/components/R2ImageUpload";
 import { RichTextContent } from "@/components/RichTextContent";
 import { RichTextField } from "@/components/RichTextField";
+import { FIXED_RATE_TOKENS, FIXED_RATE_USD, TOKENS_PER_HOUR } from "@/lib/wallet-converter";
 
-const GRANT_USD_PER_HOUR = 4;
+// 1 approved hour = TOKENS_PER_HOUR tokens = FIXED_RATE_USD dollars.
+const GRANT_USD_PER_HOUR = (FIXED_RATE_USD / FIXED_RATE_TOKENS) * TOKENS_PER_HOUR;
 
 export type BountyHelpfulLink = {
   label: string;
