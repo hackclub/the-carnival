@@ -21,6 +21,57 @@ export function getAppBaseUrl() {
     || "https://carnival.hackclub.com";
 }
 
+const LOOPS_TRANSACTIONAL_URL = "https://app.loops.so/api/v1/transactional";
+
+// Loops allows 10 requests/second per team. Every call from this process goes
+// through one shared pacer (one request start per 110ms, ~9/s to leave
+// headroom for timer jitter), so fan-outs like
+// "email every reviewer" can't burst past it. The limit is per process; a
+// multi-instance deploy would need a shared limiter.
+const LOOPS_MIN_REQUEST_INTERVAL_MS = 110;
+const LOOPS_MAX_429_RETRIES = 3;
+const LOOPS_429_BASE_DELAY_MS = 1000;
+let nextLoopsRequestAt = 0;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForLoopsSlot() {
+  const now = Date.now();
+  const slot = Math.max(now, nextLoopsRequestAt);
+  nextLoopsRequestAt = slot + LOOPS_MIN_REQUEST_INTERVAL_MS;
+  if (slot > now) await sleep(slot - now);
+}
+
+function retryAfterMs(response: Response, attempt: number) {
+  const header = Number(response.headers.get("retry-after"));
+  if (Number.isFinite(header) && header > 0) return Math.min(header * 1000, 10_000);
+  return LOOPS_429_BASE_DELAY_MS * 2 ** attempt;
+}
+
+/** POST a transactional send, paced and retried (bounded) on HTTP 429 only. */
+async function postLoopsTransactional(payload: {
+  transactionalId: string;
+  email: string;
+  dataVariables: Record<string, string>;
+}): Promise<Response> {
+  const body = JSON.stringify(payload);
+  for (let attempt = 0; ; attempt++) {
+    await waitForLoopsSlot();
+    const response = await fetch(LOOPS_TRANSACTIONAL_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${LOOPS_API_KEY}`,
+      },
+      body,
+    });
+    if (response.status !== 429 || attempt >= LOOPS_MAX_429_RETRIES) return response;
+    await sleep(retryAfterMs(response, attempt));
+  }
+}
+
 async function sendEmailWithLoops(
   transactionEmailId: string | undefined,
   targetEmail: string,
@@ -36,17 +87,10 @@ async function sendEmailWithLoops(
   if (!recipientEmail) return;
 
   try {
-    const response = await fetch("https://app.loops.so/api/v1/transactional", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${LOOPS_API_KEY}`,
-      },
-      body: JSON.stringify({
-        transactionalId: transactionEmailId,
-        email: recipientEmail,
-        dataVariables: stringifyEmailParams(emailParams),
-      }),
+    const response = await postLoopsTransactional({
+      transactionalId: transactionEmailId,
+      email: recipientEmail,
+      dataVariables: stringifyEmailParams(emailParams),
     });
 
     const result = await response.json();
@@ -79,17 +123,10 @@ export async function sendNudgeEmail(
   if (!recipientEmail) return false;
 
   try {
-    const response = await fetch("https://app.loops.so/api/v1/transactional", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${LOOPS_API_KEY}`,
-      },
-      body: JSON.stringify({
-        transactionalId: LOOPS_TRANSACTIONAL_NUDGE_EMAIL_ID,
-        email: recipientEmail,
-        dataVariables: stringifyEmailParams(params),
-      }),
+    const response = await postLoopsTransactional({
+      transactionalId: LOOPS_TRANSACTIONAL_NUDGE_EMAIL_ID!,
+      email: recipientEmail,
+      dataVariables: stringifyEmailParams(params),
     });
     const result = await response.json();
     if (!result?.success) {
