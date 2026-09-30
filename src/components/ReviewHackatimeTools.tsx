@@ -114,7 +114,8 @@ export default function ReviewHackatimeTools({ projectId, defaultStartDate, defa
         <div className="space-y-1.5 rounded-[var(--radius-xl)] border border-border bg-background px-3 py-2.5">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">
-              Total logged {customStart} → {customEnd}
+              Total logged {customResult.startedAt.slice(0, 10) || customStart} →{" "}
+              {customResult.endedAt.slice(0, 10) || customEnd}
             </span>
             <span className="font-semibold text-foreground">
               {formatHours(customResult.totalSeconds)}
