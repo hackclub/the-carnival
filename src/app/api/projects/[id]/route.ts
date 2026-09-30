@@ -365,15 +365,18 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   // possible while no Hackatime project is linked. An unchanged name is
   // accepted so older projects whose names predate this rule can still save.
   if (nextHackatimeProjectName) {
+    const toProjectName = (value: string) => sanitizeText(value, { maxLength: TEXT_LIMITS.name });
+    const linkedName = toProjectName(nextHackatimeProjectName);
     const hackatimeProjectChanged =
       body.hackatimeProjectName !== undefined &&
       nextHackatimeProjectName !== current.hackatimeProjectName.trim();
     if (hackatimeProjectChanged) {
-      set.name = nextHackatimeProjectName.slice(0, TEXT_LIMITS.name);
+      if (linkedName) set.name = linkedName;
     } else if (
       set.name !== undefined &&
-      set.name !== current.name &&
-      set.name !== nextHackatimeProjectName
+      // Compare normalized forms so legacy, unnormalized names still count as unchanged.
+      set.name !== toProjectName(current.name) &&
+      set.name !== linkedName
     ) {
       return NextResponse.json(
         {
