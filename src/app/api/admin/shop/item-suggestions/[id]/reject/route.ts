@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { shopItemSuggestion } from "@/db/schema";
-import { getAuthUser, parseJsonBody, toCleanString } from "@/lib/api-utils";
+import { getAuthUser, parseJsonBody } from "@/lib/api-utils";
+import { sanitizeText, TEXT_LIMITS } from "@/lib/sanitize";
 
 type RejectBody = {
   reason?: unknown;
@@ -14,7 +15,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!authUser.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await parseJsonBody<RejectBody>(req);
-  const reason = toCleanString(body?.reason);
+  const reason = sanitizeText(body?.reason, { maxLength: TEXT_LIMITS.reason, multiline: true });
   if (!reason) return NextResponse.json({ error: "Rejection reason is required." }, { status: 400 });
 
   const { id } = await ctx.params;

@@ -162,6 +162,42 @@ export default function ShopClient({
     }
   }, []);
 
+  const [resubmitImages, setResubmitImages] = useState<Record<string, string>>({});
+  const [resubmitBusyId, setResubmitBusyId] = useState<string | null>(null);
+
+  const onResubmitSuggestion = useCallback(
+    async (suggestionId: string) => {
+      const imageUrl = resubmitImages[suggestionId];
+      if (!imageUrl) return;
+      setResubmitBusyId(suggestionId);
+      const toastId = toast.loading("Resubmitting...");
+      try {
+        const res = await fetch(
+          `/api/shop/item-suggestions/${encodeURIComponent(suggestionId)}/resubmit`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageUrl }),
+          },
+        );
+        const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+        if (!res.ok) {
+          toast.error(typeof data?.error === "string" ? data.error : "Failed to resubmit.", {
+            id: toastId,
+          });
+          setResubmitBusyId(null);
+          return;
+        }
+        toast.success("Resubmitted for review.", { id: toastId });
+        window.location.reload();
+      } catch {
+        toast.error("Failed to resubmit.", { id: toastId });
+        setResubmitBusyId(null);
+      }
+    },
+    [resubmitImages],
+  );
+
   const onSuggest = useCallback(async () => {
     if (!suggestForm.name.trim()) {
       toast.error("Item name is required.");
@@ -436,9 +472,9 @@ export default function ShopClient({
             label="Suggested image"
             value={suggestForm.imageUrl}
             onChange={(url) => setSuggestForm((f) => ({ ...f, imageUrl: url }))}
-            kind="shop_item_image"
+            kind="shop_suggestion_image"
             disabled={suggestBusy}
-            helperText="Optional, but it helps admins review the item faster."
+            helperText="Items need an image before they can be added to the shop, so include one if you can."
           />
           <Input
             label="Reference URL"
@@ -520,6 +556,28 @@ export default function ShopClient({
                     </div>
                     <ShopItemSuggestionStatusBadge status={s.status} />
                   </div>
+                  {s.status === "rejected" && !s.imageUrl ? (
+                    <div className="mt-4 space-y-3 border-t border-border pt-4">
+                      <R2ImageUpload
+                        label="Add an image to resubmit"
+                        value={resubmitImages[s.id] ?? ""}
+                        onChange={(url) => setResubmitImages((m) => ({ ...m, [s.id]: url }))}
+                        kind="shop_suggestion_image"
+                        disabled={resubmitBusyId === s.id}
+                      />
+                      <div className="flex justify-end">
+                        <Button
+                          variant="secondary"
+                          disabled={!resubmitImages[s.id]}
+                          loading={resubmitBusyId === s.id}
+                          loadingText="Resubmitting..."
+                          onClick={() => onResubmitSuggestion(s.id)}
+                        >
+                          Resubmit with image
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             ))}

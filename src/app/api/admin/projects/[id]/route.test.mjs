@@ -285,7 +285,7 @@ describe("PATCH /api/admin/projects/[id]", () => {
     expect(state.tokenInserts[0].tokens).toBe(70);
     expect(state.tokenInserts[1].referenceType).toBe("bounty_bonus");
     expect(state.tokenInserts[1].referenceId).toBe("project-1:bounty-1");
-    expect(state.tokenInserts[1].tokens).toBe(100);
+    expect(state.tokenInserts[1].tokens).toBe(80);
   });
 
   test("bounty bonus is based on bounty payout, not approved project hours", async () => {
@@ -307,7 +307,7 @@ describe("PATCH /api/admin/projects/[id]", () => {
 
     expect(res.status).toBe(200);
     const bonus = state.tokenInserts.find((row) => row.referenceType === "bounty_bonus");
-    expect(bonus.tokens).toBe(1000);
+    expect(bonus.tokens).toBe(800);
     expect(state.tokenInserts.find((row) => row.referenceType === "project_grant").tokens).toBe(10);
   });
 

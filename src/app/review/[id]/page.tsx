@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import type { ReviewDevlogFull } from "@/components/DevlogAssessmentPanel";
-import ReviewHackatimeTools from "@/components/ReviewHackatimeTools";
 import ReviewProjectClient from "@/components/ReviewProjectClient";
 import { db } from "@/db";
 import {
@@ -63,7 +62,6 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
       approvedHours: project.approvedHours,
       createdAt: project.createdAt,
       submittedAt: project.submittedAt,
-      startedOnCarnivalAt: project.startedOnCarnivalAt,
       updatedAt: project.updatedAt,
       creatorId: project.creatorId,
       bountyProjectId: project.bountyProjectId,
@@ -204,19 +202,6 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
         <Link href={`/projects/${p.id}`} className="text-sm text-muted-foreground hover:text-foreground">
           View in projects
         </Link>
-      </div>
-
-      <div className="mb-6">
-        <ReviewHackatimeTools
-          projectId={p.id}
-          hackatimeUserId={
-            typeof p.creatorHackatimeUserId === "string" ? p.creatorHackatimeUserId : null
-          }
-          projectStartedAtIso={p.startedOnCarnivalAt ? p.startedOnCarnivalAt.toISOString() : null}
-          submittedAtIso={p.submittedAt ? p.submittedAt.toISOString() : null}
-          projectCreatedAtIso={p.createdAt.toISOString()}
-          linkedHackatimeProjects={linkedHackatimeProjects}
-        />
       </div>
 
       <ReviewProjectClient

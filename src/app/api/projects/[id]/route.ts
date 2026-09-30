@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { after, NextResponse } from "next/server";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   project,
@@ -12,7 +12,7 @@ import {
 } from "@/db/schema";
 import { isEnabledProjectType } from "@/lib/review/config";
 import { validateSubmissionRequirements } from "@/lib/review/submission-gates";
-import { isValidHttpUrlString } from "@/lib/review/urls";
+import { cleanUntrustedString, sanitizeHttpUrl, sanitizeText, TEXT_LIMITS } from "@/lib/sanitize";
 import { getR2PublicBaseUrl, validatePlatformImageUrl } from "@/lib/review/uploads";
 import { coerceDate, formatUtcInstant } from "@/lib/devlog-shared";
 import { listDevlogsOutsideRange } from "@/lib/devlogs";
@@ -31,6 +31,7 @@ import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-acc
 import { approvedHoursWithinSnapshot } from "@/lib/review-rules";
 import { getServerSession } from "@/lib/server-session";
 import { notifyReviewDM } from "@/lib/slack";
+import { getAppBaseUrl, sendProjectSubmittedStaffEmail } from "@/lib/loops";
 import { validateLinkableBountyProjectId } from "@/lib/bounties";
 
 type UpdateProjectBody = {
@@ -60,7 +61,7 @@ type UpdateProjectBody = {
 };
 
 function toCleanString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
+  return cleanUntrustedString(value);
 }
 
 function toOptionalNonNegativeInt(value: unknown): number | null {
@@ -290,16 +291,22 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         ? body.editor.trim()
         : body.editor
       : undefined;
-  const editorOtherRaw = body.editorOther !== undefined ? toCleanString(body.editorOther) : undefined;
+  const editorOtherRaw =
+    body.editorOther !== undefined
+      ? sanitizeText(body.editorOther, { maxLength: TEXT_LIMITS.shortText })
+      : undefined;
 
   if (body.name !== undefined) {
-    const name = toCleanString(body.name);
+    const name = sanitizeText(body.name, { maxLength: TEXT_LIMITS.name });
     if (!name) return NextResponse.json({ error: "Project name is required" }, { status: 400 });
     set.name = name;
   }
 
   if (body.description !== undefined) {
-    const description = toCleanString(body.description);
+    const description = sanitizeText(body.description, {
+      maxLength: TEXT_LIMITS.longText,
+      multiline: true,
+    });
     if (!description) return NextResponse.json({ error: "Description is required" }, { status: 400 });
     set.description = description;
   }
@@ -352,6 +359,34 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   const nextHackatimeProjectName = (set.hackatimeProjectName ?? current.hackatimeProjectName).trim();
+
+  // A project tied to a Hackatime project carries that project's name.
+  // Picking a (new) Hackatime project renames it; renaming it by hand is only
+  // possible while no Hackatime project is linked. An unchanged name is
+  // accepted so older projects whose names predate this rule can still save.
+  if (nextHackatimeProjectName) {
+    const toProjectName = (value: string) => sanitizeText(value, { maxLength: TEXT_LIMITS.name });
+    const linkedName = toProjectName(nextHackatimeProjectName);
+    const hackatimeProjectChanged =
+      body.hackatimeProjectName !== undefined &&
+      nextHackatimeProjectName !== current.hackatimeProjectName.trim();
+    if (hackatimeProjectChanged) {
+      if (linkedName) set.name = linkedName;
+    } else if (
+      set.name !== undefined &&
+      // Compare normalized forms so legacy, unnormalized names still count as unchanged.
+      set.name !== toProjectName(current.name) &&
+      set.name !== linkedName
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This project is linked to a Hackatime project, so its name follows that project. Unlink the Hackatime project to rename it.",
+        },
+        { status: 400 },
+      );
+    }
+  }
   if (consideredHackatimeRange) {
     if (!nextHackatimeProjectName) {
       return NextResponse.json(
@@ -410,25 +445,25 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   if (body.videoUrl !== undefined) {
-    const videoUrl = toCleanString(body.videoUrl);
-    if (videoUrl && !isValidHttpUrlString(videoUrl)) {
+    const videoUrl = sanitizeHttpUrl(body.videoUrl);
+    if (videoUrl === null) {
       return NextResponse.json({ error: "Video link must be http(s)" }, { status: 400 });
     }
     set.videoUrl = videoUrl;
   }
 
   if (body.playableDemoUrl !== undefined) {
-    const playableDemoUrl = toCleanString(body.playableDemoUrl);
-    if (playableDemoUrl && !isValidHttpUrlString(playableDemoUrl)) {
+    const playableDemoUrl = sanitizeHttpUrl(body.playableDemoUrl);
+    if (playableDemoUrl === null) {
       return NextResponse.json({ error: "Playable demo link must be http(s)" }, { status: 400 });
     }
     set.playableDemoUrl = playableDemoUrl;
   }
 
   if (body.codeUrl !== undefined) {
-    const codeUrl = toCleanString(body.codeUrl);
-    if (!codeUrl) return NextResponse.json({ error: "Code URL is required" }, { status: 400 });
-    if (!isValidHttpUrlString(codeUrl)) {
+    const codeUrl = sanitizeHttpUrl(body.codeUrl);
+    if (codeUrl === "") return NextResponse.json({ error: "Code URL is required" }, { status: 400 });
+    if (codeUrl === null) {
       return NextResponse.json({ error: "Code URL must be http(s)" }, { status: 400 });
     }
     set.codeUrl = codeUrl;
@@ -805,6 +840,48 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     } catch (err) {
       console.warn("notifyReviewDM on submit failed", err);
     }
+
+    // Email every admin and reviewer after the response is sent — best-effort,
+    // never blocks or fails the submission.
+    const submitted = { id: p.id, name: p.name, description: p.description };
+    const submittedAt = (p.submittedAt ?? new Date()).toISOString();
+    const isResubmission = Boolean(current.submittedAt);
+    after(async () => {
+      try {
+        const [staffRows, creatorRows] = await Promise.all([
+          db
+            .select({ id: user.id, email: user.email })
+            .from(user)
+            .where(inArray(user.role, ["admin", "reviewer"])),
+          db.select({ name: user.name }).from(user).where(eq(user.id, userId)).limit(1),
+        ]);
+        const reviewUrl = `${getAppBaseUrl()}/review/${encodeURIComponent(submitted.id)}`;
+        const description =
+          submitted.description.length > 300
+            ? `${submitted.description.slice(0, 297)}...`
+            : submitted.description;
+        const recipients = new Set(
+          staffRows
+            .filter((row) => row.id !== userId)
+            .map((row) => row.email.trim())
+            .filter(Boolean),
+        );
+        await Promise.all(
+          [...recipients].map((email) =>
+            sendProjectSubmittedStaffEmail(email, {
+              project_name: submitted.name,
+              creator_name: creatorRows[0]?.name || "A participant",
+              project_description: description,
+              review_url: reviewUrl,
+              submitted_at: submittedAt,
+              is_resubmission: isResubmission ? "yes" : "no",
+            }),
+          ),
+        );
+      } catch (err) {
+        console.warn("Project submitted staff email failed", err);
+      }
+    });
   }
 
   return NextResponse.json({ project: p, notice });

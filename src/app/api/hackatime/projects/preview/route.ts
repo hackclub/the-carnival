@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
 import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
 import { getServerSession } from "@/lib/server-session";
+import { cleanUntrustedString } from "@/lib/sanitize";
 
 type PreviewBody = {
   hackatimeProjectName?: unknown;
@@ -9,7 +10,7 @@ type PreviewBody = {
 };
 
 function toCleanString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
+  return cleanUntrustedString(value);
 }
 
 export async function POST(req: Request) {

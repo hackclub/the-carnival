@@ -10,12 +10,9 @@ import type {
   ProjectType,
   ReviewDecision,
 } from "@/db/schema";
-import {
-  ENABLED_PROJECT_TYPES,
-  PROJECT_TYPE_CATALOG,
-} from "@/lib/review/config";
 import { validateSubmissionRequirements } from "@/lib/review/submission-gates";
 import LinkedHackatimeProjectsPanel from "@/components/LinkedHackatimeProjectsPanel";
+import ProjectLinkIcon, { PROJECT_LINK_META } from "@/components/ProjectLinkIcon";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
 import { Modal } from "@/components/ui";
@@ -973,18 +970,22 @@ export default function ManageProjectClient({
                 </div>
               </label>
             </div>
-            <label className="block">
-              <div className="text-sm text-muted-foreground font-medium mb-2">
-                Overlap details <span className="font-normal">(optional)</span>
-              </div>
-              <textarea
-                value={creatorDuplicateExplanation ?? ""}
-                onChange={(e) => setCreatorDuplicateExplanation(e.target.value)}
-                rows={3}
-                className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                placeholder="Mention any reused ideas, prior submissions, starter code, or similar projects."
-              />
-            </label>
+            {/* Overlap details only apply to "may overlap"; the server drops them for "unique". */}
+            {!creatorDeclaredOriginality ? (
+              <label className="block">
+                <div className="text-sm text-muted-foreground font-medium mb-2">
+                  Overlap details <span className="font-normal">(optional)</span>
+                </div>
+                <textarea
+                  value={creatorDuplicateExplanation ?? ""}
+                  onChange={(e) => setCreatorDuplicateExplanation(e.target.value)}
+                  rows={3}
+                  maxLength={5000}
+                  className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  placeholder="Mention any reused ideas, prior submissions, starter code, or similar projects."
+                />
+              </label>
+            ) : null}
             <label className="block">
               <div className="text-sm text-muted-foreground font-medium mb-2">
                 Uniqueness or attribution notes <span className="font-normal">(optional)</span>
@@ -1116,29 +1117,8 @@ export default function ManageProjectClient({
 
         <fieldset disabled={saving || isGranted} className={isGranted ? "opacity-60" : ""}>
         <label className="block">
-          <div className="text-sm text-muted-foreground font-medium mb-2">Project type</div>
-          <Select value={projectType} onValueChange={(v) => { if (v) setProjectType(v as ProjectType); }}>
-            <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
-              <SelectValue placeholder="Select project type" />
-            </SelectTrigger>
-            <SelectContent>
-              {PROJECT_TYPE_CATALOG.filter((t) =>
-                (ENABLED_PROJECT_TYPES as readonly string[]).includes(t.id),
-              ).map((opt) => (
-                <SelectItem key={opt.id} value={opt.id}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="text-xs text-muted-foreground mt-1.5">
-            {PROJECT_TYPE_CATALOG.find((t) => t.id === projectType)?.description}
-          </div>
-        </label>
-
-        <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">
-            {projectType === "extension-plugin" ? "Platform it extends" : "Editor / app"}
+            Platform it extends
           </div>
           <Select value={editor} onValueChange={(v) => { if (v) setEditor(v as ProjectEditor); }}>
             <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
@@ -1171,12 +1151,20 @@ export default function ManageProjectClient({
 
         <label className="block">
           <div className="text-sm text-muted-foreground font-medium mb-2">Project name</div>
+          {/* Linked to Hackatime → the name follows the Hackatime project (enforced server-side too). */}
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-            placeholder="My awesome game"
+            readOnly={Boolean(hackatimeProjectName)}
+            maxLength={120}
+            className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40 read-only:cursor-not-allowed read-only:bg-muted read-only:text-muted-foreground"
+            placeholder="My awesome extension"
           />
+          {hackatimeProjectName ? (
+            <div className="text-xs text-muted-foreground mt-1.5">
+              Named after your Hackatime project. Clear the Hackatime project below to rename it.
+            </div>
+          ) : null}
         </label>
 
         <label className="block">
@@ -1187,6 +1175,7 @@ export default function ManageProjectClient({
               onValueChange={(v) => {
                 const next = !v || v === "__none__" ? "" : v;
                 setHackatimeProjectName(next);
+                if (next) setName(next);
                 const selected = (hackatimeProjects ?? []).find((p) => p.name === next) ?? null;
                 setHackatimeStartedAt(selected?.startedAt ?? null);
                 setHackatimeStoppedAt(selected?.stoppedAt ?? null);
@@ -1346,38 +1335,37 @@ export default function ManageProjectClient({
           />
         </label>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="block">
-            <div className="text-sm text-muted-foreground font-medium mb-2">Video link</div>
-            <input
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              required
-              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-              placeholder="https://youtu.be/... or https://..."
-            />
-          </label>
-
-          <label className="block">
-            <div className="text-sm text-muted-foreground font-medium mb-2">Playable demo link</div>
-            <input
-              value={playableDemoUrl}
-              onChange={(e) => setPlayableDemoUrl(e.target.value)}
-              required
-              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-              placeholder="https://mygame.example.com or https://itch.io/..."
-            />
-          </label>
-
-          <label className="block">
-            <div className="text-sm text-muted-foreground font-medium mb-2">Code URL</div>
-            <input
-              value={codeUrl}
-              onChange={(e) => setCodeUrl(e.target.value)}
-              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-              placeholder="https://github.com/me/mygame"
-            />
-          </label>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {(
+            [
+              { kind: "code", value: codeUrl, set: setCodeUrl, placeholder: "https://github.com/me/my-extension" },
+              { kind: "demo", value: playableDemoUrl, set: setPlayableDemoUrl, placeholder: "Marketplace, store or install page" },
+              { kind: "video", value: videoUrl, set: setVideoUrl, placeholder: "https://youtu.be/..." },
+            ] as const
+          ).map((field) => (
+            <label key={field.kind} className="block">
+              <div className="flex items-center gap-2 text-sm text-foreground font-semibold mb-1">
+                <ProjectLinkIcon kind={field.kind} />
+                {PROJECT_LINK_META[field.kind].label}
+              </div>
+              <div className="text-xs text-muted-foreground mb-2">{PROJECT_LINK_META[field.kind].hint}</div>
+              <div className="relative">
+                <ProjectLinkIcon
+                  kind={field.kind}
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <input
+                  type="url"
+                  inputMode="url"
+                  value={field.value}
+                  onChange={(e) => field.set(e.target.value)}
+                  maxLength={2048}
+                  className="w-full bg-background border border-border rounded-[var(--radius-2xl)] pl-10 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  placeholder={field.placeholder}
+                />
+              </div>
+            </label>
+          ))}
         </div>
 
         {availableBounties.length > 0 ? (

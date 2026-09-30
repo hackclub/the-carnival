@@ -218,7 +218,7 @@ export default async function Home() {
             Carnival is Hack Club&apos;s fair for builders of little things —
             extensions, plugins, and widgets for the tools you already live in.
             Ship one open source, and every honest hour you track becomes{" "}
-            <strong>$4</strong> toward your dream setup.
+            <strong>$5</strong> toward your dream setup.
           </p>
 
           <div className="mt-6 max-w-2xl text-base font-semibold text-[#8f4a18] sm:text-lg">

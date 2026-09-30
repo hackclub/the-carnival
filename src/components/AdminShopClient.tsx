@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { ImageOff, ImagePlus } from "lucide-react";
 import toast from "react-hot-toast";
 import ShopItemSuggestionStatusBadge from "@/components/ShopItemSuggestionStatusBadge";
 import ShopOrderStatusBadge from "@/components/ShopOrderStatusBadge";
 import CopyableText from "@/components/CopyableText";
+import { SHOP_SUGGESTION_IMAGE_REQUEST_REASON } from "@/lib/shop-shared";
 import {
   Button,
   Card,
@@ -225,8 +227,8 @@ export default function AdminShopClient({
     }
   }, []);
 
-  const onRejectSuggestion = useCallback(async (suggestionId: string) => {
-    const reason = (suggestionRejectReasons[suggestionId] ?? "").trim();
+  const onRejectSuggestion = useCallback(async (suggestionId: string, presetReason?: string) => {
+    const reason = (presetReason ?? suggestionRejectReasons[suggestionId] ?? "").trim();
     if (!reason) return toast.error("Add a rejection reason first.");
     setBusySuggestionId(suggestionId);
     const toastId = toast.loading("Rejecting suggestion...");
@@ -294,7 +296,21 @@ export default function AdminShopClient({
                   <Card key={s.id} variant="flat">
                     <CardContent className="pt-5">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="min-w-0">
+                        {s.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={s.imageUrl}
+                            alt={`Suggested image for ${s.name}`}
+                            className="h-24 w-24 shrink-0 rounded-[var(--radius-xl)] border border-border bg-muted object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-xl)] border border-dashed border-amber-500/60 bg-amber-500/10 text-amber-700">
+                            <ImageOff className="h-5 w-5" aria-hidden="true" />
+                            <span className="text-[11px] font-semibold">No image</span>
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <div className="font-semibold text-foreground">{s.name}</div>
                             <ShopItemSuggestionStatusBadge status={s.status} />
@@ -328,7 +344,20 @@ export default function AdminShopClient({
                             placeholder="Reason if rejecting..."
                             disabled={busySuggestionId === s.id}
                           />
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            {!s.imageUrl ? (
+                              <Button
+                                variant="outline"
+                                loading={busySuggestionId === s.id}
+                                loadingText="Sending..."
+                                onClick={() =>
+                                  onRejectSuggestion(s.id, SHOP_SUGGESTION_IMAGE_REQUEST_REASON)
+                                }
+                              >
+                                <ImagePlus className="h-4 w-4" aria-hidden="true" />
+                                Request image
+                              </Button>
+                            ) : null}
                             <Button
                               variant="outline"
                               loading={busySuggestionId === s.id}
@@ -341,6 +370,8 @@ export default function AdminShopClient({
                               variant="secondary"
                               loading={busySuggestionId === s.id}
                               loadingText="Approving..."
+                              disabled={!s.imageUrl}
+                              title={!s.imageUrl ? "Needs an image before it can be approved" : undefined}
                               onClick={() => onApproveSuggestion(s.id)}
                             >
                               Approve

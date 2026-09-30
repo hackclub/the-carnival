@@ -1,3 +1,5 @@
+import { sanitizeText, TEXT_LIMITS } from "@/lib/sanitize";
+
 export const MIN_CREATOR_ORIGINALITY_RATIONALE_LENGTH = 30;
 
 export type CreatorOriginalityDeclaration = {
@@ -7,15 +9,18 @@ export type CreatorOriginalityDeclaration = {
 };
 
 function normalizeOptionalText(value: string | null | undefined) {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  const cleaned = sanitizeText(value, { maxLength: TEXT_LIMITS.longText, multiline: true });
+  return cleaned.length > 0 ? cleaned : null;
 }
 
 export function validateCreatorOriginalityDeclaration(value: CreatorOriginalityDeclaration):
   | { ok: true; value: CreatorOriginalityDeclaration }
   | { ok: false; error: string } {
-  const creatorDuplicateExplanation = normalizeOptionalText(value.creatorDuplicateExplanation);
+  // Overlap details only make sense when the creator says it may overlap;
+  // drop stale text left over from before they switched to "unique".
+  const creatorDuplicateExplanation = value.creatorDeclaredOriginality
+    ? null
+    : normalizeOptionalText(value.creatorDuplicateExplanation);
   const creatorOriginalityRationale = normalizeOptionalText(value.creatorOriginalityRationale);
 
   return {

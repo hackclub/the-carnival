@@ -44,7 +44,7 @@ export default function WalletConverterPopover({
   variant = "default",
 }: WalletConverterPopoverProps) {
   const [tokenInput, setTokenInput] = useState("10");
-  const [usdInput, setUsdInput] = useState("4");
+  const [usdInput, setUsdInput] = useState(String(FIXED_RATE_USD));
 
   const tokenAmount = useMemo(() => parseAmount(tokenInput), [tokenInput]);
   const usdAmount = useMemo(() => parseAmount(usdInput), [usdInput]);

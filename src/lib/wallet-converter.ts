@@ -1,5 +1,5 @@
 export const FIXED_RATE_TOKENS = 10;
-export const FIXED_RATE_USD = 4;
+export const FIXED_RATE_USD = 5;
 export const TOKENS_PER_HOUR = 10;
 
 export function tokensToUsd(tokens: number) {

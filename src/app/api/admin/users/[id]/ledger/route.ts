@@ -108,7 +108,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       reason: parsed.value.reason,
       issuedToUserId: targetUserId,
       byUserId: currentUser.id,
-      referenceType: "admin_adjustment",
+      referenceType: parsed.value.referenceType,
       referenceId,
       createdAt: now,
     });
@@ -123,7 +123,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           type: parsed.value.kind,
           amount: parsed.value.amount,
           reason: parsed.value.reason,
-          referenceType: "admin_adjustment",
+          referenceType: parsed.value.referenceType,
           referenceId,
           targetRole: target.role,
         },

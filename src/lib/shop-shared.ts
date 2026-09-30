@@ -44,3 +44,7 @@ export function normalizeOptionalUrl(value: unknown): string | null {
 export function isShopItemSuggestionStatus(value: unknown): value is ShopItemSuggestionStatus {
   return value === "pending" || value === "approved" || value === "rejected";
 }
+
+/** Prefilled reason when an admin sends a suggestion back for a missing image. */
+export const SHOP_SUGGESTION_IMAGE_REQUEST_REASON =
+  "Please add an image of the item — suggestions need one before they can go in the shop. Upload it from My suggestions to resubmit.";
