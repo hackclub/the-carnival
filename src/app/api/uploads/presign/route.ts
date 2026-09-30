@@ -17,6 +17,7 @@ function isKind(value: string): value is R2UploadKind {
     value === "project_screenshot" ||
     value === "bounty_preview" ||
     value === "shop_item_image" ||
+    value === "shop_suggestion_image" ||
     value === "editor_icon" ||
     value === "devlog_attachment"
   );
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
   if (!isKind(kindRaw)) return NextResponse.json({ error: "Invalid kind" }, { status: 400 });
 
   // Admin-only kinds, except shop item images which reviewers can manage.
+  // Any signed-in user may upload a shop *suggestion* image (separate prefix).
   if ((kindRaw === "shop_item_image" && !user.isReviewer) || (kindRaw === "editor_icon" && !user.isAdmin)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

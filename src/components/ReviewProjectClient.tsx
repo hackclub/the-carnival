@@ -7,6 +7,19 @@ import type {
   ProjectSubmissionChecklist,
   ReviewDecision,
 } from "@/db/schema";
+import {
+  ChevronDown,
+  Circle,
+  CircleCheck,
+  ExternalLink,
+  ListChecks,
+  ScanSearch,
+  ShieldAlert,
+  ShieldCheck,
+  Timer,
+  Trophy,
+  Users,
+} from "lucide-react";
 import { buildJoeFraudUrl } from "@/lib/constants";
 import {
   AI_SLOP_REJECTION_MESSAGE,
@@ -15,7 +28,11 @@ import {
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
-import LinkChip from "@/components/LinkChip";
+import ProjectLinkIcon, {
+  PROJECT_LINK_META,
+  type ProjectLinkKind,
+} from "@/components/ProjectLinkIcon";
+import ReviewHackatimeTools from "@/components/ReviewHackatimeTools";
 import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
 import DevlogAssessmentPanel, {
   type ReviewDevlogFull,
@@ -131,6 +148,70 @@ export type HackatimeBreakdownInitial = {
   byProject: HackatimeBreakdownEntry[];
   byDevlog: Record<string, HackatimeBreakdownEntry[]>;
 };
+
+function ReviewSection({
+  icon,
+  title,
+  aside,
+  className,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  aside?: React.ReactNode;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={["platform-surface-card p-6 space-y-4", className ?? ""].join(" ")}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-foreground font-semibold text-lg">
+          {icon}
+          {title}
+        </h2>
+        {aside}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ProjectLinkButton({ kind, url }: { kind: ProjectLinkKind; url: string | null | undefined }) {
+  const meta = PROJECT_LINK_META[kind];
+  const href = url?.trim();
+  if (!href) {
+    return (
+      <div className="flex items-center gap-3 rounded-[var(--radius-2xl)] border border-dashed border-border px-4 py-3 text-muted-foreground">
+        <ProjectLinkIcon kind={kind} className="h-5 w-5" />
+        <div className="min-w-0">
+          <div className="text-sm font-semibold">{meta.label}</div>
+          <div className="text-xs">Not provided</div>
+        </div>
+      </div>
+    );
+  }
+  let host = href;
+  try {
+    host = new URL(href).host.replace(/^www\./, "");
+  } catch {
+    // keep the raw value
+  }
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer noopener"
+      className="group flex items-center gap-3 rounded-[var(--radius-2xl)] border-2 border-carnival-blue/30 bg-carnival-blue/5 px-4 py-3 text-foreground hover:border-carnival-blue hover:bg-carnival-blue/10 transition-colors"
+    >
+      <ProjectLinkIcon kind={kind} className="h-5 w-5 text-carnival-blue" />
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold">Open {meta.label.toLowerCase()}</div>
+        <div className="text-xs text-muted-foreground truncate">{host}</div>
+      </div>
+      <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-carnival-blue" aria-hidden="true" />
+    </a>
+  );
+}
 
 export type LinkedHackatimeProjectInitial = {
   id: string;
@@ -1049,7 +1130,8 @@ export default function ReviewProjectClient({
 
   return (
     <div className="space-y-6">
-      <div className="platform-surface-card p-6">
+      {/* 1. What is this? — identity, context and the links to try it. */}
+      <div className="platform-surface-card p-6 space-y-5">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="text-foreground font-bold text-2xl truncate">{project.name}</div>
@@ -1057,126 +1139,133 @@ export default function ReviewProjectClient({
               {project.creatorName}
               {project.creatorEmail ? ` • ${project.creatorEmail}` : ""}
             </div>
+            <div className="text-muted-foreground mt-1 text-xs">
+              Submitted {project.submittedAt ? new Date(project.submittedAt).toLocaleString() : "—"}
+            </div>
           </div>
           <div className="flex flex-col items-end gap-2 shrink-0">
             <ProjectEditorBadge editor={project.editor} editorOther={project.editorOther} />
             <ProjectStatusBadge status={project.status} />
           </div>
         </div>
-        <div className="text-muted-foreground mt-4">{project.description}</div>
+        <div className="text-foreground whitespace-pre-wrap">{project.description}</div>
+
+        {project.bountyProjectId ? (
+          <div className="inline-flex items-center gap-2 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-sm">
+            <Trophy className="h-4 w-4 text-purple-600" aria-hidden="true" />
+            <span className="text-muted-foreground">Bounty:</span>
+            <span className="text-foreground font-semibold">
+              {project.bountyProjectName || project.bountyProjectId}
+            </span>
+          </div>
+        ) : null}
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {(
+            [
+              { kind: "code", url: project.codeUrl },
+              { kind: "demo", url: project.playableDemoUrl },
+              { kind: "video", url: project.videoUrl },
+            ] as const
+          ).map((link) => (
+            <ProjectLinkButton key={link.kind} kind={link.kind} url={link.url} />
+          ))}
+        </div>
       </div>
 
-      <div className="platform-surface-card p-6 space-y-4">
-        <div className="text-foreground font-semibold text-lg">Review info</div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
-            <div className="text-muted-foreground">Created</div>
-            <div className="text-foreground font-semibold">
-              {new Date(project.createdAt).toLocaleString()}
-            </div>
-          </div>
-          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
-            <div className="text-muted-foreground">Submitted</div>
-            <div className="text-foreground font-semibold">
-              {project.submittedAt ? new Date(project.submittedAt).toLocaleString() : "—"}
-            </div>
-          </div>
-          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 md:col-span-1">
-            <div className="text-muted-foreground">Considered Hackatime range</div>
-            <div className="text-foreground font-semibold">{canonicalProjectRangeLabel}</div>
-          </div>
-        </div>
-
-        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 space-y-3">
-          <div className="text-foreground font-semibold">Submission checklist</div>
-          {project.submissionChecklist ? (
-            <div className="space-y-2">
-              {PROJECT_SUBMISSION_CHECKLIST_ITEMS.map((item) => {
-                const checked = project.submissionChecklist?.[item.key] ?? false;
-                return (
-                  <div key={item.key} className="flex items-start justify-between gap-3">
-                    <div className="text-sm text-foreground">{item.label}</div>
-                    <div className="shrink-0 flex items-center gap-2">
-                      <span
-                        className={[
-                          "text-xs font-semibold uppercase tracking-wide",
-                          checked ? "text-emerald-300" : "text-muted-foreground",
-                        ].join(" ")}
-                      >
-                        {checked ? "Checked" : "Unchecked"}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+      {/* 2. Originality — deliberately loud so it isn't skimmed past. */}
+      <ReviewSection
+        icon={
+          project.creatorDeclaredOriginality ? (
+            <ShieldCheck className="h-5 w-5 text-emerald-600" aria-hidden="true" />
           ) : (
-            <div className="text-sm text-muted-foreground">
-              No checklist state was saved for this submission.
-            </div>
-          )}
+            <ShieldAlert className="h-5 w-5 text-amber-600" aria-hidden="true" />
+          )
+        }
+        title="Originality declaration"
+        className={
+          project.creatorDeclaredOriginality
+            ? "border-l-4 border-l-emerald-500"
+            : "border-l-4 border-l-amber-500"
+        }
+        aside={
+          <span
+            className={[
+              "rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide",
+              project.creatorDeclaredOriginality
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700"
+                : "border-amber-500/40 bg-amber-500/15 text-amber-700",
+            ].join(" ")}
+          >
+            {project.creatorDeclaredOriginality ? "Declared unique" : "May overlap"}
+          </span>
+        }
+      >
+        <div className="text-sm text-foreground font-semibold">
+          {project.creatorDeclaredOriginality
+            ? "Creator believes this project is unique."
+            : "Creator declared possible overlap with existing work."}
         </div>
+        {!project.creatorDeclaredOriginality && project.creatorDuplicateExplanation ? (
+          <div className="text-sm">
+            <div className="text-muted-foreground">Overlap details</div>
+            <div className="text-foreground whitespace-pre-wrap">
+              {project.creatorDuplicateExplanation}
+            </div>
+          </div>
+        ) : null}
+        {project.creatorOriginalityRationale ? (
+          <div className="text-sm">
+            <div className="text-muted-foreground">Uniqueness or attribution notes</div>
+            <div className="text-foreground whitespace-pre-wrap">
+              {project.creatorOriginalityRationale}
+            </div>
+          </div>
+        ) : null}
+        {(project.creatorDeclaredOriginality || !project.creatorDuplicateExplanation) &&
+        !project.creatorOriginalityRationale ? (
+          <div className="text-sm text-muted-foreground">No notes were added.</div>
+        ) : null}
+      </ReviewSection>
 
-        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 space-y-3">
-          <div className="text-foreground font-semibold">Originality declaration</div>
-          <div className="text-sm text-foreground font-semibold">
-            {project.creatorDeclaredOriginality
-              ? "Creator believes this project is unique."
-              : "Creator declared possible overlap with existing work."}
-          </div>
-          {project.creatorDuplicateExplanation ? (
-            <div className="text-sm">
-              <div className="text-muted-foreground">Overlap details</div>
-              <div className="text-foreground whitespace-pre-wrap">
-                {project.creatorDuplicateExplanation}
-              </div>
-            </div>
-          ) : null}
-          {project.creatorOriginalityRationale ? (
-            <div className="text-sm">
-              <div className="text-muted-foreground">Uniqueness or attribution notes</div>
-              <div className="text-foreground whitespace-pre-wrap">
-                {project.creatorOriginalityRationale}
-              </div>
-            </div>
-          ) : null}
-          {!project.creatorDuplicateExplanation && !project.creatorOriginalityRationale ? (
-            <div className="text-sm text-muted-foreground">No optional notes were saved.</div>
-          ) : null}
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {project.playableDemoUrl ? <LinkChip label="Demo" url={project.playableDemoUrl} /> : null}
-          {project.videoUrl ? <LinkChip label="Video" url={project.videoUrl} /> : null}
-          {project.codeUrl ? <LinkChip label="GitHub" url={project.codeUrl} /> : null}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
-            <div className="text-sm text-muted-foreground">Hackatime project</div>
-            <div className="text-foreground font-semibold truncate">
-              <span className="font-mono">{project.hackatimeProjectName || "—"}</span>
-            </div>
-          </div>
-          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
-            <div className="text-sm text-muted-foreground">Hackatime hours (this project)</div>
-            <div className="text-foreground font-semibold">{hackatimeLoggedLabel}</div>
-          </div>
-          {joeFraudLink ? (
+      {/* 3. Hackatime — the only place the considered range and fraud link appear. */}
+      <ReviewSection
+        icon={<Timer className="h-5 w-5 text-carnival-blue" aria-hidden="true" />}
+        title="Hackatime"
+        aside={
+          joeFraudLink ? (
             <a
               href={joeFraudLink}
               target="_blank"
-              rel="noreferrer"
-              className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 hover:bg-muted/70 transition-colors"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-2 rounded-[var(--radius-xl)] border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-500/20 transition-colors"
             >
-              <div className="text-sm text-muted-foreground">Joe.fraud review link</div>
-              <div className="text-foreground font-semibold truncate">{joeFraudLink}</div>
+              <ScanSearch className="h-4 w-4" aria-hidden="true" />
+              Fraud check (Joe.fraud)
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
             </a>
           ) : (
-            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
-              <div className="text-sm text-muted-foreground">Joe.fraud review link</div>
-              <div className="text-foreground font-semibold">—</div>
+            <span className="text-xs text-muted-foreground">
+              No Hackatime user ID — fraud link unavailable
+            </span>
+          )
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 min-w-0">
+            <div className="text-muted-foreground">Project</div>
+            <div className="text-foreground font-semibold truncate font-mono">
+              {project.hackatimeProjectName || "—"}
             </div>
-          )}
+          </div>
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
+            <div className="text-muted-foreground">Hours logged</div>
+            <div className="text-foreground font-semibold">{hackatimeLoggedLabel}</div>
+          </div>
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
+            <div className="text-muted-foreground">Considered range</div>
+            <div className="text-foreground font-semibold">{canonicalProjectRangeLabel}</div>
+          </div>
         </div>
 
         <LinkedHackatimeBreakdownCard
@@ -1184,48 +1273,79 @@ export default function ReviewProjectClient({
           breakdown={hackatimeBreakdown}
         />
 
-        {project.bountyProjectId ? (
-          <div className="rounded-[var(--radius-2xl)] border border-purple-500/30 bg-purple-500/10 px-4 py-3">
-            <div className="text-sm text-muted-foreground">Linked bounty</div>
-            <div className="text-foreground font-semibold">
-              {project.bountyProjectName || project.bountyProjectId}
-            </div>
+        <details className="group rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
+          <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold text-foreground">
+            Check a custom window
+            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" />
+          </summary>
+          <div className="mt-3">
+            <ReviewHackatimeTools
+              projectId={project.id}
+              defaultStartDate={defaultReviewStartDate}
+              defaultEndDate={defaultReviewEndDate}
+            />
           </div>
-        ) : null}
+        </details>
+      </ReviewSection>
 
-        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <div className="text-sm text-muted-foreground">Reviewer assignments</div>
-              <div className="text-foreground font-semibold">
-                {assignments.length === 0
-                  ? "No reviewers assigned"
-                  : `${assignments.length} reviewer${assignments.length === 1 ? "" : "s"} assigned`}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onToggleAssignment}
-              disabled={assignmentBusy}
-              className="inline-flex items-center justify-center bg-background hover:bg-background/80 disabled:bg-background/50 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
-            >
-              {assignmentBusy ? "Updating…" : isAssignedToMe ? "Unassign me" : "Assign to me"}
-            </button>
+      {/* 4. What the creator ticked before submitting. */}
+      <ReviewSection
+        icon={<ListChecks className="h-5 w-5 text-carnival-blue" aria-hidden="true" />}
+        title="Submission checklist"
+      >
+        {project.submissionChecklist ? (
+          <ul className="space-y-2">
+            {PROJECT_SUBMISSION_CHECKLIST_ITEMS.map((item) => {
+              const checked = project.submissionChecklist?.[item.key] ?? false;
+              return (
+                <li key={item.key} className="flex items-start gap-2.5 text-sm">
+                  {checked ? (
+                    <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-label="Checked" />
+                  ) : (
+                    <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-label="Unchecked" />
+                  )}
+                  <span className={checked ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <div className="text-sm text-muted-foreground">
+            No checklist state was saved for this submission.
           </div>
-          {assignments.length > 0 ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {assignments.map((a) => (
-                <div key={`${a.reviewerId}-${a.createdAt}`} className="rounded-[var(--carnival-squircle-radius)] border border-border bg-card px-3 py-1 font-bold">
-                  <span className="text-xs text-foreground font-semibold">
-                    {a.reviewerName}
-                    {a.reviewerId === initial.viewerUserId ? " (You)" : ""}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </div>
+        )}
+      </ReviewSection>
+
+      {/* 5. Who is on it. */}
+      <ReviewSection
+        icon={<Users className="h-5 w-5 text-carnival-blue" aria-hidden="true" />}
+        title="Reviewers"
+        aside={
+          <button
+            type="button"
+            onClick={onToggleAssignment}
+            disabled={assignmentBusy}
+            className="inline-flex items-center justify-center bg-background hover:bg-background/80 disabled:bg-background/50 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
+          >
+            {assignmentBusy ? "Updating…" : isAssignedToMe ? "Unassign me" : "Assign to me"}
+          </button>
+        }
+      >
+        {assignments.length === 0 ? (
+          <div className="text-sm text-muted-foreground">No reviewers assigned yet.</div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            {assignments.map((a) => (
+              <div key={`${a.reviewerId}-${a.createdAt}`} className="rounded-[var(--carnival-squircle-radius)] border border-border bg-card px-3 py-1 font-bold">
+                <span className="text-xs text-foreground font-semibold">
+                  {a.reviewerName}
+                  {a.reviewerId === initial.viewerUserId ? " (You)" : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </ReviewSection>
 
       {project.screenshots?.length ? (
         <div className="platform-surface-card p-6 space-y-4">

@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { getServerSession } from "@/lib/server-session";
+import { cleanUntrustedString } from "@/lib/sanitize";
 
 // ============================================================================
 // String utilities
@@ -9,7 +10,7 @@ import { getServerSession } from "@/lib/server-session";
  * Safely convert unknown value to trimmed string
  */
 export function toCleanString(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
+  return cleanUntrustedString(value);
 }
 
 /**

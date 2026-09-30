@@ -50,6 +50,31 @@ describe("admin-safety", () => {
     }
   });
 
+  test("defaults the reference type and accepts a predefined one", () => {
+    const base = { kind: "issue", amount: 5, reason: "x", confirmation: LEDGER_ADJUSTMENT_CONFIRMATION };
+    const defaulted = parseLedgerAdjustmentPayload(base);
+    expect(defaulted.ok && defaulted.value.referenceType).toBe("admin_adjustment");
+    const picked = parseLedgerAdjustmentPayload({ ...base, referenceType: "admin_refund" });
+    expect(picked.ok && picked.value.referenceType).toBe("admin_refund");
+  });
+
+  test("rejects system and unknown reference types", () => {
+    const base = { kind: "issue", amount: 5, reason: "x", confirmation: LEDGER_ADJUSTMENT_CONFIRMATION };
+    expect(parseLedgerAdjustmentPayload({ ...base, referenceType: "project_grant" }).ok).toBe(false);
+    expect(parseLedgerAdjustmentPayload({ ...base, referenceType: "whatever" }).ok).toBe(false);
+  });
+
+  test("rejects a reference type used with the wrong direction", () => {
+    const result = parseLedgerAdjustmentPayload({
+      kind: "deduct",
+      amount: 5,
+      reason: "x",
+      referenceType: "admin_refund",
+      confirmation: LEDGER_ADJUSTMENT_CONFIRMATION,
+    });
+    expect(result.ok).toBe(false);
+  });
+
   test("parses and clamps audit limits", () => {
     expect(parseAuditLimit(null)).toBe(100);
     expect(parseAuditLimit("-5")).toBe(1);

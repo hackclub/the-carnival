@@ -14,6 +14,7 @@ export type R2UploadKind =
   | "project_screenshot"
   | "bounty_preview"
   | "shop_item_image"
+  | "shop_suggestion_image"
   | "editor_icon"
   | "devlog_attachment";
 
@@ -114,6 +115,10 @@ export function makeR2ObjectKey(input: {
 
   if (input.kind === "shop_item_image") {
     return `shop-items/${id}.${ext}`;
+  }
+
+  if (input.kind === "shop_suggestion_image") {
+    return `shop-suggestions/${id}.${ext}`;
   }
 
   if (input.kind === "bounty_preview") {

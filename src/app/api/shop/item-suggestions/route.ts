@@ -6,11 +6,11 @@ import {
   generateId,
   getAuthUser,
   parseJsonBody,
-  toCleanString,
   toPositiveInt,
 } from "@/lib/api-utils";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
-import { normalizeOptionalUrl } from "@/lib/shop-shared";
+import { validatePlatformImageUrl } from "@/lib/review/uploads";
+import { sanitizeHttpUrl, sanitizeText, TEXT_LIMITS } from "@/lib/sanitize";
 
 type CreateSuggestionBody = {
   name?: unknown;
@@ -80,19 +80,27 @@ export async function POST(req: Request) {
   const body = await parseJsonBody<CreateSuggestionBody>(req);
   if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
 
-  const name = toCleanString(body.name);
-  const description = toCleanString(body.description) || null;
-  const imageUrl = normalizeOptionalUrl(body.imageUrl);
-  const referenceUrl = normalizeOptionalUrl(body.referenceUrl);
+  const name = sanitizeText(body.name, { maxLength: TEXT_LIMITS.name });
+  const description =
+    sanitizeText(body.description, { maxLength: TEXT_LIMITS.longText, multiline: true }) || null;
+  const imageUrl = sanitizeHttpUrl(body.imageUrl);
+  const referenceUrl = sanitizeHttpUrl(body.referenceUrl);
   const orderNoteRequired = toBoolean(body.orderNoteRequired);
   const approvedHoursNeeded = toPositiveInt(body.approvedHoursNeeded);
   const tokenCost = toPositiveInt(body.tokenCost);
 
   if (!name) return NextResponse.json({ error: "Item name is required." }, { status: 400 });
-  if (body.imageUrl && !imageUrl) {
+  if (imageUrl === null) {
     return NextResponse.json({ error: "Image URL must be http(s)." }, { status: 400 });
   }
-  if (body.referenceUrl && !referenceUrl) {
+  if (imageUrl) {
+    // Only images uploaded through the platform — no hotlinked external images.
+    const imageValidation = validatePlatformImageUrl(imageUrl, "Suggested image");
+    if (!imageValidation.ok) {
+      return NextResponse.json({ error: imageValidation.error }, { status: 400 });
+    }
+  }
+  if (referenceUrl === null) {
     return NextResponse.json({ error: "Reference URL must be http(s)." }, { status: 400 });
   }
   if (orderNoteRequired === null) {
@@ -118,8 +126,8 @@ export async function POST(req: Request) {
       status: "pending",
       name,
       description,
-      imageUrl,
-      referenceUrl,
+      imageUrl: imageUrl || null,
+      referenceUrl: referenceUrl || null,
       orderNoteRequired,
       approvedHoursNeeded,
       tokenCost,

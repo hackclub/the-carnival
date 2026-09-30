@@ -9,6 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  ADMIN_LEDGER_REFERENCE_TYPES,
+  DEFAULT_ADMIN_LEDGER_REFERENCE_TYPE,
+  LEDGER_REFERENCE_TYPE_LABELS,
+  adminReferenceTypesForKind,
+  type AdminLedgerReferenceType,
+} from "@/lib/ledger-reference-types";
 
 export type WalletUserOption = {
   id: string;
@@ -124,6 +131,9 @@ export default function AdminWalletClient({ users }: { users: WalletUserOption[]
   const [adjustmentType, setAdjustmentType] = useState<"issue" | "deduct">("issue");
   const [adjustmentAmount, setAdjustmentAmount] = useState("1");
   const [adjustmentReason, setAdjustmentReason] = useState("");
+  const [adjustmentReferenceType, setAdjustmentReferenceType] = useState<AdminLedgerReferenceType>(
+    DEFAULT_ADMIN_LEDGER_REFERENCE_TYPE,
+  );
   const [adjustmentConfirmation, setAdjustmentConfirmation] = useState("");
   const [submittingAdjustment, setSubmittingAdjustment] = useState(false);
 
@@ -217,6 +227,7 @@ export default function AdminWalletClient({ users }: { users: WalletUserOption[]
           type: adjustmentType,
           amount,
           reason: adjustmentReason.trim(),
+          referenceType: adjustmentReferenceType,
           confirmation: adjustmentConfirmation.trim(),
         }),
       });
@@ -250,6 +261,7 @@ export default function AdminWalletClient({ users }: { users: WalletUserOption[]
     adjustmentAmount,
     adjustmentConfirmation,
     adjustmentReason,
+    adjustmentReferenceType,
     adjustmentType,
     loadWallet,
     selectedUserId,
@@ -376,7 +388,15 @@ export default function AdminWalletClient({ users }: { users: WalletUserOption[]
                     Type
                     <Select
                       value={adjustmentType}
-                      onValueChange={(v) => { if (v) setAdjustmentType(v as "issue" | "deduct"); }}
+                      onValueChange={(v) => {
+                        if (!v) return;
+                        const nextKind = v as "issue" | "deduct";
+                        setAdjustmentType(nextKind);
+                        // Keep the reference type valid for the new direction.
+                        if (!adminReferenceTypesForKind(nextKind).some((t) => t.id === adjustmentReferenceType)) {
+                          setAdjustmentReferenceType(DEFAULT_ADMIN_LEDGER_REFERENCE_TYPE);
+                        }
+                      }}
                     >
                       <SelectTrigger className="w-full h-9 rounded-lg border-border bg-card px-3 text-sm text-foreground">
                         <SelectValue />
@@ -399,9 +419,33 @@ export default function AdminWalletClient({ users }: { users: WalletUserOption[]
                     />
                   </label>
                   <label className="flex flex-col gap-1 text-xs text-muted-foreground md:col-span-2">
+                    Reference type
+                    <Select
+                      value={adjustmentReferenceType}
+                      onValueChange={(v) => { if (v) setAdjustmentReferenceType(v as AdminLedgerReferenceType); }}
+                    >
+                      <SelectTrigger className="w-full h-9 rounded-lg border-border bg-card px-3 text-sm text-foreground">
+                        <SelectValue>
+                          {(v: string) => LEDGER_REFERENCE_TYPE_LABELS[v] ?? v}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {adminReferenceTypesForKind(adjustmentType).map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-[11px]">
+                      {ADMIN_LEDGER_REFERENCE_TYPES.find((t) => t.id === adjustmentReferenceType)?.description}
+                    </span>
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-muted-foreground md:col-span-4">
                     Reason
                     <input
                       value={adjustmentReason}
+                      maxLength={500}
                       onChange={(e) => setAdjustmentReason(e.target.value)}
                       placeholder="Required reason for audit trail"
                       className="carnival-control px-3 py-2 text-sm text-foreground"
@@ -522,14 +566,26 @@ export default function AdminWalletClient({ users }: { users: WalletUserOption[]
           </label>
           <label className="text-xs text-muted-foreground flex flex-col gap-1">
             Reference type
-            <input
-              value={formFilters.referenceType}
-              onChange={(e) =>
-                setFormFilters((prev) => ({ ...prev, referenceType: e.target.value }))
+            <Select
+              value={formFilters.referenceType || "all"}
+              onValueChange={(v) =>
+                setFormFilters((prev) => ({ ...prev, referenceType: !v || v === "all" ? "" : v }))
               }
-              placeholder="admin_adjustment"
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            />
+            >
+              <SelectTrigger className="w-full h-9 rounded-lg border-border bg-background px-3 text-sm text-foreground">
+                <SelectValue>
+                  {(v: string) => (v === "all" ? "All" : LEDGER_REFERENCE_TYPE_LABELS[v] ?? v)}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {Object.entries(LEDGER_REFERENCE_TYPE_LABELS).map(([id, label]) => (
+                  <SelectItem key={id} value={id}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
           <label className="text-xs text-muted-foreground flex flex-col gap-1">
             From (ISO date/time)
@@ -655,7 +711,7 @@ export default function AdminWalletClient({ users }: { users: WalletUserOption[]
                 </div>
                 {entry.referenceType ? (
                   <div className="text-xs text-muted-foreground">
-                    Ref: {entry.referenceType}
+                    Ref: {LEDGER_REFERENCE_TYPE_LABELS[entry.referenceType] ?? entry.referenceType}
                     {entry.referenceId ? ` · ${entry.referenceId}` : ""}
                   </div>
                 ) : null}

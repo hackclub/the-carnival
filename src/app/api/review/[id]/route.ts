@@ -54,6 +54,7 @@ import {
   AI_SLOP_REJECTION_MESSAGE,
   UNCLEAR_README_REJECTION_MESSAGE,
 } from "@/lib/review/config";
+import { cleanUntrustedString } from "@/lib/sanitize";
 
 type ReviewBody = {
   decision?: unknown;
@@ -229,7 +230,7 @@ function isDecision(value: unknown): value is ReviewDecision {
 }
 
 function toCleanString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
+  return cleanUntrustedString(value);
 }
 
 function nextStatusForDecision(decision: ReviewDecision): ProjectStatus | null {

@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Parkinsans } from "next/font/google";
+import { Geist_Mono, Short_Stack } from "next/font/google";
 import "./globals.css";
 import SiteBanner from "@/components/SiteBanner";
 import ToasterProvider from "@/components/ToasterProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { NavigationProgressProvider } from "@/components/NavigationProgress";
 
-const parkinsans = Parkinsans({
-  variable: "--font-parkinsans",
+const shortStack = Short_Stack({
+  variable: "--font-short-stack",
+  weight: "400",
   subsets: ["latin"],
 });
 
@@ -39,7 +40,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${parkinsans.variable} ${geistMono.variable} antialiased sparkles`}
+        className={`${shortStack.variable} ${geistMono.variable} antialiased sparkles`}
       >
         <ToasterProvider />
         <SiteBanner />

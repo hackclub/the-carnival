@@ -10,7 +10,7 @@ import { normalizeCategory, normalizeProjectTags } from "@/lib/project-taxonomy"
 import { getServerSession } from "@/lib/server-session";
 import { validateLinkableBountyProjectId } from "@/lib/bounties";
 import { DEFAULT_PROJECT_TYPE, isEnabledProjectType } from "@/lib/review/config";
-import { isValidHttpUrlString } from "@/lib/review/urls";
+import { cleanUntrustedString, sanitizeHttpUrl, sanitizeText, TEXT_LIMITS } from "@/lib/sanitize";
 import { validatePlatformImageUrls } from "@/lib/review/uploads";
 
 type CreateProjectBody = {
@@ -38,7 +38,7 @@ type CreateProjectBody = {
 };
 
 function toCleanString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
+  return cleanUntrustedString(value);
 }
 
 function toOptionalTrimmedString(value: unknown): string | null {
@@ -79,14 +79,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const name = toCleanString(body.name);
-  const description = toCleanString(body.description);
+  const name = sanitizeText(body.name, { maxLength: TEXT_LIMITS.name });
+  const description = sanitizeText(body.description, {
+    maxLength: TEXT_LIMITS.longText,
+    multiline: true,
+  });
   const editorRaw = typeof body.editor === "string" ? body.editor.trim() : body.editor;
-  const editorOther = toCleanString(body.editorOther);
+  const editorOther = sanitizeText(body.editorOther, { maxLength: TEXT_LIMITS.shortText });
   const hackatimeProjectName = toCleanString(body.hackatimeProjectName);
-  const videoUrl = toCleanString(body.videoUrl);
-  const playableDemoUrl = toCleanString(body.playableDemoUrl);
-  const codeUrl = toCleanString(body.codeUrl);
+  const videoUrl = sanitizeHttpUrl(body.videoUrl);
+  const playableDemoUrl = sanitizeHttpUrl(body.playableDemoUrl);
+  const codeUrl = sanitizeHttpUrl(body.codeUrl);
   const category = normalizeCategory(body.category);
   const tags = normalizeProjectTags(body.tags);
   const parsedRange =
@@ -144,13 +147,13 @@ export async function POST(req: Request) {
   // URL fields are optional at creation; validated only if provided. The full
   // per-type rules (allowlists, blocklists) are enforced by the submission
   // gates when the project is submitted for review.
-  if (videoUrl && !isValidHttpUrlString(videoUrl)) {
+  if (videoUrl === null) {
     return NextResponse.json({ error: "Video link must be http(s)" }, { status: 400 });
   }
-  if (playableDemoUrl && !isValidHttpUrlString(playableDemoUrl)) {
+  if (playableDemoUrl === null) {
     return NextResponse.json({ error: "Playable demo link must be http(s)" }, { status: 400 });
   }
-  if (codeUrl && !isValidHttpUrlString(codeUrl)) {
+  if (codeUrl === null) {
     return NextResponse.json({ error: "Code URL must be http(s)" }, { status: 400 });
   }
 

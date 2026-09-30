@@ -22,6 +22,7 @@ import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-acc
 import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
 import { validatePlatformImageUrls } from "@/lib/review/uploads";
 import { getServerSession } from "@/lib/server-session";
+import { cleanUntrustedString } from "@/lib/sanitize";
 
 type UpdateDevlogBody = {
   title?: unknown;
@@ -35,7 +36,7 @@ type UpdateDevlogBody = {
 };
 
 function toCleanString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
+  return cleanUntrustedString(value);
 }
 
 function canViewProjectDevlogs(role: unknown, isCreator: boolean) {

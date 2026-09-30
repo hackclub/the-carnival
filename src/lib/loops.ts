@@ -4,6 +4,8 @@ const LOOPS_TRANSACTIONAL_SHOP_ORDER_CREATED_ADMIN_EMAIL_ID =
   process.env.LOOPS_TRANSACTIONAL_SHOP_ORDER_CREATED_ADMIN_EMAIL_ID?.trim();
 const LOOPS_TRANSACTIONAL_SHOP_ORDER_FULFILLED_PARTICIPANT_EMAIL_ID =
   process.env.LOOPS_TRANSACTIONAL_SHOP_ORDER_FULFILLED_PARTICIPANT_EMAIL_ID?.trim();
+const LOOPS_TRANSACTIONAL_PROJECT_SUBMITTED_STAFF_EMAIL_ID =
+  process.env.LOOPS_TRANSACTIONAL_PROJECT_SUBMITTED_STAFF_EMAIL_ID?.trim();
 
 type LoopsEmailParams = Record<string, string | number | boolean | null | undefined>;
 
@@ -151,6 +153,29 @@ export async function sendShopOrderFulfilledParticipantEmail(
 ) {
   await sendEmailWithLoops(
     LOOPS_TRANSACTIONAL_SHOP_ORDER_FULFILLED_PARTICIPANT_EMAIL_ID,
+    targetEmail,
+    params,
+  );
+}
+
+/**
+ * Tell an admin/reviewer that a project just entered the review queue.
+ * Loops template variables: project_name, creator_name, project_description,
+ * review_url, submitted_at, is_resubmission ("yes"/"no").
+ */
+export async function sendProjectSubmittedStaffEmail(
+  targetEmail: string,
+  params: {
+    project_name: string;
+    creator_name: string;
+    project_description: string;
+    review_url: string;
+    submitted_at: string;
+    is_resubmission: "yes" | "no";
+  },
+) {
+  await sendEmailWithLoops(
+    LOOPS_TRANSACTIONAL_PROJECT_SUBMITTED_STAFF_EMAIL_ID,
     targetEmail,
     params,
   );

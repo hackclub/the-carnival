@@ -9,6 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  ADMIN_LEDGER_REFERENCE_TYPES,
+  DEFAULT_ADMIN_LEDGER_REFERENCE_TYPE,
+  LEDGER_REFERENCE_TYPE_LABELS,
+  adminReferenceTypesForKind,
+  type AdminLedgerReferenceType,
+} from "@/lib/ledger-reference-types";
 
 export type UserListItem = {
   id: string;
@@ -87,6 +94,9 @@ export default function AdminUsersClient({
   const [adjustmentType, setAdjustmentType] = useState<"issue" | "deduct">("issue");
   const [adjustmentAmount, setAdjustmentAmount] = useState("1");
   const [adjustmentReason, setAdjustmentReason] = useState("");
+  const [adjustmentReferenceType, setAdjustmentReferenceType] = useState<AdminLedgerReferenceType>(
+    DEFAULT_ADMIN_LEDGER_REFERENCE_TYPE,
+  );
   const [adjustmentConfirmation, setAdjustmentConfirmation] = useState("");
   const [submittingAdjustment, setSubmittingAdjustment] = useState(false);
 
@@ -297,6 +307,7 @@ export default function AdminUsersClient({
           type: adjustmentType,
           amount,
           reason: adjustmentReason.trim(),
+          referenceType: adjustmentReferenceType,
           confirmation: adjustmentConfirmation.trim(),
         }),
       });
@@ -322,6 +333,7 @@ export default function AdminUsersClient({
     adjustmentAmount,
     adjustmentConfirmation,
     adjustmentReason,
+    adjustmentReferenceType,
     adjustmentType,
     loadLedger,
   ]);
@@ -510,7 +522,18 @@ export default function AdminUsersClient({
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <label className="flex flex-col gap-1 text-xs text-muted-foreground">
                     Type
-                    <Select value={adjustmentType} onValueChange={(v) => { if (v) setAdjustmentType(v as "issue" | "deduct"); }}>
+                    <Select
+                      value={adjustmentType}
+                      onValueChange={(v) => {
+                        if (!v) return;
+                        const nextKind = v as "issue" | "deduct";
+                        setAdjustmentType(nextKind);
+                        // Keep the reference type valid for the new direction.
+                        if (!adminReferenceTypesForKind(nextKind).some((t) => t.id === adjustmentReferenceType)) {
+                          setAdjustmentReferenceType(DEFAULT_ADMIN_LEDGER_REFERENCE_TYPE);
+                        }
+                      }}
+                    >
                       <SelectTrigger className="w-full h-9 rounded-lg border-border bg-card px-3 text-sm text-foreground">
                         <SelectValue />
                       </SelectTrigger>
@@ -532,9 +555,33 @@ export default function AdminUsersClient({
                     />
                   </label>
                   <label className="flex flex-col gap-1 text-xs text-muted-foreground md:col-span-2">
+                    Reference type
+                    <Select
+                      value={adjustmentReferenceType}
+                      onValueChange={(v) => { if (v) setAdjustmentReferenceType(v as AdminLedgerReferenceType); }}
+                    >
+                      <SelectTrigger className="w-full h-9 rounded-lg border-border bg-card px-3 text-sm text-foreground">
+                        <SelectValue>
+                          {(v: string) => LEDGER_REFERENCE_TYPE_LABELS[v] ?? v}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {adminReferenceTypesForKind(adjustmentType).map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-[11px]">
+                      {ADMIN_LEDGER_REFERENCE_TYPES.find((t) => t.id === adjustmentReferenceType)?.description}
+                    </span>
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-muted-foreground md:col-span-4">
                     Reason
                     <input
                       value={adjustmentReason}
+                      maxLength={500}
                       onChange={(e) => setAdjustmentReason(e.target.value)}
                       placeholder="Required reason for audit trail"
                       className="carnival-control px-3 py-2 text-sm text-foreground"

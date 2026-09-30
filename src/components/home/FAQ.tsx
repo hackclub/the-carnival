@@ -13,7 +13,7 @@ const faqs = [
     id: "track-time",
     question: "How do I track my time?",
     answer:
-      "Use Hackatime to log real coding hours. Carnival converts those honest hours into grant money at +$4 per hour, so accuracy matters.",
+      "Use Hackatime to log real coding hours. Carnival converts those honest hours into grant money at $5 per hour, so accuracy matters.",
   },
   {
     id: "teams",
