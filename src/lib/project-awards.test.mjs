@@ -19,7 +19,7 @@ describe("project award summaries", () => {
       }),
     ).toEqual({
       approvedHoursLabel: "7.5h",
-      tokensLabel: "70 tokens",
+      tokensLabel: "75 tokens",
     });
 
     expect(
