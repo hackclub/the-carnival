@@ -85,7 +85,7 @@ All outbound Slack lives in `src/lib/notifications/` and runs through one paced 
   bun scripts/nudges/run.ts --send --max 25 --allow U0123456789
   ```
 
-  The schedule is `.github/workflows/nudges.yml` calling `POST /api/cron/nudges` with `Authorization: Bearer $CRON_SECRET` (repository secrets `CARNIVAL_APP_URL`, `CARNIVAL_CRON_SECRET`). Every run is a dry run until `NUDGES_ENABLED=true` is set on the server; `NUDGES_TEST_SLACK_IDS` restricts sends to listed Slack IDs for a first live test, and `NUDGES_MAX_PER_RUN` caps a run (default 200 at 1 message/second).
+  The schedule is `.github/workflows/nudges.yml` calling `POST /api/cron/nudges` with `Authorization: Bearer $CRON_SECRET` (repository secrets `CARNIVAL_APP_URL`, `CARNIVAL_CRON_SECRET`). Every run is a dry run until `NUDGES_ENABLED=true` is set on the server; `NUDGES_TEST_SLACK_IDS` restricts sends to listed Slack IDs for a first live test, and `NUDGES_MAX_PER_RUN` caps one call (default 80: at 1 message/second a call must finish inside Cloudflare's 100 s limit, so the workflow loops up to a few batches per day).
 
 ### Database
 

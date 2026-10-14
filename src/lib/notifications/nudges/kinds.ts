@@ -96,4 +96,10 @@ export const DEFAULT_NUDGE_POLICY: NudgePolicy = {
   globalQuietDays: 7,
 };
 
-export const DEFAULT_NUDGES_MAX_PER_RUN = 200;
+/**
+ * Default sends per call of /api/cron/nudges. Sends are paced at 1 msg/s and
+ * the app sits behind Cloudflare, which drops responses after 100 s, so one
+ * call must stay well under that; the workflow loops several calls per day
+ * instead (people already sent fall into the quiet window on the next call).
+ */
+export const DEFAULT_NUDGES_MAX_PER_RUN = 80;

@@ -1,9 +1,14 @@
 # Daily trigger for Carnival's automated Slack nudges.
 #
 # The app has no in-process scheduler (standalone container, possibly
-# replicated), so this workflow calls POST /api/cron/nudges once a day. The
-# route itself enforces every rail: dry run unless NUDGES_ENABLED=true on the
-# server, deadline stop, per-user cooldowns, per-run cap.
+# replicated), so this workflow calls POST /api/cron/nudges. The route
+# enforces every rail: dry run unless NUDGES_ENABLED=true on the server,
+# deadline stop, per-user cooldowns, per-call cap.
+#
+# The app sits behind Cloudflare (100 s response limit) and sends at 1 msg/s,
+# so one call sends at most NUDGES_MAX_PER_RUN (default 80). This job calls
+# the route up to `batches` times; people sent in an earlier batch fall into
+# the quiet window, so the next call plans the next slice.
 #
 # Repository secrets: CARNIVAL_APP_URL (e.g. https://carnival.hackclub.com)
 # and CARNIVAL_CRON_SECRET (same value as the app's CRON_SECRET).
@@ -21,9 +26,13 @@ on:
         type: boolean
         default: true
       max:
-        description: "Cap for this run (cannot exceed NUDGES_MAX_PER_RUN)"
+        description: "Cap per call (cannot exceed NUDGES_MAX_PER_RUN)"
         type: string
         default: ""
+      batches:
+        description: "Max calls this run"
+        type: string
+        default: "3"
 
 concurrency:
   group: automated-nudges
@@ -32,7 +41,7 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Call /api/cron/nudges
         env:
@@ -40,6 +49,7 @@ jobs:
           CRON_SECRET: ${{ secrets.CARNIVAL_CRON_SECRET }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
           MAX: ${{ inputs.max }}
+          BATCHES: ${{ inputs.batches || '3' }}
         run: |
           set -euo pipefail
           if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
@@ -50,13 +60,29 @@ jobs:
           [ "$DRY_RUN" = "true" ] && query="dryRun=1"
           if [ -n "$MAX" ]; then query="${query:+$query&}max=$MAX"; fi
           url="${APP_URL%/}/api/cron/nudges${query:+?$query}"
-          echo "POST $url"
-          response=$(curl --silent --show-error --fail-with-body --max-time 540 \
-            -X POST -H "Authorization: Bearer $CRON_SECRET" "$url")
-          echo "$response" | jq '{dryRun, sendingEnabled, slackConfigured, daysLeft, maxSends,
-            candidatesByKind, plannedByKind, skippedByReason,
-            sent: (.sent | length), failed: (.failed | length)}'
-          failed=$(echo "$response" | jq '.failed | length')
-          if [ "$failed" != "0" ]; then
-            echo "::warning::$failed nudge(s) failed to send; see server logs"
+
+          total_sent=0
+          total_failed=0
+          for batch in $(seq 1 "$BATCHES"); do
+            echo "::group::Batch $batch — POST $url"
+            response=$(curl --silent --show-error --fail-with-body --max-time 120 \
+              -X POST -H "Authorization: Bearer $CRON_SECRET" "$url")
+            echo "$response" | jq '{dryRun, sendingEnabled, slackConfigured, daysLeft, maxSends,
+              candidatesByKind, plannedByKind, skippedByReason,
+              sent: (.sent | length), failed: (.failed | length)}'
+            echo "::endgroup::"
+            planned=$(echo "$response" | jq '[.plannedByKind[]] | add // 0')
+            sent=$(echo "$response" | jq '.sent | length')
+            failed=$(echo "$response" | jq '.failed | length')
+            dry=$(echo "$response" | jq -r '.dryRun')
+            total_sent=$((total_sent + sent))
+            total_failed=$((total_failed + failed))
+            # A dry run never changes state, so repeating it would loop forever.
+            if [ "$dry" = "true" ] || [ "$planned" = "0" ]; then break; fi
+            # Nothing went out (e.g. Slack down): stop rather than retry blindly.
+            if [ "$sent" = "0" ]; then break; fi
+          done
+          echo "Total sent: $total_sent · failed: $total_failed"
+          if [ "$total_failed" != "0" ]; then
+            echo "::warning::$total_failed nudge(s) failed to send; see server logs"
           fi

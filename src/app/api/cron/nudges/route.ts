@@ -9,12 +9,17 @@
  * Auth: `Authorization: Bearer $CRON_SECRET`. Triggered daily by
  * .github/workflows/nudges.yml (or any external cron). No in-process timer:
  * the app runs as a standalone container, possibly replicated.
+ *
+ * Each call sends at most NUDGES_MAX_PER_RUN (default 80) at 1 msg/s so the
+ * response returns inside Cloudflare's 100 s limit; the workflow calls again
+ * until a call plans nothing. Every recipient is recorded as soon as their DM
+ * is sent, so a batch that times out is still never repeated.
  */
 import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { nudgeMaxPerRunFromEnv, runNudges } from "@/lib/notifications/nudges/run";
 
-// 1 msg/s pacing: NUDGES_MAX_PER_RUN sends must fit inside this budget.
+// Vercel-only hint; under `bun server.js` the proxy timeout is the real limit.
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
