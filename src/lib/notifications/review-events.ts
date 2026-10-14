@@ -134,11 +134,9 @@ export async function notifyStaffProjectSubmitted(input: {
     });
 
     const result = await postSlackMessage({ channel, text });
-    if (!result.ok) return;
-
     await db
       .update(project)
-      .set({ reviewSlackThreadTs: result.ts })
+      .set({ reviewSlackThreadTs: result.ok ? result.ts : null })
       .where(eq(project.id, p.id));
   } catch (err) {
     console.error("[Slack] notifyStaffProjectSubmitted failed", err);
