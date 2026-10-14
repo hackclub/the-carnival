@@ -67,7 +67,10 @@ export function daysUntil(deadlineIso: string | null, now: Date): number | null 
   if (!deadlineIso) return null;
   const t = parseMs(deadlineIso);
   if (!Number.isFinite(t)) return null;
-  return Math.ceil((t - now.getTime()) / DAY_MS);
+  const d = new Date(t);
+  const deadlineDay = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.round((deadlineDay - today) / DAY_MS);
 }
 
 export function isDeadlinePassed(deadlineIso: string | null, now: Date): boolean {
