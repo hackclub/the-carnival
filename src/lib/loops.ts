@@ -217,3 +217,25 @@ export async function sendProjectSubmittedStaffEmail(
     params,
   );
 }
+
+const LOOPS_TRANSACTIONAL_SHOP_ORDER_DENIED_PARTICIPANT_EMAIL_ID =
+  process.env.LOOPS_TRANSACTIONAL_SHOP_ORDER_DENIED_PARTICIPANT_EMAIL_ID?.trim();
+
+/**
+ * Tell a participant their shop order was denied, with the admin's reason.
+ * Loops template variables: participant_name, order_id, item_name,
+ * denial_reason, denied_at, shop_url. No-op until the template ID is set.
+ */
+export async function sendShopOrderDeniedParticipantEmail(
+  targetEmail: string,
+  params: {
+    participant_name: string;
+    order_id: string;
+    item_name: string;
+    denial_reason: string;
+    denied_at: string;
+    shop_url: string;
+  },
+) {
+  await sendEmailWithLoops(LOOPS_TRANSACTIONAL_SHOP_ORDER_DENIED_PARTICIPANT_EMAIL_ID, targetEmail, params);
+}

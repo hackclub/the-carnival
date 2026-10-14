@@ -616,7 +616,7 @@ export default function AdminShopClient({
                   rows={4}
                 />
                 <Textarea
-                  label="Denial reason (required to deny)"
+                  label="Denial reason (required; sent to the user)"
                   placeholder="Why this order request is being denied..."
                   value={denyReasons[selectedOrder.id] ?? ""}
                   onChange={(e) =>
