@@ -42,6 +42,7 @@ export default async function ShopPage() {
         tokenCost: shopOrder.tokenCostSnapshot,
         fulfillmentLink: shopOrder.fulfillmentLink,
         fulfilledAt: shopOrder.fulfilledAt,
+        cancellationReason: shopOrder.cancellationReason,
         createdAt: shopOrder.createdAt,
       })
       .from(shopOrder)
@@ -92,6 +93,7 @@ export default async function ShopPage() {
     tokenCost: o.tokenCost ?? 0,
     fulfillmentLink: o.fulfillmentLink ?? null,
     fulfilledAt: o.fulfilledAt ? o.fulfilledAt.toISOString() : null,
+    cancellationReason: o.cancellationReason ?? null,
     createdAt: o.createdAt.toISOString(),
   }));
 

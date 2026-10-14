@@ -42,6 +42,8 @@ export type ShopOrderDTO = {
   tokenCost: number;
   fulfillmentLink: string | null;
   fulfilledAt: string | null;
+  // Admin's note when the order was denied (status "cancelled").
+  cancellationReason: string | null;
   createdAt: string;
 };
 
@@ -354,6 +356,14 @@ export default function ShopClient({
                     {o.orderNote ? (
                       <div className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
                         Request note: {o.orderNote}
+                      </div>
+                    ) : null}
+                    {o.status === "cancelled" ? (
+                      <div className="mt-2 rounded-[var(--radius-lg)] border border-carnival-red/30 bg-carnival-red/5 px-3 py-2 text-sm whitespace-pre-wrap">
+                        <span className="font-semibold text-carnival-red">Denied: </span>
+                        <span className="text-foreground">
+                          {o.cancellationReason ?? "No reason was given. Ask in #carnival if you're unsure why."}
+                        </span>
                       </div>
                     ) : null}
                     {o.fulfillmentLink ? (

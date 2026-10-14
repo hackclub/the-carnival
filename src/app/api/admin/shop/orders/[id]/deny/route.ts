@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { shopOrder } from "@/db/schema";
+import { shopOrder, user } from "@/db/schema";
 import { getAuthUser, parseJsonBody, toCleanString } from "@/lib/api-utils";
+import { getAppBaseUrl, sendShopOrderDeniedParticipantEmail } from "@/lib/loops";
+import { runAfterResponse } from "@/lib/notifications/after-response";
+import { buildOrderDeniedMessage } from "@/lib/notifications/shop-messages";
+import { postSlackMessage } from "@/lib/notifications/slack-client";
 
 type DenyBody = {
   reason?: unknown;
@@ -24,8 +28,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       .select({
         id: shopOrder.id,
         status: shopOrder.status,
+        itemName: shopOrder.itemNameSnapshot,
+        participantName: user.name,
+        participantEmail: user.email,
+        participantSlackId: user.slackId,
       })
       .from(shopOrder)
+      .leftJoin(user, eq(user.id, shopOrder.userId))
       .where(eq(shopOrder.id, id))
       .limit(1);
 
@@ -51,10 +60,47 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (!updated[0]) {
       return { error: "Failed to deny order" as const, status: 409 as const };
     }
-    return { ok: true as const };
+    return { ok: true as const, notify: order };
   });
 
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
+
+  // Tell the participant why, so they don't repeat the mistake. Only on the
+  // pending -> cancelled transition (re-denying is a no-op above).
+  if ("notify" in result && result.notify) {
+    const order = result.notify;
+    const shopUrl = `${getAppBaseUrl()}/shop`;
+    runAfterResponse(async () => {
+      const sends: Promise<unknown>[] = [];
+      if (order.participantSlackId?.trim()) {
+        sends.push(
+          postSlackMessage({
+            channel: order.participantSlackId,
+            text: buildOrderDeniedMessage({
+              slackId: order.participantSlackId,
+              itemName: order.itemName,
+              reason,
+              shopUrl,
+            }),
+          }),
+        );
+      }
+      if (order.participantEmail?.trim()) {
+        sends.push(
+          sendShopOrderDeniedParticipantEmail(order.participantEmail, {
+            participant_name: order.participantName ?? "there",
+            order_id: order.id,
+            item_name: order.itemName,
+            denial_reason: reason,
+            denied_at: now.toISOString(),
+            shop_url: shopUrl,
+          }),
+        );
+      }
+      await Promise.all(sends);
+    }, "shop order denied notification");
+  }
+
   return NextResponse.json({ ok: true });
 }
 
