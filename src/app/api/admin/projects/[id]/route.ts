@@ -23,7 +23,7 @@ import {
 } from "@/lib/airtable";
 import { assertGrantHoursInvariant, loadGrantContext } from "@/lib/review/grant";
 import { sendReviewEmail } from "@/lib/loops";
-import { notifyReviewDM } from "@/lib/slack";
+import { notifyReviewDM, notifyStaffReviewThread } from "@/lib/slack";
 
 type AdminProjectPatchBody = {
   status?: unknown;
@@ -99,6 +99,10 @@ async function notifyCreatorGranted(input: {
       console.warn("notifyReviewDM on grant failed", err);
     });
   }
+  await notifyStaffReviewThread({
+    projectId: input.projectId,
+    event: { kind: "granted", approvedHours: input.approvedHours, tokensIssued: input.tokensIssued },
+  });
 }
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {

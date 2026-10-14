@@ -1,4 +1,4 @@
-import { after, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -30,7 +30,8 @@ import { normalizeCategory, normalizeProjectTags } from "@/lib/project-taxonomy"
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
 import { approvedHoursWithinSnapshot } from "@/lib/review-rules";
 import { getServerSession } from "@/lib/server-session";
-import { notifyReviewDM } from "@/lib/slack";
+import { notifyReviewDM, notifyStaffProjectSubmitted } from "@/lib/slack";
+import { runAfterResponse } from "@/lib/notifications/after-response";
 import { getAppBaseUrl, sendProjectSubmittedStaffEmail } from "@/lib/loops";
 import { validateLinkableBountyProjectId } from "@/lib/bounties";
 
@@ -835,6 +836,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           status: "submitted",
           projectUrl: projectLink,
           creatorSlackId: slackId,
+          isResubmission: Boolean(current.submittedAt),
         });
       }
     } catch (err) {
@@ -846,7 +848,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const submitted = { id: p.id, name: p.name, description: p.description };
     const submittedAt = (p.submittedAt ?? new Date()).toISOString();
     const isResubmission = Boolean(current.submittedAt);
-    after(async () => {
+    runAfterResponse(async () => {
+      // Staff Slack channel: one post per submission; review events thread under it.
+      await notifyStaffProjectSubmitted({ projectId: submitted.id, isResubmission });
       try {
         const [staffRows, creatorRows] = await Promise.all([
           db
@@ -881,7 +885,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       } catch (err) {
         console.warn("Project submitted staff email failed", err);
       }
-    });
+    }, "project submitted staff notifications");
   }
 
   return NextResponse.json({ project: p, notice });

@@ -174,6 +174,9 @@ export const project = pgTable("project", {
   creatorOriginalityRationale: text("creator_originality_rationale"),
   // Set when a creator submits their project for review (status transitions to "in-review").
   submittedAt: timestamp("submitted_at"),
+  // Slack `ts` of the staff review-channel post for the current submission.
+  // Reset on every submit; follow-up review events reply in this thread.
+  reviewSlackThreadTs: text("review_slack_thread_ts"),
   // When true, the creator cannot move this project back to "in-review". Set by an admin via
   // "Reject and dismiss"; cleared by an admin from the dismissed-projects admin page.
   resubmissionBlocked: boolean("resubmission_blocked").notNull().default(false),

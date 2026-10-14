@@ -372,6 +372,13 @@
       "when": 1787752968354,
       "tag": "0052_devlog_assessment_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1791968412642,
+      "tag": "0053_project_review_slack_thread",
+      "breakpoints": true
     }
   ]
 }

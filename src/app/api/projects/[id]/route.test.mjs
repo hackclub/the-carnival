@@ -174,6 +174,8 @@ mock.module("@/lib/hackatime", () => ({
 }));
 mock.module("@/lib/slack", () => ({
   notifyReviewDM: async () => undefined,
+  notifyStaffProjectSubmitted: async () => undefined,
+  notifyStaffReviewThread: async () => undefined,
 }));
 
 const { PATCH } = await import("./route.ts");

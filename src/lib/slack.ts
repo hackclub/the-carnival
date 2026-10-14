@@ -1,97 +1,12 @@
-import { WebClient } from "@slack/web-api";
-
-const token = process.env.SLACK_BOT_TOKEN?.trim();
-export const slack = token ? new WebClient(token) : null;
-
-type ReviewMessage = {
-	slackId: string;
-	projectName: string;
-	status: "submitted" | "approved" | "rejected" | "comment" | "shipped";
-	comment?: string;
-	projectUrl?: string;
-	reviewerSlackId?: string;
-	reviewerName?: string;
-	reviewerId?: string;
-	creatorSlackId?: string;
-};
-
-export async function notifyReviewDM(input: ReviewMessage) {
-	if (!slack || !input.slackId) return;
-
-	const ownerMention = input.creatorSlackId || input.slackId;
-	const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "https://carnival.hackclub.com";
-	const projectLink = input.projectUrl
-		? input.projectUrl.startsWith("/")
-			? `${appBaseUrl}${input.projectUrl}`
-			: input.projectUrl
-		: null;
-
-	const statusLines: Record<ReviewMessage["status"], string[]> = {
-		submitted: [
-			"🎪 We got your submission.",
-			"A reviewer will take a look soon.",
-		],
-		// Sent only at GRANT time (pass 2) — never on pass-1 approval — so the
-		// tokens really have been credited when the creator reads this.
-		approved: [
-			`Hey${ownerMention ? ` <@${ownerMention}>` : ""},`,
-			"✅ Congrats! Your project was approved and granted.",
-			"Your tokens have been credited to your Carnival wallet. If you don't see them, please DM @Josias!",
-		],
-		rejected: [
-			`Hey${ownerMention ? ` <@${ownerMention}>` : ""},`,
-			"❌ Your project is rejected for now and needs more work.",
-			"See the reviewer notes and iterate, then resubmit for a re-review.",
-		],
-		comment: [
-			`Hey${ownerMention ? ` <@${ownerMention}>` : ""}`,
-			"💬 A reviewer left feedback on your project.",
-			"Check the notes and follow up if needed.",
-		],
-		shipped: [
-			`Hey${ownerMention ? ` <@${ownerMention}>` : ""}`,
-			"🚢 Your project is shipped!",
-			"Nice work—share your launch and keep building.",
-		],
-	};
-
-	const lines: (string | null)[] = [
-		...(statusLines[input.status] ?? []),
-		`Project: ${input.projectName}`,
-		`Status: ${input.status}`,
-		input.comment ? `Comment: ${input.comment}` : null,
-		input.reviewerSlackId
-			? `By: <@${input.reviewerSlackId}>`
-			: input.reviewerName
-				? `By: ${input.reviewerName}${input.reviewerId ? ` (${input.reviewerId})` : ""}`
-				: input.reviewerId
-					? `By: ${input.reviewerId}`
-					: null,
-		projectLink ? `Link: ${projectLink}` : null,
-	];
-
-	try {
-		await slack.chat.postMessage({
-			channel: input.slackId,
-			text: lines.filter(Boolean).join("\n"),
-		});
-	} catch (err) {
-		console.error("[Slack] Failed to send review DM", err);
-	}
-}
-
-export function isSlackNudgeEnabled(): boolean {
-	return Boolean(slack);
-}
-
-/** Send an admin activation nudge as a DM. Returns whether the send succeeded. */
-export async function sendNudgeDM(slackId: string, text: string): Promise<boolean> {
-	if (!slack || !slackId.trim() || !text.trim()) return false;
-	try {
-		await slack.chat.postMessage({ channel: slackId, text });
-		return true;
-	} catch (err) {
-		console.error("[Slack] Failed to send nudge DM", err);
-		return false;
-	}
-}
+// Compatibility shim: the Slack integration now lives in src/lib/notifications/.
+// Existing call sites keep importing from "@/lib/slack".
+export { slack, isSlackConfigured, postSlackMessage } from "@/lib/notifications/slack-client";
+export {
+  notifyReviewDM,
+  sendNudgeDM,
+  isSlackNudgeEnabled,
+  isStaffReviewChannelEnabled,
+  notifyStaffProjectSubmitted,
+  notifyStaffReviewThread,
+  type ReviewMessage,
+} from "@/lib/notifications/review-events";

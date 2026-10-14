@@ -49,7 +49,8 @@ import {
   refreshHackatimeProjectSnapshotForRange,
 } from "@/lib/hackatime";
 import { describeCreatorHackatimeAuthError, isHackatimeAuthError } from "@/lib/hackatime-errors";
-import { notifyReviewDM } from "@/lib/slack";
+import { notifyReviewDM, notifyStaffReviewThread } from "@/lib/slack";
+import { runAfterResponse } from "@/lib/notifications/after-response";
 import {
   AI_SLOP_REJECTION_MESSAGE,
   UNCLEAR_README_REJECTION_MESSAGE,
@@ -1152,6 +1153,29 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   } catch (err) {
     console.error("Failed to send review email/Slack DM", err);
   }
+
+  // Staff review-channel thread: every decision is posted there, including
+  // the pass-1 approval that the creator deliberately does not hear about.
+  runAfterResponse(async () => {
+    const reviewerRows = await db
+      .select({ slackId: user.slackId })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+    await notifyStaffReviewThread({
+      projectId,
+      event: {
+        kind: "reviewer_decision",
+        decision,
+        reviewerName: (session?.user as { name?: string | null } | undefined)?.name ?? "Reviewer",
+        reviewerSlackId: reviewerRows[0]?.slackId ?? null,
+        comment,
+        approvedHours: decision === "approved" ? (approvedHours as number) : null,
+        dismissed: dismiss,
+        rejectionCategory,
+      },
+    });
+  }, "staff review thread (decision)");
 
   return NextResponse.json({
     project: {
