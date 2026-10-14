@@ -22,9 +22,11 @@ function candidate(overrides = {}) {
 }
 
 describe("daysUntil / isDeadlinePassed", () => {
-  test("counts whole days up to the deadline and goes negative after", () => {
-    expect(daysUntil("2026-10-31T23:59:59.000Z", now)).toBe(18);
-    expect(daysUntil("2026-10-14T20:00:00.000Z", now)).toBe(1);
+  test("counts UTC calendar days to the deadline and goes negative after", () => {
+    expect(daysUntil("2026-10-31T23:59:59.000Z", now)).toBe(17);
+    // Later the same UTC day is "today", not "tomorrow".
+    expect(daysUntil("2026-10-14T20:00:00.000Z", now)).toBe(0);
+    expect(daysUntil("2026-10-15T00:30:00.000Z", now)).toBe(1);
     expect(daysUntil("2026-10-01T00:00:00.000Z", now)).toBeLessThan(0);
     expect(daysUntil(null, now)).toBeNull();
     expect(daysUntil("nope", now)).toBeNull();
