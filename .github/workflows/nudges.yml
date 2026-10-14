@@ -63,13 +63,14 @@ jobs:
 
           total_sent=0
           total_failed=0
+          record_failed=false
           for batch in $(seq 1 "$BATCHES"); do
             echo "::group::Batch $batch — POST $url"
             response=$(curl --silent --show-error --fail-with-body --max-time 120 \
               -X POST -H "Authorization: Bearer $CRON_SECRET" "$url")
             echo "$response" | jq '{dryRun, sendingEnabled, slackConfigured, daysLeft, maxSends,
               candidatesByKind, plannedByKind, skippedByReason,
-              sent: (.sent | length), failed: (.failed | length)}'
+              sent: (.sent | length), failed: (.failed | length), recordFailed}'
             echo "::endgroup::"
             planned=$(echo "$response" | jq '[.plannedByKind[]] | add // 0')
             sent=$(echo "$response" | jq '.sent | length')
@@ -77,12 +78,22 @@ jobs:
             dry=$(echo "$response" | jq -r '.dryRun')
             total_sent=$((total_sent + sent))
             total_failed=$((total_failed + failed))
+            # A DM went out without a user_nudge row: another call would re-plan
+            # that person and DM them again. Stop and leave the run red.
+            if [ "$(echo "$response" | jq -r '.recordFailed')" = "true" ]; then
+              record_failed=true
+              break
+            fi
             # A dry run never changes state, so repeating it would loop forever.
             if [ "$dry" = "true" ] || [ "$planned" = "0" ]; then break; fi
             # Nothing went out (e.g. Slack down): stop rather than retry blindly.
             if [ "$sent" = "0" ]; then break; fi
           done
           echo "Total sent: $total_sent · failed: $total_failed"
+          if [ "$record_failed" = "true" ]; then
+            echo "::error::A nudge was sent but not recorded in user_nudge; add the row by hand before the next run (see server logs)"
+            exit 1
+          fi
           if [ "$total_failed" != "0" ]; then
             echo "::warning::$total_failed nudge(s) failed to send; see server logs"
           fi

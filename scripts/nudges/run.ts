@@ -49,6 +49,11 @@ if (flag("--json")) {
   );
   console.log("skipped:", result.skippedByReason);
   if (!result.dryRun) console.log(`sent ${result.sent.length} · failed ${result.failed.length}`);
+  if (result.recordFailed) {
+    console.error(
+      "A DM was sent but its user_nudge row could not be written; the run stopped. Add the row by hand before running again.",
+    );
+  }
   for (const sample of result.samples) {
     console.log(`\n--- ${sample.kind} / ${sample.variant} ---\n${sample.text}`);
   }

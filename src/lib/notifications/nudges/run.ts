@@ -69,8 +69,15 @@ export type NudgeRunResult = {
   plannedByKind: Record<NudgeKind, number>;
   skippedByReason: Partial<Record<NudgeSkipReason, number>>;
   planned: PlannedNudgeSummary[];
+  /** DM attempts that Slack rejected: nothing went out, safe to retry. */
   sent: PlannedNudgeSummary[];
   failed: PlannedNudgeSummary[];
+  /**
+   * A DM went out but its user_nudge row could not be written. The run stops
+   * at that point and callers (the workflow loop) must not call again until
+   * the row is added by hand, or that person is re-planned and DMed twice.
+   */
+  recordFailed: boolean;
   /** Rendered copy for the first few planned nudges (dry-run preview). */
   samples: { kind: NudgeKind; variant: string; text: string }[];
 };
@@ -146,6 +153,7 @@ export async function runNudges(options: NudgeRunOptions): Promise<NudgeRunResul
     planned: plan.planned.map(summarize),
     sent: [],
     failed: [],
+    recordFailed: false,
     samples,
   };
   if (dryRun) return result;
@@ -170,10 +178,17 @@ export async function runNudges(options: NudgeRunOptions): Promise<NudgeRunResul
       });
       result.sent.push(summarize(nudge));
     } catch (err) {
-      // The DM went out but the record failed: surface loudly so the run can
-      // be paused before tomorrow's cron re-sends it.
-      console.error("[nudges] sent but failed to record user_nudge", { userId: nudge.userId, err });
+      // The DM went out but the record failed. Stop here: every later insert
+      // would likely fail too, and an unrecorded recipient is re-planned by
+      // the next batch or tomorrow's run. Surface loudly instead.
+      console.error("[nudges] sent but failed to record user_nudge; stopping run", {
+        userId: nudge.userId,
+        storedKind: nudge.storedKind,
+        err,
+      });
       result.failed.push(summarize(nudge));
+      result.recordFailed = true;
+      break;
     }
   }
   return result;
