@@ -28,6 +28,7 @@ export default async function AccountPage() {
         zipPostalCode: user.zipPostalCode,
         hackatimeUserId: user.hackatimeUserId,
         hackatimeConnectedAt: user.hackatimeConnectedAt,
+        slackNudgesOptOut: user.slackNudgesOptOut,
       })
       .from(user)
       .where(eq(user.id, session.user.id))
@@ -56,6 +57,7 @@ export default async function AccountPage() {
           // "unknown" (Hackatime unreachable) keeps the stored state.
           hackatimeConnected:
             hackatimeVerification === "ok" || hackatimeVerification === "unknown",
+          slackNudgesOptOut: row?.slackNudgesOptOut ?? false,
         }}
       />
     </AppShell>

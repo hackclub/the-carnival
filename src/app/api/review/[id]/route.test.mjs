@@ -222,6 +222,8 @@ mock.module("@/lib/loops", () => ({
 }));
 mock.module("@/lib/slack", () => ({
   notifyReviewDM: async () => undefined,
+  notifyStaffProjectSubmitted: async () => undefined,
+  notifyStaffReviewThread: async () => undefined,
 }));
 mock.module("@/lib/hackatime", () => ({
   refreshHackatimeProjectSnapshotForRange: async (...args) => {

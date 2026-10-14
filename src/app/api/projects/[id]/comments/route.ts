@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { peerReview, project } from "@/db/schema";
+import { peerReview, project, user } from "@/db/schema";
+import { notifyStaffReviewThread } from "@/lib/slack";
+import { runAfterResponse } from "@/lib/notifications/after-response";
 import { getServerSession } from "@/lib/server-session";
 import { cleanUntrustedString } from "@/lib/sanitize";
 
@@ -84,6 +86,25 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       reviewComment: peerReview.reviewComment,
       createdAt: peerReview.createdAt,
     });
+
+  // Reviewers otherwise never hear that the creator answered them: reply in
+  // the submission's staff Slack thread (best-effort, after the response).
+  runAfterResponse(async () => {
+    const creatorRows = await db
+      .select({ name: user.name, slackId: user.slackId })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+    await notifyStaffReviewThread({
+      projectId,
+      event: {
+        kind: "owner_comment",
+        creatorName: creatorRows[0]?.name || "The creator",
+        creatorSlackId: creatorRows[0]?.slackId ?? null,
+        comment,
+      },
+    });
+  }, "staff review thread (owner comment)");
 
   return NextResponse.json({
     review: {

@@ -24,6 +24,8 @@ export type AccountProfileInitial = {
   // A working token is stored. False with a connectedAt timestamp means the
   // token was revoked on Hackatime's side and the user needs to reconnect.
   hackatimeConnected: boolean;
+  // Automated Slack reminders (nudges) are off for this user.
+  slackNudgesOptOut: boolean;
 };
 
 const HACKATIME_CONNECT_URL = hackatimeConnectUrl("/account");
@@ -71,6 +73,28 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
       setDisconnecting(false);
     }
   }, [router]);
+
+  const [slackNudgesOptOut, setSlackNudgesOptOut] = useState(initial.slackNudgesOptOut);
+  const [savingNudges, setSavingNudges] = useState(false);
+
+  const onToggleSlackNudges = useCallback(async (optOut: boolean) => {
+    setSavingNudges(true);
+    setSlackNudgesOptOut(optOut);
+    try {
+      const res = await fetch("/api/me/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slackNudgesOptOut: optOut }),
+      });
+      if (!res.ok) throw new Error("save failed");
+      toast.success(optOut ? "Slack reminders turned off." : "Slack reminders turned on.");
+    } catch {
+      setSlackNudgesOptOut(!optOut);
+      toast.error("Failed to update Slack reminders.");
+    } finally {
+      setSavingNudges(false);
+    }
+  }, []);
 
   const [birthday, setBirthday] = useState(initial.birthday ?? "");
   const [addressLine1, setAddressLine1] = useState(initial.addressLine1 ?? "");
@@ -198,6 +222,34 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Slack reminders</CardTitle>
+          <CardDescription>
+            Carnival occasionally DMs you on Slack when a project looks stuck: hours logged but never
+            submitted, a project with no devlogs, or Hackatime not connected. Review updates (feedback,
+            grants) are always sent.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <label className="flex cursor-pointer items-start gap-3 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 accent-carnival-red"
+              checked={!slackNudgesOptOut}
+              disabled={savingNudges}
+              onChange={(e) => void onToggleSlackNudges(!e.target.checked)}
+            />
+            <span>
+              <span className="font-medium text-foreground">Send me reminders on Slack</span>
+              <span className="block text-muted-foreground">
+                At most a couple per topic, never more than one a week, and none after the Carnival ends.
+              </span>
+            </span>
+          </label>
         </CardContent>
       </Card>
 

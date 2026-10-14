@@ -13,6 +13,7 @@ type ProfilePatchBody = {
   stateProvince?: unknown;
   country?: unknown;
   zipPostalCode?: unknown;
+  slackNudgesOptOut?: unknown;
 };
 
 function toNullableString(value: unknown) {
@@ -42,6 +43,7 @@ export async function GET() {
       stateProvince: user.stateProvince,
       country: user.country,
       zipPostalCode: user.zipPostalCode,
+      slackNudgesOptOut: user.slackNudgesOptOut,
     })
     .from(user)
     .where(eq(user.id, userId))
@@ -68,6 +70,8 @@ export async function PATCH(req: Request) {
     stateProvince: body.stateProvince !== undefined ? toNullableString(body.stateProvince) : undefined,
     country: body.country !== undefined ? toNullableString(body.country) : undefined,
     zipPostalCode: body.zipPostalCode !== undefined ? toNullableString(body.zipPostalCode) : undefined,
+    slackNudgesOptOut:
+      typeof body.slackNudgesOptOut === "boolean" ? body.slackNudgesOptOut : undefined,
     updatedAt: new Date(),
   } as const;
 
@@ -93,6 +97,7 @@ export async function PATCH(req: Request) {
       stateProvince: user.stateProvince,
       country: user.country,
       zipPostalCode: user.zipPostalCode,
+      slackNudgesOptOut: user.slackNudgesOptOut,
     });
 
   return NextResponse.json({ profile: updated[0] ?? null });

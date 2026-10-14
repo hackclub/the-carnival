@@ -67,6 +67,26 @@ Use a CORS policy like this (adjust origins as needed):
 ]
 ```
 
+### Slack notifications and automated nudges
+
+All outbound Slack lives in `src/lib/notifications/` and runs through one paced client (`SLACK_BOT_TOKEN`; scopes `chat:write`, `im:write`, `users:read`).
+
+- **Creator DMs** on submit, reviewer feedback/rejection, and grant (`review-events.ts`). Pass-1 approval is deliberately silent; the creator hears "approved" only when tokens are credited.
+- **Staff review channel** (`SLACK_REVIEW_CHANNEL_ID`, bot must be invited): one post per submission or resubmission, with reviewer decisions, creator replies and the grant threaded under it. Preview the copy without touching the database:
+
+  ```bash
+  bun scripts/notifications/post-sample.ts C0123456789
+  ```
+
+- **Automated nudges** (`nudges/`): daily DMs to people who look stuck (hours logged but never submitted, project with no devlogs, Hackatime connected but no project, never connected). One per person per day, at most two per topic, none within 7 days of any other nudge, and nothing after the `carnival_deadline` site setting. Users can opt out on `/account`; admins see today's plan on `/admin/insights`.
+
+  ```bash
+  bun scripts/nudges/run.ts              # dry run: counts + sample copy
+  bun scripts/nudges/run.ts --send --max 25 --allow U0123456789
+  ```
+
+  The schedule is `.github/workflows/nudges.yml` calling `POST /api/cron/nudges` with `Authorization: Bearer $CRON_SECRET` (repository secrets `CARNIVAL_APP_URL`, `CARNIVAL_CRON_SECRET`). Every run is a dry run until `NUDGES_ENABLED=true` is set on the server; `NUDGES_TEST_SLACK_IDS` restricts sends to listed Slack IDs for a first live test, and `NUDGES_MAX_PER_RUN` caps one call (default 80: at 1 message/second a call must finish inside Cloudflare's 100 s limit, so the workflow loops up to a few batches per day).
+
 ### Database
 
 Before starting the app, sync the database schema (this creates/help-updates tables like `verification` used by Better Auth):
