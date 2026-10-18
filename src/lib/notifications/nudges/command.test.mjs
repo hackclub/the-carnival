@@ -44,22 +44,49 @@ function deps(overrides = {}) {
   };
 }
 
+// Parse flags that are expected to be valid.
+function args(argv) {
+  const parsed = parseNudgeCommandArgs(argv);
+  if (!parsed.ok) throw new Error(`unexpected parse error: ${parsed.error}`);
+  return parsed.args;
+}
+
 describe("parseNudgeCommandArgs", () => {
-  test("defaults to a dry run", () => {
-    expect(parseNudgeCommandArgs([])).toEqual({ send: false, json: false, maxSends: undefined, allowlist: undefined });
+  test("defaults to a dry run with the default cap", () => {
+    expect(parseNudgeCommandArgs([])).toEqual({
+      ok: true,
+      args: { send: false, json: false, maxSends: undefined, allowlist: undefined },
+    });
   });
+
   test("reads --send, --json, --max and --allow", () => {
-    expect(parseNudgeCommandArgs(["--send", "--json", "--max", "25", "--allow", "U1, U2"])).toEqual({
+    expect(args(["--send", "--json", "--max", "25", "--allow", "U1, U2"])).toEqual({
       send: true,
       json: true,
       maxSends: 25,
       allowlist: ["U1", "U2"],
     });
+    expect(args(["--max", "0"]).maxSends).toBe(0);
   });
-  test("ignores a missing or invalid --max", () => {
-    expect(parseNudgeCommandArgs(["--max"]).maxSends).toBeUndefined();
-    expect(parseNudgeCommandArgs(["--max", "abc"]).maxSends).toBeUndefined();
-    expect(parseNudgeCommandArgs(["--max", "-3"]).maxSends).toBeUndefined();
+
+  test("rejects --max with a missing operand or another flag in its place", () => {
+    expect(parseNudgeCommandArgs(["--send", "--max"])).toMatchObject({ ok: false });
+    expect(parseNudgeCommandArgs(["--max", "--send"])).toMatchObject({ ok: false });
+    expect(parseNudgeCommandArgs(["--max", "--allow", "U1"]).error).toContain("--max needs a number");
+  });
+
+  test("rejects invalid --max values instead of falling back to the default cap", () => {
+    for (const bad of ["abc", "-3", "2.5", "1e3", " "]) {
+      const parsed = parseNudgeCommandArgs(["--send", "--max", bad]);
+      expect(parsed.ok).toBe(false);
+      expect(parsed.error).toContain("--max must be a whole number");
+    }
+  });
+
+  test("rejects --allow with a missing operand, a flag, or no IDs", () => {
+    expect(parseNudgeCommandArgs(["--allow"]).error).toContain("--allow needs Slack IDs");
+    expect(parseNudgeCommandArgs(["--allow", "--send"]).error).toContain("--allow needs Slack IDs");
+    expect(parseNudgeCommandArgs(["--allow", ", ,"]).error).toContain("at least one Slack ID");
   });
 });
 
@@ -82,7 +109,7 @@ describe("nudgeCommandExitCode", () => {
 describe("runNudgeCommand", () => {
   test("exits 0 without running when another run holds the lock", async () => {
     const { calls, deps: d } = deps({ tryLock: async () => false });
-    expect(await runNudgeCommand(parseNudgeCommandArgs(["--send"]), d)).toBe(0);
+    expect(await runNudgeCommand(args(["--send"]), d)).toBe(0);
     expect(calls.runNudges).toHaveLength(0);
     expect(calls.unlock).toBe(0);
     expect(calls.logs[0]).toContain("already in progress");
@@ -90,7 +117,7 @@ describe("runNudgeCommand", () => {
 
   test("passes --send/--max/--allow through, logs a JSON summary, and unlocks", async () => {
     const { calls, deps: d } = deps();
-    const code = await runNudgeCommand(parseNudgeCommandArgs(["--send", "--max", "10", "--allow", "U1"]), d);
+    const code = await runNudgeCommand(args(["--send", "--max", "10", "--allow", "U1"]), d);
     expect(code).toBe(0);
     expect(calls.runNudges[0]).toEqual({ dryRun: false, maxSends: 10, allowlist: ["U1"] });
     const summary = JSON.parse(calls.logs.at(-1));
@@ -100,13 +127,13 @@ describe("runNudgeCommand", () => {
 
   test("without --send it is a dry run", async () => {
     const { calls, deps: d } = deps();
-    await runNudgeCommand(parseNudgeCommandArgs([]), d);
+    await runNudgeCommand(args([]), d);
     expect(calls.runNudges[0].dryRun).toBe(true);
   });
 
   test("exits 1, reports, and still unlocks when the record write failed", async () => {
     const { calls, deps: d } = deps({ runNudges: async () => result({ recordFailed: true }) });
-    expect(await runNudgeCommand(parseNudgeCommandArgs(["--send"]), d)).toBe(1);
+    expect(await runNudgeCommand(args(["--send"]), d)).toBe(1);
     expect(calls.errors.join("\n")).toContain("could not be written");
     expect(calls.unlock).toBe(1);
   });
@@ -117,7 +144,7 @@ describe("runNudgeCommand", () => {
         throw new Error("db down");
       },
     });
-    expect(await runNudgeCommand(parseNudgeCommandArgs(["--send"]), d)).toBe(1);
+    expect(await runNudgeCommand(args(["--send"]), d)).toBe(1);
     expect(calls.errors[0]).toContain("db down");
     expect(calls.unlock).toBe(1);
   });

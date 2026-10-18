@@ -7,6 +7,7 @@
  * Exit codes (Coolify marks non-zero runs as failed):
  *   0  done, dry run, deadline passed, or another run already holds the lock
  *   1  crash; a DM was sent but could not be recorded; or every send failed
+ *   2  bad arguments (rejected before the lock is taken or anything runs)
  */
 import type { NudgeRunOptions, NudgeRunResult } from "./run";
 
@@ -17,19 +18,44 @@ export type NudgeCommandArgs = {
   allowlist?: string[];
 };
 
-export function parseNudgeCommandArgs(argv: string[]): NudgeCommandArgs {
-  const value = (name: string) => {
+export type ParsedNudgeCommandArgs = { ok: true; args: NudgeCommandArgs } | { ok: false; error: string };
+
+/**
+ * Parse the command's flags. Malformed `--max` / `--allow` operands are
+ * rejected rather than ignored: silently falling back to the default cap
+ * would turn a typo like `--send --max abc` into a full-size live run.
+ * Omitting `--max` entirely still means the default cap.
+ */
+export function parseNudgeCommandArgs(argv: string[]): ParsedNudgeCommandArgs {
+  const operand = (name: string): { present: false } | { present: true; value: string | null } => {
     const i = argv.indexOf(name);
-    return i >= 0 ? argv[i + 1] : undefined;
+    if (i < 0) return { present: false };
+    const next = argv[i + 1];
+    // A missing operand, or another flag where the operand should be.
+    return { present: true, value: next === undefined || next.startsWith("--") ? null : next };
   };
-  const maxRaw = value("--max");
-  const max = maxRaw !== undefined && maxRaw.trim() !== "" ? Number(maxRaw) : Number.NaN;
-  const allowRaw = value("--allow");
+
+  const max = operand("--max");
+  let maxSends: number | undefined;
+  if (max.present) {
+    if (max.value === null) return { ok: false, error: "--max needs a number, e.g. --max 25" };
+    if (!/^\d+$/.test(max.value.trim())) {
+      return { ok: false, error: `--max must be a whole number of 0 or more (got "${max.value}")` };
+    }
+    maxSends = Number(max.value.trim());
+  }
+
+  const allow = operand("--allow");
+  let allowlist: string[] | undefined;
+  if (allow.present) {
+    if (allow.value === null) return { ok: false, error: "--allow needs Slack IDs, e.g. --allow U0123ABCD,U0456EFGH" };
+    allowlist = allow.value.split(",").map((s) => s.trim()).filter(Boolean);
+    if (allowlist.length === 0) return { ok: false, error: "--allow needs at least one Slack ID" };
+  }
+
   return {
-    send: argv.includes("--send"),
-    json: argv.includes("--json"),
-    maxSends: Number.isFinite(max) && max >= 0 ? Math.floor(max) : undefined,
-    allowlist: allowRaw ? allowRaw.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+    ok: true,
+    args: { send: argv.includes("--send"), json: argv.includes("--json"), maxSends, allowlist },
   };
 }
 

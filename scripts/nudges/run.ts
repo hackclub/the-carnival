@@ -17,6 +17,13 @@ import postgres from "postgres";
 import { parseNudgeCommandArgs, runNudgeCommand } from "@/lib/notifications/nudges/command";
 import { runNudges } from "@/lib/notifications/nudges/run";
 
+// Reject bad flags before taking the lock or touching anything.
+const parsed = parseNudgeCommandArgs(process.argv.slice(2));
+if (!parsed.ok) {
+  console.error(parsed.error);
+  process.exit(2);
+}
+
 // Arbitrary constant shared by every copy of the command.
 const NUDGE_LOCK_KEY = 0x6e756467;
 
@@ -29,7 +36,7 @@ if (!databaseUrl) {
 }
 const lockSql = postgres(databaseUrl, { max: 1, idle_timeout: 0 });
 
-const exitCode = await runNudgeCommand(parseNudgeCommandArgs(process.argv.slice(2)), {
+const exitCode = await runNudgeCommand(parsed.args, {
   async tryLock() {
     const rows = await lockSql`select pg_try_advisory_lock(${NUDGE_LOCK_KEY}) as locked`;
     return rows[0]?.locked === true;
