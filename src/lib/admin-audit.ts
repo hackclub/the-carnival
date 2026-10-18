@@ -11,6 +11,11 @@ export const ADMIN_AUDIT_ACTIONS = [
   "announcement_created",
   "announcement_updated",
   "announcement_deleted",
+  "outreach_sent",
+  "outreach_resumed",
+  "outreach_run_started",
+  "nudge_exclusion_added",
+  "nudge_exclusion_removed",
 ] as const;
 
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];

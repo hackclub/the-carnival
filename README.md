@@ -95,11 +95,9 @@ All outbound Slack lives in `src/lib/notifications/` and runs through one paced 
   bun scripts/nudges.js --send --max 25 --allow U0123456789   # in the container
   ```
 
-  **Opting people out.** Every nudge says people can turn reminders off on `/account` or DM the contact in `NUDGES_CONTACT_SLACK_ID` on Slack. To stop someone by hand:
+  **Opting people out.** Every nudge says people can turn reminders off on `/account` or DM the contact in `NUDGES_CONTACT_SLACK_ID` on Slack. When someone asks, add their Slack ID under **Excluded people** on `/admin/messages`; excluded IDs never receive any nudge, including hand-written ones.
 
-  ```sql
-  update "user" set slack_nudges_opt_out = true where slack_id = 'U0123456789';
-  ```
+- **Admin Messages page** (`/admin/messages`): run today's automated nudges now (same rails and lock as the scheduled task), write your own message and send it to people picked from pasted Slack IDs, a user search, or a segment, manage the exclusion list, and see the history of every send with per-recipient results. You can also tick users on `/admin/users` or in an `/admin/insights` segment and choose "Message selected". Sends run in the background at about one Slack message per second; an interrupted send can be resumed and only reaches people still pending.
 
 ### Database
 

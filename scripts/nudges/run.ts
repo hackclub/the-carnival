@@ -13,8 +13,8 @@
  * Sending also requires NUDGES_ENABLED=true; every other rail lives in
  * runNudges(). A Postgres advisory lock stops two runs overlapping.
  */
-import postgres from "postgres";
 import { parseNudgeCommandArgs, runNudgeCommand } from "@/lib/notifications/nudges/command";
+import { createNudgeLock } from "@/lib/notifications/nudges/lock";
 import { runNudges } from "@/lib/notifications/nudges/run";
 
 // Reject bad flags before taking the lock or touching anything.
@@ -24,31 +24,20 @@ if (!parsed.ok) {
   process.exit(2);
 }
 
-// Arbitrary constant shared by every copy of the command.
-const NUDGE_LOCK_KEY = 0x6e756467;
-
-// The advisory lock is session-scoped, so it gets its own single connection
-// that stays open for the whole run. runNudges() uses the app's pool.
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
+if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is not set.");
   process.exit(1);
 }
-const lockSql = postgres(databaseUrl, { max: 1, idle_timeout: 0 });
+const lock = createNudgeLock();
 
 const exitCode = await runNudgeCommand(parsed.args, {
-  async tryLock() {
-    const rows = await lockSql`select pg_try_advisory_lock(${NUDGE_LOCK_KEY}) as locked`;
-    return rows[0]?.locked === true;
-  },
-  async unlock() {
-    await lockSql`select pg_advisory_unlock(${NUDGE_LOCK_KEY})`;
-  },
+  tryLock: lock.tryLock,
+  unlock: lock.unlock,
   runNudges,
   log: (line) => console.log(line),
   error: (line) => console.error(line),
 });
 
-await lockSql.end({ timeout: 5 }).catch(() => undefined);
+await lock.close();
 // The app's DB pool keeps the event loop alive; exit explicitly.
 process.exit(exitCode);
