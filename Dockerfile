@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
 
 # ---- Base ----
-FROM oven/bun:1-alpine AS base
+# Pinned: the floating 1-alpine tag moved to a new Bun release underneath us.
+FROM oven/bun:1.4.3-alpine AS base
 WORKDIR /app
 
 # ---- Dependencies ----
@@ -35,6 +36,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN bun run build
 
+# Automated Slack nudges as a one-shot command, bundled with its dependencies
+# so the standalone runtime image can run it. Coolify's scheduled task runs
+# `bun scripts/nudges.js --send` inside this container.
+RUN bun build scripts/nudges/run.ts --target=bun --outfile dist/nudges.js
+
 # ---- Production ----
 FROM base AS runner
 WORKDIR /app
@@ -50,6 +56,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/dist/nudges.js ./scripts/nudges.js
 
 USER nextjs
 

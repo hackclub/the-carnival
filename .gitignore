@@ -43,3 +43,6 @@ next-env.d.ts
 
 package-lock.json
 
+
+# bundled nudge command (built in Docker)
+/dist

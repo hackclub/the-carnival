@@ -97,9 +97,8 @@ export const DEFAULT_NUDGE_POLICY: NudgePolicy = {
 };
 
 /**
- * Default sends per call of /api/cron/nudges. Sends are paced at 1 msg/s and
- * the app sits behind Cloudflare, which drops responses after 100 s, so one
- * call must stay well under that; the workflow loops several calls per day
- * instead (people already sent fall into the quiet window on the next call).
+ * Default sends per run of the nudge command (Coolify scheduled task). Sends
+ * are paced at 1 msg/s, so 200 takes about 3.5 minutes; keep the task's
+ * timeout above that.
  */
-export const DEFAULT_NUDGES_MAX_PER_RUN = 80;
+export const DEFAULT_NUDGES_MAX_PER_RUN = 200;
