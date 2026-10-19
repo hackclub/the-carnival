@@ -368,6 +368,11 @@ describe("PATCH /api/projects/[id]", () => {
   });
 
   test("blocks submission when the creator's identity is not verified", async () => {
+    const expectedMessages = {
+      needs_submission: "complete identity verification",
+      pending: "once you get a decision",
+      ineligible: "not eligible",
+    };
     for (const status of ["needs_submission", "pending", "ineligible", null]) {
       resetState();
       state.identityVerificationStatus = status;
@@ -379,7 +384,8 @@ describe("PATCH /api/projects/[id]", () => {
 
       expect(res.status).toBe(403);
       expect(json.code).toBe("identity_not_verified");
-      expect(json.error).toContain("complete identity verification");
+      expect(json.verificationStatus).toBe(status);
+      expect(json.error).toContain(expectedMessages[status ?? "needs_submission"]);
       expect(state.identityResolveCalls).toEqual(["creator-1"]);
       expect(state.updateSets).toHaveLength(0);
       expect(state.rangeFetchCalls).toHaveLength(0);

@@ -35,7 +35,7 @@ mock.module("@/db", () => ({
   },
 }));
 
-const { isIdentityVerified } = await import("./identity-verification-shared.ts");
+const { getIdentitySubmissionBlock } = await import("./identity-verification-shared.ts");
 const { getIdentityVerificationStatus } = await import("./identity-verification.ts");
 
 const originalFetch = globalThis.fetch;
@@ -60,11 +60,29 @@ afterEach(() => {
   dbState.updateCalls = [];
 });
 
-describe("isIdentityVerified", () => {
-  test("only the verified status passes", () => {
-    expect(isIdentityVerified("verified")).toBe(true);
-    for (const status of ["needs_submission", "pending", "ineligible", null, undefined]) {
-      expect(isIdentityVerified(status)).toBe(false);
+describe("getIdentitySubmissionBlock", () => {
+  test("lets verified creators submit", () => {
+    expect(getIdentitySubmissionBlock("verified")).toBeNull();
+  });
+
+  test("tells ineligible creators they can't submit", () => {
+    const block = getIdentitySubmissionBlock("ineligible");
+    expect(block.message).toContain("not eligible");
+    expect(block.showVerifyLink).toBe(false);
+  });
+
+  test("tells pending creators to wait for a decision", () => {
+    const block = getIdentitySubmissionBlock("pending");
+    expect(block.message).toContain("once you get a decision");
+    expect(block.showVerifyLink).toBe(false);
+  });
+
+  test("sends creators who haven't started to verification", () => {
+    for (const status of ["needs_submission", null, undefined]) {
+      const block = getIdentitySubmissionBlock(status);
+      expect(block.message).toContain("complete identity verification");
+      expect(block.message).toContain("https://auth.hackclub.com");
+      expect(block.showVerifyLink).toBe(true);
     }
   });
 });

@@ -13,7 +13,7 @@ import type {
 } from "@/db/schema";
 import { validateSubmissionRequirements } from "@/lib/review/submission-gates";
 import {
-  IDENTITY_NOT_VERIFIED_MESSAGE,
+  getIdentitySubmissionBlock,
   IDENTITY_VERIFICATION_URL,
 } from "@/lib/identity-verification-shared";
 import LinkedHackatimeProjectsPanel from "@/components/LinkedHackatimeProjectsPanel";
@@ -96,12 +96,12 @@ export type ManageProjectInitial = {
 type ApiProject = ManageProjectInitial;
 export default function ManageProjectClient({
   initial,
-  identityVerified,
+  identityVerificationStatus,
   categorySuggestions = [],
   tagSuggestions = [],
 }: {
   initial: ManageProjectInitial;
-  identityVerified: boolean;
+  identityVerificationStatus: string | null;
   categorySuggestions?: string[];
   tagSuggestions?: string[];
 }) {
@@ -224,15 +224,19 @@ export default function ManageProjectClient({
       .catch(() => {});
   }, [initial.bountyProjectId]);
 
-  // Coming back from verifying in another tab re-renders the page with a fresh
-  // verification status, so Submit unlocks without a manual reload.
+  // Only verified creators can submit; anyone else sees why (and Submit is disabled).
+  const identityBlock = getIdentitySubmissionBlock(identityVerificationStatus);
+  const identityBlocked = identityBlock !== null;
+
+  // Coming back to the tab (e.g. after verifying) re-renders the page with a
+  // fresh verification status, so Submit unlocks without a manual reload.
   const router = useRouter();
   useEffect(() => {
-    if (identityVerified) return;
+    if (!identityBlocked) return;
     const recheck = () => router.refresh();
     window.addEventListener("focus", recheck);
     return () => window.removeEventListener("focus", recheck);
-  }, [identityVerified, router]);
+  }, [identityBlocked, router]);
 
   const uploadPreviewImage = useCallback(async (file: File) => {
     // PNG/JPG only — mirrors the server-side presign allowlist
@@ -936,18 +940,20 @@ export default function ManageProjectClient({
           </div>
         ) : (
           <>
-            {!identityVerified ? (
+            {identityBlock ? (
               <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-foreground">
-                <div className="font-semibold mb-1">Identity verification required</div>
-                <div className="text-muted-foreground">{IDENTITY_NOT_VERIFIED_MESSAGE}</div>
-                <a
-                  href={IDENTITY_VERIFICATION_URL}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="mt-3 inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 text-white px-4 py-2 rounded-[var(--radius-xl)] font-bold transition-colors"
-                >
-                  Verify your identity
-                </a>
+                <div className="font-semibold mb-1">{identityBlock.title}</div>
+                <div className="text-muted-foreground">{identityBlock.message}</div>
+                {identityBlock.showVerifyLink ? (
+                  <a
+                    href={IDENTITY_VERIFICATION_URL}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="mt-3 inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 text-white px-4 py-2 rounded-[var(--radius-xl)] font-bold transition-colors"
+                  >
+                    Verify your identity
+                  </a>
+                ) : null}
               </div>
             ) : null}
             <div className="flex items-center justify-between gap-4">
@@ -958,8 +964,8 @@ export default function ManageProjectClient({
                 type="button"
                 onClick={openSubmit}
                 className="inline-flex items-center justify-center bg-carnival-blue hover:bg-carnival-blue/80 disabled:bg-carnival-blue/50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
-                disabled={saving || !identityVerified}
-                title={identityVerified ? undefined : IDENTITY_NOT_VERIFIED_MESSAGE}
+                disabled={saving || identityBlocked}
+                title={identityBlock?.message}
               >
                 {isReReview ? "Submit for re-review" : "Submit for review"}
               </button>
