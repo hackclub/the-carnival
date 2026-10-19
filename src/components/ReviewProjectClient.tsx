@@ -360,6 +360,8 @@ export default function ReviewProjectClient({
   initial: {
     isAdmin: boolean;
     viewerUserId: string;
+    /** The viewer created this project: they can look, but never review it. */
+    isOwnProject: boolean;
     project: ReviewableProject;
     reviews: ReviewItem[];
     assignments: AssignmentItem[];
@@ -369,6 +371,7 @@ export default function ReviewProjectClient({
   };
 }) {
   const isAdmin = initial.isAdmin;
+  const isOwnProject = initial.isOwnProject;
   const linkedHackatimeProjects = initial.linkedHackatimeProjects;
   const hackatimeBreakdown = initial.hackatimeBreakdown;
   const [project, setProject] = useState(initial.project);
@@ -1325,14 +1328,16 @@ export default function ReviewProjectClient({
         icon={<Users className="h-5 w-5 text-carnival-blue" aria-hidden="true" />}
         title="Reviewers"
         aside={
-          <button
-            type="button"
-            onClick={onToggleAssignment}
-            disabled={assignmentBusy}
-            className="inline-flex items-center justify-center bg-background hover:bg-background/80 disabled:bg-background/50 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
-          >
-            {assignmentBusy ? "Updating…" : isAssignedToMe ? "Unassign me" : "Assign to me"}
-          </button>
+          isOwnProject ? null : (
+            <button
+              type="button"
+              onClick={onToggleAssignment}
+              disabled={assignmentBusy}
+              className="inline-flex items-center justify-center bg-background hover:bg-background/80 disabled:bg-background/50 disabled:cursor-not-allowed text-foreground px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
+            >
+              {assignmentBusy ? "Updating…" : isAssignedToMe ? "Unassign me" : "Assign to me"}
+            </button>
+          )
         }
       >
         {assignments.length === 0 ? (
@@ -1369,6 +1374,19 @@ export default function ReviewProjectClient({
         </div>
       ) : null}
 
+      {isOwnProject ? (
+        <div className="platform-surface-card p-6 space-y-4">
+          <div className="text-foreground font-semibold text-lg">Leave a review</div>
+          <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-foreground">
+            <div className="font-semibold mb-1">This is your own project</div>
+            <div className="text-muted-foreground">
+              Reviewers can&apos;t assess, assign themselves to, or decide on their own
+              submissions. Another reviewer will pick it up from the queue.
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
       <DevlogAssessmentPanel
         projectId={project.id}
         hackatimeUserId={project.hackatimeUserId}
@@ -1622,6 +1640,8 @@ export default function ReviewProjectClient({
           </div>
         ) : null}
       </div>
+        </>
+      )}
 
       <Modal
         open={showDismissConfirmationModal}

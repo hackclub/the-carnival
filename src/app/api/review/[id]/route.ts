@@ -291,6 +291,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const { id: projectId } = await ctx.params;
 
+  // Separation of duties: nobody reviews their own project, whatever the
+  // decision. The transaction re-reads the row, but refusing here keeps a
+  // self-review from touching Hackatime or the database at all.
+  const ownerRows = await db
+    .select({ creatorId: project.creatorId })
+    .from(project)
+    .where(eq(project.id, projectId))
+    .limit(1);
+  if (ownerRows[0]?.creatorId && ownerRows[0].creatorId === userId) {
+    return NextResponse.json(
+      { error: "You cannot review your own project.", code: "self_review" },
+      { status: 403 },
+    );
+  }
+
   let body: ReviewBody;
   try {
     body = (await req.json()) as ReviewBody;

@@ -262,6 +262,19 @@ describe("PATCH /api/admin/projects/[id]", () => {
     expect(json.notice).toContain("returned the project to review");
   });
 
+  test("returns 403 when an admin grants their own project", async () => {
+    state.currentProjectRow.status = "shipped";
+    state.currentProjectRow.approvedHours = 3;
+    state.currentProjectRow.creatorId = "admin-1";
+
+    const { res, json } = await patchAdminProject({ status: "granted" });
+
+    expect(res.status).toBe(403);
+    expect(json).toEqual({ error: "You cannot grant your own project.", code: "self_grant" });
+    expect(state.tokenInserts).toHaveLength(0);
+    expect(state.updateSets).toEqual([]);
+  });
+
   test("granting a linked project issues project and bounty bonus tokens", async () => {
     state.currentProjectRow.status = "shipped";
     state.currentProjectRow.approvedHours = 7.5;

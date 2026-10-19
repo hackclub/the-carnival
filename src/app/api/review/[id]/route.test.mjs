@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { devlog, peerReview, peerReviewDevlogAssessment, reviewAuditLog } from "@/db/schema";
+import { devlog, peerReview, peerReviewDevlogAssessment, project, reviewAuditLog } from "@/db/schema";
 
 const state = {
   session: {
@@ -200,11 +200,12 @@ const db = {
   },
   select() {
     return {
-      from() {
+      from(table) {
         return {
           where() {
             return {
-              limit: async () => [],
+              limit: async () =>
+                table === project && state.projectRow ? [state.projectRow] : [],
             };
           },
         };
@@ -218,6 +219,7 @@ mock.module("@/lib/server-session", () => ({
   getServerSession: async () => state.session,
 }));
 mock.module("@/lib/loops", () => ({
+  getAppBaseUrl: () => "http://localhost:3000",
   sendReviewEmail: async () => undefined,
 }));
 mock.module("@/lib/slack", () => ({
@@ -270,6 +272,36 @@ function buildValidReviewJustification(overrides = {}) {
 describe("POST /api/review/[id]", () => {
   beforeEach(() => {
     resetState();
+  });
+
+  test("returns 403 when a reviewer reviews their own project", async () => {
+    state.projectRow.creatorId = "reviewer-1";
+
+    const { res, json } = await postReview({
+      decision: "approved",
+      comment: "approving my own work",
+      approvedHours: 2,
+      reviewJustification: buildValidReviewJustification(),
+    });
+
+    expect(res.status).toBe(403);
+    expect(json).toEqual({ error: "You cannot review your own project.", code: "self_review" });
+    expect(state.insertedReviews.length).toBe(0);
+    expect(state.auditEntries.length).toBe(0);
+  });
+
+  test("returns 403 when an admin comments on their own project", async () => {
+    state.session.user.role = "admin";
+    state.projectRow.creatorId = "reviewer-1";
+
+    const { res, json } = await postReview({
+      decision: "comment",
+      comment: "just a note on my own project",
+    });
+
+    expect(res.status).toBe(403);
+    expect(json.code).toBe("self_review");
+    expect(state.insertedReviews.length).toBe(0);
   });
 
   test("rejects non-positive approved hours for approvals", async () => {

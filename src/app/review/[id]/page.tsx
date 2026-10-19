@@ -208,6 +208,7 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
         initial={{
           isAdmin,
           viewerUserId: session.user.id,
+          isOwnProject: p.creatorId === session.user.id,
           project: {
             id: p.id,
             name: p.name,
