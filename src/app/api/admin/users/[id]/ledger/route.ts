@@ -69,6 +69,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const { id: targetUserId } = await ctx.params;
 
+  // Token balances are only adjusted for other users; an admin never issues
+  // tokens to (or deducts them from) themselves. Mirrors the self-change
+  // refusal on the role/freeze route.
+  if (targetUserId === currentUser.id) {
+    return NextResponse.json({ error: "Cannot adjust your own token balance" }, { status: 400 });
+  }
+
   const targetRows = await db
     .select({ id: user.id, role: user.role })
     .from(user)

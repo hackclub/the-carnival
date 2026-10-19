@@ -16,6 +16,8 @@ mock.module("@/lib/api-utils", () => ({
 }));
 mock.module("@/lib/wallet", () => ({
   getTokenBalance: async () => state.balance,
+  getLedgerForUser: async () => [],
+  hasIssuedTokensForProjectGrant: async () => false,
 }));
 
 const { GET } = await import("./route.ts");
