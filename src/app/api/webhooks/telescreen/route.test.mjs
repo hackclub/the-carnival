@@ -59,6 +59,7 @@ mock.module("@/lib/telescreen/submissions", () => ({
   ensureTelescreenSubmission: async () => null,
   refreshTelescreenSubmission: async (row) => row,
   getCurrentTelescreenSubmission: async () => null,
+  listTelescreenSubmissions: async () => [],
   toTelescreenView: (row) => row,
   telescreenExternalId: (id, at) => `carnival:${id}:${at.getTime()}`,
   TELESCREEN_OPEN_STATES: [],

@@ -827,6 +827,16 @@ export default function AdminGrantClient({
         </div>
       </div>
 
+      {/* Telescreen fraud review: the current submission's score and the fraud
+          reviewer's note, plus every earlier submission's review. The gate it
+          reports drives the message and checkbox next to the Grant button. */}
+      <TelescreenPanel
+        projectId={project.id}
+        onGateChange={setTelescreenGate}
+        showHistory
+        showWhenDisabled
+      />
+
       {/* Pass 2 — the human-written hours justification. The server refuses
           to grant without it; the pass-1 reviewer's draft (if any) seeds the
           editor. This text is internal — the creator never sees it. */}
@@ -900,8 +910,6 @@ export default function AdminGrantClient({
           </div>
         </div>
       </div>
-
-      <TelescreenPanel projectId={project.id} onGateChange={setTelescreenGate} />
 
       <div className="platform-surface-card p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="text-muted-foreground">
