@@ -89,23 +89,42 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       );
     }
 
+    const nextRole = body.role;
     const now = new Date();
-    const updated = await db
-      .update(user)
-      .set({ role: body.role, updatedAt: now })
-      .where(eq(user.id, targetUserId))
-      .returning({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isFrozen: user.isFrozen,
-        frozenReason: user.frozenReason,
-        frozenAt: user.frozenAt,
-        updatedAt: user.updatedAt,
-      });
+    const updatedUser = await db.transaction(async (tx) => {
+      const updated = await tx
+        .update(user)
+        .set({ role: nextRole, updatedAt: now })
+        .where(eq(user.id, targetUserId))
+        .returning({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isFrozen: user.isFrozen,
+          frozenReason: user.frozenReason,
+          frozenAt: user.frozenAt,
+          updatedAt: user.updatedAt,
+        });
 
-    const updatedUser = updated[0];
+      const row = updated[0];
+      if (!row) return null;
+
+      await appendAdminAudit(
+        {
+          actorId: currentUserId,
+          actorRole: "admin",
+          action: "user_role_changed",
+          targetUserId,
+          details: { previousRole: target.role, nextRole },
+          at: now,
+        },
+        tx,
+      );
+
+      return row;
+    });
+
     if (!updatedUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     return NextResponse.json({ user: updatedUser });

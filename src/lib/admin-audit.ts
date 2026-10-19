@@ -5,6 +5,8 @@ import { adminAuditLog, type UserRole } from "@/db/schema";
 export const ADMIN_AUDIT_ACTIONS = [
   "user_frozen",
   "user_unfrozen",
+  "user_role_changed",
+  "project_deleted_by_admin",
   "ledger_adjustment_created",
   "user_nudge_sent",
   "site_setting_updated",

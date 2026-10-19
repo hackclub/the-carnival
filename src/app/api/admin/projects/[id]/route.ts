@@ -22,6 +22,7 @@ import {
   AIRTABLE_GRANTS_TABLE_ENV,
 } from "@/lib/airtable";
 import { assertGrantHoursInvariant, loadGrantContext } from "@/lib/review/grant";
+import { appendAdminAudit } from "@/lib/admin-audit";
 import { sendReviewEmail } from "@/lib/loops";
 import { notifyReviewDM, notifyStaffReviewThread } from "@/lib/slack";
 import { runAfterResponse } from "@/lib/notifications/after-response";
@@ -891,17 +892,38 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
+  const actorId = session?.user?.id;
   const role = (session?.user as { role?: unknown } | undefined)?.role;
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!actorId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isAdmin(role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await ctx.params;
 
-  const deleted = await db
-    .delete(project)
-    .where(eq(project.id, id))
-    .returning({ id: project.id });
+  // A hard delete cascades through devlogs, reviews and ledger rows, so the
+  // audit row is the only record left of what existed and whose it was.
+  const deleted = await db.transaction(async (tx) => {
+    const rows = await tx
+      .delete(project)
+      .where(eq(project.id, id))
+      .returning({ id: project.id, name: project.name, creatorId: project.creatorId });
 
-  if (deleted.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const row = rows[0];
+    if (!row) return null;
+
+    await appendAdminAudit(
+      {
+        actorId,
+        actorRole: "admin",
+        action: "project_deleted_by_admin",
+        targetUserId: row.creatorId,
+        details: { projectId: row.id, projectName: row.name, creatorId: row.creatorId },
+      },
+      tx,
+    );
+
+    return row;
+  });
+
+  if (!deleted) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

@@ -16,6 +16,8 @@ const state = {
   bountyRows: [],
   rangeRefreshCalls: [],
   rangeRefreshTotalSeconds: 4 * 3600,
+  deleteRows: [],
+  auditEntries: [],
 };
 
 function resetState() {
@@ -53,6 +55,8 @@ function resetState() {
   state.bountyRows = [];
   state.rangeRefreshCalls = [];
   state.rangeRefreshTotalSeconds = 4 * 3600;
+  state.deleteRows = [{ id: "project-1", name: "Project One", creatorId: "creator-1" }];
+  state.auditEntries = [];
 }
 
 function buildDb() {
@@ -146,6 +150,15 @@ function buildDb() {
             },
           };
         },
+        delete() {
+          return {
+            where() {
+              return {
+                returning: async () => state.deleteRows,
+              };
+            },
+          };
+        },
       };
       return callback(tx);
     },
@@ -172,14 +185,26 @@ mock.module("@/lib/hackatime", () => ({
     };
   },
 }));
+mock.module("@/lib/admin-audit", () => ({
+  appendAdminAudit: async (entry) => {
+    state.auditEntries.push(entry);
+  },
+}));
 mock.module("@/lib/airtable", () => ({
+  // Every value the route's import graph pulls from this module must be
+  // present: a partial mock only links when another test file already loaded
+  // the real module in the same process.
+  buildAirtableGrantFields: () => ({}),
+  formatAirtableHoursJustification: () => "",
+  updateAirtableGrantRecord: async () => ({ id: "airtable-1" }),
+  deleteAirtableGrantRecord: async () => {},
   createAirtableGrantRecord: async () => ({ id: "airtable-1" }),
   toAirtableCreateErrorDetails: () => ({ message: "airtable failed", hints: [] }),
   getAirtableConfigErrors: () => [],
   AIRTABLE_GRANTS_TABLE_ENV: "AIRTABLE_GRANTS_TABLE",
 }));
 
-const { PATCH } = await import("./route.ts");
+const { DELETE, PATCH } = await import("./route.ts");
 
 async function patchAdminProject(body) {
   const req = new Request("http://localhost/api/admin/projects/project-1", {
@@ -333,5 +358,54 @@ describe("PATCH /api/admin/projects/[id]", () => {
     expect(second.res.status).toBe(200);
     expect(state.tokenInserts.filter((row) => row.referenceType === "project_grant")).toHaveLength(1);
     expect(state.tokenInserts.filter((row) => row.referenceType === "bounty_bonus")).toHaveLength(1);
+  });
+});
+
+describe("DELETE /api/admin/projects/[id]", () => {
+  beforeEach(() => {
+    resetState();
+  });
+
+  async function deleteAdminProject() {
+    const req = new Request("http://localhost/api/admin/projects/project-1", { method: "DELETE" });
+    const res = await DELETE(req, { params: Promise.resolve({ id: "project-1" }) });
+    const json = await res.json();
+    return { res, json };
+  }
+
+  test("records who deleted which project and whose it was", async () => {
+    const { res, json } = await deleteAdminProject();
+
+    expect(res.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(state.auditEntries).toHaveLength(1);
+    const entry = state.auditEntries[0];
+    expect(entry.action).toBe("project_deleted_by_admin");
+    expect(entry.actorId).toBe("admin-1");
+    expect(entry.actorRole).toBe("admin");
+    expect(entry.targetUserId).toBe("creator-1");
+    expect(entry.details).toEqual({
+      projectId: "project-1",
+      projectName: "Project One",
+      creatorId: "creator-1",
+    });
+  });
+
+  test("returns 404 and writes nothing when the project does not exist", async () => {
+    state.deleteRows = [];
+
+    const { res } = await deleteAdminProject();
+
+    expect(res.status).toBe(404);
+    expect(state.auditEntries).toHaveLength(0);
+  });
+
+  test("non-admins cannot delete projects", async () => {
+    state.session.user.role = "reviewer";
+
+    const { res } = await deleteAdminProject();
+
+    expect(res.status).toBe(403);
+    expect(state.auditEntries).toHaveLength(0);
   });
 });
