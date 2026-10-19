@@ -229,6 +229,20 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  // Only verified creators can enter the review queue. Checked before any
+  // Hackatime refresh, and only on the transition so edits to a project
+  // already in review aren't blocked.
+  if (
+    body.status === "in-review" &&
+    current.status !== "in-review" &&
+    !isIdentityVerified(await getIdentityVerificationStatus(userId))
+  ) {
+    return NextResponse.json(
+      { error: IDENTITY_NOT_VERIFIED_MESSAGE, code: "identity_not_verified" },
+      { status: 403 },
+    );
+  }
+
   const set: Partial<{
     name: string;
     description: string;
@@ -628,17 +642,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
             "An admin dismissed this project, so it cannot be resubmitted for review. Contact an organizer if you believe this is a mistake.",
           code: "resubmission_blocked",
         },
-        { status: 403 },
-      );
-    }
-    // Only verified creators can enter the review queue (checked on the
-    // transition, so edits to a project already in review aren't blocked).
-    if (
-      current.status !== "in-review" &&
-      !isIdentityVerified(await getIdentityVerificationStatus(userId))
-    ) {
-      return NextResponse.json(
-        { error: IDENTITY_NOT_VERIFIED_MESSAGE, code: "identity_not_verified" },
         { status: 403 },
       );
     }

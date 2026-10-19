@@ -372,7 +372,10 @@ describe("PATCH /api/projects/[id]", () => {
       resetState();
       state.identityVerificationStatus = status;
 
-      const { res, json } = await patchProject({ status: "in-review" });
+      const { res, json } = await patchProject({
+        status: "in-review",
+        consideredHackatimeRange: { startDate: "2026-03-10", endDate: "2026-03-20" },
+      });
 
       expect(res.status).toBe(403);
       expect(json.code).toBe("identity_not_verified");
@@ -384,12 +387,29 @@ describe("PATCH /api/projects/[id]", () => {
   });
 
   test("does not re-check identity for edits to a project already in review", async () => {
-    state.currentProjectRow.status = "in-review";
+    const imageBase = process.env.R2_PUBLIC_BASE_URL?.trim() || "https://cdn.example.com";
+    Object.assign(state.currentProjectRow, {
+      status: "in-review",
+      projectType: "extension-plugin",
+      playableDemoUrl: "https://github.com/example/project-one/releases/tag/v1.0.0",
+      screenshots: [1, 2, 3].map((n) => `${imageBase}/shot-${n}.png`),
+      submissionChecklist: {
+        ...VALID_SUBMISSION_CHECKLIST,
+        readmeDescribesProject: true,
+        worksOnDeclaredPlatform: true,
+      },
+    });
     state.identityVerificationStatus = "needs_submission";
 
-    const { json } = await patchProject({ status: "in-review", name: "Renamed" });
+    const { res, json } = await patchProject({
+      status: "in-review",
+      description: "Updated description",
+    });
 
+    expect(res.status).toBe(200);
+    expect(json.project).toBeDefined();
+    expect(state.updateSets).toHaveLength(1);
+    expect(state.updateSets[0].description).toBe("Updated description");
     expect(state.identityResolveCalls).toHaveLength(0);
-    expect(json.code).not.toBe("identity_not_verified");
   });
 });
