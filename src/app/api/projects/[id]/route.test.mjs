@@ -31,6 +31,8 @@ const state = {
   updateSets: [],
   rangeFetchCalls: [],
   rangeFetchTotalSeconds: 5400,
+  identityVerificationStatus: "verified",
+  identityResolveCalls: [],
 };
 
 function resetState() {
@@ -99,6 +101,8 @@ function resetState() {
   state.updateSets = [];
   state.rangeFetchCalls = [];
   state.rangeFetchTotalSeconds = 5400;
+  state.identityVerificationStatus = "verified";
+  state.identityResolveCalls = [];
 }
 
 function buildDb() {
@@ -170,6 +174,12 @@ mock.module("@/lib/hackatime", () => ({
         minutes: Math.floor(state.rangeFetchTotalSeconds / 60) % 60,
       },
     };
+  },
+}));
+mock.module("@/lib/identity-verification", () => ({
+  getIdentityVerificationStatus: async (userId) => {
+    state.identityResolveCalls.push(userId);
+    return state.identityVerificationStatus;
   },
 }));
 mock.module("@/lib/slack", () => ({
@@ -355,5 +365,31 @@ describe("PATCH /api/projects/[id]", () => {
     expect(state.updateSets[0].submittedAt).toBeInstanceOf(Date);
     expect(json.project.status).toBe("in-review");
     expect(json.notice).toContain("returned the project to review");
+  });
+
+  test("blocks submission when the creator's identity is not verified", async () => {
+    for (const status of ["needs_submission", "pending", "ineligible", null]) {
+      resetState();
+      state.identityVerificationStatus = status;
+
+      const { res, json } = await patchProject({ status: "in-review" });
+
+      expect(res.status).toBe(403);
+      expect(json.code).toBe("identity_not_verified");
+      expect(json.error).toContain("complete identity verification");
+      expect(state.identityResolveCalls).toEqual(["creator-1"]);
+      expect(state.updateSets).toHaveLength(0);
+      expect(state.rangeFetchCalls).toHaveLength(0);
+    }
+  });
+
+  test("does not re-check identity for edits to a project already in review", async () => {
+    state.currentProjectRow.status = "in-review";
+    state.identityVerificationStatus = "needs_submission";
+
+    const { json } = await patchProject({ status: "in-review", name: "Renamed" });
+
+    expect(state.identityResolveCalls).toHaveLength(0);
+    expect(json.code).not.toBe("identity_not_verified");
   });
 });
