@@ -680,6 +680,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     // the creator finally hears "approved" (best-effort, outside the txn).
     if (grantNotification) {
       await notifyCreatorGranted(grantNotification);
+    }
+    if (nextStatus === "granted") {
       // Close the submission in Telescreen with Carnival's decision.
       runAfterResponse(() => setCarnivalOutcome(id, { status: "approved" }), "telescreen outcome (granted)");
     }
