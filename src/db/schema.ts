@@ -698,9 +698,12 @@ export type OutreachSendKind = (typeof outreachSendKind.enumValues)[number];
 
 export const outreachSendStatus = pgEnum("outreach_send_status", [
   "running",
+  // A batch finished and later batches are queued until an admin sends the next one.
+  "waiting",
   "completed",
   "failed",
   "interrupted",
+  "cancelled",
 ]);
 export type OutreachSendStatus = (typeof outreachSendStatus.enumValues)[number];
 
@@ -729,6 +732,13 @@ export const outreachSend = pgTable(
     sent: integer("sent").notNull().default(0),
     skipped: integer("skipped").notNull().default(0),
     failed: integer("failed").notNull().default(0),
+    // Hand-written sends go out in batches of batchSize; only recipients with
+    // batch <= currentBatch are delivered, the rest wait for "send next batch".
+    batchSize: integer("batch_size"),
+    currentBatch: integer("current_batch").notNull().default(1),
+    // Who counts as "already nudged" (off / today / 3d / 7d), re-applied when
+    // each later batch is released.
+    recentWindow: text("recent_window").notNull().default("off"),
     summary: jsonb("summary").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at").notNull(),
     updatedAt: timestamp("updated_at").notNull(),
@@ -752,6 +762,7 @@ export const outreachRecipient = pgTable(
     slackId: text("slack_id"),
     email: text("email"),
     status: outreachRecipientStatus("status").notNull().default("pending"),
+    batch: integer("batch").notNull().default(1),
     // Why a recipient was skipped or failed (e.g. "excluded", "frozen").
     reason: text("reason"),
     sentAt: timestamp("sent_at"),

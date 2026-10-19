@@ -13,6 +13,8 @@ export const ADMIN_AUDIT_ACTIONS = [
   "announcement_deleted",
   "outreach_sent",
   "outreach_resumed",
+  "outreach_batch_released",
+  "outreach_cancelled",
   "outreach_run_started",
   "nudge_exclusion_added",
   "nudge_exclusion_removed",

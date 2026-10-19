@@ -3,14 +3,33 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
+  AUDIENCE_FILTERS,
+  AUDIENCE_FILTER_KEYS,
+  AUDIENCE_PRESETS,
+  NUMBER_OPS,
+  NUMBER_OP_LABELS,
+  VERIFICATION_LABELS,
+  VERIFICATION_VALUES,
+  defaultFilter,
+  describeFilter,
+  type AudienceFilter,
+  type AudienceFilterKey,
+  type NumberOp,
+} from "@/lib/notifications/audience-shared";
+import {
   OUTREACH_HANDOFF_STORAGE_KEY,
+  OUTREACH_MAX_BATCH_SIZE,
   OUTREACH_MAX_MESSAGE_LENGTH,
   OUTREACH_REASON_LABELS,
+  RECENT_WINDOWS,
+  RECENT_WINDOW_LABELS,
+  batchCount,
   mergeRecipients,
   parseSlackIdList,
   renderOutreachMessage,
   type DraftRecipient,
   type OutreachChannel,
+  type RecentWindow,
 } from "@/lib/notifications/outreach-shared";
 import type {
   ExclusionRow,
@@ -21,7 +40,6 @@ import type {
 
 export type MessagesPageData = {
   users: { id: string; name: string; email: string; slackId: string | null; isFrozen: boolean }[];
-  segments: { key: string; label: string; description: string; userIds: string[] }[];
   exclusions: { excluded: ExclusionRow[]; selfOptedOut: SelfOptOutRow[] };
   sends: OutreachSendSummary[];
   slackEnabled: boolean;
@@ -31,8 +49,11 @@ export type MessagesPageData = {
 type ResolvedRecipient = DraftRecipient & { status: "pending" | "skipped"; reason: string | null };
 
 const card = "platform-surface-card p-5";
-const inputClass =
-  "w-full bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40";
+const fieldClass =
+  "bg-background border border-border rounded-[var(--radius-xl)] text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40";
+const inputClass = `w-full px-3 py-2.5 ${fieldClass}`;
+/** Inline controls in a filter row. */
+const compactClass = `px-2 py-1.5 ${fieldClass}`;
 const smallButton =
   "rounded-[var(--radius-xl)] border border-border bg-background/60 px-3 py-2 text-sm font-semibold text-foreground hover:bg-background disabled:cursor-not-allowed disabled:opacity-50";
 const dangerButton =
@@ -100,6 +121,7 @@ export default function AdminMessagesClient({ initial }: { initial: MessagesPage
         usersBySlack={usersBySlack}
         toDraft={toDraft}
         onSent={refreshSends}
+        sends={sends}
         exclusionsVersion={exclusionsVersion}
       />
       <ExclusionsPanel initial={initial.exclusions} usersBySlack={usersBySlack} onChanged={onExclusionsChanged} />
@@ -186,6 +208,7 @@ function ComposePanel({
   usersBySlack,
   toDraft,
   onSent,
+  sends,
   exclusionsVersion,
 }: {
   initial: MessagesPageData;
@@ -193,20 +216,26 @@ function ComposePanel({
   usersBySlack: Map<string, MessagesPageData["users"][number]>;
   toDraft: (u: MessagesPageData["users"][number]) => DraftRecipient;
   onSent: () => Promise<void>;
+  sends: OutreachSendSummary[];
   exclusionsVersion: number;
 }) {
   const [message, setMessage] = useState("Hey {firstName}! 🎪 ");
   const [channel, setChannel] = useState<OutreachChannel>(initial.slackEnabled ? "slack" : "email");
-  const [skipRecent, setSkipRecent] = useState(false);
+  const [recentWindow, setRecentWindow] = useState<RecentWindow>("today");
+  const [batchSizeText, setBatchSizeText] = useState(String(OUTREACH_MAX_BATCH_SIZE));
   const [drafts, setDrafts] = useState<DraftRecipient[]>([]);
   const [pasteText, setPasteText] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [resolved, setResolved] = useState<ResolvedRecipient[] | null>(null);
   const [resolving, setResolving] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [sending, setSending] = useState(false);
   const [activeSend, setActiveSend] = useState<string | null>(null);
-  const [progress, setProgress] = useState<OutreachSendSummary | null>(null);
+  const [polled, setProgress] = useState<OutreachSendSummary | null>(null);
+  // While polling, the polled copy is freshest; otherwise follow History, which
+  // also sees batches released or cancelled from there.
+  const progress = polled && !activeSend ? (sends.find((s) => s.id === polled.id) ?? polled) : polled;
 
   // Recipients handed over from /admin/users or /admin/insights.
   useEffect(() => {
@@ -234,7 +263,7 @@ function ComposePanel({
     return () => window.clearTimeout(timer);
   }, [toDraft, usersById]);
 
-  // Re-check recipients (names, exclusions, frozen, …) whenever the list changes.
+  // Re-check recipients (names, exclusions, frozen, recently nudged) whenever the list changes.
   useEffect(() => {
     const timer = window.setTimeout(async () => {
       if (drafts.length === 0) {
@@ -246,16 +275,16 @@ function ComposePanel({
         channel,
         userIds: drafts.filter((d) => d.userId).map((d) => d.userId),
         slackIds: drafts.filter((d) => !d.userId).map((d) => d.slackId),
-        skipRecentDays: skipRecent ? 7 : 0,
+        recentWindow,
       });
       setResolving(false);
       if (ok && data.recipients) setResolved(data.recipients);
       else if (!ok) toast.error(data.error ?? "Couldn't check recipients.");
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [channel, drafts, skipRecent, exclusionsVersion]);
+  }, [channel, drafts, recentWindow, exclusionsVersion]);
 
-  // Poll the send we just started until it finishes.
+  // Poll the send we just started until its batch finishes.
   useEffect(() => {
     if (!activeSend) return;
     let cancelled = false;
@@ -267,7 +296,12 @@ function ComposePanel({
       if (data.send.status !== "running") {
         setActiveSend(null);
         await onSent();
-        toast.success(`Finished: ${data.send.counts.sent} sent, ${data.send.counts.skipped} skipped, ${data.send.counts.failed} failed.`);
+        const c = data.send.counts;
+        toast.success(
+          data.send.status === "waiting"
+            ? `Batch ${data.send.batches.current} done: ${c.sent} sent so far, ${c.queued} waiting for the next batches.`
+            : `Finished: ${c.sent} sent, ${c.skipped} skipped, ${c.failed} failed.`,
+        );
       }
     };
     void tick();
@@ -321,15 +355,15 @@ function ComposePanel({
     [toDraft],
   );
 
-  const addSegment = useCallback(
-    (segment: MessagesPageData["segments"][number]) => {
-      const additions = segment.userIds
+  const addAudience = useCallback(
+    (userIds: string[], label: string) => {
+      const additions = userIds
         .map((id) => usersById.get(id))
         .filter((u): u is NonNullable<typeof u> => Boolean(u))
         .map(toDraft);
       setDrafts((prev) => mergeRecipients(prev, additions));
       setConfirming(false);
-      toast.success(`Added ${additions.length} from "${segment.label}".`);
+      toast.success(`Added ${additions.length} from ${label}.`);
     },
     [toDraft, usersById],
   );
@@ -344,13 +378,28 @@ function ComposePanel({
     for (const r of resolved ?? []) m.set(r.userId ? `u:${r.userId}` : `s:${r.slackId}`, r);
     return m;
   }, [resolved]);
-  const willReceive = (resolved ?? []).filter((r) => r.status === "pending").length;
-  const willSkip = (resolved ?? []).filter((r) => r.status === "skipped").length;
+  const draftKey = (d: DraftRecipient) => (d.userId ? `u:${d.userId}` : `s:${d.slackId}`);
+  const visibleDrafts = drafts.filter((d) => resolvedByKey.get(draftKey(d))?.status !== "skipped");
+  const hiddenDrafts = drafts.filter((d) => resolvedByKey.get(draftKey(d))?.status === "skipped");
+  const hiddenReasons = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of resolved ?? []) {
+      if (r.status === "skipped") counts.set(r.reason ?? "", (counts.get(r.reason ?? "") ?? 0) + 1);
+    }
+    return [...counts.entries()].map(([reason, n]) => `${n} ${reasonLabel(reason)}`).join(" · ");
+  }, [resolved]);
+  const willReceive = resolved ? resolved.filter((r) => r.status === "pending").length : drafts.length;
   const previewRecipient = (resolved ?? []).find((r) => r.status === "pending") ?? drafts[0] ?? { name: "Ada Lovelace" };
+
+  const batchSize = Number(batchSizeText);
+  const batchSizeValid = Number.isInteger(batchSize) && batchSize >= 1 && batchSize <= OUTREACH_MAX_BATCH_SIZE;
+  const batches = batchSizeValid ? batchCount(willReceive, batchSize) : 0;
+  const firstBatch = batchSizeValid ? Math.min(batchSize, willReceive) : 0;
 
   const send = useCallback(async () => {
     if (drafts.length === 0) return toast.error("Add at least one recipient.");
     if (message.trim().length < 10) return toast.error("Write a message of at least 10 characters.");
+    if (!batchSizeValid) return toast.error(`Batch size must be 1 to ${OUTREACH_MAX_BATCH_SIZE}.`);
     if (!confirming) {
       setConfirming(true);
       window.setTimeout(() => setConfirming(false), 6000);
@@ -363,29 +412,48 @@ function ComposePanel({
       channel,
       userIds: drafts.filter((d) => d.userId).map((d) => d.userId),
       slackIds: drafts.filter((d) => !d.userId).map((d) => d.slackId),
-      skipRecentDays: skipRecent ? 7 : 0,
+      recentWindow,
+      batchSize,
     });
     setSending(false);
     if (!ok || !data.id) {
       toast.error(data.error ?? "Failed to start the send.");
       return;
     }
-    toast.success("Sending in the background. You can leave this page.");
+    toast.success(
+      batches > 1
+        ? `Batch 1 of ${batches} is sending in the background. Send the next one when you're ready.`
+        : "Sending in the background. You can leave this page.",
+    );
     setActiveSend(data.id);
     setDrafts([]);
     await onSent();
-  }, [channel, confirming, drafts, message, onSent, skipRecent]);
+  }, [batchSize, batchSizeValid, batches, channel, confirming, drafts, message, onSent, recentWindow]);
+
+  const releaseNext = useCallback(
+    async (id: string) => {
+      const ok = await postSendAction(id, "next_batch");
+      if (ok) setActiveSend(id);
+      await onSent();
+    },
+    [onSent],
+  );
+
+  const sendLabel =
+    batches > 1 ? `batch 1 of ${batches} (${firstBatch} of ${willReceive})` : `to ${willReceive}`;
 
   return (
     <div className={card}>
       <h2 className="text-lg font-bold text-foreground">Write a message</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Pick recipients from any mix of the sources below. People on the exclusion list and frozen accounts are
-        always skipped. Messages go out in the background at about one per second.
+        Pick recipients from any mix of the sources below. People on the exclusion list, frozen accounts and anyone
+        nudged inside the window you pick are left out. Messages go out in the background at about one per second.
       </p>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
         <div className="space-y-4">
+          <AudienceBuilder onAdd={addAudience} />
+
           <div>
             <label className="mb-1 block text-sm font-semibold text-foreground" htmlFor="paste-ids">
               Paste Slack IDs
@@ -434,33 +502,13 @@ function ComposePanel({
               </ul>
             ) : null}
           </div>
-
-          <div>
-            <span className="mb-1 block text-sm font-semibold text-foreground">Add a segment</span>
-            <div className="flex flex-wrap gap-2">
-              {initial.segments.map((s) => (
-                <button key={s.key} type="button" className={smallButton} title={s.description} onClick={() => addSegment(s)}>
-                  {s.label}
-                  <span className="ml-1.5 rounded-full bg-foreground/10 px-1.5 py-0.5 text-xs tabular-nums">
-                    {s.userIds.length}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-foreground">
-              Recipients ({drafts.length})
-              {resolved ? (
-                <span className="ml-2 font-normal text-muted-foreground">
-                  {willReceive} will receive · {willSkip} skipped
-                </span>
-              ) : resolving ? (
-                <span className="ml-2 font-normal text-muted-foreground">checking…</span>
-              ) : null}
+              Recipients ({resolved ? willReceive : drafts.length})
+              {resolving ? <span className="ml-2 font-normal text-muted-foreground">checking…</span> : null}
             </span>
             {drafts.length ? (
               <button type="button" className="text-xs font-semibold text-muted-foreground hover:text-foreground" onClick={() => setDrafts([])}>
@@ -468,35 +516,64 @@ function ComposePanel({
               </button>
             ) : null}
           </div>
-          <div className="max-h-80 overflow-y-auto rounded-[var(--radius-xl)] border border-border">
+          <label className="block text-sm">
+            <span className="sr-only">Already nudged</span>
+            <select
+              className={inputClass}
+              value={recentWindow}
+              onChange={(e) => {
+                setRecentWindow(e.target.value as RecentWindow);
+                setConfirming(false);
+              }}
+            >
+              {RECENT_WINDOWS.map((w) => (
+                <option key={w} value={w}>
+                  {RECENT_WINDOW_LABELS[w]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="max-h-96 overflow-y-auto rounded-[var(--radius-xl)] border border-border">
             {drafts.length === 0 ? (
               <p className="px-3 py-8 text-center text-sm text-muted-foreground">No recipients yet.</p>
             ) : (
               <ul className="divide-y divide-border">
-                {drafts.map((d) => {
-                  const r = resolvedByKey.get(d.userId ? `u:${d.userId}` : `s:${d.slackId}`);
-                  return (
-                    <li key={d.userId ?? d.slackId} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-                      <span className="min-w-0">
-                        <span className={`font-semibold ${r?.status === "skipped" ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                          {recipientLabel(d)}
-                        </span>{" "}
-                        {!d.userId ? <span className="text-xs text-amber-600">no Carnival account</span> : null}
-                        {r?.status === "skipped" ? (
-                          <span className="ml-1 rounded-full bg-carnival-red/10 px-1.5 py-0.5 text-[11px] font-semibold text-carnival-red">
-                            {reasonLabel(r.reason)}
-                          </span>
-                        ) : null}
-                      </span>
-                      <button type="button" className="text-xs text-muted-foreground hover:text-carnival-red" onClick={() => removeDraft(d)}>
-                        Remove
-                      </button>
-                    </li>
-                  );
-                })}
+                {visibleDrafts.length === 0 ? (
+                  <li className="px-3 py-6 text-center text-sm text-muted-foreground">Everyone added is left out.</li>
+                ) : (
+                  visibleDrafts.map((d) => (
+                    <RecipientRow key={draftKey(d)} draft={d} onRemove={removeDraft} />
+                  ))
+                )}
               </ul>
             )}
           </div>
+          {hiddenDrafts.length ? (
+            <div className="rounded-[var(--radius-xl)] border border-dashed border-border px-3 py-2 text-sm">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 text-left text-muted-foreground hover:text-foreground"
+                onClick={() => setShowHidden((v) => !v)}
+              >
+                <span>
+                  <span className="font-semibold">{hiddenDrafts.length} left out</span> · {hiddenReasons}
+                </span>
+                <span className="text-xs font-semibold">{showHidden ? "Hide" : "Show why"}</span>
+              </button>
+              {showHidden ? (
+                <ul className="mt-2 max-h-56 divide-y divide-border overflow-y-auto">
+                  {hiddenDrafts.map((d) => (
+                    <RecipientRow
+                      key={draftKey(d)}
+                      draft={d}
+                      reason={reasonLabel(resolvedByKey.get(draftKey(d))?.reason ?? null)}
+                      onRemove={removeDraft}
+                    />
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -527,49 +604,366 @@ function ComposePanel({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <select
-          className={`${inputClass} sm:w-48`}
-          value={channel}
-          onChange={(e) => {
-            setChannel(e.target.value as OutreachChannel);
-            setConfirming(false);
-          }}
-        >
-          <option value="slack" disabled={!initial.slackEnabled}>
-            Slack DM{initial.slackEnabled ? "" : " (not configured)"}
-          </option>
-          <option value="email" disabled={!initial.emailEnabled}>
-            Email{initial.emailEnabled ? "" : " (not configured)"}
-          </option>
-        </select>
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <input type="checkbox" className="h-4 w-4" checked={skipRecent} onChange={(e) => setSkipRecent(e.target.checked)} />
-          Skip anyone nudged in the last 7 days
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <label className="text-sm sm:w-48">
+          <span className="mb-1 block font-semibold text-foreground">Channel</span>
+          <select
+            className={inputClass}
+            value={channel}
+            onChange={(e) => {
+              setChannel(e.target.value as OutreachChannel);
+              setConfirming(false);
+            }}
+          >
+            <option value="slack" disabled={!initial.slackEnabled}>
+              Slack DM{initial.slackEnabled ? "" : " (not configured)"}
+            </option>
+            <option value="email" disabled={!initial.emailEnabled}>
+              Email{initial.emailEnabled ? "" : " (not configured)"}
+            </option>
+          </select>
         </label>
-        <div className="sm:ml-auto">
-          <button type="button" className={dangerButton} onClick={send} disabled={sending || drafts.length === 0 || Boolean(activeSend)}>
-            {sending
-              ? "Starting…"
-              : confirming
-                ? `Really send to ${resolved ? willReceive : drafts.length}?`
-                : `Send to ${resolved ? willReceive : drafts.length}`}
+        <label className="text-sm sm:w-36">
+          <span className="mb-1 block font-semibold text-foreground">Batch size</span>
+          <input
+            className={inputClass}
+            type="number"
+            min={1}
+            max={OUTREACH_MAX_BATCH_SIZE}
+            value={batchSizeText}
+            onChange={(e) => {
+              setBatchSizeText(e.target.value);
+              setConfirming(false);
+            }}
+          />
+        </label>
+        <p className="text-xs text-muted-foreground sm:flex-1 sm:pb-2.5">
+          {!batchSizeValid
+            ? `Batch size must be 1 to ${OUTREACH_MAX_BATCH_SIZE}.`
+            : batches > 1
+              ? `${willReceive} people in ${batches} batches. Batch 1 goes out now; you send each next batch yourself, below or under History.`
+              : `Max ${OUTREACH_MAX_BATCH_SIZE} per batch. Larger lists are split and each batch waits for you.`}
+        </p>
+        <div>
+          <button
+            type="button"
+            className={dangerButton}
+            onClick={send}
+            disabled={sending || willReceive === 0 || Boolean(activeSend) || !batchSizeValid}
+          >
+            {sending ? "Starting…" : confirming ? `Really send ${sendLabel}?` : `Send ${sendLabel}`}
           </button>
         </div>
       </div>
 
       {progress ? (
-        <div className="mt-4 rounded-[var(--radius-xl)] border border-border bg-background/60 px-3 py-2 text-sm">
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[var(--radius-xl)] border border-border bg-background/60 px-3 py-2 text-sm">
           <span className="font-semibold text-foreground">
-            {progress.status === "running" ? "Sending…" : `Send ${progress.status}`}
-          </span>{" "}
-          <span className="text-muted-foreground">
-            {progress.counts.sent} sent · {progress.counts.pending} pending · {progress.counts.skipped} skipped ·{" "}
-            {progress.counts.failed} failed
+            {progress.status === "running"
+              ? `Sending${progress.batches.total > 1 ? ` batch ${progress.batches.current} of ${progress.batches.total}` : ""}…`
+              : progress.status === "waiting"
+                ? `Batch ${progress.batches.current} of ${progress.batches.total} done`
+                : `Send ${progress.status}`}
           </span>
+          <span className="text-muted-foreground">
+            {progress.counts.sent} sent · {progress.counts.pending} pending
+            {progress.counts.queued ? ` · ${progress.counts.queued} in later batches` : ""} · {progress.counts.skipped}{" "}
+            skipped · {progress.counts.failed} failed
+          </span>
+          {progress.status === "waiting" ? (
+            <BatchActions send={progress} onNext={releaseNext} onChanged={onSent} />
+          ) : null}
         </div>
       ) : null}
     </div>
+  );
+}
+
+function RecipientRow({
+  draft,
+  reason,
+  onRemove,
+}: {
+  draft: DraftRecipient;
+  reason?: string;
+  onRemove: (d: DraftRecipient) => void;
+}) {
+  return (
+    <li className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+      <span className="min-w-0">
+        <span className={`font-semibold ${reason ? "text-muted-foreground" : "text-foreground"}`}>{recipientLabel(draft)}</span>{" "}
+        {!draft.userId ? <span className="text-xs text-amber-600">no Carnival account</span> : null}
+        {reason ? (
+          <span className="ml-1 rounded-full bg-carnival-red/10 px-1.5 py-0.5 text-[11px] font-semibold text-carnival-red">{reason}</span>
+        ) : null}
+      </span>
+      <button type="button" className="text-xs text-muted-foreground hover:text-carnival-red" onClick={() => onRemove(draft)}>
+        Remove
+      </button>
+    </li>
+  );
+}
+
+async function postSendAction(id: string, action: "next_batch" | "cancel" | "resume"): Promise<boolean> {
+  const { ok, data } = await postJson<{ pending?: number; skipped?: number; batch?: number }>(
+    `/api/admin/messages/${encodeURIComponent(id)}`,
+    { action },
+  );
+  if (!ok) {
+    toast.error(data.error ?? "That didn't work.");
+    return false;
+  }
+  if (action === "next_batch") {
+    toast.success(
+      `Batch ${data.batch} is sending to ${data.pending}${data.skipped ? ` (${data.skipped} left out since it was planned)` : ""}.`,
+    );
+  } else if (action === "cancel") {
+    toast.success("Remaining batches cancelled.");
+  } else {
+    toast.success("Resumed. Only people still pending will be messaged.");
+  }
+  return true;
+}
+
+/** "Send batch N" and "Cancel the rest" for a send waiting on its next batch. */
+function BatchActions({
+  send,
+  onNext,
+  onChanged,
+}: {
+  send: OutreachSendSummary;
+  onNext: (id: string) => Promise<void>;
+  onChanged: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const next = send.batches.current + 1;
+  return (
+    <span className="inline-flex items-center gap-3">
+      <button
+        type="button"
+        className="text-xs font-semibold text-carnival-blue hover:underline disabled:opacity-50"
+        disabled={busy}
+        onClick={async () => {
+          if (!window.confirm(`Send batch ${next} of ${send.batches.total} to ${send.batches.nextBatchSize} people now?`)) return;
+          setBusy(true);
+          await onNext(send.id);
+          setBusy(false);
+        }}
+      >
+        Send batch {next} of {send.batches.total} ({send.batches.nextBatchSize})
+      </button>
+      <button
+        type="button"
+        className="text-xs font-semibold text-muted-foreground hover:text-carnival-red disabled:opacity-50"
+        disabled={busy}
+        onClick={async () => {
+          if (!window.confirm(`Cancel the remaining ${send.counts.queued} people? They won't get this message.`)) return;
+          setBusy(true);
+          await postSendAction(send.id, "cancel");
+          await onChanged();
+          setBusy(false);
+        }}
+      >
+        Cancel the rest
+      </button>
+    </span>
+  );
+}
+
+/** Stack predefined filters to find people, then add them to the recipients. */
+function AudienceBuilder({ onAdd }: { onAdd: (userIds: string[], label: string) => void }) {
+  const [filters, setFilters] = useState<AudienceFilter[]>([]);
+  const [presetLabel, setPresetLabel] = useState<string | null>(null);
+  const [matches, setMatches] = useState<string[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(async () => {
+      setLoading(true);
+      const { ok, data } = await postJson<{ userIds?: string[] }>("/api/admin/messages/audience", { filters });
+      setLoading(false);
+      if (ok && data.userIds) {
+        setMatches(data.userIds);
+        setError(null);
+      } else {
+        setMatches(null);
+        setError(data.error ?? "Couldn't run the filters.");
+      }
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [filters]);
+
+  const update = (i: number, f: AudienceFilter) => {
+    setFilters((prev) => prev.map((p, j) => (j === i ? f : p)));
+    setPresetLabel(null);
+  };
+  const remove = (i: number) => {
+    setFilters((prev) => prev.filter((_, j) => j !== i));
+    setPresetLabel(null);
+  };
+
+  const label = presetLabel
+    ? `"${presetLabel}"`
+    : filters.length
+      ? filters.map(describeFilter).join(", ")
+      : "everyone";
+
+  return (
+    <div className="rounded-[var(--radius-xl)] border border-border p-3">
+      <span className="block text-sm font-semibold text-foreground">Find people with filters</span>
+      <p className="text-xs text-muted-foreground">Everyone matching all the filters. Presets fill them in for you.</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {AUDIENCE_PRESETS.map((p) => (
+          <button
+            key={p.key}
+            type="button"
+            className={`${smallButton} px-2.5 py-1.5 text-xs`}
+            title={p.description}
+            onClick={() => {
+              setFilters(p.filters);
+              setPresetLabel(p.label);
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      <ul className="mt-3 space-y-2">
+        {filters.map((f, i) => (
+          <li key={i} className="flex flex-wrap items-center gap-2 text-sm">
+            <select
+              className={compactClass}
+              value={f.key}
+              onChange={(e) => update(i, defaultFilter(e.target.value as AudienceFilterKey))}
+            >
+              {AUDIENCE_FILTER_KEYS.map((k) => (
+                <option key={k} value={k}>
+                  {AUDIENCE_FILTERS[k].label}
+                </option>
+              ))}
+            </select>
+            <FilterControls filter={f} onChange={(next) => update(i, next)} />
+            <button type="button" className="text-xs text-muted-foreground hover:text-carnival-red" onClick={() => remove(i)}>
+              Remove
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <select
+          className={compactClass}
+          value=""
+          onChange={(e) => {
+            if (!e.target.value) return;
+            setFilters((prev) => [...prev, defaultFilter(e.target.value as AudienceFilterKey)]);
+            setPresetLabel(null);
+          }}
+        >
+          <option value="">+ Add a filter…</option>
+          {AUDIENCE_FILTER_KEYS.map((k) => (
+            <option key={k} value={k}>
+              {AUDIENCE_FILTERS[k].label}
+            </option>
+          ))}
+        </select>
+        {filters.length ? (
+          <button
+            type="button"
+            className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setFilters([]);
+              setPresetLabel(null);
+            }}
+          >
+            Clear filters
+          </button>
+        ) : null}
+        <span className="ml-auto text-sm text-muted-foreground">
+          {loading ? "Counting…" : error ? <span className="text-carnival-red">{error}</span> : matches ? `${matches.length} match` : ""}
+        </span>
+        <button
+          type="button"
+          className={smallButton}
+          disabled={!matches || matches.length === 0 || loading}
+          onClick={() => matches && onAdd(matches, label)}
+        >
+          {filters.length ? `Add ${matches?.length ?? 0}` : `Add everyone (${matches?.length ?? 0})`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FilterControls({ filter, onChange }: { filter: AudienceFilter; onChange: (f: AudienceFilter) => void }) {
+  if ("op" in filter && "value" in filter) {
+    const def = AUDIENCE_FILTERS[filter.key];
+    const hours = def.kind === "number" && def.unit === "hours";
+    return (
+      <>
+        <select className={compactClass} value={filter.op} onChange={(e) => onChange({ ...filter, op: e.target.value as NumberOp })}>
+          {NUMBER_OPS.map((op) => (
+            <option key={op} value={op}>
+              {NUMBER_OP_LABELS[op]}
+            </option>
+          ))}
+        </select>
+        <input
+          className={`${compactClass} w-20`}
+          type="number"
+          min={0}
+          step={hours ? 0.5 : 1}
+          value={filter.value}
+          onChange={(e) => onChange({ ...filter, value: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+        />
+        {hours ? <span className="text-xs text-muted-foreground">hours</span> : null}
+      </>
+    );
+  }
+  if ("value" in filter) {
+    return (
+      <select className={compactClass} value={filter.value ? "yes" : "no"} onChange={(e) => onChange({ ...filter, value: e.target.value === "yes" })}>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+    );
+  }
+  if ("values" in filter) {
+    return (
+      <span className="flex flex-wrap gap-x-3 gap-y-1">
+        {VERIFICATION_VALUES.map((v) => (
+          <label key={v} className="flex items-center gap-1 text-xs text-foreground">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5"
+              checked={filter.values.includes(v)}
+              onChange={(e) => {
+                const values = e.target.checked ? [...filter.values, v] : filter.values.filter((x) => x !== v);
+                if (values.length) onChange({ ...filter, values });
+              }}
+            />
+            {VERIFICATION_LABELS[v]}
+          </label>
+        ))}
+      </span>
+    );
+  }
+  return (
+    <>
+      <select className={compactClass} value={filter.op} onChange={(e) => onChange({ ...filter, op: e.target.value as "before" | "after" })}>
+        <option value="before">before</option>
+        <option value="after">on or after</option>
+      </select>
+      <input
+        className={compactClass}
+        type="date"
+        value={filter.date}
+        onChange={(e) => e.target.value && onChange({ ...filter, date: e.target.value })}
+      />
+      <span className="text-xs text-muted-foreground">UTC</span>
+    </>
   );
 }
 
@@ -754,12 +1148,10 @@ function HistoryPanel({ sends, onRefresh }: { sends: OutreachSendSummary[]; onRe
   }, [openId]);
 
   const resume = useCallback(async (id: string) => {
-    const { ok, data } = await postJson<{ ok?: boolean }>(`/api/admin/messages/${encodeURIComponent(id)}`, { action: "resume" });
-    if (!ok) {
-      toast.error(data.error ?? "Failed to resume.");
-      return;
-    }
-    toast.success("Resumed. Only people still pending will be messaged.");
+    if (await postSendAction(id, "resume")) await onRefresh();
+  }, [onRefresh]);
+  const releaseNext = useCallback(async (id: string) => {
+    await postSendAction(id, "next_batch");
     await onRefresh();
   }, [onRefresh]);
 
@@ -793,7 +1185,16 @@ function HistoryPanel({ sends, onRefresh }: { sends: OutreachSendSummary[]; onRe
               </tr>
             ) : (
               sends.map((s) => (
-                <HistoryRow key={s.id} send={s} open={openId === s.id} detail={openId === s.id ? detail : null} onToggle={open} onResume={resume} />
+                <HistoryRow
+                  key={s.id}
+                  send={s}
+                  open={openId === s.id}
+                  detail={openId === s.id ? detail : null}
+                  onToggle={open}
+                  onResume={resume}
+                  onNext={releaseNext}
+                  onChanged={onRefresh}
+                />
               ))
             )}
           </tbody>
@@ -809,13 +1210,18 @@ function HistoryRow({
   detail,
   onToggle,
   onResume,
+  onNext,
+  onChanged,
 }: {
   send: OutreachSendSummary;
   open: boolean;
   detail: { send: OutreachSendSummary & { message: string | null }; recipients: OutreachRecipientRow[] } | null;
   onToggle: (id: string) => void;
   onResume: (id: string) => void;
+  onNext: (id: string) => Promise<void>;
+  onChanged: () => Promise<void>;
 }) {
+  const multiBatch = send.kind === "custom" && send.batches.total > 1;
   const summaryError = typeof send.summary.error === "string" ? send.summary.error : null;
   const dryRun = send.kind === "automated" && send.summary.dryRun === true;
   return (
@@ -831,6 +1237,17 @@ function HistoryRow({
             {dryRun ? <span className="ml-1 text-xs font-normal text-muted-foreground">dry run, sending disabled</span> : null}
           </div>
           {send.messagePreview ? <div className="line-clamp-2 text-xs text-muted-foreground">{send.messagePreview}</div> : null}
+          {multiBatch ? (
+            <div className="text-xs text-muted-foreground">
+              Batches of {send.batches.size} · {Math.min(send.batches.current, send.batches.total)} of {send.batches.total} released
+              {send.counts.queued ? ` · ${send.counts.queued} waiting` : ""}
+            </div>
+          ) : null}
+          {send.status === "waiting" ? (
+            <div className="mt-1">
+              <BatchActions send={send} onNext={onNext} onChanged={onChanged} />
+            </div>
+          ) : null}
           {summaryError ? <div className="text-xs text-carnival-red">{summaryError}</div> : null}
         </td>
         <td className="px-3 py-2 whitespace-nowrap">
@@ -840,10 +1257,12 @@ function HistoryRow({
                 ? "bg-emerald-500/10 text-emerald-700"
                 : send.status === "running"
                   ? "bg-carnival-blue/10 text-carnival-blue"
-                  : "bg-carnival-red/10 text-carnival-red"
+                  : send.status === "waiting" || send.status === "cancelled"
+                    ? "bg-amber-500/10 text-amber-700"
+                    : "bg-carnival-red/10 text-carnival-red"
             }`}
           >
-            {send.status}
+            {send.status === "waiting" ? "waiting for next batch" : send.status}
             {send.status === "running" && send.counts.pending ? ` · ${send.counts.pending} left` : ""}
           </span>
         </td>
@@ -889,6 +1308,9 @@ function HistoryRow({
                           {r.status}
                         </span>
                         {r.reason ? <span className="text-xs text-muted-foreground">{reasonLabel(r.reason)}</span> : null}
+                        {multiBatch && r.status !== "skipped" ? (
+                          <span className="text-xs text-muted-foreground">batch {r.batch}</span>
+                        ) : null}
                       </li>
                     ))}
                   </ul>

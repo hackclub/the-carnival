@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
 const {
+  assignBatches,
+  batchCount,
   decideRecipient,
+  isNudgedWithin,
+  recentWindowCutoff,
   isOutreachSendStale,
   mergeRecipients,
   parseSlackIdList,
@@ -85,5 +89,51 @@ describe("renderOutreachMessage / isOutreachSendStale", () => {
     expect(isOutreachSendStale("2026-10-18T11:45:00.000Z", now)).toBe(false);
     expect(isOutreachSendStale("2026-10-18T11:29:00.000Z", now)).toBe(true);
     expect(isOutreachSendStale("nope", now)).toBe(false);
+  });
+});
+
+describe("recentWindowCutoff", () => {
+  const now = new Date("2026-10-19T15:30:00.000Z");
+
+  test("today starts at midnight UTC", () => {
+    expect(recentWindowCutoff("today", now).toISOString()).toBe("2026-10-19T00:00:00.000Z");
+  });
+
+  test("day windows count back from now", () => {
+    expect(recentWindowCutoff("3d", now).toISOString()).toBe("2026-10-16T15:30:00.000Z");
+    expect(recentWindowCutoff("7d", now).toISOString()).toBe("2026-10-12T15:30:00.000Z");
+  });
+
+  test("off never counts anyone as recent", () => {
+    expect(recentWindowCutoff("off", now)).toBeNull();
+    expect(isNudgedWithin("2026-10-19T15:00:00.000Z", null)).toBe(false);
+  });
+
+  test("a nudge at or after the cutoff is recent", () => {
+    const cutoff = recentWindowCutoff("today", now);
+    expect(isNudgedWithin("2026-10-19T00:00:00.000Z", cutoff)).toBe(true);
+    expect(isNudgedWithin("2026-10-18T23:59:59.000Z", cutoff)).toBe(false);
+    expect(isNudgedWithin(null, cutoff)).toBe(false);
+    expect(isNudgedWithin("garbage", cutoff)).toBe(false);
+  });
+});
+
+describe("assignBatches", () => {
+  test("fills batches in order with people who will be messaged", () => {
+    expect(assignBatches(["pending", "pending", "pending", "pending", "pending"], 2)).toEqual([1, 1, 2, 2, 3]);
+  });
+
+  test("skipped people don't take a slot", () => {
+    expect(assignBatches(["skipped", "pending", "skipped", "pending", "pending"], 2)).toEqual([1, 1, 1, 1, 2]);
+  });
+
+  test("600 people in batches of 300 is two batches", () => {
+    const batches = assignBatches(Array(600).fill("pending"), 300);
+    expect(batches[299]).toBe(1);
+    expect(batches[300]).toBe(2);
+    expect(Math.max(...batches)).toBe(2);
+    expect(batchCount(600, 300)).toBe(2);
+    expect(batchCount(601, 300)).toBe(3);
+    expect(batchCount(0, 300)).toBe(0);
   });
 });

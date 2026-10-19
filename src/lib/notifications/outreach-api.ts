@@ -1,11 +1,14 @@
 /** Shared request parsing for the /api/admin/messages routes. */
 import { getServerSession } from "@/lib/server-session";
 import {
+  OUTREACH_MAX_BATCH_SIZE,
   OUTREACH_MAX_MESSAGE_LENGTH,
   OUTREACH_MAX_RECIPIENTS,
   OUTREACH_MIN_MESSAGE_LENGTH,
+  isRecentWindow,
   parseSlackIdList,
   type OutreachChannel,
+  type RecentWindow,
 } from "./outreach-shared";
 
 export async function requireAdmin(): Promise<{ ok: true; adminId: string } | { ok: false; status: 401 | 403 }> {
@@ -33,7 +36,7 @@ export type RecipientsRequest = {
   channel: OutreachChannel;
   userIds: string[];
   slackIds: string[];
-  skipRecentDays: number;
+  recentWindow: RecentWindow;
 };
 
 export function parseRecipientsRequest(
@@ -48,16 +51,18 @@ export function parseRecipientsRequest(
   if (userIds.length + slack.ids.length > OUTREACH_MAX_RECIPIENTS) {
     return { ok: false, error: `Too many recipients (max ${OUTREACH_MAX_RECIPIENTS} per send)` };
   }
-  const skip = Number(body?.skipRecentDays);
-  return {
-    ok: true,
-    value: {
-      channel,
-      userIds,
-      slackIds: slack.ids,
-      skipRecentDays: Number.isFinite(skip) && skip > 0 ? Math.min(Math.floor(skip), 60) : 0,
-    },
-  };
+  const recentWindow = body?.recentWindow === undefined ? "off" : body.recentWindow;
+  if (!isRecentWindow(recentWindow)) return { ok: false, error: "recentWindow must be off, today, 3d or 7d" };
+  return { ok: true, value: { channel, userIds, slackIds: slack.ids, recentWindow } };
+}
+
+export function parseBatchSize(value: unknown): { ok: true; batchSize: number } | { ok: false; error: string } {
+  if (value === undefined || value === null || value === "") return { ok: true, batchSize: OUTREACH_MAX_BATCH_SIZE };
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1 || n > OUTREACH_MAX_BATCH_SIZE) {
+    return { ok: false, error: `Batch size must be a whole number from 1 to ${OUTREACH_MAX_BATCH_SIZE}` };
+  }
+  return { ok: true, batchSize: n };
 }
 
 export function parseMessage(value: unknown): { ok: true; message: string } | { ok: false; error: string } {
