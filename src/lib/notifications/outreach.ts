@@ -391,6 +391,11 @@ async function processCustomSend(sendId: string): Promise<void> {
     await finishBatch(sendId, send.currentBatch);
   } catch (err) {
     console.error("[outreach] send failed", { sendId, err });
+    await db
+      .update(outreachRecipient)
+      .set({ status: "skipped", reason: "interrupted" })
+      .where(and(eq(outreachRecipient.sendId, sendId), eq(outreachRecipient.status, "pending")))
+      .catch(() => undefined);
     await finishSend(sendId, "failed", { error: err instanceof Error ? err.message : String(err) });
   }
 }
