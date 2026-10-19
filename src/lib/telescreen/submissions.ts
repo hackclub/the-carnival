@@ -287,7 +287,17 @@ export async function applyRobertProject(
   robert: Pick<RobertProject, "state" | "trustScore" | "review" | "outcome" | "creditedSeconds">,
 ): Promise<TelescreenSubmissionRow> {
   const trustScore = robert.review?.trustScore ?? robert.trustScore ?? null;
-  const firstScore = row.trustScore === null && trustScore !== null;
+  // Claim the first score so the webhook, the sync and a page refresh can't
+  // all announce it.
+  const firstScore =
+    trustScore !== null &&
+    (
+      await db
+        .update(telescreenSubmission)
+        .set({ trustScore, updatedAt: new Date() })
+        .where(and(eq(telescreenSubmission.id, row.id), isNull(telescreenSubmission.trustScore)))
+        .returning({ id: telescreenSubmission.id })
+    ).length > 0;
   const updated =
     (await updateRow(row.id, {
       state: robert.state,
