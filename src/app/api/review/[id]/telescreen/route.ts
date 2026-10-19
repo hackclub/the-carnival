@@ -1,14 +1,20 @@
 /**
  * Staff view of a project's Telescreen (Robert) fraud review.
  *
- * GET  — the current submission, refreshed from Robert, plus the grant gate.
+ * GET  — the current submission, refreshed from Robert, plus the grant gate
+ *        and the earlier submissions' fraud reviews (as stored).
  * POST — same, but also sends the submission if it never reached Robert
  *        (the "Send to Telescreen" / retry button).
  */
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/server-session";
 import { isTelescreenEnabled } from "@/lib/telescreen/client";
-import { ensureTelescreenSubmission, getTelescreenGrantGate } from "@/lib/telescreen/submissions";
+import {
+  ensureTelescreenSubmission,
+  getTelescreenGrantGate,
+  listTelescreenSubmissions,
+  toTelescreenView,
+} from "@/lib/telescreen/submissions";
 
 async function requireStaff() {
   const session = await getServerSession();
@@ -22,8 +28,12 @@ async function requireStaff() {
 }
 
 async function respond(projectId: string) {
+  // The gate refreshes the current submission first, so the list read after it is fresh.
   const { gate, submission } = await getTelescreenGrantGate(projectId);
-  return NextResponse.json({ enabled: isTelescreenEnabled(), gate, submission });
+  const earlier = (await listTelescreenSubmissions(projectId))
+    .filter((row) => row.id !== submission?.id)
+    .map(toTelescreenView);
+  return NextResponse.json({ enabled: isTelescreenEnabled(), gate, submission, earlier });
 }
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {

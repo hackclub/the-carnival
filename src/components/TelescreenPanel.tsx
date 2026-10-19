@@ -12,6 +12,8 @@ type TelescreenResponse = {
   enabled: boolean;
   gate: TelescreenGate;
   submission: TelescreenSubmissionView | null;
+  // The project's earlier submissions, newest first.
+  earlier?: TelescreenSubmissionView[];
 };
 
 const STATE_LABELS: Record<TelescreenSubmissionView["state"], string> = {
@@ -46,6 +48,27 @@ function formatWhen(iso: string | null): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toLocaleString();
 }
 
+function ScorePill({ submission }: { submission: TelescreenSubmissionView }) {
+  const band = submission.band;
+  if (band && submission.trustScore !== null) {
+    return (
+      <span
+        className={[
+          "rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide",
+          BAND_STYLES[band].pill,
+        ].join(" ")}
+      >
+        {TELESCREEN_BAND_LABELS[band]} · {submission.trustScore}/10
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+      {STATE_LABELS[submission.state]}
+    </span>
+  );
+}
+
 function formatHours(seconds: number | null): string | null {
   if (seconds === null || !Number.isFinite(seconds)) return null;
   return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
@@ -55,13 +78,20 @@ function formatHours(seconds: number | null): string | null {
  * Staff view of a project's Telescreen (Robert) fraud review: state, trust
  * score band, the fraud reviewer's internal note, and a send/retry control.
  * `onGateChange` lets the grant page block or require acknowledgement.
+ * `showHistory` adds the fraud reviews of the project's earlier submissions;
+ * `showWhenDisabled` says so instead of rendering nothing when Telescreen
+ * isn't configured (for the grant page, where its absence matters).
  */
 export default function TelescreenPanel({
   projectId,
   onGateChange,
+  showHistory = false,
+  showWhenDisabled = false,
 }: {
   projectId: string;
   onGateChange?: (gate: TelescreenGate | null) => void;
+  showHistory?: boolean;
+  showWhenDisabled?: boolean;
 }) {
   const [data, setData] = useState<TelescreenResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,9 +128,24 @@ export default function TelescreenPanel({
     void load("GET");
   }, [load]);
 
-  if (data && !data.enabled) return null;
+  if (data && !data.enabled) {
+    if (!showWhenDisabled) return null;
+    return (
+      <section className="platform-surface-card p-6 space-y-2">
+        <h2 className="flex items-center gap-2 text-foreground font-semibold text-lg">
+          <ShieldQuestion className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+          Telescreen fraud review
+        </h2>
+        <div className="text-sm text-muted-foreground">
+          Telescreen isn&apos;t configured on this deployment (ROBERT_API_KEY), so nothing is sent for fraud
+          review and grants aren&apos;t gated on it.
+        </div>
+      </section>
+    );
+  }
 
   const s = data?.submission ?? null;
+  const earlier = data?.earlier ?? [];
   const band = s?.band ?? null;
   const style = band ? BAND_STYLES[band] : null;
   const canSend = !s || s.state === "pending";
@@ -113,20 +158,7 @@ export default function TelescreenPanel({
           Telescreen fraud review
         </h2>
         <div className="flex items-center gap-2">
-          {s && band && s.trustScore !== null ? (
-            <span
-              className={[
-                "rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide",
-                style?.pill ?? "",
-              ].join(" ")}
-            >
-              {TELESCREEN_BAND_LABELS[band]} · {s.trustScore}/10
-            </span>
-          ) : s ? (
-            <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-              {STATE_LABELS[s.state]}
-            </span>
-          ) : null}
+          {s ? <ScorePill submission={s} /> : null}
           <button
             type="button"
             onClick={() => void load("GET")}
@@ -213,6 +245,33 @@ export default function TelescreenPanel({
               Last Telescreen error ({formatWhen(s.lastErrorAt)}): {s.lastError}
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {showHistory && earlier.length > 0 ? (
+        <div className="space-y-3 border-t border-border pt-4">
+          <div className="text-sm font-semibold text-foreground">Earlier submissions</div>
+          <ul className="space-y-3">
+            {earlier.map((e) => (
+              <li
+                key={e.id}
+                className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 space-y-2 text-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    Sent {formatWhen(e.sentAt ?? e.createdAt)}
+                    {e.reviewedAt ? ` · scored ${formatWhen(e.reviewedAt)}` : ""}
+                  </span>
+                  <ScorePill submission={e} />
+                </div>
+                {e.reviewNote ? (
+                  <div className="text-foreground whitespace-pre-wrap">{e.reviewNote}</div>
+                ) : (
+                  <div className="text-xs text-muted-foreground">No note from the fraud reviewer.</div>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
 

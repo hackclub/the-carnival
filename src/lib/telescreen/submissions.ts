@@ -99,6 +99,15 @@ export async function getCurrentTelescreenSubmission(
   return rows[0] ?? null;
 }
 
+/** Every Telescreen entry for the project, newest first (the first is the current one). */
+export async function listTelescreenSubmissions(projectId: string): Promise<TelescreenSubmissionRow[]> {
+  return db
+    .select()
+    .from(telescreenSubmission)
+    .where(eq(telescreenSubmission.projectId, projectId))
+    .orderBy(desc(telescreenSubmission.createdAt));
+}
+
 async function updateRow(
   id: string,
   set: Partial<typeof telescreenSubmission.$inferInsert>,
