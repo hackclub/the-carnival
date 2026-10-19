@@ -680,6 +680,100 @@ export const userNudge = pgTable(
 );
 
 // ============================================================================
+// Admin outreach: exclusion list, sends, and per-recipient results
+// ============================================================================
+
+// Slack IDs that never receive any nudge (automated, "run now", or a
+// hand-written admin message). Keyed by Slack ID so it also covers people
+// without a Carnival account.
+export const nudgeExclusion = pgTable("nudge_exclusion", {
+  slackId: text("slack_id").primaryKey(),
+  note: text("note"),
+  addedByUserId: text("added_by_user_id").references(() => user.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").notNull(),
+});
+
+export const outreachSendKind = pgEnum("outreach_send_kind", ["custom", "automated"]);
+export type OutreachSendKind = (typeof outreachSendKind.enumValues)[number];
+
+export const outreachSendStatus = pgEnum("outreach_send_status", [
+  "running",
+  // A batch finished and later batches are queued until an admin sends the next one.
+  "waiting",
+  "completed",
+  "failed",
+  "interrupted",
+  "cancelled",
+]);
+export type OutreachSendStatus = (typeof outreachSendStatus.enumValues)[number];
+
+export const outreachRecipientStatus = pgEnum("outreach_recipient_status", [
+  "pending",
+  "sent",
+  "skipped",
+  "failed",
+]);
+export type OutreachRecipientStatus = (typeof outreachRecipientStatus.enumValues)[number];
+
+// One admin-triggered send: a hand-written message, or a manual "run now"
+// of the automated nudges. Messages go out in the background; updatedAt is
+// a heartbeat so a send whose process died can be marked interrupted.
+export const outreachSend = pgTable(
+  "outreach_send",
+  {
+    id: text("id").primaryKey(),
+    kind: outreachSendKind("kind").notNull(),
+    channel: nudgeChannel("channel").notNull(),
+    // Template as written (with {firstName}); null for automated runs.
+    message: text("message"),
+    createdByUserId: text("created_by_user_id").references(() => user.id, { onDelete: "set null" }),
+    status: outreachSendStatus("status").notNull().default("running"),
+    total: integer("total").notNull().default(0),
+    sent: integer("sent").notNull().default(0),
+    skipped: integer("skipped").notNull().default(0),
+    failed: integer("failed").notNull().default(0),
+    // Hand-written sends go out in batches of batchSize; only recipients with
+    // batch <= currentBatch are delivered, the rest wait for "send next batch".
+    batchSize: integer("batch_size"),
+    currentBatch: integer("current_batch").notNull().default(1),
+    // Who counts as "already nudged" (off / today / 3d / 7d), re-applied when
+    // each later batch is released.
+    recentWindow: text("recent_window").notNull().default("off"),
+    summary: jsonb("summary").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+    finishedAt: timestamp("finished_at"),
+  },
+  (t) => ({
+    createdAtIdx: index("outreach_send_created_at_idx").on(t.createdAt),
+  }),
+);
+
+export const outreachRecipient = pgTable(
+  "outreach_recipient",
+  {
+    id: text("id").primaryKey(),
+    sendId: text("send_id")
+      .notNull()
+      .references(() => outreachSend.id, { onDelete: "cascade" }),
+    // Null for Slack IDs with no Carnival account.
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    name: text("name"),
+    slackId: text("slack_id"),
+    email: text("email"),
+    status: outreachRecipientStatus("status").notNull().default("pending"),
+    batch: integer("batch").notNull().default(1),
+    // Why a recipient was skipped or failed (e.g. "excluded", "frozen").
+    reason: text("reason"),
+    sentAt: timestamp("sent_at"),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (t) => ({
+    sendStatusIdx: index("outreach_recipient_send_status_idx").on(t.sendId, t.status),
+  }),
+);
+
+// ============================================================================
 // Site settings (admin-editable key/value config, e.g. deadlines)
 // ============================================================================
 

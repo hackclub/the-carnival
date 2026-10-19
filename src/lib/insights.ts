@@ -1,6 +1,9 @@
 import { sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type * as schema from "@/db/schema";
+import { firstNameOf, renderNudgeMessage } from "@/lib/insights-shared";
+
+export { firstNameOf, renderNudgeMessage };
 
 type DbLike = PostgresJsDatabase<typeof schema>;
 
@@ -54,17 +57,6 @@ export type ActivationSegments = Record<SegmentKey, SegmentUser[]>;
 // ============================================================================
 // Pure helpers (unit tested)
 // ============================================================================
-
-export function firstNameOf(name: string | null | undefined): string {
-  const cleaned = typeof name === "string" ? name.trim().replace(/\s+/g, " ") : "";
-  const first = cleaned.split(" ")[0] ?? "";
-  return first || "there";
-}
-
-/** Replace supported placeholders ({firstName}) in a nudge template. */
-export function renderNudgeMessage(template: string, user: { name: string | null }): string {
-  return template.replaceAll("{firstName}", firstNameOf(user.name));
-}
 
 export function isRecentlyNudged(
   lastNudgedAtIso: string | null,

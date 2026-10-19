@@ -28,6 +28,7 @@ import {
   ShoppingBag,
   Trophy,
   Users,
+  Send,
 } from "lucide-react";
 import {
   Sheet,
@@ -89,6 +90,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/wallet", label: "Wallets", icon: Coins },
   { href: "/admin/insights", label: "Insights", icon: BarChart3 },
+  { href: "/admin/messages", label: "Messages", icon: Send },
   { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
   { href: "/admin/audit", label: "Audit log", icon: Shield },
   { href: "/admin/settings", label: "Site settings", icon: Settings },

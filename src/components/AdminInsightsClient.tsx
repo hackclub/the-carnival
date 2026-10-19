@@ -1,14 +1,9 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { OUTREACH_HANDOFF_STORAGE_KEY } from "@/lib/notifications/outreach-shared";
 import type {
   ActivationFunnel,
   ActivationSegments,
@@ -18,15 +13,6 @@ import type {
   WeeklySignupPoint,
 } from "@/lib/insights";
 
-type NudgeChannel = "slack" | "email";
-
-type NudgeApiResponse = {
-  sent?: string[];
-  skipped?: { userId: string; reason: string }[];
-  failed?: string[];
-  error?: string;
-};
-
 // Ordered by how actionable each segment is for outreach.
 const SEGMENT_ORDER: SegmentKey[] = [
   "stalled_with_hours",
@@ -34,13 +20,6 @@ const SEGMENT_ORDER: SegmentKey[] = [
   "zero_hours",
   "never_activated",
 ];
-
-const SKIP_REASON_LABELS: Record<string, string> = {
-  recently_nudged: "nudged in the last 7 days",
-  no_slack_id: "no Slack ID",
-  frozen: "account frozen",
-  not_found: "user not found",
-};
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -131,30 +110,17 @@ export default function AdminInsightsClient({
   weeklySignups,
   segments: initialSegments,
   templates,
-  slackEnabled,
-  emailEnabled,
 }: {
   funnel: ActivationFunnel;
   weeklySignups: WeeklySignupPoint[];
   segments: ActivationSegments;
   templates: Record<SegmentKey, NudgeTemplate>;
-  slackEnabled: boolean;
-  emailEnabled: boolean;
 }) {
-  const [segments, setSegments] = useState<ActivationSegments>(initialSegments);
+  const router = useRouter();
+  const segments = initialSegments;
   const [activeSegment, setActiveSegment] = useState<SegmentKey>(SEGMENT_ORDER[0]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
-  const [messages, setMessages] = useState<Record<SegmentKey, string>>(() => {
-    const initial = {} as Record<SegmentKey, string>;
-    for (const key of SEGMENT_ORDER) initial[key] = templates[key].template;
-    return initial;
-  });
-  const [channel, setChannel] = useState<NudgeChannel>(slackEnabled ? "slack" : "email");
-  const [skipRecent, setSkipRecent] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [confirmingSend, setConfirmingSend] = useState(false);
-
   const activeUsers = segments[activeSegment];
   const activeTemplate = templates[activeSegment];
 
@@ -167,10 +133,7 @@ export default function AdminInsightsClient({
     );
   }, [activeUsers, search]);
 
-  const reachableVisible = useMemo(
-    () => visibleUsers.filter((u) => channel !== "slack" || !!u.slackId),
-    [visibleUsers, channel],
-  );
+  const reachableVisible = visibleUsers;
 
   const selectedCount = selectedIds.size;
   const allVisibleSelected =
@@ -180,11 +143,9 @@ export default function AdminInsightsClient({
     setActiveSegment(key);
     setSelectedIds(new Set());
     setSearch("");
-    setConfirmingSend(false);
   }, []);
 
   const toggleUser = useCallback((id: string) => {
-    setConfirmingSend(false);
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -194,7 +155,6 @@ export default function AdminInsightsClient({
   }, []);
 
   const toggleAllVisible = useCallback(() => {
-    setConfirmingSend(false);
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (allVisibleSelected) {
@@ -206,74 +166,20 @@ export default function AdminInsightsClient({
     });
   }, [allVisibleSelected, reachableVisible]);
 
-  const sendNudges = useCallback(async () => {
+  // Hand the selection to /admin/messages, which writes and sends the message.
+  const messageSelected = useCallback(() => {
     if (selectedIds.size === 0) {
       toast.error("Select at least one user.");
       return;
     }
-    if (!confirmingSend) {
-      setConfirmingSend(true);
-      window.setTimeout(() => setConfirmingSend(false), 6000);
+    try {
+      window.sessionStorage.setItem(OUTREACH_HANDOFF_STORAGE_KEY, JSON.stringify({ userIds: [...selectedIds] }));
+    } catch {
+      toast.error("Couldn't hand the selection over (browser storage is blocked).");
       return;
     }
-
-    setConfirmingSend(false);
-    setSending(true);
-    const toastId = toast.loading(`Sending ${selectedIds.size} nudge(s)…`);
-
-    try {
-      const res = await fetch("/api/admin/insights/nudge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userIds: [...selectedIds],
-          kind: activeSegment,
-          channel,
-          message: messages[activeSegment],
-          skipIfNudgedWithinDays: skipRecent ? 7 : 0,
-        }),
-      });
-      const data = (await res.json().catch(() => null)) as NudgeApiResponse | null;
-
-      if (!res.ok) {
-        toast.error(data?.error || "Failed to send nudges.", { id: toastId });
-        setSending(false);
-        return;
-      }
-
-      const sent = data?.sent ?? [];
-      const skipped = data?.skipped ?? [];
-      const failed = data?.failed ?? [];
-
-      const skippedSummary = skipped.length
-        ? ` · ${skipped.length} skipped (${[...new Set(skipped.map((s) => SKIP_REASON_LABELS[s.reason] ?? s.reason))].join(", ")})`
-        : "";
-      const failedSummary = failed.length ? ` · ${failed.length} failed` : "";
-      toast.success(`Sent ${sent.length} nudge(s)${skippedSummary}${failedSummary}`, {
-        id: toastId,
-        duration: 6000,
-      });
-
-      if (sent.length > 0) {
-        const nowIso = new Date().toISOString();
-        const sentSet = new Set(sent);
-        setSegments((prev) => {
-          const next = {} as ActivationSegments;
-          for (const key of SEGMENT_ORDER) {
-            next[key] = prev[key].map((u) =>
-              sentSet.has(u.id) ? { ...u, lastNudgedAtIso: nowIso } : u,
-            );
-          }
-          return next;
-        });
-      }
-      setSelectedIds(new Set());
-      setSending(false);
-    } catch {
-      toast.error("Failed to send nudges.", { id: toastId });
-      setSending(false);
-    }
-  }, [selectedIds, confirmingSend, activeSegment, channel, messages, skipRecent]);
+    router.push("/admin/messages");
+  }, [router, selectedIds]);
 
   return (
     <div className="space-y-6">
@@ -283,8 +189,7 @@ export default function AdminInsightsClient({
       <div className="platform-surface-card p-5">
         <h2 className="text-lg font-bold text-foreground">Outreach segments</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Pick a segment, select users, and send them a Slack DM{emailEnabled ? " or email" : ""}.
-          Frozen users and anyone nudged in the last 7 days are skipped automatically.
+          Pick a segment and select users, then open them in Messages to write and send a message.
         </p>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -353,7 +258,7 @@ export default function AdminInsightsClient({
                 </tr>
               ) : (
                 visibleUsers.map((u: SegmentUser) => {
-                  const unreachable = channel === "slack" && !u.slackId;
+                  const unreachable = false;
                   return (
                     <tr
                       key={u.id}
@@ -412,72 +317,15 @@ export default function AdminInsightsClient({
           </table>
         </div>
 
-        <div className="mt-4 space-y-3">
-          <label className="block text-sm font-semibold text-foreground" htmlFor="nudge-message">
-            Message{" "}
-            <span className="font-normal text-muted-foreground">
-              — {"{firstName}"} is replaced per user
-            </span>
-          </label>
-          <textarea
-            id="nudge-message"
-            value={messages[activeSegment]}
-            onChange={(e) => {
-              setConfirmingSend(false);
-              setMessages((prev) => ({ ...prev, [activeSegment]: e.target.value }));
-            }}
-            rows={6}
-            className="w-full bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-          />
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="w-full sm:w-44">
-              <Select
-                value={channel}
-                onValueChange={(value) => {
-                  setConfirmingSend(false);
-                  setChannel(value as NudgeChannel);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Channel" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="slack" disabled={!slackEnabled}>
-                    Slack DM{slackEnabled ? "" : " (not configured)"}
-                  </SelectItem>
-                  <SelectItem value="email" disabled={!emailEnabled}>
-                    Email{emailEnabled ? "" : " (not configured)"}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={skipRecent}
-                onChange={(e) => setSkipRecent(e.target.checked)}
-                className="h-4 w-4"
-              />
-              Skip anyone nudged in the last 7 days
-            </label>
-
-            <div className="sm:ml-auto">
-              <button
-                type="button"
-                onClick={sendNudges}
-                disabled={sending || selectedCount === 0}
-                className="rounded-[var(--radius-xl)] bg-carnival-red px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-carnival-red/80 disabled:cursor-not-allowed disabled:bg-carnival-red/40"
-              >
-                {sending
-                  ? "Sending…"
-                  : confirmingSend
-                    ? `Really send to ${selectedCount} user(s)?`
-                    : `Send to ${selectedCount} selected`}
-              </button>
-            </div>
-          </div>
+        <div className="mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={messageSelected}
+            disabled={selectedCount === 0}
+            className="rounded-[var(--radius-xl)] bg-carnival-red px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-carnival-red/80 disabled:cursor-not-allowed disabled:bg-carnival-red/40"
+          >
+            Message {selectedCount} selected in Messages →
+          </button>
         </div>
       </div>
     </div>

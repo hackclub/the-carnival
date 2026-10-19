@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { OUTREACH_HANDOFF_STORAGE_KEY } from "@/lib/notifications/outreach-shared";
 import {
   Select,
   SelectContent,
@@ -84,6 +86,9 @@ export default function AdminUsersClient({
 }) {
   const [users, setUsers] = useState<UserListItem[]>(initial);
   const [searchQuery, setSearchQuery] = useState("");
+  const router = useRouter();
+  // Users ticked for a message on /admin/messages.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const [activeLedgerUserId, setActiveLedgerUserId] = useState<string | null>(null);
@@ -106,9 +111,42 @@ export default function AdminUsersClient({
     return users.filter(
       (u) =>
         (u.name ?? "").toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q),
+        u.email.toLowerCase().includes(q) ||
+        (u.slackId ?? "").toLowerCase().includes(q),
     );
   }, [users, searchQuery]);
+
+  const allVisibleSelected = sortedUsers.length > 0 && sortedUsers.every((u) => selectedIds.has(u.id));
+  const toggleSelected = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+  const toggleAllVisible = useCallback(() => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const u of sortedUsers) {
+        if (allVisibleSelected) next.delete(u.id);
+        else next.add(u.id);
+      }
+      return next;
+    });
+  }, [allVisibleSelected, sortedUsers]);
+  const messageSelected = useCallback(() => {
+    try {
+      window.sessionStorage.setItem(
+        OUTREACH_HANDOFF_STORAGE_KEY,
+        JSON.stringify({ userIds: [...selectedIds] }),
+      );
+    } catch {
+      toast.error("Couldn't hand the selection over (browser storage is blocked).");
+      return;
+    }
+    router.push("/admin/messages");
+  }, [router, selectedIds]);
   const totalUserCount = users.length;
   const internalStats = useMemo<InternalProfileStats>(() => {
     const internalUsers = users.filter((u) => u.role === "reviewer" || u.role === "admin");
@@ -346,7 +384,7 @@ export default function AdminUsersClient({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search users by name or email…"
+            placeholder="Search users by name, email or Slack ID…"
             className="w-full bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
           />
           <a
@@ -360,6 +398,25 @@ export default function AdminUsersClient({
         {searchQuery.trim() && (
           <div className="mt-2 text-xs text-muted-foreground">
             {sortedUsers.length} of {users.length} users match
+          </div>
+        )}
+        {selectedIds.size > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-[var(--radius-xl)] border border-carnival-red/30 bg-carnival-red/5 px-3 py-2 text-sm">
+            <span className="font-semibold text-foreground">{selectedIds.size} selected</span>
+            <button
+              type="button"
+              onClick={messageSelected}
+              className="rounded-[var(--radius-xl)] bg-carnival-red px-3 py-1.5 text-sm font-bold text-white hover:bg-carnival-red/80"
+            >
+              Message {selectedIds.size} selected
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+            >
+              Clear selection
+            </button>
           </div>
         )}
       </div>
@@ -397,7 +454,16 @@ export default function AdminUsersClient({
 
       <div className="platform-surface-card overflow-hidden">
         <div className="grid grid-cols-12 gap-3 px-5 py-3 border-b border-border text-xs text-muted-foreground uppercase tracking-wide">
-          <div className="col-span-2">Name</div>
+          <div className="col-span-2 flex items-center gap-2">
+            <input
+              type="checkbox"
+              aria-label="Select all shown users"
+              className="h-4 w-4 accent-carnival-red"
+              checked={allVisibleSelected}
+              onChange={toggleAllVisible}
+            />
+            Name
+          </div>
           <div className="col-span-2">Email</div>
           <div className="col-span-1">Slack</div>
           <div className="col-span-2">Verification</div>
@@ -412,8 +478,15 @@ export default function AdminUsersClient({
 
             return (
               <div key={u.id} className="grid grid-cols-12 gap-3 px-5 py-4 items-center">
-                <div className="col-span-2 text-foreground font-semibold truncate">
-                  {u.name}
+                <div className="col-span-2 flex items-center gap-2 text-foreground font-semibold truncate">
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${u.name}`}
+                    className="h-4 w-4 shrink-0 accent-carnival-red"
+                    checked={selectedIds.has(u.id)}
+                    onChange={() => toggleSelected(u.id)}
+                  />
+                  <span className="truncate">{u.name}</span>
                   {isCurrentUser && (
                     <span className="ml-2 text-xs text-muted-foreground">(you)</span>
                   )}

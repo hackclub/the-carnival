@@ -3,7 +3,8 @@
  * kind (same style as src/lib/insights.ts) sharing the `eligible` CTE below.
  *
  * Common exclusions, every kind: frozen accounts, no Slack ID, opted out,
- * and anyone with a project currently in review (they're waiting on us).
+ * on the admin exclusion list (nudge_exclusion), and anyone with a project
+ * currently in review (they're waiting on us).
  * The planner (policy.ts) then applies history/cooldowns and priority.
  */
 import { desc, inArray, sql } from "drizzle-orm";
@@ -37,6 +38,7 @@ const ELIGIBLE_CTE = sql`
     where not u.is_frozen
       and u.slack_id is not null and u.slack_id <> ''
       and not u.slack_nudges_opt_out
+      and not exists (select 1 from nudge_exclusion x where upper(x.slack_id) = upper(u.slack_id))
       and not exists (select 1 from project p where p.creator_id = u.id and p.status = 'in-review')
   )
 `;
