@@ -34,6 +34,8 @@ import { approvedHoursWithinSnapshot } from "@/lib/review-rules";
 import { getServerSession } from "@/lib/server-session";
 import { notifyReviewDM, notifyStaffProjectSubmitted } from "@/lib/slack";
 import { runAfterResponse } from "@/lib/notifications/after-response";
+import { createTelescreenSubmission, sendTelescreenSubmission } from "@/lib/telescreen/submissions";
+import { isTelescreenEnabled } from "@/lib/telescreen/client";
 import { getAppBaseUrl, sendProjectSubmittedStaffEmail } from "@/lib/loops";
 import { validateLinkableBountyProjectId } from "@/lib/bounties";
 
@@ -857,6 +859,18 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       }
     } catch (err) {
       console.warn("notifyReviewDM on submit failed", err);
+    }
+
+    // A creator submission from work-in-progress is a new entry for Telescreen's
+    // fraud review. The row is written now so a failed send stays visible (and
+    // is retried by the sync); the send itself never blocks the submission.
+    if (current.status === "work-in-progress" && p.submittedAt && isTelescreenEnabled()) {
+      try {
+        const entry = await createTelescreenSubmission(p.id, p.submittedAt);
+        if (entry) runAfterResponse(() => sendTelescreenSubmission(entry), "telescreen submit");
+      } catch (err) {
+        console.warn("Failed to queue Telescreen submission", err);
+      }
     }
 
     // Email every admin and reviewer after the response is sent — best-effort,

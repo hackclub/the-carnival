@@ -16,6 +16,8 @@ import {
   normalizeTag,
 } from "@/lib/project-taxonomy";
 import { getServerSession } from "@/lib/server-session";
+import { runAfterResponse } from "@/lib/notifications/after-response";
+import { syncTelescreen } from "@/lib/telescreen/sync";
 
 function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
   return role === "reviewer" || role === "admin";
@@ -68,6 +70,10 @@ export async function GET(req: Request) {
   if (!canReview(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  // Staff open the queue constantly, so it doubles as the trigger for reading
+  // Telescreen fraud scores back (throttled; see src/lib/telescreen/sync.ts).
+  runAfterResponse(() => syncTelescreen(), "telescreen sync");
 
   const { searchParams } = new URL(req.url);
   const statusParam = searchParams.get("status");

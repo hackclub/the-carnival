@@ -60,6 +60,17 @@ export type StaffThreadEvent =
       kind: "granted";
       approvedHours: number | null;
       tokensIssued: number;
+    }
+  | {
+      // Telescreen (Robert) fraud review scored the submission.
+      kind: "telescreen_scored";
+      trustScore: number;
+      // Internal fraud-reviewer note; staff channel only.
+      note: string | null;
+      // fraud = 1–4 (final rejection), doubtful = 5–7, clean = 8–10.
+      band: "fraud" | "doubtful" | "clean";
+      // What Carnival did about a fraud score.
+      action: "dismissed" | "already_granted" | "superseded" | null;
     };
 
 const STAFF_COMMENT_PREVIEW_MAX = 600;
@@ -215,5 +226,19 @@ export function buildStaffThreadReply(projectName: string, event: StaffThreadEve
       return `🎉 ${name} granted${
         event.approvedHours !== null ? ` · ${event.approvedHours}h` : ""
       } · ${event.tokensIssued} tokens credited.`;
+    case "telescreen_scored": {
+      const score = `${event.trustScore}/10`;
+      const head =
+        event.band === "fraud"
+          ? event.action === "already_granted"
+            ? `🚨 Telescreen scored ${name} ${score} (fraud), but it is already granted. Needs a human.`
+            : event.action === "superseded"
+              ? `🚨 Telescreen scored an earlier submission of ${name} ${score} (fraud). The current submission is unaffected.`
+              : `⛔ Telescreen scored ${name} ${score} (fraud). Rejected and dismissed automatically.`
+          : event.band === "doubtful"
+            ? `⚠️ Telescreen scored ${name} ${score} (doubtful). The granting admin must acknowledge it.`
+            : `🛡️ Telescreen scored ${name} ${score} (clean).`;
+      return event.note?.trim() ? `${head}\n${blockquote(event.note)}` : head;
+    }
   }
 }
