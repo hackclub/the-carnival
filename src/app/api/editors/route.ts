@@ -4,12 +4,13 @@ import { editor } from "@/db/schema";
 import {
   getAuthUser,
   parseJsonBody,
-  toCleanString,
   toSlug,
   generateId,
   timestamps,
   isUniqueConstraintError,
 } from "@/lib/api-utils";
+import { validatePlatformImageUrl } from "@/lib/review/uploads";
+import { sanitizeHttpUrl, sanitizeText, TEXT_LIMITS } from "@/lib/sanitize";
 
 type CreateEditorBody = {
   name?: unknown;
@@ -44,13 +45,24 @@ export async function POST(req: Request) {
   const body = await parseJsonBody<CreateEditorBody>(req);
   if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
 
-  const name = toCleanString(body.name);
-  const slug = toSlug(body.slug || body.name);
-  const description = toCleanString(body.description) || null;
-  const iconUrl = toCleanString(body.iconUrl) || null;
+  const name = sanitizeText(body.name, { maxLength: TEXT_LIMITS.name });
+  const slug = toSlug(sanitizeText(body.slug || body.name, { maxLength: TEXT_LIMITS.name }));
+  const description =
+    sanitizeText(body.description, { maxLength: TEXT_LIMITS.longText, multiline: true }) || null;
+  const iconUrl = sanitizeHttpUrl(body.iconUrl);
 
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
   if (!slug) return NextResponse.json({ error: "Slug is required" }, { status: 400 });
+  if (iconUrl === null) {
+    return NextResponse.json({ error: "Icon URL must be a valid http(s) link" }, { status: 400 });
+  }
+  if (iconUrl) {
+    // Icons render as <img> for every visitor, so only platform uploads.
+    const iconValidation = validatePlatformImageUrl(iconUrl, "Editor icon");
+    if (!iconValidation.ok) {
+      return NextResponse.json({ error: iconValidation.error }, { status: 400 });
+    }
+  }
 
   const id = generateId();
 
@@ -60,7 +72,7 @@ export async function POST(req: Request) {
       name,
       slug,
       description,
-      iconUrl,
+      iconUrl: iconUrl || null,
       ...timestamps(),
     });
   } catch (err: unknown) {
