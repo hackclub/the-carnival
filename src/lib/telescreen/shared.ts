@@ -92,6 +92,13 @@ export function evaluateTelescreenGrantGate(input: {
       message: "Telescreen rejected this submission as fraud. It can't be granted.",
     };
   }
+  if (band === null) {
+    return {
+      ok: false,
+      code: "telescreen_awaiting_review",
+      message: "Telescreen's score hasn't been read back yet. Refresh the fraud review and try again.",
+    };
+  }
   if (s.state === "decided" && s.outcomeStatus === "rejected") {
     return {
       ok: false,
