@@ -3,13 +3,7 @@ import { asc } from "drizzle-orm";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { getAuthUser } from "@/lib/api-utils";
-
-function csvEscape(value: string): string {
-  if (/[",\r\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}
+import { csvEscape } from "@/lib/csv";
 
 export async function GET() {
   const authUser = await getAuthUser();
