@@ -10,6 +10,7 @@ import { db } from "@/db";
 import { devlog, peerReview, project, user, type ReviewDecision } from "@/db/schema";
 import { hydrateReviewJustification } from "@/lib/review-justification";
 import { buildCategorySuggestions, buildTagSuggestions } from "@/lib/project-taxonomy";
+import { getIdentityVerificationStatus } from "@/lib/identity-verification";
 import { getServerSession } from "@/lib/server-session";
 
 export default async function ManageProjectPage(props: { params: Promise<{ id: string }> }) {
@@ -180,6 +181,7 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
       </div>
 
       <ManageProjectClient
+        identityVerificationStatus={await getIdentityVerificationStatus(session.user.id)}
         initial={{
           id: p.id,
           name: p.name,

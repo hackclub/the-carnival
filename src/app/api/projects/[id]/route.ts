@@ -28,6 +28,8 @@ import {
 import { validateCreatorOriginalityDeclaration } from "@/lib/project-originality";
 import { normalizeCategory, normalizeProjectTags } from "@/lib/project-taxonomy";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
+import { getIdentityVerificationStatus } from "@/lib/identity-verification";
+import { getIdentitySubmissionBlock } from "@/lib/identity-verification-shared";
 import { approvedHoursWithinSnapshot } from "@/lib/review-rules";
 import { getServerSession } from "@/lib/server-session";
 import { notifyReviewDM, notifyStaffProjectSubmitted } from "@/lib/slack";
@@ -222,6 +224,20 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     body = (await req.json()) as UpdateProjectBody;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  // Only verified creators can enter the review queue. Checked before any
+  // Hackatime refresh, and only on the transition so edits to a project
+  // already in review aren't blocked.
+  if (body.status === "in-review" && current.status !== "in-review") {
+    const verificationStatus = await getIdentityVerificationStatus(userId);
+    const identityBlock = getIdentitySubmissionBlock(verificationStatus);
+    if (identityBlock) {
+      return NextResponse.json(
+        { error: identityBlock.message, code: "identity_not_verified", verificationStatus },
+        { status: 403 },
+      );
+    }
   }
 
   const set: Partial<{

@@ -31,6 +31,8 @@ const state = {
   updateSets: [],
   rangeFetchCalls: [],
   rangeFetchTotalSeconds: 5400,
+  identityVerificationStatus: "verified",
+  identityResolveCalls: [],
 };
 
 function resetState() {
@@ -99,6 +101,8 @@ function resetState() {
   state.updateSets = [];
   state.rangeFetchCalls = [];
   state.rangeFetchTotalSeconds = 5400;
+  state.identityVerificationStatus = "verified";
+  state.identityResolveCalls = [];
 }
 
 function buildDb() {
@@ -170,6 +174,12 @@ mock.module("@/lib/hackatime", () => ({
         minutes: Math.floor(state.rangeFetchTotalSeconds / 60) % 60,
       },
     };
+  },
+}));
+mock.module("@/lib/identity-verification", () => ({
+  getIdentityVerificationStatus: async (userId) => {
+    state.identityResolveCalls.push(userId);
+    return state.identityVerificationStatus;
   },
 }));
 mock.module("@/lib/slack", () => ({
@@ -355,5 +365,57 @@ describe("PATCH /api/projects/[id]", () => {
     expect(state.updateSets[0].submittedAt).toBeInstanceOf(Date);
     expect(json.project.status).toBe("in-review");
     expect(json.notice).toContain("returned the project to review");
+  });
+
+  test("blocks submission when the creator's identity is not verified", async () => {
+    const expectedMessages = {
+      needs_submission: "complete identity verification",
+      pending: "once you get a decision",
+      ineligible: "not eligible",
+    };
+    for (const status of ["needs_submission", "pending", "ineligible", null]) {
+      resetState();
+      state.identityVerificationStatus = status;
+
+      const { res, json } = await patchProject({
+        status: "in-review",
+        consideredHackatimeRange: { startDate: "2026-03-10", endDate: "2026-03-20" },
+      });
+
+      expect(res.status).toBe(403);
+      expect(json.code).toBe("identity_not_verified");
+      expect(json.verificationStatus).toBe(status);
+      expect(json.error).toContain(expectedMessages[status ?? "needs_submission"]);
+      expect(state.identityResolveCalls).toEqual(["creator-1"]);
+      expect(state.updateSets).toHaveLength(0);
+      expect(state.rangeFetchCalls).toHaveLength(0);
+    }
+  });
+
+  test("does not re-check identity for edits to a project already in review", async () => {
+    const imageBase = process.env.R2_PUBLIC_BASE_URL?.trim() || "https://cdn.example.com";
+    Object.assign(state.currentProjectRow, {
+      status: "in-review",
+      projectType: "extension-plugin",
+      playableDemoUrl: "https://github.com/example/project-one/releases/tag/v1.0.0",
+      screenshots: [1, 2, 3].map((n) => `${imageBase}/shot-${n}.png`),
+      submissionChecklist: {
+        ...VALID_SUBMISSION_CHECKLIST,
+        readmeDescribesProject: true,
+        worksOnDeclaredPlatform: true,
+      },
+    });
+    state.identityVerificationStatus = "needs_submission";
+
+    const { res, json } = await patchProject({
+      status: "in-review",
+      description: "Updated description",
+    });
+
+    expect(res.status).toBe(200);
+    expect(json.project).toBeDefined();
+    expect(state.updateSets).toHaveLength(1);
+    expect(state.updateSets[0].description).toBe("Updated description");
+    expect(state.identityResolveCalls).toHaveLength(0);
   });
 });
