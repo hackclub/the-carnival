@@ -11,6 +11,10 @@ import type {
   ReviewDecision,
 } from "@/db/schema";
 import { validateSubmissionRequirements } from "@/lib/review/submission-gates";
+import {
+  IDENTITY_NOT_VERIFIED_MESSAGE,
+  IDENTITY_VERIFICATION_URL,
+} from "@/lib/identity-verification-shared";
 import LinkedHackatimeProjectsPanel from "@/components/LinkedHackatimeProjectsPanel";
 import ProjectLinkIcon, { PROJECT_LINK_META } from "@/components/ProjectLinkIcon";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
@@ -91,10 +95,12 @@ export type ManageProjectInitial = {
 type ApiProject = ManageProjectInitial;
 export default function ManageProjectClient({
   initial,
+  identityVerified,
   categorySuggestions = [],
   tagSuggestions = [],
 }: {
   initial: ManageProjectInitial;
+  identityVerified: boolean;
   categorySuggestions?: string[];
   tagSuggestions?: string[];
 }) {
@@ -918,19 +924,36 @@ export default function ManageProjectClient({
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-between gap-4">
-            <div className="text-sm text-muted-foreground">
-              When you’re ready, submit for review. You’ll need to fill all required project fields; checklist answers are shared with reviewers for context.
+          <>
+            {!identityVerified ? (
+              <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-foreground">
+                <div className="font-semibold mb-1">Identity verification required</div>
+                <div className="text-muted-foreground">{IDENTITY_NOT_VERIFIED_MESSAGE}</div>
+                <a
+                  href={IDENTITY_VERIFICATION_URL}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="mt-3 inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 text-white px-4 py-2 rounded-[var(--radius-xl)] font-bold transition-colors"
+                >
+                  Verify your identity
+                </a>
+              </div>
+            ) : null}
+            <div className="flex items-center justify-between gap-4">
+              <div className="text-sm text-muted-foreground">
+                When you’re ready, submit for review. You’ll need to fill all required project fields; checklist answers are shared with reviewers for context.
+              </div>
+              <button
+                type="button"
+                onClick={openSubmit}
+                className="inline-flex items-center justify-center bg-carnival-blue hover:bg-carnival-blue/80 disabled:bg-carnival-blue/50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
+                disabled={saving || !identityVerified}
+                title={identityVerified ? undefined : IDENTITY_NOT_VERIFIED_MESSAGE}
+              >
+                {isReReview ? "Submit for re-review" : "Submit for review"}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={openSubmit}
-              className="inline-flex items-center justify-center bg-carnival-blue hover:bg-carnival-blue/80 disabled:bg-carnival-blue/50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
-              disabled={saving}
-            >
-              {isReReview ? "Submit for re-review" : "Submit for review"}
-            </button>
-          </div>
+          </>
         )}
       </div>
 
