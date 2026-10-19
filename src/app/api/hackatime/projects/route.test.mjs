@@ -73,6 +73,16 @@ describe("GET /api/hackatime/projects", () => {
     );
   });
 
+  test("drops an off-origin returnTo from the connect URL", async () => {
+    state.outcome = { type: "throw", error: new HackatimeAuthError("not_connected") };
+
+    const res = await GET(request("//evil.com/x"));
+    const body = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(body.connectUrl).toBe("/api/hackatime/oauth/start?returnTo=%2Fprojects");
+  });
+
   test("asks a revoked user to reconnect instead of returning an empty list", async () => {
     state.outcome = { type: "throw", error: new HackatimeAuthError("revoked") };
 

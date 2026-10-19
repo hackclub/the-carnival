@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
+import { safeReturnTo } from "@/lib/safe-return-to";
 import { fetchHackatimeIdentityFromToken } from "@/lib/hackatime";
 
 const OAUTH_STATE_COOKIE = "hackatime_oauth_state";
@@ -19,12 +20,6 @@ type TokenResponse = {
 function withStatusParam(returnTo: string, status: string) {
   const sep = returnTo.includes("?") ? "&" : "?";
   return `${returnTo}${sep}hackatime=${encodeURIComponent(status)}`;
-}
-
-function normalizeReturnTo(value: string | null) {
-  const v = (value ?? "").trim();
-  if (!v.startsWith("/")) return "/projects";
-  return v;
 }
 
 function getAppOrigin(request: Request) {
@@ -55,7 +50,7 @@ export async function GET(request: Request) {
 
   const jar = await cookies();
   const storedState = jar.get(OAUTH_STATE_COOKIE)?.value ?? "";
-  const returnTo = normalizeReturnTo(jar.get(OAUTH_RETURN_COOKIE)?.value ?? null);
+  const returnTo = safeReturnTo(jar.get(OAUTH_RETURN_COOKIE)?.value, appOrigin);
   jar.delete(OAUTH_STATE_COOKIE);
   jar.delete(OAUTH_RETURN_COOKIE);
 

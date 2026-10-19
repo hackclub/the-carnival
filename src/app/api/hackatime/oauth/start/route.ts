@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/server-session";
+import { safeReturnTo } from "@/lib/safe-return-to";
 
 const OAUTH_STATE_COOKIE = "hackatime_oauth_state";
 const OAUTH_RETURN_COOKIE = "hackatime_oauth_return_to";
@@ -17,12 +18,6 @@ function getAppOrigin(request: Request) {
     }
   }
   return new URL(request.url).origin;
-}
-
-function normalizeReturnTo(value: string | null) {
-  const v = (value ?? "").trim();
-  if (!v.startsWith("/")) return "/projects";
-  return v;
 }
 
 export async function GET(request: Request) {
@@ -43,7 +38,7 @@ export async function GET(request: Request) {
   }
 
   const reqUrl = new URL(request.url);
-  const returnTo = normalizeReturnTo(reqUrl.searchParams.get("returnTo"));
+  const returnTo = safeReturnTo(reqUrl.searchParams.get("returnTo"), appOrigin);
   const state = randomUUID();
 
   const jar = await cookies();
