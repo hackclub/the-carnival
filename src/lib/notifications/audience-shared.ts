@@ -114,6 +114,8 @@ export function parseAudienceFilter(raw: unknown): AudienceFilter | null {
   if (def.kind === "number") {
     const value = typeof f.value === "number" ? f.value : Number(f.value);
     if (!(NUMBER_OPS as readonly unknown[]).includes(f.op) || !Number.isFinite(value) || value < 0) return null;
+    if (def.unit === "count" && (!Number.isInteger(value) || value > 1_000_000)) return null;
+    if (def.unit === "hours" && value > 1_000_000) return null;
     return { key: f.key as NumberFilterKey, op: f.op as NumberOp, value };
   }
   if (def.kind === "boolean") {
