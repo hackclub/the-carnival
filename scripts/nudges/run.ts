@@ -1,60 +1,54 @@
 /**
- * Run the automated nudge planner from a shell (dry run by default).
+ * Automated Slack nudges, as a one-shot command.
  *
- *   bun scripts/nudges/run.ts                       # plan only, prints counts + samples
- *   bun scripts/nudges/run.ts --send --max 25       # really send (needs NUDGES_ENABLED=true)
- *   bun scripts/nudges/run.ts --send --allow U0123  # send only to these Slack IDs
- *   bun scripts/nudges/run.ts --json                # raw result as JSON
+ * In production this file is bundled into the app image as scripts/nudges.js
+ * (see Dockerfile) and run daily by a Coolify scheduled task:
  *
- * bun loads .env / .env.local automatically. Sends go through the same
- * runNudges() the cron route uses, so every rail applies here too.
+ *   bun scripts/nudges.js --send          # what the scheduled task runs
+ *   bun scripts/nudges.js                 # dry run: counts + sample copy
+ *   bun scripts/nudges.js --send --max 25 --allow U0123456789
+ *   bun scripts/nudges.js --json          # full result as JSON
+ *
+ * Locally: `bun scripts/nudges/run.ts` with the same flags (bun loads .env).
+ * Sending also requires NUDGES_ENABLED=true; every other rail lives in
+ * runNudges(). A Postgres advisory lock stops two runs overlapping.
  */
-export {};
+import postgres from "postgres";
+import { parseNudgeCommandArgs, runNudgeCommand } from "@/lib/notifications/nudges/command";
+import { runNudges } from "@/lib/notifications/nudges/run";
 
-const args = process.argv.slice(2);
-const flag = (name: string) => args.includes(name);
-const value = (name: string) => {
-  const i = args.indexOf(name);
-  return i >= 0 ? args[i + 1] : undefined;
-};
+// Reject bad flags before taking the lock or touching anything.
+const parsed = parseNudgeCommandArgs(process.argv.slice(2));
+if (!parsed.ok) {
+  console.error(parsed.error);
+  process.exit(2);
+}
 
-const { runNudges } = await import("../../src/lib/notifications/nudges/run");
-const { NUDGE_KINDS, NUDGE_KIND_META } = await import("../../src/lib/notifications/nudges/kinds");
+// Arbitrary constant shared by every copy of the command.
+const NUDGE_LOCK_KEY = 0x6e756467;
 
-const maxRaw = Number(value("--max"));
-const allowRaw = value("--allow");
-const result = await runNudges({
-  dryRun: !flag("--send"),
-  maxSends: Number.isFinite(maxRaw) ? maxRaw : undefined,
-  allowlist: allowRaw ? allowRaw.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+// The advisory lock is session-scoped, so it gets its own single connection
+// that stays open for the whole run. runNudges() uses the app's pool.
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  console.error("DATABASE_URL is not set.");
+  process.exit(1);
+}
+const lockSql = postgres(databaseUrl, { max: 1, idle_timeout: 0 });
+
+const exitCode = await runNudgeCommand(parsed.args, {
+  async tryLock() {
+    const rows = await lockSql`select pg_try_advisory_lock(${NUDGE_LOCK_KEY}) as locked`;
+    return rows[0]?.locked === true;
+  },
+  async unlock() {
+    await lockSql`select pg_advisory_unlock(${NUDGE_LOCK_KEY})`;
+  },
+  runNudges,
+  log: (line) => console.log(line),
+  error: (line) => console.error(line),
 });
 
-if (flag("--json")) {
-  console.log(JSON.stringify(result, null, 2));
-} else {
-  console.log(
-    `${result.dryRun ? "DRY RUN" : "LIVE RUN"} · sending ${result.sendingEnabled ? "enabled" : "disabled"} · Slack ${
-      result.slackConfigured ? "configured" : "NOT configured"
-    } · deadline ${result.deadlineIso ?? "unknown"} (${result.daysLeft ?? "?"} days left) · cap ${result.maxSends}${
-      result.allowlist ? ` · allowlist ${result.allowlist.join(",")}` : ""
-    }`,
-  );
-  console.table(
-    NUDGE_KINDS.map((kind) => ({
-      kind,
-      label: NUDGE_KIND_META[kind].label,
-      candidates: result.candidatesByKind[kind],
-      planned: result.plannedByKind[kind],
-    })),
-  );
-  console.log("skipped:", result.skippedByReason);
-  if (!result.dryRun) console.log(`sent ${result.sent.length} · failed ${result.failed.length}`);
-  if (result.recordFailed) {
-    console.error(
-      "A DM was sent but its user_nudge row could not be written; the run stopped. Add the row by hand before running again.",
-    );
-  }
-  for (const sample of result.samples) {
-    console.log(`\n--- ${sample.kind} / ${sample.variant} ---\n${sample.text}`);
-  }
-}
+await lockSql.end({ timeout: 5 }).catch(() => undefined);
+// The app's DB pool keeps the event loop alive; exit explicitly.
+process.exit(exitCode);

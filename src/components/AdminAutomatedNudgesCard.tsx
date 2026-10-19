@@ -38,7 +38,7 @@ function Chip({ ok, label }: { ok: boolean; label: string }) {
 /**
  * Server-rendered summary of what the automated nudge run would do today
  * (a dry run of the real planner) plus sends recorded so far. Read-only:
- * runs happen via /api/cron/nudges.
+ * runs happen via the Coolify scheduled task (`bun scripts/nudges.js --send`).
  */
 export default function AdminAutomatedNudgesCard({
   preview,
@@ -58,7 +58,7 @@ export default function AdminAutomatedNudgesCard({
         <div>
           <h2 className="text-lg font-bold text-foreground">Automated Slack nudges</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            What the daily run (<code>POST /api/cron/nudges</code>) would send right now. One reminder per
+            What the daily Coolify scheduled task would send right now. One reminder per
             person per day, at most two per kind, none within 7 days of any other nudge, and nothing after
             the Carnival deadline.
           </p>

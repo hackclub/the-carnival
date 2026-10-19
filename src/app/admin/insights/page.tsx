@@ -12,6 +12,7 @@ import {
 import { getAppBaseUrl, isNudgeEmailEnabled } from "@/lib/loops";
 import { runNudges, type NudgeRunResult } from "@/lib/notifications/nudges/run";
 import { loadAutomatedNudgeStats, type AutomatedNudgeStats } from "@/lib/notifications/nudges/select";
+import { getSiteSettingIso } from "@/lib/site-settings";
 import { isSlackNudgeEnabled } from "@/lib/slack";
 import { getServerSession } from "@/lib/server-session";
 
@@ -60,7 +61,11 @@ async function loadAutomatedNudgePreview(): Promise<{
   error: string | null;
 }> {
   try {
-    const [preview, stats] = await Promise.all([runNudges({ dryRun: true }), loadAutomatedNudgeStats(db)]);
+    const deadlineIso = await getSiteSettingIso("carnival_deadline");
+    const [preview, stats] = await Promise.all([
+      runNudges({ dryRun: true, deadlineIso }),
+      loadAutomatedNudgeStats(db),
+    ]);
     return { preview, stats, error: null };
   } catch (err) {
     console.error("[insights] automated nudge preview failed", err);

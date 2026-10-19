@@ -5,7 +5,7 @@
  * - NUDGES_ENABLED must be "true" or the run is forced to dry-run;
  * - the run stops entirely once carnival_deadline has passed;
  * - NUDGES_TEST_SLACK_IDS, when set, restricts sends to those Slack IDs;
- * - NUDGES_MAX_PER_RUN caps sends (1 msg/s pacing → keep under maxDuration);
+ * - NUDGES_MAX_PER_RUN caps sends (1 msg/s pacing);
  * - each successful send is recorded in user_nudge IMMEDIATELY, so a timeout
  *   mid-run can never cause a re-send tomorrow.
  */
@@ -13,12 +13,12 @@ import { randomUUID } from "crypto";
 import { db } from "@/db";
 import { userNudge } from "@/db/schema";
 import { getAppBaseUrl } from "@/lib/loops";
-import { getSiteSettingIso } from "@/lib/site-settings";
 import { sendNudgeDM } from "../review-events";
 import { isSlackConfigured } from "../slack-client";
 import { DEFAULT_NUDGES_MAX_PER_RUN, NUDGE_KINDS, type NudgeKind } from "./kinds";
 import { daysUntil, planNudgeRun, type NudgeSkipReason, type PlannedNudge } from "./policy";
 import { loadNudgeCandidates, loadNudgeHistory } from "./select";
+import { readCarnivalDeadlineIso } from "./deadline";
 import { buildNudgeText } from "./templates";
 
 export function isNudgeSendingEnabled(): boolean {
@@ -33,6 +33,11 @@ export function nudgeAllowlistFromEnv(): string[] | null {
   return ids.length ? ids : null;
 }
 
+/** Slack user ID shown as "DM @Josias to stop these" in every nudge footer. */
+export function nudgeContactSlackIdFromEnv(): string | null {
+  return process.env.NUDGES_CONTACT_SLACK_ID?.trim() || null;
+}
+
 export function nudgeMaxPerRunFromEnv(): number {
   const n = Number(process.env.NUDGES_MAX_PER_RUN);
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : DEFAULT_NUDGES_MAX_PER_RUN;
@@ -43,6 +48,8 @@ export type NudgeRunOptions = {
   now?: Date;
   maxSends?: number;
   allowlist?: string[] | null;
+  /** Override the deadline (the insights page passes its cached value). */
+  deadlineIso?: string | null;
 };
 
 export type PlannedNudgeSummary = {
@@ -107,7 +114,8 @@ export async function runNudges(options: NudgeRunOptions): Promise<NudgeRunResul
   const maxSends = options.maxSends ?? nudgeMaxPerRunFromEnv();
   const allowlist = options.allowlist === undefined ? nudgeAllowlistFromEnv() : options.allowlist;
 
-  const deadlineIso = await getSiteSettingIso("carnival_deadline");
+  const deadlineIso =
+    options.deadlineIso !== undefined ? options.deadlineIso : await readCarnivalDeadlineIso(db);
   const daysLeft = daysUntil(deadlineIso, now);
 
   const candidates = await loadNudgeCandidates(db, now);
@@ -128,7 +136,12 @@ export async function runNudges(options: NudgeRunOptions): Promise<NudgeRunResul
   const skippedByReason: Partial<Record<NudgeSkipReason, number>> = {};
   for (const s of plan.skipped) skippedByReason[s.reason] = (skippedByReason[s.reason] ?? 0) + 1;
 
-  const ctx = { appBaseUrl: getAppBaseUrl(), deadlineIso, daysLeft };
+  const ctx = {
+    appBaseUrl: getAppBaseUrl(),
+    deadlineIso,
+    daysLeft,
+    contactSlackId: nudgeContactSlackIdFromEnv(),
+  };
   const seenSampleKeys = new Set<string>();
   const samples: NudgeRunResult["samples"] = [];
   for (const p of plan.planned) {

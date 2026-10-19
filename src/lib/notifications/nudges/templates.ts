@@ -13,6 +13,8 @@ export type NudgeTemplateContext = {
   appBaseUrl: string;
   deadlineIso: string | null;
   daysLeft: number | null;
+  /** Slack user ID people can DM to stop reminders; plain "@Josias" when null. */
+  contactSlackId?: string | null;
 };
 
 function base(ctx: NudgeTemplateContext) {
@@ -38,7 +40,9 @@ export function deadlineLine(ctx: NudgeTemplateContext): string | null {
 }
 
 function footer(ctx: NudgeTemplateContext): string {
-  return `Stuck? Reply here or ask in #carnival. Turn these reminders off in Account settings: ${base(ctx)}/account`;
+  // The bot doesn't read DM replies, so point at a human instead of "reply here".
+  const contact = ctx.contactSlackId?.trim() ? `<@${ctx.contactSlackId.trim()}>` : "@Josias";
+  return `Stuck? Ask in #carnival. Don't want these reminders? Turn them off in Account settings (${base(ctx)}/account) or DM ${contact} on Slack and he'll stop them.`;
 }
 
 function greeting(n: PlannedNudge): string {
