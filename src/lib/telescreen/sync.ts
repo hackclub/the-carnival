@@ -6,7 +6,7 @@
  *
  * Runs after staff load the review queue, throttled per server instance.
  */
-import { and, eq, inArray, isNull, notExists } from "drizzle-orm";
+import { and, eq, inArray, isNull, notExists, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { project, telescreenSubmission } from "@/db/schema";
 import { isTelescreenEnabled, listRobertProjects, type RobertProject, type RobertState } from "./client";
@@ -72,7 +72,9 @@ async function retryPendingSends() {
     .select()
     .from(telescreenSubmission)
     .where(and(eq(telescreenSubmission.state, "pending"), isNull(telescreenSubmission.robertProjectId)))
-    .orderBy(telescreenSubmission.createdAt)
+    // Never-tried rows first, then the longest-failing, so rows that always
+    // fail (e.g. a creator with no Slack or Hackatime ID) can't starve the rest.
+    .orderBy(sql`${telescreenSubmission.lastErrorAt} asc nulls first`, telescreenSubmission.createdAt)
     .limit(MAX_SENDS_PER_RUN);
   for (const row of pending) await sendTelescreenSubmission(row);
 }
