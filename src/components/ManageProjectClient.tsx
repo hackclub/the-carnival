@@ -233,7 +233,13 @@ export default function ManageProjectClient({
   const router = useRouter();
   useEffect(() => {
     if (!identityBlocked) return;
-    const recheck = () => router.refresh();
+    // Each refresh re-checks Hack Club Auth, so refresh at most every 10s.
+    let lastRefreshAt = 0;
+    const recheck = () => {
+      if (Date.now() - lastRefreshAt < 10_000) return;
+      lastRefreshAt = Date.now();
+      router.refresh();
+    };
     window.addEventListener("focus", recheck);
     return () => window.removeEventListener("focus", recheck);
   }, [identityBlocked, router]);
