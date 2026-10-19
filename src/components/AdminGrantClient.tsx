@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import TelescreenPanel from "@/components/TelescreenPanel";
+import type { TelescreenGate } from "@/lib/telescreen/shared";
 import type {
   ProjectEditor,
   ProjectStatus,
@@ -112,6 +114,10 @@ export default function AdminGrantClient({
     initial.project.grantTechnicalJustification?.trim() || passOneDraft,
   );
   const [justificationSaving, setJustificationSaving] = useState(false);
+  // Telescreen fraud review gate; null while loading or when it failed to load
+  // (the server re-checks on grant either way).
+  const [telescreenGate, setTelescreenGate] = useState<TelescreenGate | null>(null);
+  const [telescreenDoubtfulAck, setTelescreenDoubtfulAck] = useState(false);
 
   // Airtable payload preview (dry run of the exact fields a grant would send).
   const [preview, setPreview] = useState<{
@@ -369,7 +375,10 @@ export default function AdminGrantClient({
             // Grants carry the pass-2 technical justification; the server
             // refuses to grant without it.
             ...(status === "granted"
-              ? { grantTechnicalJustification: technicalJustification }
+              ? {
+                  grantTechnicalJustification: technicalJustification,
+                  telescreenDoubtfulAcknowledged: telescreenDoubtfulAck,
+                }
               : {}),
           }),
         });
@@ -457,7 +466,7 @@ export default function AdminGrantClient({
         setBusy(false);
       }
     },
-    [project.id, technicalJustification],
+    [project.id, technicalJustification, telescreenDoubtfulAck],
   );
 
   const onDeleteProject = useCallback(async () => {
@@ -892,8 +901,28 @@ export default function AdminGrantClient({
         </div>
       </div>
 
+      <TelescreenPanel projectId={project.id} onGateChange={setTelescreenGate} />
+
       <div className="platform-surface-card p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="text-muted-foreground">
+          {project.status !== "granted" && telescreenGate && !telescreenGate.ok ? (
+            <div className="mb-2 font-semibold text-red-600">{telescreenGate.message}</div>
+          ) : null}
+          {project.status !== "granted" && telescreenGate?.ok && telescreenGate.needsDoubtfulAck ? (
+            <label className="mb-2 flex items-start gap-2 text-foreground">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={telescreenDoubtfulAck}
+                onChange={(e) => setTelescreenDoubtfulAck(e.target.checked)}
+                disabled={busy}
+              />
+              <span>
+                Telescreen scored this Doubtful. I&apos;ve read the fraud reviewer&apos;s note and accounted
+                for it in the approved hours.
+              </span>
+            </label>
+          ) : null}
           {project.status === "granted"
             ? "Granted projects are locked for creators."
             : "Granting sends the record to Airtable, credits tokens, and notifies the creator — the only approval notification they receive."}
@@ -902,11 +931,19 @@ export default function AdminGrantClient({
           <button
             type="button"
             onClick={() => setStatus("granted")}
-            disabled={busy || !canGrant || !technicalJustification.trim()}
+            disabled={
+              busy ||
+              !canGrant ||
+              !technicalJustification.trim() ||
+              (telescreenGate !== null && !telescreenGate.ok) ||
+              (telescreenGate?.ok === true && telescreenGate.needsDoubtfulAck && !telescreenDoubtfulAck)
+            }
             title={
               !technicalJustification.trim()
                 ? "Write the Specific Technical Features justification first."
-                : undefined
+                : telescreenGate && !telescreenGate.ok
+                  ? telescreenGate.message
+                  : undefined
             }
             className="inline-flex items-center justify-center bg-carnival-blue/20 hover:bg-carnival-blue/30 disabled:bg-carnival-blue/10 disabled:cursor-not-allowed text-foreground px-5 py-3 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
           >

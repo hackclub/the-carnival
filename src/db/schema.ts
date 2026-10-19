@@ -722,3 +722,80 @@ export const announcement = pgTable(
     activeCreatedAtIdx: index("announcement_active_created_at_idx").on(t.isActive, t.createdAt),
   }),
 );
+
+// ============================================================================
+// Telescreen (Robert) fraud review
+// ============================================================================
+// Every creator submission is sent to Robert, Hack Club's fraud review desk
+// (https://telescreen.hackclub.com/robert/docs). A fraud reviewer scores it
+// 1–10 there; 1–4 is a final fraud rejection that Carnival applies as a
+// dismissal. Logic lives in src/lib/telescreen/.
+
+// Robert's derived state, plus "pending" while Carnival has not sent it yet
+// (Robert was down or not configured).
+export type TelescreenState =
+  | "pending"
+  | "awaiting_review"
+  | "awaiting_outcome"
+  | "rejected_fraud"
+  | "decided";
+
+export type TelescreenOutcomeStatus = "approved" | "rejected";
+
+export const telescreenSubmission = pgTable(
+  "telescreen_submission",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    // Sent to Robert as `externalId`; makes retries idempotent. One per
+    // creator submission, so a fixed-and-resubmitted project is re-scored.
+    externalId: text("external_id").notNull(),
+    robertProjectId: text("robert_project_id"),
+    state: text("state").$type<TelescreenState>().notNull().default("pending"),
+    trustScore: integer("trust_score"),
+    // The fraud reviewer's note. Internal: staff only, never shown to creators.
+    reviewNote: text("review_note"),
+    reviewedAt: timestamp("reviewed_at"),
+    creditedSeconds: integer("credited_seconds"),
+    // The final outcome Robert has recorded (fraud rejection or ours).
+    outcomeStatus: text("outcome_status").$type<TelescreenOutcomeStatus>(),
+    outcomeReason: text("outcome_reason"),
+    outcomeAt: timestamp("outcome_at"),
+    // The decision Carnival wants recorded in Robert (grant → approved,
+    // dismissal → rejected). Sent once Robert is in awaiting_outcome.
+    carnivalOutcome: text("carnival_outcome").$type<TelescreenOutcomeStatus>(),
+    carnivalOutcomeReason: text("carnival_outcome_reason"),
+    carnivalOutcomeSentAt: timestamp("carnival_outcome_sent_at"),
+    // Set once Carnival has acted on a fraud rejection (dismissed the project),
+    // so a webhook retry and a sync never apply it twice.
+    fraudAppliedAt: timestamp("fraud_applied_at"),
+    sentAt: timestamp("sent_at"),
+    lastSyncedAt: timestamp("last_synced_at"),
+    lastError: text("last_error"),
+    lastErrorAt: timestamp("last_error_at"),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (t) => ({
+    externalIdUniq: uniqueIndex("telescreen_submission_external_id_uniq").on(t.externalId),
+    robertProjectIdUniq: uniqueIndex("telescreen_submission_robert_project_id_uniq").on(
+      t.robertProjectId,
+    ),
+    projectCreatedAtIdx: index("telescreen_submission_project_created_at_idx").on(
+      t.projectId,
+      t.createdAt,
+    ),
+    stateIdx: index("telescreen_submission_state_idx").on(t.state),
+  }),
+);
+
+// Webhook deliveries already handled, keyed by Robert's X-Robert-Delivery id
+// (the same on every retry of one delivery).
+export const telescreenWebhookDelivery = pgTable("telescreen_webhook_delivery", {
+  deliveryId: text("delivery_id").primaryKey(),
+  event: text("event").notNull(),
+  robertProjectId: text("robert_project_id"),
+  receivedAt: timestamp("received_at").notNull(),
+});

@@ -24,6 +24,8 @@ import {
 import { assertGrantHoursInvariant, loadGrantContext } from "@/lib/review/grant";
 import { sendReviewEmail } from "@/lib/loops";
 import { notifyReviewDM, notifyStaffReviewThread } from "@/lib/slack";
+import { runAfterResponse } from "@/lib/notifications/after-response";
+import { getTelescreenGrantGate, setCarnivalOutcome } from "@/lib/telescreen/submissions";
 
 type AdminProjectPatchBody = {
   status?: unknown;
@@ -35,6 +37,11 @@ type AdminProjectPatchBody = {
    * Required (non-empty, saved or inline) before a grant can proceed.
    */
   grantTechnicalJustification?: unknown;
+  /**
+   * Sent with status="granted": the admin has read a Doubtful (5–7) Telescreen
+   * fraud score and accounted for it. Required to grant a doubtful submission.
+   */
+  telescreenDoubtfulAcknowledged?: unknown;
 };
 
 function isAdmin(role: unknown): role is "admin" {
@@ -440,6 +447,26 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           return NextResponse.json({ error: invariant.error }, { status: 409 });
         }
 
+        // Fraud review gate (Telescreen/Robert): the current submission must be
+        // scored 5+; a Doubtful 5–7 needs the admin's explicit acknowledgement.
+        const telescreen = await getTelescreenGrantGate(id);
+        if (!telescreen.gate.ok) {
+          return NextResponse.json(
+            { error: telescreen.gate.message, code: telescreen.gate.code },
+            { status: 409 },
+          );
+        }
+        if (telescreen.gate.needsDoubtfulAck && body.telescreenDoubtfulAcknowledged !== true) {
+          return NextResponse.json(
+            {
+              error:
+                "Telescreen scored this submission as Doubtful (5–7). Read the fraud reviewer's note and confirm you've accounted for it before granting.",
+              code: "telescreen_doubtful_ack_required",
+            },
+            { status: 400 },
+          );
+        }
+
         const missingEnv = getAirtableConfigErrors(process.env);
         if (missingEnv.length) {
           return NextResponse.json(
@@ -653,6 +680,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     // the creator finally hears "approved" (best-effort, outside the txn).
     if (grantNotification) {
       await notifyCreatorGranted(grantNotification);
+    }
+    if (nextStatus === "granted") {
+      // Close the submission in Telescreen with Carnival's decision.
+      runAfterResponse(() => setCarnivalOutcome(id, { status: "approved" }), "telescreen outcome (granted)");
     }
 
     // If the project moves away from the grant queue while a [PREVIEW]

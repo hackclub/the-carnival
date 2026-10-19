@@ -33,6 +33,7 @@ import ProjectLinkIcon, {
   type ProjectLinkKind,
 } from "@/components/ProjectLinkIcon";
 import ReviewHackatimeTools from "@/components/ReviewHackatimeTools";
+import TelescreenPanel from "@/components/TelescreenPanel";
 import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
 import DevlogAssessmentPanel, {
   type ReviewDevlogFull,
@@ -1227,6 +1228,9 @@ export default function ReviewProjectClient({
           <div className="text-sm text-muted-foreground">No notes were added.</div>
         ) : null}
       </ReviewSection>
+
+      {/* 2b. Telescreen fraud review — scored by Hack Club's fraud desk, not here. */}
+      <TelescreenPanel projectId={project.id} />
 
       {/* 3. Hackatime — the only place the considered range and fraud link appear. */}
       <ReviewSection

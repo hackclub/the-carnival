@@ -51,6 +51,7 @@ import {
 import { describeCreatorHackatimeAuthError, isHackatimeAuthError } from "@/lib/hackatime-errors";
 import { notifyReviewDM, notifyStaffReviewThread } from "@/lib/slack";
 import { runAfterResponse } from "@/lib/notifications/after-response";
+import { setCarnivalOutcome } from "@/lib/telescreen/submissions";
 import {
   AI_SLOP_REJECTION_MESSAGE,
   UNCLEAR_README_REJECTION_MESSAGE,
@@ -1152,6 +1153,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
   } catch (err) {
     console.error("Failed to send review email/Slack DM", err);
+  }
+
+  // A dismissal is Carnival's final word on this submission: record it in
+  // Telescreen (sent once the fraud review has scored it). Soft rejections
+  // send nothing — the creator's next submission is a new Telescreen entry.
+  if (decision === "rejected" && dismiss) {
+    runAfterResponse(
+      () => setCarnivalOutcome(projectId, { status: "rejected", reason: dismissReason || comment }),
+      "telescreen outcome (dismissed)",
+    );
   }
 
   // Staff review-channel thread: every decision is posted there, including
