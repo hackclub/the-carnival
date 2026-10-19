@@ -412,6 +412,62 @@ describe("POST /api/review/[id]", () => {
     });
   });
 
+  test("requires per-devlog assessments on approval even when approved hours are supplied", async () => {
+    state.devlogRows = [
+      {
+        id: "devlog-1",
+        durationSeconds: 60 * 60,
+        title: "First session",
+        startedAt: new Date("2026-03-02T10:00:00.000Z"),
+        endedAt: new Date("2026-03-02T11:00:00.000Z"),
+      },
+    ];
+
+    const { res, json } = await postReview({
+      decision: "approved",
+      comment: "approved without assessing anything",
+      approvedHours: 1,
+      reviewJustification: buildValidReviewJustification(),
+    });
+
+    expect(res.status).toBe(400);
+    expect(json.error).toContain("requires per-devlog assessments");
+    expect(state.insertedReviews.length).toBe(0);
+    expect(state.updateSets.length).toBe(0);
+  });
+
+  test("requires every devlog to be assessed on approval", async () => {
+    state.devlogRows = [
+      {
+        id: "devlog-1",
+        durationSeconds: 60 * 60,
+        title: "First session",
+        startedAt: new Date("2026-03-02T10:00:00.000Z"),
+        endedAt: new Date("2026-03-02T11:00:00.000Z"),
+      },
+      {
+        id: "devlog-2",
+        durationSeconds: 60 * 60,
+        title: "Second session",
+        startedAt: new Date("2026-03-03T10:00:00.000Z"),
+        endedAt: new Date("2026-03-03T11:00:00.000Z"),
+      },
+    ];
+
+    const { res, json } = await postReview({
+      decision: "approved",
+      comment: "approved with one devlog unassessed",
+      approvedHours: 2,
+      devlogAssessments: [{ devlogId: "devlog-1", decision: "accepted" }],
+      reviewJustification: buildValidReviewJustification(),
+    });
+
+    expect(res.status).toBe(400);
+    expect(json.error).toContain("Every devlog must be assessed");
+    expect(json.error).toContain("Second session");
+    expect(state.insertedReviews.length).toBe(0);
+  });
+
   test("honors manually entered approved hours when devlog assessments are present", async () => {
     state.devlogRows = [
       { id: "devlog-1", durationSeconds: 60 * 60 },
