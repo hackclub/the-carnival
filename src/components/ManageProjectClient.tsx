@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import type {
@@ -222,6 +223,16 @@ export default function ManageProjectClient({
       })
       .catch(() => {});
   }, [initial.bountyProjectId]);
+
+  // Coming back from verifying in another tab re-renders the page with a fresh
+  // verification status, so Submit unlocks without a manual reload.
+  const router = useRouter();
+  useEffect(() => {
+    if (identityVerified) return;
+    const recheck = () => router.refresh();
+    window.addEventListener("focus", recheck);
+    return () => window.removeEventListener("focus", recheck);
+  }, [identityVerified, router]);
 
   const uploadPreviewImage = useCallback(async (file: File) => {
     // PNG/JPG only — mirrors the server-side presign allowlist
