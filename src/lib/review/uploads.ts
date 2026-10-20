@@ -45,9 +45,21 @@ export function validatePlatformImageUrl(value: string, label: string): Platform
   }
 
   const base = getR2PublicBaseUrl();
-  // Without a configured public base (e.g. some local dev setups) we cannot
-  // prove the origin; extension checks above still apply.
-  if (base && !isUrlOnPublicBase(value, base)) {
+  if (!base) {
+    // The presigner needs R2_PUBLIC_BASE_URL too, so in production a missing
+    // base means no platform upload can exist: fail closed rather than let
+    // any PNG/JPG URL through. Local dev setups without R2 keep the
+    // extension-only check so the forms stay usable.
+    if (process.env.NODE_ENV === "production") {
+      return {
+        ok: false,
+        error: `${label} cannot be saved: image uploads are not configured on this server.`,
+      };
+    }
+    return { ok: true };
+  }
+
+  if (!isUrlOnPublicBase(value, base)) {
     return {
       ok: false,
       error: `${label} must be uploaded here directly — external image links aren't accepted.`,

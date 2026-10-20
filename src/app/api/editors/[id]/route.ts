@@ -5,11 +5,12 @@ import { editor, resource } from "@/db/schema";
 import {
   getAuthUser,
   parseJsonBody,
-  toCleanString,
   toSlug,
   updatedTimestamp,
   isUniqueConstraintError,
 } from "@/lib/api-utils";
+import { validatePlatformImageUrl } from "@/lib/review/uploads";
+import { sanitizeHttpUrl, sanitizeText, TEXT_LIMITS } from "@/lib/sanitize";
 
 type UpdateEditorBody = {
   name?: unknown;
@@ -86,23 +87,35 @@ export async function PATCH(
   }> = updatedTimestamp();
 
   if (body.name !== undefined) {
-    const name = toCleanString(body.name);
+    const name = sanitizeText(body.name, { maxLength: TEXT_LIMITS.name });
     if (!name) return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 });
     updates.name = name;
   }
 
   if (body.slug !== undefined) {
-    const slug = toSlug(body.slug);
+    const slug = toSlug(sanitizeText(body.slug, { maxLength: TEXT_LIMITS.name }));
     if (!slug) return NextResponse.json({ error: "Slug cannot be empty" }, { status: 400 });
     updates.slug = slug;
   }
 
   if (body.description !== undefined) {
-    updates.description = toCleanString(body.description) || null;
+    updates.description =
+      sanitizeText(body.description, { maxLength: TEXT_LIMITS.longText, multiline: true }) || null;
   }
 
   if (body.iconUrl !== undefined) {
-    updates.iconUrl = toCleanString(body.iconUrl) || null;
+    const iconUrl = sanitizeHttpUrl(body.iconUrl);
+    if (iconUrl === null) {
+      return NextResponse.json({ error: "Icon URL must be a valid http(s) link" }, { status: 400 });
+    }
+    if (iconUrl) {
+      // Icons render as <img> for every visitor, so only platform uploads.
+      const iconValidation = validatePlatformImageUrl(iconUrl, "Editor icon");
+      if (!iconValidation.ok) {
+        return NextResponse.json({ error: iconValidation.error }, { status: 400 });
+      }
+    }
+    updates.iconUrl = iconUrl || null;
   }
 
   try {

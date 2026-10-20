@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/server-session";
 import { fetchHackatimeProjectsForConnectedUser } from "@/lib/hackatime";
 import { isHackatimeAuthError } from "@/lib/hackatime-errors";
+import { safeReturnTo } from "@/lib/safe-return-to";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const returnTo = url.searchParams.get("returnTo")?.trim() || "/projects";
+  const returnTo = safeReturnTo(url.searchParams.get("returnTo"), url.origin);
 
   const session = await getServerSession({ disableCookieCache: true });
   const appUserId = (session?.user as { id?: string } | undefined)?.id ?? null;

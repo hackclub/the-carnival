@@ -9,6 +9,7 @@ import {
   generateId,
   timestamps,
 } from "@/lib/api-utils";
+import { sanitizeHttpUrl, sanitizeText, TEXT_LIMITS } from "@/lib/sanitize";
 
 type CreateResourceBody = {
   editorId?: unknown;
@@ -73,13 +74,17 @@ export async function POST(req: Request) {
   if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
 
   const editorId = toCleanString(body.editorId);
-  const title = toCleanString(body.title);
-  const url = toCleanString(body.url);
-  const description = toCleanString(body.description) || null;
+  const title = sanitizeText(body.title, { maxLength: TEXT_LIMITS.name });
+  const url = sanitizeHttpUrl(body.url);
+  const description =
+    sanitizeText(body.description, { maxLength: TEXT_LIMITS.longText, multiline: true }) || null;
   const type = body.type;
 
   if (!editorId) return NextResponse.json({ error: "Editor ID is required" }, { status: 400 });
   if (!title) return NextResponse.json({ error: "Title is required" }, { status: 400 });
+  if (url === null) {
+    return NextResponse.json({ error: "URL must be a valid http(s) link" }, { status: 400 });
+  }
   if (!url) return NextResponse.json({ error: "URL is required" }, { status: 400 });
   if (!isValidType(type)) {
     return NextResponse.json({ error: "Type must be one of: video, documentation, article" }, { status: 400 });

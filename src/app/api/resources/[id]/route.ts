@@ -5,9 +5,9 @@ import { resource, ResourceType } from "@/db/schema";
 import {
   getAuthUser,
   parseJsonBody,
-  toCleanString,
   updatedTimestamp,
 } from "@/lib/api-utils";
+import { sanitizeHttpUrl, sanitizeText, TEXT_LIMITS } from "@/lib/sanitize";
 
 type UpdateResourceBody = {
   title?: unknown;
@@ -78,19 +78,23 @@ export async function PATCH(
   }> = updatedTimestamp();
 
   if (body.title !== undefined) {
-    const title = toCleanString(body.title);
+    const title = sanitizeText(body.title, { maxLength: TEXT_LIMITS.name });
     if (!title) return NextResponse.json({ error: "Title cannot be empty" }, { status: 400 });
     updates.title = title;
   }
 
   if (body.url !== undefined) {
-    const url = toCleanString(body.url);
+    const url = sanitizeHttpUrl(body.url);
+    if (url === null) {
+      return NextResponse.json({ error: "URL must be a valid http(s) link" }, { status: 400 });
+    }
     if (!url) return NextResponse.json({ error: "URL cannot be empty" }, { status: 400 });
     updates.url = url;
   }
 
   if (body.description !== undefined) {
-    updates.description = toCleanString(body.description) || null;
+    updates.description =
+      sanitizeText(body.description, { maxLength: TEXT_LIMITS.longText, multiline: true }) || null;
   }
 
   if (body.type !== undefined) {

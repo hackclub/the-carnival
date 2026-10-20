@@ -19,6 +19,7 @@ const state = {
     updatedAt: new Date("2026-04-01T00:00:00.000Z"),
   },
   updateSet: null,
+  auditEntries: [],
 };
 
 function resetState() {
@@ -40,6 +41,7 @@ function resetState() {
     updatedAt: new Date("2026-04-01T00:00:00.000Z"),
   };
   state.updateSet = null;
+  state.auditEntries = [];
 }
 
 const db = {
@@ -75,6 +77,9 @@ const db = {
       },
     };
   },
+  transaction(callback) {
+    return callback(db);
+  },
 };
 
 mock.module("@/db", () => ({ db }));
@@ -82,7 +87,9 @@ mock.module("@/lib/server-session", () => ({
   getServerSession: async () => state.session,
 }));
 mock.module("@/lib/admin-audit", () => ({
-  appendAdminAudit: async () => {},
+  appendAdminAudit: async (entry) => {
+    state.auditEntries.push(entry);
+  },
 }));
 
 const { PATCH } = await import("./route.ts");
@@ -129,5 +136,26 @@ describe("PATCH /api/admin/users/[id]", () => {
     expect(json.user.role).toBe("reviewer");
     expect(state.updateSet.role).toBe("reviewer");
     expect(state.updateSet.updatedAt).toBeInstanceOf(Date);
+  });
+
+  test("writes an audit entry for every role change", async () => {
+    const { res } = await patchUser("user-1", { role: "admin" });
+
+    expect(res.status).toBe(200);
+    expect(state.auditEntries).toHaveLength(1);
+    const entry = state.auditEntries[0];
+    expect(entry.action).toBe("user_role_changed");
+    expect(entry.actorId).toBe("admin-1");
+    expect(entry.actorRole).toBe("admin");
+    expect(entry.targetUserId).toBe("user-1");
+    expect(entry.details).toEqual({ previousRole: "user", nextRole: "admin" });
+    expect(entry.at).toBe(state.updateSet.updatedAt);
+  });
+
+  test("does not write an audit entry when the role is rejected", async () => {
+    const { res } = await patchUser("user-1", { role: "overlord" });
+
+    expect(res.status).toBe(400);
+    expect(state.auditEntries).toHaveLength(0);
   });
 });
