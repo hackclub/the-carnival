@@ -5,8 +5,8 @@ import AdminAutomatedNudgesCard from "@/components/AdminAutomatedNudgesCard";
 import AdminMessagesClient, { type MessagesPageData } from "@/components/AdminMessagesClient";
 import { db } from "@/db";
 import { user } from "@/db/schema";
-import { isNudgeEmailEnabled } from "@/lib/loops";
-import { runNudges, type NudgeRunResult } from "@/lib/notifications/nudges/run";
+import { getAppBaseUrl, isNudgeEmailEnabled } from "@/lib/loops";
+import { nudgeContactSlackIdFromEnv, runNudges, type NudgeRunResult } from "@/lib/notifications/nudges/run";
 import { loadAutomatedNudgeStats, type AutomatedNudgeStats } from "@/lib/notifications/nudges/select";
 import { listExclusions, listSends } from "@/lib/notifications/outreach";
 import { isSlackConfigured } from "@/lib/notifications/slack-client";
@@ -44,6 +44,7 @@ export default async function AdminMessagesPage() {
     sends,
     slackEnabled: isSlackConfigured(),
     emailEnabled: isNudgeEmailEnabled(),
+    footer: { appBaseUrl: getAppBaseUrl(), contactSlackId: nudgeContactSlackIdFromEnv() },
   };
 
   return (

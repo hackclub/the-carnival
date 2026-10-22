@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
 import { appendAdminAudit } from "@/lib/admin-audit";
-import { addExclusions, listExclusions, removeExclusion } from "@/lib/notifications/outreach";
-import { parseSlackIdsInput, requireAdmin } from "@/lib/notifications/outreach-api";
+import { addExclusions, listExclusions, removeExclusion, slackIdsForUsers } from "@/lib/notifications/outreach";
+import { parseSlackIdsInput, parseStringList, requireAdmin } from "@/lib/notifications/outreach-api";
 
 export const dynamic = "force-dynamic";
 
-/** Exclusion list plus people who opted out of automated reminders themselves. */
+/** Exclusion list plus people who turned off Carnival messages themselves. */
 export async function GET() {
   const auth = await requireAdmin();
   if (!auth.ok) return NextResponse.json({ error: "Forbidden" }, { status: auth.status });
   return NextResponse.json(await listExclusions());
 }
 
-/** Body: { slackIds: string | string[], note?: string }. */
+/**
+ * Body: { slackIds?: string | string[], userIds?: string[], note?: string }.
+ * Users are excluded by their Slack ID; one without a Slack ID is refused.
+ */
 export async function POST(req: Request) {
   const auth = await requireAdmin();
   if (!auth.ok) return NextResponse.json({ error: "Forbidden" }, { status: auth.status });
@@ -21,16 +24,33 @@ export async function POST(req: Request) {
   if (parsed.invalid.length) {
     return NextResponse.json({ error: `Not Slack user IDs: ${parsed.invalid.slice(0, 5).join(", ")}` }, { status: 400 });
   }
-  if (parsed.ids.length === 0) return NextResponse.json({ error: "Enter at least one Slack ID" }, { status: 400 });
+  const rawUserIds = body?.userIds;
+  if (rawUserIds !== undefined && (!Array.isArray(rawUserIds) || rawUserIds.some((v) => typeof v !== "string"))) {
+    return NextResponse.json({ error: "userIds must be a list of user IDs" }, { status: 400 });
+  }
+  const userIds = parseStringList(rawUserIds);
+  const users = await slackIdsForUsers(userIds);
+  if (users.unknown.length) {
+    return NextResponse.json({ error: `Unknown user IDs: ${users.unknown.slice(0, 5).join(", ")}` }, { status: 400 });
+  }
+  if (users.noSlackId.length) {
+    const names = users.noSlackId.map((u) => u.name).slice(0, 5).join(", ");
+    return NextResponse.json(
+      { error: `${names}: no Slack ID on file, so they can't get Slack messages and can't be excluded` },
+      { status: 400 },
+    );
+  }
+  const slackIds = [...new Set([...parsed.ids, ...users.slackIds])];
+  if (slackIds.length === 0) return NextResponse.json({ error: "Enter at least one Slack ID or pick a user" }, { status: 400 });
   const note = typeof body?.note === "string" && body.note.trim() ? body.note.trim().slice(0, 500) : null;
 
-  const result = await addExclusions({ slackIds: parsed.ids, note, adminId: auth.adminId });
+  const result = await addExclusions({ slackIds, note, adminId: auth.adminId });
   if (result.added.length) {
     await appendAdminAudit({
       actorId: auth.adminId,
       actorRole: "admin",
       action: "nudge_exclusion_added",
-      details: { slackIds: result.added, note },
+      details: { slackIds: result.added, userIds, note },
     });
   }
   return NextResponse.json({ ...result, ...(await listExclusions()) });
