@@ -291,6 +291,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const { id: projectId } = await ctx.params;
 
+  // Separation of duties: nobody reviews their own project, whatever the
+  // decision. The transaction re-reads the row, but refusing here keeps a
+  // self-review from touching Hackatime or the database at all.
+  const ownerRows = await db
+    .select({ creatorId: project.creatorId })
+    .from(project)
+    .where(eq(project.id, projectId))
+    .limit(1);
+  if (ownerRows[0]?.creatorId && ownerRows[0].creatorId === userId) {
+    return NextResponse.json(
+      { error: "You cannot review your own project.", code: "self_review" },
+      { status: 403 },
+    );
+  }
+
   let body: ReviewBody;
   try {
     body = (await req.json()) as ReviewBody;
@@ -689,6 +704,22 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             end: projectRangeUpdate.hackatimeStoppedAt ?? current.hackatimeStoppedAt,
           }),
         );
+
+      // Per-devlog assessments are the pass-1 control: whenever the project
+      // has devlogs in the considered range, an approval must assess every
+      // one of them, whether or not approvedHours was supplied. Projects with
+      // no devlogs keep the approvedHours-only path.
+      if (
+        decision === "approved" &&
+        projectDevlogs.length > 0 &&
+        (!parsedAssessments || parsedAssessments.length === 0)
+      ) {
+        throw new ReviewSubmitError(
+          "validation",
+          "Approving now requires per-devlog assessments. Accept, adjust, or reject each devlog.",
+          400,
+        );
+      }
 
       const devlogSumSeconds = projectDevlogs.reduce(
         (acc, d) => acc + Math.max(0, Math.floor(d.durationSeconds || 0)),

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { devlog, peerReview, peerReviewDevlogAssessment, reviewAuditLog } from "@/db/schema";
+import { devlog, peerReview, peerReviewDevlogAssessment, project, reviewAuditLog } from "@/db/schema";
 
 const state = {
   session: {
@@ -200,11 +200,12 @@ const db = {
   },
   select() {
     return {
-      from() {
+      from(table) {
         return {
           where() {
             return {
-              limit: async () => [],
+              limit: async () =>
+                table === project && state.projectRow ? [state.projectRow] : [],
             };
           },
         };
@@ -218,6 +219,7 @@ mock.module("@/lib/server-session", () => ({
   getServerSession: async () => state.session,
 }));
 mock.module("@/lib/loops", () => ({
+  getAppBaseUrl: () => "http://localhost:3000",
   sendReviewEmail: async () => undefined,
 }));
 mock.module("@/lib/slack", () => ({
@@ -270,6 +272,36 @@ function buildValidReviewJustification(overrides = {}) {
 describe("POST /api/review/[id]", () => {
   beforeEach(() => {
     resetState();
+  });
+
+  test("returns 403 when a reviewer reviews their own project", async () => {
+    state.projectRow.creatorId = "reviewer-1";
+
+    const { res, json } = await postReview({
+      decision: "approved",
+      comment: "approving my own work",
+      approvedHours: 2,
+      reviewJustification: buildValidReviewJustification(),
+    });
+
+    expect(res.status).toBe(403);
+    expect(json).toEqual({ error: "You cannot review your own project.", code: "self_review" });
+    expect(state.insertedReviews.length).toBe(0);
+    expect(state.auditEntries.length).toBe(0);
+  });
+
+  test("returns 403 when an admin comments on their own project", async () => {
+    state.session.user.role = "admin";
+    state.projectRow.creatorId = "reviewer-1";
+
+    const { res, json } = await postReview({
+      decision: "comment",
+      comment: "just a note on my own project",
+    });
+
+    expect(res.status).toBe(403);
+    expect(json.code).toBe("self_review");
+    expect(state.insertedReviews.length).toBe(0);
   });
 
   test("rejects non-positive approved hours for approvals", async () => {
@@ -378,6 +410,62 @@ describe("POST /api/review/[id]", () => {
         reasonRequired: true,
       },
     });
+  });
+
+  test("requires per-devlog assessments on approval even when approved hours are supplied", async () => {
+    state.devlogRows = [
+      {
+        id: "devlog-1",
+        durationSeconds: 60 * 60,
+        title: "First session",
+        startedAt: new Date("2026-03-02T10:00:00.000Z"),
+        endedAt: new Date("2026-03-02T11:00:00.000Z"),
+      },
+    ];
+
+    const { res, json } = await postReview({
+      decision: "approved",
+      comment: "approved without assessing anything",
+      approvedHours: 1,
+      reviewJustification: buildValidReviewJustification(),
+    });
+
+    expect(res.status).toBe(400);
+    expect(json.error).toContain("requires per-devlog assessments");
+    expect(state.insertedReviews.length).toBe(0);
+    expect(state.updateSets.length).toBe(0);
+  });
+
+  test("requires every devlog to be assessed on approval", async () => {
+    state.devlogRows = [
+      {
+        id: "devlog-1",
+        durationSeconds: 60 * 60,
+        title: "First session",
+        startedAt: new Date("2026-03-02T10:00:00.000Z"),
+        endedAt: new Date("2026-03-02T11:00:00.000Z"),
+      },
+      {
+        id: "devlog-2",
+        durationSeconds: 60 * 60,
+        title: "Second session",
+        startedAt: new Date("2026-03-03T10:00:00.000Z"),
+        endedAt: new Date("2026-03-03T11:00:00.000Z"),
+      },
+    ];
+
+    const { res, json } = await postReview({
+      decision: "approved",
+      comment: "approved with one devlog unassessed",
+      approvedHours: 2,
+      devlogAssessments: [{ devlogId: "devlog-1", decision: "accepted" }],
+      reviewJustification: buildValidReviewJustification(),
+    });
+
+    expect(res.status).toBe(400);
+    expect(json.error).toContain("Every devlog must be assessed");
+    expect(json.error).toContain("Second session");
+    expect(state.insertedReviews.length).toBe(0);
   });
 
   test("honors manually entered approved hours when devlog assessments are present", async () => {

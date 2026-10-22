@@ -19,10 +19,12 @@ function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin
 
 class ReviewAssignmentError extends Error {
   status: number;
+  code: string | undefined;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -68,13 +70,18 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   const result = await db
     .transaction(async (tx) => {
       const projectRows = await tx
-        .select({ id: project.id, status: project.status })
+        .select({ id: project.id, status: project.status, creatorId: project.creatorId })
         .from(project)
         .where(eq(project.id, projectId))
         .limit(1);
       const current = projectRows[0];
       if (!current) {
         throw new ReviewAssignmentError("Not found", 404);
+      }
+      // Separation of duties: a reviewer never assigns themselves to their
+      // own project.
+      if (current.creatorId && current.creatorId === userId) {
+        throw new ReviewAssignmentError("You cannot review your own project.", 403, "self_review");
       }
       if (current.status !== "in-review") {
         throw new ReviewAssignmentError("Project is no longer in review", 409);
@@ -118,7 +125,13 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     });
 
   if ("handledError" in result) {
-    return NextResponse.json({ error: result.handledError.message }, { status: result.handledError.status });
+    return NextResponse.json(
+      {
+        error: result.handledError.message,
+        ...(result.handledError.code ? { code: result.handledError.code } : {}),
+      },
+      { status: result.handledError.status },
+    );
   }
 
   return NextResponse.json({
@@ -192,7 +205,13 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
     });
 
   if ("handledError" in result) {
-    return NextResponse.json({ error: result.handledError.message }, { status: result.handledError.status });
+    return NextResponse.json(
+      {
+        error: result.handledError.message,
+        ...(result.handledError.code ? { code: result.handledError.code } : {}),
+      },
+      { status: result.handledError.status },
+    );
   }
 
   return NextResponse.json({

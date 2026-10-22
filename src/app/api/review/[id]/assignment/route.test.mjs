@@ -10,6 +10,7 @@ const state = {
   projectRow: {
     id: "project-1",
     status: "in-review",
+    creatorId: "creator-1",
   },
   insertedRows: [{ id: "assignment-1" }],
   removedRows: [{ id: "assignment-1" }],
@@ -34,6 +35,7 @@ function resetState() {
   state.projectRow = {
     id: "project-1",
     status: "in-review",
+    creatorId: "creator-1",
   };
   state.insertedRows = [{ id: "assignment-1" }];
   state.removedRows = [{ id: "assignment-1" }];
@@ -161,6 +163,16 @@ describe("assignment route", () => {
     expect(json.assignments).toEqual([]);
     expect(state.auditCalls.length).toBe(1);
     expect(state.auditCalls[0].action).toBe("review_assignment_removed");
+  });
+
+  test("POST returns 403 when the reviewer owns the project", async () => {
+    state.projectRow.creatorId = "reviewer-1";
+
+    const { res, json } = await assign();
+
+    expect(res.status).toBe(403);
+    expect(json).toEqual({ error: "You cannot review your own project.", code: "self_review" });
+    expect(state.auditCalls.length).toBe(0);
   });
 
   test("returns 409 when project is no longer in review", async () => {

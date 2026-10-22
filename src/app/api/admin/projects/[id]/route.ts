@@ -398,6 +398,20 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     // we abort the grant (so admins see the error immediately and we don't
     // issue tokens without a Unified Database record).
     if (nextStatus === "granted") {
+      // Separation of duties: an admin never grants their own project. Checked
+      // before the Airtable push and the token issue below.
+      const ownerRows = await db
+        .select({ creatorId: project.creatorId })
+        .from(project)
+        .where(eq(project.id, id))
+        .limit(1);
+      if (ownerRows[0]?.creatorId && ownerRows[0].creatorId === adminUserId) {
+        return NextResponse.json(
+          { error: "You cannot grant your own project.", code: "self_grant" },
+          { status: 403 },
+        );
+      }
+
       const context = await loadGrantContext(id, {
         // Justification sent inline with the grant wins; otherwise the stored one.
         ...(hasTechnicalJustificationUpdate
