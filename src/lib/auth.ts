@@ -1,11 +1,16 @@
 import { betterAuth, OAuth2UserInfo } from "better-auth";
-import { createFieldAttribute } from "better-auth/db";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { genericOAuth } from "better-auth/plugins";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 
-let _auth: ReturnType<typeof betterAuth> | null = null;
+let _auth: ReturnType<typeof createAuth> | null = null;
+
+// A user column better-auth should select onto `session.user` but never accept
+// from a client payload (`input: false` keeps it out of `/update-user`).
+// better-auth 1.6 dropped `createFieldAttribute`; fields are plain attribute objects.
+const serverManagedString = () =>
+  ({ type: "string", required: false, input: false }) as const;
 
 function toNullableString(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -81,19 +86,19 @@ function createAuth() {
     // Ensure these custom columns are selected and included on `session.user`.
     user: {
       additionalFields: {
-        slackId: createFieldAttribute("string", { required: false, input: false }),
-        verificationStatus: createFieldAttribute("string", { required: false, input: false }),
+        slackId: serverManagedString(),
+        verificationStatus: serverManagedString(),
         // Authorization role is managed only by server-side admin/database paths.
         // If this is client-inputtable, Better Auth's `/update-user` endpoint can
         // persist self-service privilege escalation.
-        role: createFieldAttribute("string", { required: false, input: false }),
-        birthday: createFieldAttribute("string", { required: false, input: false }),
-        addressLine1: createFieldAttribute("string", { required: false, input: false }),
-        addressLine2: createFieldAttribute("string", { required: false, input: false }),
-        city: createFieldAttribute("string", { required: false, input: false }),
-        stateProvince: createFieldAttribute("string", { required: false, input: false }),
-        country: createFieldAttribute("string", { required: false, input: false }),
-        zipPostalCode: createFieldAttribute("string", { required: false, input: false }),
+        role: serverManagedString(),
+        birthday: serverManagedString(),
+        addressLine1: serverManagedString(),
+        addressLine2: serverManagedString(),
+        city: serverManagedString(),
+        stateProvince: serverManagedString(),
+        country: serverManagedString(),
+        zipPostalCode: serverManagedString(),
       },
     },
     emailAndPassword: {
