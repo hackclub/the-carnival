@@ -608,7 +608,7 @@ function ComposePanel({
             Preview <span className="font-normal text-muted-foreground">for {recipientLabel(previewRecipient as DraftRecipient)}</span>
           </span>
           <pre className="min-h-[10rem] whitespace-pre-wrap rounded-[var(--radius-xl)] border border-border bg-background/60 p-3 font-sans text-sm text-foreground">
-            {renderOutreachMessage(message, { name: (previewRecipient as DraftRecipient).name ?? null })}
+            {renderOutreachMessage(message.trim(), { name: (previewRecipient as DraftRecipient).name ?? null })}
             {"\n\n"}
             <span className="text-muted-foreground">{buildOutreachFooter({ ...initial.footer, channel })}</span>
           </pre>
@@ -1075,9 +1075,10 @@ function ExclusionsPanel({
     <div className={card}>
       <h2 className="text-lg font-bold text-foreground">Excluded people</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        People here never hear from the Carnival bot: not the automated reminders, not &quot;run now&quot;, and not
-        messages written on this page. Add anyone who asks you to stop. Pick them by name or paste Slack IDs; the
-        list is keyed by Slack ID, so it also covers people without a Carnival account.
+        People here get no outreach from the Carnival bot: not the automated reminders, not &quot;run now&quot;, and
+        not messages written on this page. Review, grant and shop updates still reach them. Add anyone who asks you
+        to stop. Pick them by name or paste Slack IDs; the list is keyed by Slack ID, so it also covers people without
+        a Carnival account.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">

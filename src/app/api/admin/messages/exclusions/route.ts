@@ -24,7 +24,11 @@ export async function POST(req: Request) {
   if (parsed.invalid.length) {
     return NextResponse.json({ error: `Not Slack user IDs: ${parsed.invalid.slice(0, 5).join(", ")}` }, { status: 400 });
   }
-  const userIds = parseStringList(body?.userIds);
+  const rawUserIds = body?.userIds;
+  if (rawUserIds !== undefined && (!Array.isArray(rawUserIds) || rawUserIds.some((v) => typeof v !== "string"))) {
+    return NextResponse.json({ error: "userIds must be a list of user IDs" }, { status: 400 });
+  }
+  const userIds = parseStringList(rawUserIds);
   const users = await slackIdsForUsers(userIds);
   if (users.unknown.length) {
     return NextResponse.json({ error: `Unknown user IDs: ${users.unknown.slice(0, 5).join(", ")}` }, { status: 400 });
