@@ -143,6 +143,8 @@ export type RecipientDecisionInput = {
   hasEmail: boolean;
   isFrozen: boolean;
   isExcluded: boolean;
+  /** True when the person turned off Carnival messages on their Account page. */
+  optedOut: boolean;
   /** True when the person was nudged inside the chosen recent window. */
   recentlyNudged: boolean;
 };
@@ -152,6 +154,7 @@ export type RecipientDecision = { status: "pending" } | { status: "skipped"; rea
 /** Decide up front whether a recipient will be messaged, and why not. */
 export function decideRecipient(input: RecipientDecisionInput): RecipientDecision {
   if (input.isExcluded) return { status: "skipped", reason: "excluded" };
+  if (input.optedOut) return { status: "skipped", reason: "opted_out" };
   if (input.isFrozen) return { status: "skipped", reason: "frozen" };
   if (input.recentlyNudged) return { status: "skipped", reason: "recently_nudged" };
   if (input.channel === "slack" && !input.hasSlackId) return { status: "skipped", reason: "no_slack_id" };
@@ -161,6 +164,7 @@ export function decideRecipient(input: RecipientDecisionInput): RecipientDecisio
 
 export const OUTREACH_REASON_LABELS: Record<string, string> = {
   excluded: "on the exclusion list",
+  opted_out: "turned off Carnival messages in their account",
   frozen: "account frozen",
   recently_nudged: "already nudged recently",
   no_slack_id: "no Slack ID",
@@ -174,6 +178,32 @@ export const OUTREACH_REASON_LABELS: Record<string, string> = {
 /** Per-person message text ({firstName} replaced). */
 export function renderOutreachMessage(template: string, recipient: { name: string | null }): string {
   return renderNudgeMessage(template, { name: recipient.name });
+}
+
+/** What the opt-out footer needs; the page passes it to the client for the preview. */
+export type OutreachFooterContext = {
+  appBaseUrl: string;
+  /** Slack user ID to mention as the person to DM; plain "@Josias" when null. */
+  contactSlackId: string | null;
+  channel: OutreachChannel;
+};
+
+/**
+ * The line added to the end of every hand-written message. The bot doesn't
+ * read DM replies, so it points at Account settings (the toggle there stops
+ * these messages and the automated reminders) and at a human. Slack gets a
+ * real mention; email, and Slack with no contact configured, get "@Josias".
+ */
+export function buildOutreachFooter(ctx: OutreachFooterContext): string {
+  const base = ctx.appBaseUrl.replace(/\/+$/, "");
+  const id = ctx.contactSlackId?.trim();
+  const contact = ctx.channel === "slack" && id ? `<@${id}>` : "@Josias";
+  return `Don't want these messages? Turn them off in Account settings (${base}/account#messages) or DM ${contact} on Slack.`;
+}
+
+/** The exact text a person receives: their message, a blank line, the footer. */
+export function withOutreachFooter(text: string, ctx: OutreachFooterContext): string {
+  return `${text.replace(/\s+$/, "")}\n\n${buildOutreachFooter(ctx)}`;
 }
 
 /** A running send whose heartbeat is older than the stale window. */

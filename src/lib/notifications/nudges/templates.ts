@@ -42,7 +42,7 @@ export function deadlineLine(ctx: NudgeTemplateContext): string | null {
 function footer(ctx: NudgeTemplateContext): string {
   // The bot doesn't read DM replies, so point at a human instead of "reply here".
   const contact = ctx.contactSlackId?.trim() ? `<@${ctx.contactSlackId.trim()}>` : "@Josias";
-  return `Stuck? Ask in #carnival. Don't want these reminders? Turn them off in Account settings (${base(ctx)}/account) or DM ${contact} on Slack and he'll stop them.`;
+  return `Stuck? Ask in #carnival. Don't want these reminders? Turn them off in Account settings (${base(ctx)}/account#messages) or DM ${contact} on Slack and he'll stop them.`;
 }
 
 function greeting(n: PlannedNudge): string {

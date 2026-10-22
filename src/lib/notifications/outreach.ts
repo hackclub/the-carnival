@@ -21,12 +21,12 @@ import {
   type OutreachSendStatus,
 } from "@/db/schema";
 import { firstNameOf } from "@/lib/insights";
-import { isNudgeEmailEnabled, sendNudgeEmail } from "@/lib/loops";
+import { getAppBaseUrl, isNudgeEmailEnabled, sendNudgeEmail } from "@/lib/loops";
 import { runAfterResponse } from "./after-response";
 import { summarizeNudgeRun } from "./nudges/command";
 import { NUDGE_KIND_META } from "./nudges/kinds";
 import { createNudgeLock } from "./nudges/lock";
-import { runNudges } from "./nudges/run";
+import { nudgeContactSlackIdFromEnv, runNudges } from "./nudges/run";
 import { runOutreachLoop, type LoopRecipient } from "./outreach-loop";
 import {
   OUTREACH_STALE_AFTER_MS,
@@ -37,8 +37,10 @@ import {
   mergeRecipients,
   recentWindowCutoff,
   renderOutreachMessage,
+  withOutreachFooter,
   type DraftRecipient,
   type OutreachChannel,
+  type OutreachFooterContext,
   type RecentWindow,
 } from "./outreach-shared";
 import { isSlackConfigured, postSlackMessage } from "./slack-client";
@@ -132,6 +134,25 @@ export async function removeExclusion(slackId: string): Promise<boolean> {
   return removed.length > 0;
 }
 
+/**
+ * Slack IDs for the given users, so people picked by name can go on the
+ * exclusion list (keyed by Slack ID). Users without one can't receive Slack
+ * messages and can't be excluded; they're reported by name instead.
+ */
+export async function slackIdsForUsers(
+  userIds: string[],
+): Promise<{ slackIds: string[]; noSlackId: { id: string; name: string }[]; unknown: string[] }> {
+  const ids = [...new Set(userIds.map((s) => s.trim()).filter(Boolean))];
+  if (ids.length === 0) return { slackIds: [], noSlackId: [], unknown: [] };
+  const rows = await db.select({ id: user.id, name: user.name, slackId: user.slackId }).from(user).where(inArray(user.id, ids));
+  const found = new Set(rows.map((r) => r.id));
+  return {
+    slackIds: upperIds(rows.map((r) => r.slackId)),
+    noSlackId: rows.filter((r) => !r.slackId?.trim()).map((r) => ({ id: r.id, name: r.name })),
+    unknown: ids.filter((id) => !found.has(id)),
+  };
+}
+
 async function loadExcludedSet(slackIds: readonly (string | null)[]): Promise<Set<string>> {
   const ids = upperIds(slackIds);
   if (ids.length === 0) return new Set();
@@ -165,9 +186,10 @@ export type ResolvedRecipient = DraftRecipient & {
 };
 
 /**
- * Decide who among these people will be messaged: excluded, frozen, nudged
- * inside the recent window, or missing the channel's contact are skipped.
- * Used when a send is created and again before each later batch goes out.
+ * Decide who among these people will be messaged: excluded, opted out on
+ * their Account page, frozen, nudged inside the recent window, or missing
+ * the channel's contact are skipped. Used when a send is created and again
+ * before each later batch goes out.
  */
 async function decideAll(
   drafts: DraftRecipient[],
@@ -179,10 +201,14 @@ async function decideAll(
   const cutoff = recentWindowCutoff(recentWindow, now);
 
   const frozen = new Map<string, boolean>();
+  const optedOut = new Map<string, boolean>();
   const lastNudged = new Map<string, string | null>();
   for (const part of chunk(userIds, INSERT_CHUNK)) {
-    const [frozenRows, nudgeRows] = await Promise.all([
-      db.select({ id: user.id, isFrozen: user.isFrozen }).from(user).where(inArray(user.id, part)),
+    const [userRows, nudgeRows] = await Promise.all([
+      db
+        .select({ id: user.id, isFrozen: user.isFrozen, optedOut: user.slackNudgesOptOut })
+        .from(user)
+        .where(inArray(user.id, part)),
       cutoff
         ? db
             .select({ userId: userNudge.userId, lastAt: max(userNudge.createdAt) })
@@ -191,7 +217,10 @@ async function decideAll(
             .groupBy(userNudge.userId)
         : Promise.resolve([]),
     ]);
-    for (const r of frozenRows) frozen.set(r.id, r.isFrozen);
+    for (const r of userRows) {
+      frozen.set(r.id, r.isFrozen);
+      optedOut.set(r.id, r.optedOut);
+    }
     for (const r of nudgeRows) lastNudged.set(r.userId, r.lastAt ? r.lastAt.toISOString() : null);
   }
   const excluded = await loadExcludedSet(drafts.map((r) => r.slackId));
@@ -204,6 +233,7 @@ async function decideAll(
       hasEmail: Boolean(r.email),
       isFrozen,
       isExcluded: r.slackId ? excluded.has(r.slackId.toUpperCase()) : false,
+      optedOut: r.userId ? (optedOut.get(r.userId) ?? false) : false,
       recentlyNudged: r.userId ? isNudgedWithin(lastNudged.get(r.userId) ?? null, cutoff) : false,
     });
     return {
@@ -327,6 +357,13 @@ async function processCustomSend(sendId: string): Promise<void> {
   const send = sendRows[0];
   if (!send?.message) return;
   const template = send.message;
+  const footer: OutreachFooterContext = {
+    appBaseUrl: getAppBaseUrl(),
+    contactSlackId: nudgeContactSlackIdFromEnv(),
+    channel: send.channel,
+  };
+  /** The exact text a person receives (and what user_nudge records). */
+  const renderFor = (r: LoopRecipient) => withOutreachFooter(renderOutreachMessage(template, r), footer);
 
   try {
     await runOutreachLoop({
@@ -352,7 +389,7 @@ async function processCustomSend(sendId: string): Promise<void> {
         return rows[0] ?? null;
       },
       async deliver(r: LoopRecipient) {
-        const text = renderOutreachMessage(template, r);
+        const text = renderFor(r);
         if (send.channel === "email") {
           if (!r.email || !isNudgeEmailEnabled()) return { ok: false, reason: "email_error" };
           const ok = await sendNudgeEmail(r.email, { first_name: firstNameOf(r.name), message: text });
@@ -375,7 +412,7 @@ async function processCustomSend(sendId: string): Promise<void> {
             userId: r.userId,
             channel: send.channel,
             kind: "custom",
-            message: renderOutreachMessage(template, r),
+            message: renderFor(r),
             sentByUserId: send.adminId,
             createdAt: now,
           });

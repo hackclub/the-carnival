@@ -24,7 +24,8 @@ export type AccountProfileInitial = {
   // A working token is stored. False with a connectedAt timestamp means the
   // token was revoked on Hackatime's side and the user needs to reconnect.
   hackatimeConnected: boolean;
-  // Automated Slack reminders (nudges) are off for this user.
+  // Non-essential Slack messages (automated reminders and announcements
+  // from the team) are off for this user.
   slackNudgesOptOut: boolean;
 };
 
@@ -87,10 +88,10 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
         body: JSON.stringify({ slackNudgesOptOut: optOut }),
       });
       if (!res.ok) throw new Error("save failed");
-      toast.success(optOut ? "Slack reminders turned off." : "Slack reminders turned on.");
+      toast.success(optOut ? "Slack messages turned off." : "Slack messages turned on.");
     } catch {
       setSlackNudgesOptOut(!optOut);
-      toast.error("Failed to update Slack reminders.");
+      toast.error("Failed to update Slack messages.");
     } finally {
       setSavingNudges(false);
     }
@@ -225,13 +226,13 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="messages" className="scroll-mt-24">
         <CardHeader>
-          <CardTitle>Slack reminders</CardTitle>
+          <CardTitle>Slack messages</CardTitle>
           <CardDescription>
-            Carnival occasionally DMs you on Slack when a project looks stuck: hours logged but never
-            submitted, a project with no devlogs, or Hackatime not connected. Review updates (feedback,
-            grants) are always sent.
+            Carnival DMs you on Slack with reminders when a project looks stuck (hours logged but never
+            submitted, a project with no devlogs, Hackatime not connected) and with occasional announcements
+            from the team. Review updates (feedback, grants) and shop order updates are always sent.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -244,9 +245,10 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
               onChange={(e) => void onToggleSlackNudges(!e.target.checked)}
             />
             <span>
-              <span className="font-medium text-foreground">Send me reminders on Slack</span>
+              <span className="font-medium text-foreground">Send me reminders and announcements on Slack</span>
               <span className="block text-muted-foreground">
-                At most a couple per topic, never more than one a week, and none after the Carnival ends.
+                Reminders are at most a couple per topic and never more than one a week; announcements are rare.
+                Turn this off and the bot only contacts you about your own projects and orders.
               </span>
             </span>
           </label>

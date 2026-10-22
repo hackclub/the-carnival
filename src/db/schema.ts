@@ -139,8 +139,9 @@ export const user = pgTable("user", {
   hackatimeAccessToken: text("hackatime_access_token"),
   hackatimeScope: text("hackatime_scope"),
   hackatimeConnectedAt: timestamp("hackatime_connected_at"),
-  // User opted out of automated Slack reminders (src/lib/notifications/nudges).
-  // Admin-sent nudges from /admin/insights are not affected.
+  // User turned off non-essential Slack messages on /account: the automated
+  // reminders (src/lib/notifications/nudges) and hand-written admin messages
+  // (/admin/messages). Review, grant and shop updates are always sent.
   slackNudgesOptOut: boolean("slack_nudges_opt_out").notNull().default(false),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),

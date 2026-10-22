@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
 const {
+  OUTREACH_REASON_LABELS,
   assignBatches,
   batchCount,
+  buildOutreachFooter,
   decideRecipient,
   isNudgedWithin,
   recentWindowCutoff,
@@ -10,6 +12,7 @@ const {
   mergeRecipients,
   parseSlackIdList,
   renderOutreachMessage,
+  withOutreachFooter,
 } = await import("./outreach-shared.ts");
 
 describe("parseSlackIdList", () => {
@@ -56,7 +59,15 @@ describe("mergeRecipients", () => {
 });
 
 describe("decideRecipient", () => {
-  const base = { channel: "slack", hasSlackId: true, hasEmail: true, isFrozen: false, isExcluded: false, recentlyNudged: false };
+  const base = {
+    channel: "slack",
+    hasSlackId: true,
+    hasEmail: true,
+    isFrozen: false,
+    isExcluded: false,
+    optedOut: false,
+    recentlyNudged: false,
+  };
 
   test("pending when nothing blocks", () => {
     expect(decideRecipient(base)).toEqual({ status: "pending" });
@@ -69,12 +80,42 @@ describe("decideRecipient", () => {
     });
   });
 
+  test("opting out on the Account page skips hand-written sends too, right after exclusion", () => {
+    expect(decideRecipient({ ...base, optedOut: true })).toEqual({ status: "skipped", reason: "opted_out" });
+    expect(decideRecipient({ ...base, optedOut: true, isFrozen: true, recentlyNudged: true }).reason).toBe("opted_out");
+    expect(decideRecipient({ ...base, optedOut: true, isExcluded: true }).reason).toBe("excluded");
+    expect(OUTREACH_REASON_LABELS.opted_out).toBeTruthy();
+  });
+
   test("frozen, recent, and missing contact details", () => {
     expect(decideRecipient({ ...base, isFrozen: true }).reason).toBe("frozen");
     expect(decideRecipient({ ...base, recentlyNudged: true }).reason).toBe("recently_nudged");
     expect(decideRecipient({ ...base, hasSlackId: false }).reason).toBe("no_slack_id");
     expect(decideRecipient({ ...base, channel: "email", hasEmail: false }).reason).toBe("no_email");
     expect(decideRecipient({ ...base, channel: "email", hasSlackId: false })).toEqual({ status: "pending" });
+  });
+});
+
+describe("outreach footer", () => {
+  const ctx = { appBaseUrl: "https://carnival.test/", contactSlackId: "U0JOSIAS", channel: "slack" };
+
+  test("Slack footer links to the Account toggle and mentions the contact, never 'reply here'", () => {
+    const footer = buildOutreachFooter(ctx);
+    expect(footer).toBe(
+      "Don't want these messages? Turn them off in Account settings (https://carnival.test/account#messages) or DM <@U0JOSIAS> on Slack.",
+    );
+    expect(footer.toLowerCase()).not.toContain("reply");
+  });
+
+  test("falls back to a plain @Josias without a contact ID, and always for email", () => {
+    expect(buildOutreachFooter({ ...ctx, contactSlackId: null })).toContain("or DM @Josias on Slack.");
+    expect(buildOutreachFooter({ ...ctx, contactSlackId: "  " })).toContain("or DM @Josias on Slack.");
+    expect(buildOutreachFooter({ ...ctx, channel: "email" })).toContain("or DM @Josias on Slack.");
+    expect(buildOutreachFooter({ ...ctx, channel: "email" })).not.toContain("<@");
+  });
+
+  test("withOutreachFooter puts a blank line between the message and the footer", () => {
+    expect(withOutreachFooter("Hey Ada! 🎪 Ship it.  \n", ctx)).toBe(`Hey Ada! 🎪 Ship it.\n\n${buildOutreachFooter(ctx)}`);
   });
 });
 

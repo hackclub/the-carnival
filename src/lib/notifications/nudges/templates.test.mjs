@@ -52,7 +52,7 @@ describe("buildNudgeText", () => {
   test("footer offers Account settings or a DM to Josias, never 'reply here'", () => {
     const plain = buildNudgeText(planned(), ctx);
     expect(plain).toContain(
-      "Don't want these reminders? Turn them off in Account settings (https://carnival.test/account) or DM @Josias on Slack and he'll stop them.",
+      "Don't want these reminders? Turn them off in Account settings (https://carnival.test/account#messages) or DM @Josias on Slack and he'll stop them.",
     );
     expect(plain).not.toContain("Reply here");
     const mention = buildNudgeText(planned(), { ...ctx, contactSlackId: "U0JOSIAS" });

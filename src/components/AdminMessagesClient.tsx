@@ -24,6 +24,7 @@ import {
   RECENT_WINDOWS,
   RECENT_WINDOW_LABELS,
   batchCount,
+  buildOutreachFooter,
   mergeRecipients,
   parseSlackIdList,
   renderOutreachMessage,
@@ -44,7 +45,11 @@ export type MessagesPageData = {
   sends: OutreachSendSummary[];
   slackEnabled: boolean;
   emailEnabled: boolean;
+  /** For previewing the opt-out footer added to every hand-written message. */
+  footer: { appBaseUrl: string; contactSlackId: string | null };
 };
+
+type PageUser = MessagesPageData["users"][number];
 
 type ResolvedRecipient = DraftRecipient & { status: "pending" | "skipped"; reason: string | null };
 
@@ -124,7 +129,7 @@ export default function AdminMessagesClient({ initial }: { initial: MessagesPage
         sends={sends}
         exclusionsVersion={exclusionsVersion}
       />
-      <ExclusionsPanel initial={initial.exclusions} usersBySlack={usersBySlack} onChanged={onExclusionsChanged} />
+      <ExclusionsPanel initial={initial.exclusions} users={initial.users} usersBySlack={usersBySlack} onChanged={onExclusionsChanged} />
       <HistoryPanel sends={sends} onRefresh={refreshSends} />
     </div>
   );
@@ -446,8 +451,9 @@ function ComposePanel({
     <div className={card}>
       <h2 className="text-lg font-bold text-foreground">Write a message</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Pick recipients from any mix of the sources below. People on the exclusion list, frozen accounts and anyone
-        nudged inside the window you pick are left out. Messages go out in the background at about one per second.
+        Pick recipients from any mix of the sources below. People on the exclusion list, anyone who turned off
+        Carnival messages in their account, frozen accounts and anyone nudged inside the window you pick are left
+        out. Messages go out in the background at about one per second.
       </p>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -593,6 +599,9 @@ function ComposePanel({
               setConfirming(false);
             }}
           />
+          <p className="mt-1 text-xs text-muted-foreground">
+            An opt-out line pointing at Account settings is added to the end of every message automatically.
+          </p>
         </div>
         <div>
           <span className="mb-1 block text-sm font-semibold text-foreground">
@@ -600,6 +609,8 @@ function ComposePanel({
           </span>
           <pre className="min-h-[10rem] whitespace-pre-wrap rounded-[var(--radius-xl)] border border-border bg-background/60 p-3 font-sans text-sm text-foreground">
             {renderOutreachMessage(message, { name: (previewRecipient as DraftRecipient).name ?? null })}
+            {"\n\n"}
+            <span className="text-muted-foreground">{buildOutreachFooter({ ...initial.footer, channel })}</span>
           </pre>
         </div>
       </div>
@@ -973,29 +984,65 @@ function FilterControls({ filter, onChange }: { filter: AudienceFilter; onChange
 
 function ExclusionsPanel({
   initial,
+  users,
   usersBySlack,
   onChanged,
 }: {
   initial: MessagesPageData["exclusions"];
-  usersBySlack: Map<string, MessagesPageData["users"][number]>;
+  users: MessagesPageData["users"];
+  usersBySlack: Map<string, PageUser>;
   onChanged: () => void;
 }) {
   const [data, setData] = useState(initial);
   const [ids, setIds] = useState("");
+  const [search, setSearch] = useState("");
+  const [picked, setPicked] = useState<PageUser[]>([]);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
 
   const preview = useMemo(() => parseSlackIdList(ids), [ids]);
+  const excludedSlackIds = useMemo(() => new Set(data.excluded.map((x) => x.slackId)), [data.excluded]);
+
+  // Name, email, Slack ID or Carnival user ID; people already picked or on the list are left out.
+  const matches = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    const pickedIds = new Set(picked.map((u) => u.id));
+    return users
+      .filter(
+        (u) =>
+          !pickedIds.has(u.id) &&
+          !(u.slackId && excludedSlackIds.has(u.slackId)) &&
+          (u.name.toLowerCase().includes(q) ||
+            u.email.toLowerCase().includes(q) ||
+            (u.slackId ?? "").toLowerCase().includes(q) ||
+            (q.length >= 6 && u.id.toLowerCase().includes(q))),
+      )
+      .slice(0, 8);
+  }, [excludedSlackIds, picked, search, users]);
+
+  const pick = useCallback((u: PageUser) => {
+    setPicked((prev) => (prev.some((p) => p.id === u.id) ? prev : [...prev, u]));
+    setSearch("");
+  }, []);
+
+  const pendingCount = picked.length + preview.ids.length;
 
   const add = useCallback(async () => {
-    if (preview.ids.length === 0) {
-      toast.error(preview.invalid.length ? `Not Slack user IDs: ${preview.invalid.slice(0, 5).join(", ")}` : "Enter at least one Slack ID.");
+    if (preview.ids.length === 0 && picked.length === 0) {
+      toast.error(
+        preview.invalid.length ? `Not Slack user IDs: ${preview.invalid.slice(0, 5).join(", ")}` : "Pick a person or enter a Slack ID.",
+      );
       return;
     }
     setBusy(true);
     const { ok, data: res } = await postJson<
       MessagesPageData["exclusions"] & { added?: string[]; alreadyExcluded?: string[] }
-    >("/api/admin/messages/exclusions", { slackIds: preview.ids, note: note.trim() || undefined });
+    >("/api/admin/messages/exclusions", {
+      slackIds: preview.ids,
+      userIds: picked.map((u) => u.id),
+      note: note.trim() || undefined,
+    });
     setBusy(false);
     if (!ok) {
       toast.error(res.error ?? "Failed to update the exclusion list.");
@@ -1004,14 +1051,15 @@ function ExclusionsPanel({
     setData({ excluded: res.excluded, selfOptedOut: res.selfOptedOut });
     onChanged();
     setIds("");
+    setPicked([]);
     setNote("");
     toast.success(
       `Excluded ${res.added?.length ?? 0}${res.alreadyExcluded?.length ? ` · ${res.alreadyExcluded.length} already on the list` : ""}.`,
     );
-  }, [note, onChanged, preview]);
+  }, [note, onChanged, picked, preview]);
 
   const remove = useCallback(async (slackId: string) => {
-    if (!window.confirm(`Remove ${slackId} from the exclusion list? They can receive nudges again.`)) return;
+    if (!window.confirm(`Remove ${slackId} from the exclusion list? They can receive messages again.`)) return;
     const res = await fetch(`/api/admin/messages/exclusions?slackId=${encodeURIComponent(slackId)}`, { method: "DELETE" });
     const body = (await res.json().catch(() => ({}))) as MessagesPageData["exclusions"] & { error?: string };
     if (!res.ok) {
@@ -1020,40 +1068,90 @@ function ExclusionsPanel({
     }
     setData({ excluded: body.excluded, selfOptedOut: body.selfOptedOut });
     onChanged();
-    toast.success(`${slackId} can receive nudges again.`);
+    toast.success(`${slackId} can receive messages again.`);
   }, [onChanged]);
 
   return (
     <div className={card}>
       <h2 className="text-lg font-bold text-foreground">Excluded people</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Slack IDs here never receive any nudge: not the automated run, not &quot;run now&quot;, and not messages
-        written on this page. Add people who ask you to stop.
+        People here never hear from the Carnival bot: not the automated reminders, not &quot;run now&quot;, and not
+        messages written on this page. Add anyone who asks you to stop. Pick them by name or paste Slack IDs; the
+        list is keyed by Slack ID, so it also covers people without a Carnival account.
       </p>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="text-sm">
+          <label className="mb-1 block font-semibold text-foreground" htmlFor="exclude-search">
+            Find a person
+          </label>
+          <input
+            id="exclude-search"
+            className={inputClass}
+            placeholder="Search by name, email, Slack ID or user ID…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {matches.length > 0 ? (
+            <ul className="mt-2 divide-y divide-border rounded-[var(--radius-xl)] border border-border">
+              {matches.map((u) => (
+                <li key={u.id}>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-background/60 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => pick(u)}
+                    disabled={!u.slackId}
+                    title={u.slackId ? undefined : "No Slack ID on file, so the bot can't message them anyway"}
+                  >
+                    <span>
+                      <span className="font-semibold text-foreground">{u.name}</span>{" "}
+                      <span className="text-xs text-muted-foreground">{u.email}</span>
+                    </span>
+                    <span className="text-xs text-muted-foreground">{u.slackId ?? "no Slack ID"}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
         <label className="text-sm">
-          <span className="mb-1 block font-semibold text-foreground">Slack IDs</span>
+          <span className="mb-1 block font-semibold text-foreground">Or paste Slack IDs</span>
           <input className={inputClass} placeholder="U0123ABCD, <@U0456EFGH>" value={ids} onChange={(e) => setIds(e.target.value)} />
         </label>
+      </div>
+      {pendingCount ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-semibold text-foreground">To exclude:</span>
+          {picked.map((u) => (
+            <button
+              key={u.id}
+              type="button"
+              className="rounded-full border border-border bg-background/60 px-2.5 py-1 text-foreground hover:border-carnival-red hover:text-carnival-red"
+              onClick={() => setPicked((prev) => prev.filter((p) => p.id !== u.id))}
+              title="Remove from this list"
+            >
+              {u.name} · {u.slackId} ×
+            </button>
+          ))}
+          {preview.ids.map((id) => {
+            const u = usersBySlack.get(id);
+            return (
+              <span key={id} className="rounded-full border border-dashed border-border px-2.5 py-1 text-muted-foreground">
+                {u ? `${u.name} · ${id}` : `${id} · no Carnival account`}
+              </span>
+            );
+          })}
+        </div>
+      ) : null}
+      <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
         <label className="text-sm">
           <span className="mb-1 block font-semibold text-foreground">Note (optional)</span>
           <input className={inputClass} placeholder="Asked to stop on Oct 20" value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
         <button type="button" className={smallButton} onClick={add} disabled={busy}>
-          {busy ? "Adding…" : "Exclude"}
+          {busy ? "Adding…" : pendingCount ? `Exclude ${pendingCount}` : "Exclude"}
         </button>
       </div>
-      {preview.ids.length ? (
-        <p className="mt-2 text-xs text-muted-foreground">
-          {preview.ids
-            .map((id) => {
-              const u = usersBySlack.get(id);
-              return u ? `${id} (${u.name})` : `${id} (no Carnival account)`;
-            })
-            .join(" · ")}
-        </p>
-      ) : null}
 
       <div className="mt-4 overflow-x-auto rounded-[var(--radius-xl)] border border-border">
         <table className="w-full text-left text-sm">
@@ -1103,8 +1201,9 @@ function ExclusionsPanel({
             Opted out themselves ({data.selfOptedOut.length})
           </summary>
           <p className="mt-1 text-xs text-muted-foreground">
-            These people turned off automated reminders on their Account page. They still receive messages you write
-            here unless you also exclude them.
+            These people turned off Carnival messages on their Account page, so they are left out of the automated
+            reminders and of messages written here. Review, grant and shop updates still reach them. They can turn
+            messages back on themselves; the list above is yours alone.
           </p>
           <ul className="mt-2 text-sm text-muted-foreground">
             {data.selfOptedOut.map((u) => (
