@@ -196,17 +196,6 @@ export const BROWSER_EXTENSION_STORE_HOSTS: readonly string[] = BROWSER_EXTENSIO
   (platform) => EXTENSION_STORE_HOSTS_BY_PLATFORM[platform] ?? [],
 );
 
-/** Web hosts allowed for web-playable games (handbook) besides itch.io. */
-export const GAME_WEB_ALLOWED_HOSTS: readonly string[] = [
-  "itch.io",
-  "github.io",
-  "vercel.app",
-  "netlify.app",
-  "pages.dev",
-  "hackclub.dev",
-  "nest.hackclub.app",
-];
-
 // ----------------------------------------------------------------------------
 // Screenshots
 // ----------------------------------------------------------------------------
@@ -272,13 +261,6 @@ export const UNCLEAR_README_REJECTION_MESSAGE =
 // ----------------------------------------------------------------------------
 // Hours & deflation
 // ----------------------------------------------------------------------------
-
-/**
- * A human-written deflation note is required for ANY deflation (handbook:
- * "deflated from X to Y because ..."). The X→Y numbers are prefixed
- * automatically; the reviewer writes the "because".
- */
-export const DEFLATION_NOTE_REQUIRED_FOR_ANY_REDUCTION = true;
 
 // ----------------------------------------------------------------------------
 // External review tools

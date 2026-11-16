@@ -28,7 +28,7 @@ export default function LoginClient() {
       return;
     }
 
-    if (!data?.url) {
+    if (!data.url) {
       setErrorText("Sign-in failed (no redirect URL). Please try again.");
       setIsLoading(false);
       return;

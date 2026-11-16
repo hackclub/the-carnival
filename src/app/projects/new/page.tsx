@@ -3,7 +3,7 @@ import { getServerSession } from "@/lib/server-session";
 
 export default async function NewProjectPage() {
   const session = await getServerSession();
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect("/login?callbackUrl=/projects?new=1");
   }
 

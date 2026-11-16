@@ -88,7 +88,9 @@ export function normalizeProjectSubmissionChecklist(
   value: Partial<ProjectSubmissionChecklist> | null | undefined,
 ): ProjectSubmissionChecklist {
   const definedValues = Object.fromEntries(
-    Object.entries(value ?? {}).filter(([, itemValue]) => itemValue !== undefined),
+    Object.entries<boolean | undefined>(value ?? {}).filter(
+      ([, itemValue]) => itemValue !== undefined,
+    ),
   ) as Partial<ProjectSubmissionChecklist>;
   return {
     ...EMPTY_PROJECT_SUBMISSION_CHECKLIST,

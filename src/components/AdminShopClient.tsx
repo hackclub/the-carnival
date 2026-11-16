@@ -21,6 +21,7 @@ import {
   Modal,
   Textarea,
 } from "@/components/ui";
+import { extractApiError } from "@/lib/project-form-utils";
 
 export type AdminShopItemDTO = {
   id: string;
@@ -166,7 +167,7 @@ export default function AdminShopClient({
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to fulfill order.", {
+          toast.error(extractApiError(data, "Failed to fulfill order."), {
             id: toastId,
           });
           setBusyOrderId(null);
@@ -197,7 +198,7 @@ export default function AdminShopClient({
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to deny order.", {
+          toast.error(extractApiError(data, "Failed to deny order."), {
             id: toastId,
           });
           setBusyOrderId(null);
@@ -223,7 +224,7 @@ export default function AdminShopClient({
       );
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to approve.", {
+        toast.error(extractApiError(data, "Failed to approve."), {
           id: toastId,
         });
         setBusySuggestionId(null);
@@ -254,7 +255,7 @@ export default function AdminShopClient({
         );
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to reject.", {
+          toast.error(extractApiError(data, "Failed to reject."), {
             id: toastId,
           });
           setBusySuggestionId(null);
@@ -280,9 +281,7 @@ export default function AdminShopClient({
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to delete item.", {
-          id: toastId,
-        });
+        toast.error(extractApiError(data, "Failed to delete item."), { id: toastId });
         setDeletingItemId(null);
         return;
       }
@@ -547,7 +546,7 @@ export default function AdminShopClient({
                                     text={o.requesterEmail}
                                     className="inline text-xs"
                                   />
-                                  {")"}
+                                  )
                                 </>
                               ) : (
                                 ""

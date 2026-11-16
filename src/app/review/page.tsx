@@ -27,7 +27,7 @@ export default async function ReviewQueuePage({
   searchParams?: Promise<{ status?: string | string[] }>;
 }) {
   const session = await getServerSession({ disableCookieCache: true });
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect("/login?callbackUrl=/review");
   }
 

@@ -192,7 +192,7 @@ async function buildSubmitPayload(projectId: string, externalId: string) {
   }
 
   const demoUrl = [p.playableDemoUrl, p.videoUrl]
-    .map((u) => u?.trim())
+    .map((u) => u.trim())
     .find((u) => u && /^https?:\/\//i.test(u));
 
   return {
@@ -334,9 +334,7 @@ export async function applyRobertProject(
       outcomeStatus: robert.outcome?.status ?? null,
       outcomeReason: robert.outcome?.reason ?? null,
       outcomeAt: robert.outcome?.at ? new Date(robert.outcome.at) : null,
-      ...(robert.outcome &&
-      row.carnivalOutcome === robert.outcome.status &&
-      !row.carnivalOutcomeSentAt
+      ...(row.carnivalOutcome === robert.outcome?.status && !row.carnivalOutcomeSentAt
         ? { carnivalOutcomeSentAt: new Date() }
         : {}),
       lastSyncedAt: new Date(),
@@ -347,7 +345,7 @@ export async function applyRobertProject(
   const band = telescreenBandForScore(trustScore);
   if (robert.state === "rejected_fraud" || band === "fraud") {
     await applyFraudRejection(updated);
-  } else if (firstScore && trustScore !== null && band) {
+  } else if (firstScore && band) {
     await notifyStaffReviewThread({
       projectId: updated.projectId,
       event: {

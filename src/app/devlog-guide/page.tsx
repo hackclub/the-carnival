@@ -59,7 +59,7 @@ AI use:
 
 export default async function DevlogGuidePage() {
   const session = await getServerSession();
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect("/login?callbackUrl=/devlog-guide");
   }
 

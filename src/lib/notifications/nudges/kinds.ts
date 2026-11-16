@@ -77,12 +77,6 @@ export function toStoredNudgeKind(kind: NudgeKind): string {
   return `${STORED_KIND_PREFIX}${kind}`;
 }
 
-export function fromStoredNudgeKind(stored: string): NudgeKind | null {
-  if (!stored.startsWith(STORED_KIND_PREFIX)) return null;
-  const kind = stored.slice(STORED_KIND_PREFIX.length);
-  return isNudgeKind(kind) ? kind : null;
-}
-
 export type NudgePolicy = {
   /** Minimum days between two automated sends of the same kind to one user. */
   cooldownDays: number;

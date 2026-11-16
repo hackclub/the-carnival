@@ -16,7 +16,7 @@ export default async function AdminShopPage() {
   const role = (session?.user as { role?: unknown } | undefined)?.role;
   const canManageShopItems = role === "reviewer" || role === "admin";
   const isAdmin = role === "admin";
-  if (!session?.user?.id) redirect("/login?callbackUrl=/admin/shop");
+  if (!session?.user.id) redirect("/login?callbackUrl=/admin/shop");
   if (!canManageShopItems) redirect("/projects");
 
   const items = await db
@@ -97,18 +97,16 @@ export default async function AdminShopPage() {
           .where(inArray(tokenLedger.issuedToUserId, orderUserIds))
           .groupBy(tokenLedger.issuedToUserId)
       : [];
-  const balanceByUserId = new Map(
-    tokenBalances.map((row) => [row.userId, Number(row.balance ?? 0)]),
-  );
+  const balanceByUserId = new Map(tokenBalances.map((row) => [row.userId, Number(row.balance)]));
 
   const initialItems: AdminShopItemDTO[] = items.map((i) => ({
     id: i.id,
     name: i.name,
     description: i.description ?? null,
     imageUrl: i.imageUrl,
-    orderNoteRequired: i.orderNoteRequired ?? false,
-    approvedHoursNeeded: i.approvedHoursNeeded ?? 0,
-    tokenCost: i.tokenCost ?? 0,
+    orderNoteRequired: i.orderNoteRequired,
+    approvedHoursNeeded: i.approvedHoursNeeded,
+    tokenCost: i.tokenCost,
     createdAt: i.createdAt.toISOString(),
     updatedAt: i.updatedAt.toISOString(),
   }));
@@ -124,9 +122,9 @@ export default async function AdminShopPage() {
     itemImageUrl: o.itemImageUrl,
     itemDescription: o.itemDescription ?? o.currentItemDescription ?? null,
     orderNote: o.orderNote ?? null,
-    quantity: o.quantity ?? 1,
-    unitTokenCost: o.unitTokenCost ?? o.tokenCost ?? 0,
-    tokenCost: o.tokenCost ?? 0,
+    quantity: o.quantity,
+    unitTokenCost: o.unitTokenCost,
+    tokenCost: o.tokenCost,
     fulfillmentLink: o.fulfillmentLink ?? null,
     cancellationReason: o.cancellationReason ?? null,
     cancelledAt: o.cancelledAt ? o.cancelledAt.toISOString() : null,

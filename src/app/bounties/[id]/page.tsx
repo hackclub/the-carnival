@@ -29,7 +29,7 @@ function toHelpfulLinks(value: unknown): Array<{ label: string; url: string }> {
 
 export default async function BountyDetailPage(props: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
-  if (!session?.user?.id) redirect("/login?callbackUrl=/bounties");
+  if (!session?.user.id) redirect("/login?callbackUrl=/bounties");
 
   const role = (session.user as { role?: unknown } | undefined)?.role;
   const isAdmin = role === "admin";
@@ -227,9 +227,7 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
                         {p.description}
                       </div>
                       <div className="mt-3 text-xs text-muted-foreground">
-                        {p.approvedHours !== null && p.approvedHours !== undefined
-                          ? `${p.approvedHours}h approved • `
-                          : ""}
+                        {p.approvedHours != null ? `${p.approvedHours}h approved • ` : ""}
                         Granted {p.grantedAt.toLocaleString()}
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">

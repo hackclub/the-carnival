@@ -171,7 +171,7 @@ export async function loadNudgeCandidates(db: DbLike, now: Date): Promise<NudgeC
     `),
   ]);
 
-  const rows = (result: unknown) => result as unknown as Row[];
+  const rows = (result: unknown) => result as Row[];
   const candidates: NudgeCandidate[] = [];
 
   for (const row of rows(hoursUnsubmitted)) {

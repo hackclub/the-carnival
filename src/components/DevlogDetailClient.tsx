@@ -5,7 +5,8 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { Badge, Button, Card, CardContent, buttonVariants } from "@/components/ui";
 import { buildHackatimeDevlogReviewUrls } from "@/lib/constants";
-import { formatDurationHM } from "@/lib/devlog-shared";
+import { formatDurationHM, formatDateTime } from "@/lib/devlog-shared";
+import { extractApiError } from "@/lib/project-form-utils";
 
 export type DevlogDetail = {
   id: string;
@@ -22,18 +23,6 @@ export type DevlogDetail = {
   updatedAt: string;
   authorName: string;
 };
-
-function formatDateTime(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 export default function DevlogDetailClient({
   projectId,
@@ -79,7 +68,7 @@ export default function DevlogDetailClient({
         error?: unknown;
       } | null;
       if (!res.ok || !data?.devlog) {
-        const msg = typeof data?.error === "string" ? data.error : "Failed to refresh Hackatime.";
+        const msg = extractApiError(data, "Failed to refresh Hackatime.");
         toast.error(msg, { id: toastId });
         setRefreshing(false);
         return;
@@ -112,7 +101,7 @@ export default function DevlogDetailClient({
       );
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        const msg = typeof data?.error === "string" ? data.error : "Failed to delete devlog.";
+        const msg = extractApiError(data, "Failed to delete devlog.");
         toast.error(msg, { id: toastId });
         setDeleting(false);
         return;

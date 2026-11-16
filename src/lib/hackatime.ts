@@ -140,16 +140,6 @@ export function toHackatimeHoursBreakdown(totalSeconds: number): HackatimeHoursB
   };
 }
 
-export async function getHackatimeAccessTokenForUser(userId: string): Promise<string | null> {
-  const rows = await db
-    .select({ hackatimeAccessToken: user.hackatimeAccessToken })
-    .from(user)
-    .where(eq(user.id, userId))
-    .limit(1);
-  const token = rows[0]?.hackatimeAccessToken;
-  return typeof token === "string" && token.trim() ? token : null;
-}
-
 /**
  * Hackatime answered 401 for the stored token, so it was revoked on
  * Hackatime's side and can never work again. Drop it so the account page and
@@ -243,24 +233,6 @@ export async function verifyHackatimeAccessTokenForUser(
   return response.ok ? "ok" : "unknown";
 }
 
-/**
- * Public Hackatime identifier for a user. Preferred for the /users/{uid}/stats
- * endpoint which does not require OAuth. Falls back to slack_id when hackatime
- * has not yet been OAuth-connected but the user is known by Slack.
- */
-export async function getHackatimePublicUidForUser(userId: string): Promise<string | null> {
-  const rows = await db
-    .select({ hackatimeUserId: user.hackatimeUserId, slackId: user.slackId })
-    .from(user)
-    .where(eq(user.id, userId))
-    .limit(1);
-  const hackatimeUid =
-    typeof rows[0]?.hackatimeUserId === "string" ? rows[0].hackatimeUserId.trim() : "";
-  if (hackatimeUid) return hackatimeUid;
-  const slackId = typeof rows[0]?.slackId === "string" ? rows[0].slackId.trim() : "";
-  return slackId || null;
-}
-
 export async function getHackatimeTimelineUserIdForUser(userId: string): Promise<string | null> {
   const rows = await db
     .select({ hackatimeUserId: user.hackatimeUserId })
@@ -270,63 +242,6 @@ export async function getHackatimeTimelineUserIdForUser(userId: string): Promise
   const hackatimeUid =
     typeof rows[0]?.hackatimeUserId === "string" ? rows[0].hackatimeUserId.trim() : "";
   return hackatimeUid || null;
-}
-
-type HackatimeStatsTotalsResponse = {
-  data?: {
-    total_seconds?: number | string;
-    projects?: { name?: string; total_seconds?: number | string }[];
-  };
-};
-
-/**
- * Query Hackatime's public /users/{uid}/stats endpoint for the total seconds
- * coded on a given project within an arbitrary time window. Mirrors the call
- * flavortown makes from HackatimeService.sync_devlog_duration.
- *
- * Notes:
- * - `start_date` / `end_date` accept ISO-8601 timestamps (not only YYYY-MM-DD).
- * - `filter_by_project` narrows totals to a single project key.
- * - No bearer token required; keyed off the user's Slack/Hackatime UID.
- */
-export async function fetchHackatimeStatsProjectTotalSeconds(input: {
-  hackatimeUid: string;
-  projectName: string;
-  start: string;
-  end: string;
-}): Promise<number> {
-  const hackatimeUid = input.hackatimeUid.trim();
-  const projectName = input.projectName.trim();
-  if (!hackatimeUid || !projectName) return 0;
-
-  const url = new URL(
-    `https://hackatime.hackclub.com/api/v1/users/${encodeURIComponent(hackatimeUid)}/stats`,
-  );
-  url.searchParams.set("features", "projects");
-  url.searchParams.set("start_date", input.start);
-  url.searchParams.set("end_date", input.end);
-  url.searchParams.set("filter_by_project", projectName);
-  url.searchParams.set("total_seconds", "true");
-  url.searchParams.set("test_param", "true");
-
-  const response = await fetch(url.toString(), { cache: "no-store" });
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(
-      `Hackatime stats request failed (${response.status} ${response.statusText})${body ? `: ${body}` : ""}`,
-    );
-  }
-
-  const raw = (await response.json().catch(() => ({}))) as HackatimeStatsTotalsResponse;
-  const topLevel = toSafeSeconds(raw.data?.total_seconds);
-  if (topLevel > 0) return topLevel;
-
-  const projects = Array.isArray(raw.data?.projects) ? raw.data!.projects! : [];
-  const wanted = projectName.toLowerCase();
-  const matched = projects.find(
-    (p) => typeof p.name === "string" && p.name.trim().toLowerCase() === wanted,
-  );
-  return toSafeSeconds(matched?.total_seconds);
 }
 
 export async function fetchHackatimeIdentityFromToken(
@@ -750,10 +665,10 @@ export async function loadDevlogHackatimeBreakdown(input: {
     const timelines = await Promise.all(
       dates.map((date) => fetchHackatimeAdminTimeline({ date, hackatimeUserId })),
     );
-    for (let i = 0; i < dates.length; i++) {
-      const userData = timelines[i].users.find((u) => String(u.userId) === hackatimeUserId);
-      spansByDate.set(dates[i], userData?.spans ?? []);
-    }
+    dates.forEach((date, i) => {
+      const userData = timelines[i]?.users.find((u) => String(u.userId) === hackatimeUserId);
+      spansByDate.set(date, userData?.spans ?? []);
+    });
   } catch (err) {
     const message =
       err instanceof Error && err.message.trim()

@@ -13,7 +13,6 @@ import {
   type DevlogHackatimeProjectAdjustment,
   type ProjectStatus,
   type ReviewDecision,
-  type UserRole,
 } from "@/db/schema";
 import {
   assessmentDeflatesHours,
@@ -54,6 +53,7 @@ import { runAfterResponse } from "@/lib/notifications/after-response";
 import { setCarnivalOutcome } from "@/lib/telescreen/submissions";
 import { AI_SLOP_REJECTION_MESSAGE, UNCLEAR_README_REJECTION_MESSAGE } from "@/lib/review/config";
 import { cleanUntrustedString } from "@/lib/sanitize";
+import { canReview } from "@/lib/roles";
 
 type ReviewBody = {
   decision?: unknown;
@@ -109,7 +109,7 @@ function parseReviewedWindow(
   value: unknown,
 ): { startedAt: Date; endedAt: Date } | null | undefined {
   if (value === undefined || value === null) return null;
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  if (typeof value !== "object" || Array.isArray(value)) return undefined;
   const { startedAt, endedAt } = value as Record<string, unknown>;
   if (typeof startedAt !== "string" || typeof endedAt !== "string") return undefined;
   const start = new Date(startedAt);
@@ -228,16 +228,8 @@ function parseDevlogAssessments(value: unknown): ParsedAssessmentInput[] | null 
 
 const DISMISS_REASON_MAX_LENGTH = 2000;
 
-function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
-  return role === "reviewer" || role === "admin";
-}
-
 function isDecision(value: unknown): value is ReviewDecision {
   return value === "approved" || value === "rejected" || value === "comment";
-}
-
-function toCleanString(value: unknown) {
-  return cleanUntrustedString(value);
 }
 
 function nextStatusForDecision(decision: ReviewDecision): ProjectStatus | null {
@@ -326,7 +318,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     );
   }
 
-  const rejectionCategoryRaw = toCleanString(body.rejectionCategory);
+  const rejectionCategoryRaw = cleanUntrustedString(body.rejectionCategory);
   let rejectionCategory: string | null = null;
   if (rejectionCategoryRaw) {
     if (decision !== "rejected") {
@@ -343,16 +335,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   // One-click category rejections fall back to the program's canned,
   // creator-friendly message when the reviewer doesn't add their own words.
-  let comment = toCleanString(body.comment);
+  let comment = cleanUntrustedString(body.comment);
   if (!comment && rejectionCategory) {
-    comment = REJECTION_CATEGORY_MESSAGES[rejectionCategory];
+    comment = REJECTION_CATEGORY_MESSAGES[rejectionCategory] ?? "";
   }
   if (!comment) {
     return NextResponse.json({ error: "Comment is required" }, { status: 400 });
   }
 
   const specificTechnicalFeatures =
-    toCleanString(body.specificTechnicalFeatures).slice(0, 4000) || null;
+    cleanUntrustedString(body.specificTechnicalFeatures).slice(0, 4000) || null;
 
   const parsedAssessments = parseDevlogAssessments(body.devlogAssessments);
   if (body.devlogAssessments !== undefined && parsedAssessments === null) {
@@ -416,7 +408,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         { status: 403 },
       );
     }
-    const rawReason = toCleanString(body.dismissReason);
+    const rawReason = cleanUntrustedString(body.dismissReason);
     if (!rawReason) {
       return NextResponse.json(
         {
@@ -1101,8 +1093,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       );
 
       return {
-        project: updated[0]!,
-        review: inserted[0]!,
+        project: updated[0],
+        review: inserted[0],
         reviewJustification: normalizedReviewJustification,
       };
     })
@@ -1120,6 +1112,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     );
   }
 
+  const { project: updatedProject, review: insertedReview } = txResult;
+  if (!updatedProject || !insertedReview) {
+    throw new Error("Review transaction committed without returning the project and review rows.");
+  }
+
   // Best-effort: notify the project creator about the review outcome.
   // Only reviewer/admin users can reach this route (enforced above by canReview()).
   //
@@ -1130,11 +1127,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   // tokens granted" email is sent by the grant flow. Rejections and plain
   // comments still notify immediately.
   try {
-    if (decision !== "approved" && txResult.project.creatorId) {
+    if (decision !== "approved" && updatedProject.creatorId) {
       const creatorRows = await db
         .select({ email: user.email, slackId: user.slackId })
         .from(user)
-        .where(eq(user.id, txResult.project.creatorId))
+        .where(eq(user.id, updatedProject.creatorId))
         .limit(1);
 
       const creatorEmail = creatorRows[0]?.email;
@@ -1185,14 +1182,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             : comment;
           await notifyReviewDM({
             slackId: creatorSlackId,
-            projectName: txResult.project.name,
+            projectName: updatedProject.name,
             status: statusLabel,
             comment: slackComment,
             projectUrl: project_link,
             reviewerSlackId,
-            reviewerName: reviewerName,
+            reviewerName,
             reviewerId: userId,
-            creatorSlackId: creatorSlackId,
+            creatorSlackId,
           });
         }
       }
@@ -1236,26 +1233,26 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   return NextResponse.json({
     project: {
-      status: txResult.project.status,
-      approvedHours: txResult.project.approvedHours ?? null,
-      hackatimeStartedAt: txResult.project.hackatimeStartedAt
-        ? txResult.project.hackatimeStartedAt.toISOString()
+      status: updatedProject.status,
+      approvedHours: updatedProject.approvedHours ?? null,
+      hackatimeStartedAt: updatedProject.hackatimeStartedAt
+        ? updatedProject.hackatimeStartedAt.toISOString()
         : null,
-      hackatimeStoppedAt: txResult.project.hackatimeStoppedAt
-        ? txResult.project.hackatimeStoppedAt.toISOString()
+      hackatimeStoppedAt: updatedProject.hackatimeStoppedAt
+        ? updatedProject.hackatimeStoppedAt.toISOString()
         : null,
-      hackatimeTotalSeconds: txResult.project.hackatimeTotalSeconds ?? null,
+      hackatimeTotalSeconds: updatedProject.hackatimeTotalSeconds ?? null,
     },
     review: {
-      id: txResult.review.id ?? reviewId,
-      decision: txResult.review.decision ?? decision,
-      reviewComment: txResult.review.reviewComment ?? comment,
+      id: insertedReview.id,
+      decision: insertedReview.decision,
+      reviewComment: insertedReview.reviewComment,
       approvedHours:
-        txResult.review.approvedHours ??
+        insertedReview.approvedHours ??
         (decision === "approved" ? (approvedHours as number) : null),
-      hackatimeSnapshotSeconds: txResult.review.hackatimeSnapshotSeconds,
+      hackatimeSnapshotSeconds: insertedReview.hackatimeSnapshotSeconds,
       reviewJustification: txResult.reviewJustification ?? null,
-      createdAt: (txResult.review.createdAt ?? now).toISOString(),
+      createdAt: insertedReview.createdAt.toISOString(),
       reviewerName: (session?.user as { name?: string | null } | undefined)?.name ?? "Reviewer",
       reviewerEmail: (session?.user as { email?: string | null } | undefined)?.email ?? "",
     },

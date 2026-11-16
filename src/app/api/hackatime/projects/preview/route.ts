@@ -9,10 +9,6 @@ type PreviewBody = {
   consideredHackatimeRange?: unknown;
 };
 
-function toCleanString(value: unknown) {
-  return cleanUntrustedString(value);
-}
-
 export async function POST(req: Request) {
   const session = await getServerSession({ disableCookieCache: true });
   const userId = (session?.user as { id?: string } | undefined)?.id;
@@ -27,7 +23,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const hackatimeProjectName = toCleanString(body.hackatimeProjectName);
+  const hackatimeProjectName = cleanUntrustedString(body.hackatimeProjectName);
   if (!hackatimeProjectName) {
     return NextResponse.json({ error: "Hackatime project name is required." }, { status: 400 });
   }

@@ -15,6 +15,7 @@ import {
 import { Input, FormLabel } from "@/components/ui/form";
 import { DatePicker } from "@/components/ui/date-picker";
 import { deriveHackatimeConnectionStatus, hackatimeConnectUrl } from "@/lib/hackatime-connection";
+import { extractApiError } from "@/lib/project-form-utils";
 
 export type AccountProfileInitial = {
   birthday: string | null;
@@ -66,8 +67,7 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
       const res = await fetch("/api/hackatime/disconnect", { method: "POST" });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        const message =
-          typeof data?.error === "string" ? data.error : "Failed to disconnect Hackatime.";
+        const message = extractApiError(data, "Failed to disconnect Hackatime.");
         toast.error(message, { id: toastId });
         return;
       }
@@ -139,7 +139,7 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        const message = typeof data?.error === "string" ? data.error : "Failed to save profile.";
+        const message = extractApiError(data, "Failed to save profile.");
         toast.error(message, { id: toastId });
         setSaving(false);
         return;

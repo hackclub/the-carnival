@@ -1,4 +1,4 @@
-import { betterAuth, OAuth2UserInfo } from "better-auth";
+import { betterAuth, type OAuth2UserInfo } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { genericOAuth } from "better-auth/plugins";
 import { db } from "@/db";
@@ -51,7 +51,7 @@ function extractIdentityAddress(userData: Record<string, unknown>): {
             Record<string, unknown> | undefined) ?? null)
         : null) ?? userData;
 
-  if (!source || typeof source !== "object") return empty;
+  if (typeof source !== "object") return empty;
 
   return {
     addressLine1: toNullableString(
@@ -270,10 +270,10 @@ function createAuth() {
               };
             },
 
-            getUserInfo: async (tokens) => {
+            getUserInfo: (tokens) => {
               // User is identified/created in `getToken`; just return it here.
               const userInfo = (tokens.raw as { userInfo?: unknown } | undefined)?.userInfo;
-              return (userInfo ?? null) as OAuth2UserInfo | null;
+              return Promise.resolve((userInfo ?? null) as OAuth2UserInfo | null);
             },
           },
         ],

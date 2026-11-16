@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui";
 import { DatePicker } from "@/components/ui/date-picker";
+import { extractApiError } from "@/lib/project-form-utils";
 
 type Props = {
   projectId: string;
@@ -62,9 +63,7 @@ export default function ReviewHackatimeTools({
         error?: unknown;
       } | null;
       if (!res.ok || typeof data?.totalSeconds !== "number") {
-        setCustomError(
-          typeof data?.error === "string" ? data.error : "Failed to fetch the window.",
-        );
+        setCustomError(extractApiError(data, "Failed to fetch the window."));
         setCustomResult(null);
         setCustomLoading(false);
         return;

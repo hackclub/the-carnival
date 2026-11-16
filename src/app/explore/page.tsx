@@ -20,11 +20,14 @@ import {
 
 type ExploreStatusFilter = "all" | "shipped" | "granted";
 
-const STATUS_FILTERS: Array<{
+type StatusFilter = {
   value: ExploreStatusFilter;
   label: string;
   statuses: Array<"shipped" | "granted">;
-}> = [
+};
+
+// Non-empty tuple: the first entry is the fallback filter.
+const STATUS_FILTERS: [StatusFilter, ...StatusFilter[]] = [
   { value: "all", label: "All", statuses: ["shipped", "granted"] },
   { value: "shipped", label: "Shipped", statuses: ["shipped"] },
   { value: "granted", label: "Granted", statuses: ["granted"] },
@@ -44,7 +47,7 @@ export default async function ExplorePage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await getServerSession();
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect("/login?callbackUrl=/explore");
   }
 
@@ -55,7 +58,7 @@ export default async function ExplorePage({
     ? (statusParam as ExploreStatusFilter)
     : "all";
   const activeStatusConfig =
-    STATUS_FILTERS.find((f) => f.value === activeStatus) ?? STATUS_FILTERS[0]!;
+    STATUS_FILTERS.find((f) => f.value === activeStatus) ?? STATUS_FILTERS[0];
 
   const query = (toSingleValue(sp?.q) ?? "").trim().slice(0, 120);
   const activeCategory = normalizeCategory(toSingleValue(sp?.category));
@@ -199,9 +202,9 @@ export default async function ExplorePage({
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {projects.map((p) => {
             const cardImage =
-              p.previewImage?.trim() || p.screenshots.find((url) => url.trim().length > 0) || "";
+              p.previewImage.trim() || p.screenshots.find((url) => url.trim().length > 0) || "";
             const categoryLabel = formatCategoryLabel(p.category);
-            const tagLabels = (p.tags ?? [])
+            const tagLabels = p.tags
               .map((tag) => formatTagLabel(tag))
               .filter((v): v is string => !!v);
 

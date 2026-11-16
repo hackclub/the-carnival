@@ -113,7 +113,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
 
     const balance = await getTokenBalance(tx, order.userId);
-    const cost = hasOverride ? (deductTokensOverride ?? 0) : (order.tokenCost ?? 0);
+    const cost = hasOverride ? (deductTokensOverride ?? 0) : order.tokenCost;
     if (balance < cost) {
       return {
         kind: "error",
@@ -122,7 +122,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       };
     }
 
-    const defaultCost = order.tokenCost ?? 0;
+    const defaultCost = order.tokenCost;
     const reason = hasOverride
       ? `Deducted ${cost} tokens for purchasing ${order.itemName} from the shop (manual override; default cost ${defaultCost}). Override note: ${overrideNote}. Fulfilled with ${fulfillmentLink}.`
       : `Deducted ${cost} tokens for purchasing ${order.itemName} from the shop. ${order.itemName} cost ${cost} tokens. Fulfilled with ${fulfillmentLink}.`;
@@ -170,7 +170,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         fulfillmentLink,
         fulfilledAt: now.toISOString(),
         tokensDeducted: cost,
-        tokenCostSnapshot: order.tokenCost ?? 0,
+        tokenCostSnapshot: order.tokenCost,
       },
     };
   });

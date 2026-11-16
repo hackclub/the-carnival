@@ -18,11 +18,12 @@ import {
   recomputeProjectHoursSpentSeconds,
   upsertProjectHackatimeProject,
 } from "@/lib/devlogs";
-import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
+import { frozenAccountResponse } from "@/lib/frozen-account-response";
 import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
 import { validatePlatformImageUrls } from "@/lib/review/uploads";
 import { getServerSession } from "@/lib/server-session";
 import { cleanUntrustedString } from "@/lib/sanitize";
+import { canReadProject } from "@/lib/roles";
 
 type UpdateDevlogBody = {
   title?: unknown;
@@ -34,15 +35,6 @@ type UpdateDevlogBody = {
   usedAi?: unknown;
   aiUsageDescription?: unknown;
 };
-
-function toCleanString(value: unknown) {
-  return cleanUntrustedString(value);
-}
-
-function canViewProjectDevlogs(role: unknown, isCreator: boolean) {
-  if (isCreator) return true;
-  return role === "reviewer" || role === "admin";
-}
 
 async function loadDevlog(projectId: string, devlogId: string) {
   const rows = await db
@@ -95,7 +87,7 @@ export async function GET(
 
   const role = (session?.user as { role?: unknown } | undefined)?.role;
   const isCreator = row.projectCreatorId === userId;
-  if (!canViewProjectDevlogs(role, isCreator)) {
+  if (!canReadProject(role, isCreator)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -109,10 +101,10 @@ export async function GET(
       startedAt: row.startedAt.toISOString(),
       endedAt: row.endedAt.toISOString(),
       durationSeconds: row.durationSeconds,
-      attachments: row.attachments ?? [],
+      attachments: row.attachments,
       usedAi: row.usedAi,
       aiUsageDescription: row.aiUsageDescription ?? null,
-      hackatimeProjectNameSnapshot: row.hackatimeProjectNameSnapshot ?? "",
+      hackatimeProjectNameSnapshot: row.hackatimeProjectNameSnapshot,
       authorName: row.authorName || "Unknown",
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -130,16 +122,8 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const freezeState = await getFrozenAccountState(userId);
-  if (freezeState.isFrozen) {
-    return NextResponse.json(
-      {
-        error: getFrozenAccountMessage(freezeState.frozenReason),
-        code: "account_frozen",
-      },
-      { status: 403 },
-    );
-  }
+  const frozen = await frozenAccountResponse(userId);
+  if (frozen) return frozen;
 
   const { id: projectId, devlogId } = await ctx.params;
   const row = await loadDevlog(projectId, devlogId);
@@ -183,7 +167,7 @@ export async function PATCH(
   let hoursChanged = false;
 
   if (body.title !== undefined) {
-    const title = toCleanString(body.title);
+    const title = cleanUntrustedString(body.title);
     if (!title) return NextResponse.json({ error: "Title is required" }, { status: 400 });
     if (title.length > DEVLOG_MAX_TITLE_LENGTH) {
       return NextResponse.json(
@@ -195,7 +179,7 @@ export async function PATCH(
   }
 
   if (body.content !== undefined) {
-    const content = toCleanString(body.content);
+    const content = cleanUntrustedString(body.content);
     if (!content) return NextResponse.json({ error: "Content is required" }, { status: 400 });
     if (content.length > DEVLOG_MAX_CONTENT_LENGTH) {
       return NextResponse.json(
@@ -308,7 +292,7 @@ export async function PATCH(
       typeof body.hackatimeProjectName === "string" ? body.hackatimeProjectName.trim() : "";
     const hackatimeProjectName =
       requestedHackatimeProjectName ||
-      (row.hackatimeProjectNameSnapshot ?? "").trim() ||
+      row.hackatimeProjectNameSnapshot.trim() ||
       (row.projectHackatimeProjectName ?? "").trim();
     if (!hackatimeProjectName) {
       return NextResponse.json(
@@ -380,10 +364,10 @@ export async function PATCH(
       startedAt: updated.startedAt.toISOString(),
       endedAt: updated.endedAt.toISOString(),
       durationSeconds: updated.durationSeconds,
-      attachments: updated.attachments ?? [],
+      attachments: updated.attachments,
       usedAi: updated.usedAi,
       aiUsageDescription: updated.aiUsageDescription ?? null,
-      hackatimeProjectNameSnapshot: updated.hackatimeProjectNameSnapshot ?? "",
+      hackatimeProjectNameSnapshot: updated.hackatimeProjectNameSnapshot,
       authorName: updated.authorName || "Unknown",
       createdAt: updated.createdAt.toISOString(),
       updatedAt: updated.updatedAt.toISOString(),

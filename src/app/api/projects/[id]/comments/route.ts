@@ -12,10 +12,6 @@ type CommentBody = {
   comment?: unknown;
 };
 
-function toCleanString(value: unknown) {
-  return cleanUntrustedString(value);
-}
-
 /**
  * POST /api/projects/[id]/comments
  * Allows project owners to comment on their own project when it's in review.
@@ -38,7 +34,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const comment = toCleanString(body.comment);
+  const comment = cleanUntrustedString(body.comment);
   if (!comment) {
     return NextResponse.json({ error: "Comment is required" }, { status: 400 });
   }

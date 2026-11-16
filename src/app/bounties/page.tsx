@@ -27,7 +27,7 @@ function toHelpfulLinks(value: unknown): BountyListItem["helpfulLinks"] {
 
 export default async function BountiesPage() {
   const session = await getServerSession();
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect("/login?callbackUrl=/bounties");
   }
 
@@ -85,8 +85,8 @@ export default async function BountiesPage() {
       status: p.status,
       prizeUsd: p.prizeUsd,
       previewImageUrl: p.previewImageUrl ?? null,
-      requirements: p.requirements ?? "",
-      examples: p.examples ?? "",
+      requirements: p.requirements,
+      examples: p.examples,
       helpfulLinks: toHelpfulLinks(p.helpfulLinks),
       claimedCount: set.size,
       claimedByMe: set.has(session.user.id),

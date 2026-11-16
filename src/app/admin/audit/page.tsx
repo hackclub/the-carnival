@@ -11,7 +11,7 @@ export default async function AdminAuditPage() {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
 
-  if (!session?.user?.id) redirect("/login?callbackUrl=/admin/audit");
+  if (!session?.user.id) redirect("/login?callbackUrl=/admin/audit");
   if (role !== "admin") redirect("/projects");
 
   return (

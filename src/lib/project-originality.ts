@@ -1,7 +1,5 @@
 import { sanitizeText, TEXT_LIMITS } from "@/lib/sanitize";
 
-export const MIN_CREATOR_ORIGINALITY_RATIONALE_LENGTH = 30;
-
 export type CreatorOriginalityDeclaration = {
   creatorDeclaredOriginality: boolean;
   creatorDuplicateExplanation: string | null;

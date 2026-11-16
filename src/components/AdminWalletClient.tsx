@@ -15,6 +15,7 @@ import {
   LEDGER_REFERENCE_TYPE_LABELS,
   adminReferenceTypesForKind,
   type AdminLedgerReferenceType,
+  LEDGER_CONFIRMATION_PHRASE,
 } from "@/lib/ledger-reference-types";
 
 export type WalletUserOption = {
@@ -88,8 +89,6 @@ type AuditFilterState = {
   to: string;
   limit: string;
 };
-
-const LEDGER_CONFIRMATION_PHRASE = "CONFIRM_LEDGER_ADJUSTMENT";
 
 const EMPTY_AUDIT_FILTERS: AuditFilterState = {
   userId: "",
@@ -386,7 +385,7 @@ export default function AdminWalletClient({ users }: { users: WalletUserOption[]
                       value={adjustmentType}
                       onValueChange={(v) => {
                         if (!v) return;
-                        const nextKind = v as "issue" | "deduct";
+                        const nextKind = v;
                         setAdjustmentType(nextKind);
                         // Keep the reference type valid for the new direction.
                         if (
@@ -423,7 +422,7 @@ export default function AdminWalletClient({ users }: { users: WalletUserOption[]
                     <Select
                       value={adjustmentReferenceType}
                       onValueChange={(v) => {
-                        if (v) setAdjustmentReferenceType(v as AdminLedgerReferenceType);
+                        if (v) setAdjustmentReferenceType(v);
                       }}
                     >
                       <SelectTrigger className="w-full h-9 rounded-lg border-border bg-card px-3 text-sm text-foreground">

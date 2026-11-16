@@ -6,19 +6,16 @@ import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
 import { describeCreatorHackatimeAuthError, isHackatimeAuthError } from "@/lib/hackatime-errors";
 import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
 import { getServerSession } from "@/lib/server-session";
+import { isAdmin } from "@/lib/roles";
 
 type PreviewBody = {
   consideredHackatimeRange?: unknown;
 };
 
-function isAdmin(role: unknown): role is "admin" {
-  return role === "admin";
-}
-
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!isAdmin(role)) {

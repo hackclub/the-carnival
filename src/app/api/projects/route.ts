@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { db } from "@/db";
 import { project, projectEditor, type ProjectEditor } from "@/db/schema";
-import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
+import { frozenAccountResponse } from "@/lib/frozen-account-response";
 import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
 import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
 import { validateCreatorOriginalityDeclaration } from "@/lib/project-originality";
@@ -37,10 +37,6 @@ type CreateProjectBody = {
   status?: unknown;
 };
 
-function toCleanString(value: unknown) {
-  return cleanUntrustedString(value);
-}
-
 function toOptionalTrimmedString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -60,16 +56,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const freezeState = await getFrozenAccountState(userId);
-  if (freezeState.isFrozen) {
-    return NextResponse.json(
-      {
-        error: getFrozenAccountMessage(freezeState.frozenReason),
-        code: "account_frozen",
-      },
-      { status: 403 },
-    );
-  }
+  const frozen = await frozenAccountResponse(userId);
+  if (frozen) return frozen;
 
   let body: CreateProjectBody;
   try {
@@ -85,7 +73,7 @@ export async function POST(req: Request) {
   });
   const editorRaw = typeof body.editor === "string" ? body.editor.trim() : body.editor;
   const editorOther = sanitizeText(body.editorOther, { maxLength: TEXT_LIMITS.shortText });
-  const hackatimeProjectName = toCleanString(body.hackatimeProjectName);
+  const hackatimeProjectName = cleanUntrustedString(body.hackatimeProjectName);
   const videoUrl = sanitizeHttpUrl(body.videoUrl);
   const playableDemoUrl = sanitizeHttpUrl(body.playableDemoUrl);
   const codeUrl = sanitizeHttpUrl(body.codeUrl);
@@ -95,7 +83,7 @@ export async function POST(req: Request) {
     body.consideredHackatimeRange === undefined
       ? null
       : parseConsideredHackatimeRange(body.consideredHackatimeRange);
-  const consideredHackatimeRange = parsedRange && parsedRange.ok ? parsedRange.value : null;
+  const consideredHackatimeRange = parsedRange?.ok ? parsedRange.value : null;
 
   const screenshots = Array.isArray(body.screenshots)
     ? body.screenshots

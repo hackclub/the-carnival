@@ -55,7 +55,7 @@ export async function generateMetadata(props: {
   if (!p) return { title: "Project not found" };
   return {
     title: `${p.name} · Carnival`,
-    description: p.description?.slice(0, 200) ?? undefined,
+    description: p.description.slice(0, 200),
   };
 }
 
@@ -120,7 +120,7 @@ export default async function PublicProjectPage(props: { params: Promise<{ id: s
     .where(and(eq(devlog.projectId, id), lte(devlog.createdAt, submittedAt)))
     .orderBy(asc(devlog.startedAt));
 
-  const totalSeconds = devlogRows.reduce((acc, r) => acc + Math.max(0, r.durationSeconds ?? 0), 0);
+  const totalSeconds = devlogRows.reduce((acc, r) => acc + Math.max(0, r.durationSeconds), 0);
   const totalFormatted = formatDurationHM(totalSeconds);
 
   return (
@@ -169,7 +169,7 @@ export default async function PublicProjectPage(props: { params: Promise<{ id: s
                   ) : null}
                 </div>
 
-                {p.tags && p.tags.length > 0 ? (
+                {p.tags.length > 0 ? (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {p.tags.map((t) => (
                       <Badge key={t}>{t}</Badge>
@@ -230,7 +230,7 @@ export default async function PublicProjectPage(props: { params: Promise<{ id: s
                             </span>
                             <span>·</span>
                             <span className="font-semibold text-foreground">{duration.label}</span>
-                            {row.category && DEVLOG_CATEGORY_LABELS[row.category] ? (
+                            {DEVLOG_CATEGORY_LABELS[row.category] ? (
                               <>
                                 <span>·</span>
                                 <span
@@ -265,7 +265,7 @@ export default async function PublicProjectPage(props: { params: Promise<{ id: s
                         </div>
                       ) : null}
 
-                      {row.attachments && row.attachments.length > 0 ? (
+                      {row.attachments.length > 0 ? (
                         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                           {row.attachments.map((url, idx) => (
                             <a

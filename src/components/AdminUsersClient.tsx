@@ -17,6 +17,7 @@ import {
   LEDGER_REFERENCE_TYPE_LABELS,
   adminReferenceTypesForKind,
   type AdminLedgerReferenceType,
+  LEDGER_CONFIRMATION_PHRASE,
 } from "@/lib/ledger-reference-types";
 
 export type UserListItem = {
@@ -69,8 +70,6 @@ const roleOptions: { value: UserListItem["role"]; label: string }[] = [
   { value: "reviewer", label: "Reviewer" },
   { value: "admin", label: "Admin" },
 ];
-
-const LEDGER_CONFIRMATION_PHRASE = "CONFIRM_LEDGER_ADJUSTMENT";
 
 function toPercent(part: number, total: number): string {
   if (total <= 0) return "0%";
@@ -513,7 +512,7 @@ export default function AdminUsersClient({
                   <Select
                     value={u.role}
                     onValueChange={(v) => {
-                      if (v) updateRole(u.id, v as UserListItem["role"]);
+                      if (v) void updateRole(u.id, v);
                     }}
                     disabled={isCurrentUser || isUpdating}
                   >
@@ -616,7 +615,7 @@ export default function AdminUsersClient({
                       value={adjustmentType}
                       onValueChange={(v) => {
                         if (!v) return;
-                        const nextKind = v as "issue" | "deduct";
+                        const nextKind = v;
                         setAdjustmentType(nextKind);
                         // Keep the reference type valid for the new direction.
                         if (
@@ -653,7 +652,7 @@ export default function AdminUsersClient({
                     <Select
                       value={adjustmentReferenceType}
                       onValueChange={(v) => {
-                        if (v) setAdjustmentReferenceType(v as AdminLedgerReferenceType);
+                        if (v) setAdjustmentReferenceType(v);
                       }}
                     >
                       <SelectTrigger className="w-full h-9 rounded-lg border-border bg-card px-3 text-sm text-foreground">

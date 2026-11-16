@@ -27,6 +27,7 @@ import { sendReviewEmail } from "@/lib/loops";
 import { notifyReviewDM, notifyStaffReviewThread } from "@/lib/slack";
 import { runAfterResponse } from "@/lib/notifications/after-response";
 import { getTelescreenGrantGate, setCarnivalOutcome } from "@/lib/telescreen/submissions";
+import { isAdmin } from "@/lib/roles";
 
 type AdminProjectPatchBody = {
   status?: unknown;
@@ -44,10 +45,6 @@ type AdminProjectPatchBody = {
    */
   telescreenDoubtfulAcknowledged?: unknown;
 };
-
-function isAdmin(role: unknown): role is "admin" {
-  return role === "admin";
-}
 
 function isAdminEditableStatus(value: unknown): value is ProjectStatus {
   return (
@@ -452,7 +449,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
             { status: 409 },
           );
         }
-        if (current.approvedHours === null || current.approvedHours === undefined) {
+        if (current.approvedHours == null) {
           return NextResponse.json(
             { error: "Project has no approved hours; cannot create Airtable record." },
             { status: 409 },
@@ -609,7 +606,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         if (!current.creatorId) {
           return { error: "Project has no creator; cannot issue tokens.", status: 409 as const };
         }
-        if (current.approvedHours === null || current.approvedHours === undefined) {
+        if (current.approvedHours == null) {
           return {
             error: "Project has no approved hours; cannot issue tokens.",
             status: 409 as const,
@@ -865,7 +862,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       { status: 409 },
     );
   }
-  if (current.approvedHours === null || current.approvedHours === undefined) {
+  if (current.approvedHours == null) {
     return NextResponse.json(
       { error: "Project has no approved hours; cannot create Airtable record." },
       { status: 409 },
@@ -933,7 +930,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
-  const actorId = session?.user?.id;
+  const actorId = session?.user.id;
   const role = (session?.user as { role?: unknown } | undefined)?.role;
   if (!actorId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isAdmin(role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

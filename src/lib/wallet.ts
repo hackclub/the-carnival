@@ -1,6 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import type { PostgresJsTransaction } from "drizzle-orm/postgres-js";
+import type { PostgresJsDatabase, PostgresJsTransaction } from "drizzle-orm/postgres-js";
 import type { TablesRelationalConfig } from "drizzle-orm/relations";
 import type * as schema from "@/db/schema";
 import { tokenLedger } from "@/db/schema";
@@ -52,7 +51,7 @@ export async function getLedgerForUser(
   return rows.map((r) => ({
     id: r.id,
     kind: r.kind,
-    tokens: r.tokens ?? 0,
+    tokens: r.tokens,
     reason: r.reason,
     byUserId: r.byUserId ?? null,
     createdAt: r.createdAt,

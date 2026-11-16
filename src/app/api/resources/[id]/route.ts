@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { resource, ResourceType } from "@/db/schema";
+import { resource, type ResourceType } from "@/db/schema";
 import { getAuthUser, parseJsonBody, updatedTimestamp } from "@/lib/api-utils";
 import { sanitizeHttpUrl, sanitizeText, TEXT_LIMITS } from "@/lib/sanitize";
 

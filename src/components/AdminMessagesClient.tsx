@@ -308,7 +308,7 @@ function ComposePanel({
 
   // Re-check recipients (names, exclusions, frozen, recently nudged) whenever the list changes.
   useEffect(() => {
-    const timer = window.setTimeout(async () => {
+    const run = async () => {
       if (drafts.length === 0) {
         setResolved(null);
         return;
@@ -326,7 +326,8 @@ function ComposePanel({
       setResolving(false);
       if (ok && data.recipients) setResolved(data.recipients);
       else if (!ok) toast.error(data.error ?? "Couldn't check recipients.");
-    }, 400);
+    };
+    const timer = window.setTimeout(() => void run(), 400);
     return () => window.clearTimeout(timer);
   }, [channel, drafts, recentWindow, exclusionsVersion]);
 
@@ -446,7 +447,7 @@ function ComposePanel({
     ? resolved.filter((r) => r.status === "pending").length
     : drafts.length;
   const previewRecipient = (resolved ?? []).find((r) => r.status === "pending") ??
-    drafts[0] ?? { name: "Ada Lovelace" };
+    drafts[0] ?? { name: "Ada Lovelace", slackId: null };
 
   const batchSize = Number(batchSizeText);
   const batchSizeValid =
@@ -694,13 +695,11 @@ function ComposePanel({
           <span className="mb-1 block text-sm font-semibold text-foreground">
             Preview{" "}
             <span className="font-normal text-muted-foreground">
-              for {recipientLabel(previewRecipient as DraftRecipient)}
+              for {recipientLabel(previewRecipient)}
             </span>
           </span>
           <pre className="min-h-[10rem] whitespace-pre-wrap rounded-[var(--radius-xl)] border border-border bg-background/60 p-3 font-sans text-sm text-foreground">
-            {renderOutreachMessage(message.trim(), {
-              name: (previewRecipient as DraftRecipient).name ?? null,
-            })}
+            {renderOutreachMessage(message.trim(), { name: previewRecipient.name ?? null })}
             {"\n\n"}
             <span className="text-muted-foreground">
               {buildOutreachFooter({ ...initial.footer, channel })}
@@ -905,7 +904,7 @@ function AudienceBuilder({ onAdd }: { onAdd: (userIds: string[], label: string) 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(async () => {
+    const run = async () => {
       setLoading(true);
       const { ok, data } = await postJson<{ userIds?: string[] }>("/api/admin/messages/audience", {
         filters,
@@ -918,7 +917,8 @@ function AudienceBuilder({ onAdd }: { onAdd: (userIds: string[], label: string) 
         setMatches(null);
         setError(data.error ?? "Couldn't run the filters.");
       }
-    }, 350);
+    };
+    const timer = window.setTimeout(() => void run(), 350);
     return () => window.clearTimeout(timer);
   }, [filters]);
 
@@ -1050,7 +1050,7 @@ function FilterControls({
 }) {
   if ("op" in filter && "value" in filter) {
     const def = AUDIENCE_FILTERS[filter.key];
-    const hours = def.kind === "number" && def.unit === "hours";
+    const hours = def.unit === "hours";
     return (
       <>
         <select

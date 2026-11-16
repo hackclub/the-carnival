@@ -33,10 +33,6 @@ function toStrictPositiveInt(value: unknown): number | null {
   return null;
 }
 
-function toCleanString(value: unknown): string {
-  return cleanUntrustedString(value);
-}
-
 export function parseLedgerAdjustmentPayload(
   payload: unknown,
 ): { ok: true; value: ParsedLedgerAdjustment } | { ok: false; error: string } {
@@ -47,7 +43,7 @@ export function parseLedgerAdjustmentPayload(
     reason?: unknown;
     referenceType?: unknown;
     confirmation?: unknown;
-  };
+  } | null;
 
   const kind = body?.type ?? body?.kind;
   if (kind !== "issue" && kind !== "deduct") {
@@ -65,7 +61,7 @@ export function parseLedgerAdjustmentPayload(
   }
 
   const referenceTypeRaw =
-    body?.referenceType === undefined || body?.referenceType === null || body?.referenceType === ""
+    body?.referenceType === undefined || body.referenceType === null || body.referenceType === ""
       ? DEFAULT_ADMIN_LEDGER_REFERENCE_TYPE
       : body.referenceType;
   if (!isAdminLedgerReferenceType(referenceTypeRaw)) {
@@ -80,7 +76,7 @@ export function parseLedgerAdjustmentPayload(
     };
   }
 
-  const confirmation = toCleanString(body?.confirmation);
+  const confirmation = cleanUntrustedString(body?.confirmation);
   if (confirmation !== LEDGER_ADJUSTMENT_CONFIRMATION) {
     return {
       ok: false,

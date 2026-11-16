@@ -52,7 +52,7 @@ export default function AdminAutomatedNudgesCard({
   error: string | null;
 }) {
   const statsByKind = new Map(stats.map((s) => [s.kind, s]));
-  const skipped = Object.entries(preview?.skippedByReason ?? {}).filter(([, n]) => (n ?? 0) > 0);
+  const skipped = Object.entries(preview?.skippedByReason ?? {}).filter(([, n]) => n > 0);
 
   return (
     <div className="platform-surface-card p-5">

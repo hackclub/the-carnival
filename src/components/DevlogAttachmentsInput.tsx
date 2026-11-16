@@ -3,17 +3,16 @@
 import { useCallback, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui";
+import { DEVLOG_MAX_ATTACHMENTS } from "@/lib/devlog-shared";
 
 type PresignResponse = { uploadUrl?: unknown; publicUrl?: unknown; error?: unknown };
-
-const DEFAULT_MAX_ATTACHMENTS = 6;
 
 export function DevlogAttachmentsInput({
   projectId,
   value,
   onChange,
   disabled,
-  maxAttachments = DEFAULT_MAX_ATTACHMENTS,
+  maxAttachments = DEVLOG_MAX_ATTACHMENTS,
 }: {
   projectId: string;
   value: string[];
@@ -130,7 +129,7 @@ export function DevlogAttachmentsInput({
       e.stopPropagation();
       setDragOver(false);
       if (disabled || uploading) return;
-      const files = Array.from(e.dataTransfer.files ?? []);
+      const files = Array.from(e.dataTransfer.files);
       if (files.length) await uploadFiles(files);
     },
     [disabled, uploadFiles, uploading],

@@ -3,7 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { shopItemSuggestion } from "@/db/schema";
 import { generateId, getAuthUser, parseJsonBody, toPositiveInt } from "@/lib/api-utils";
-import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
+import { frozenAccountResponse } from "@/lib/frozen-account-response";
 import { validatePlatformImageUrl } from "@/lib/review/uploads";
 import { sanitizeHttpUrl, sanitizeText, TEXT_LIMITS } from "@/lib/sanitize";
 
@@ -64,13 +64,8 @@ export async function POST(req: Request) {
   const authUser = await getAuthUser();
   if (!authUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const freezeState = await getFrozenAccountState(authUser.id);
-  if (freezeState.isFrozen) {
-    return NextResponse.json(
-      { error: getFrozenAccountMessage(freezeState.frozenReason), code: "account_frozen" },
-      { status: 403 },
-    );
-  }
+  const frozen = await frozenAccountResponse(authUser.id);
+  if (frozen) return frozen;
 
   const body = await parseJsonBody<CreateSuggestionBody>(req);
   if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
@@ -134,5 +129,8 @@ export async function POST(req: Request) {
     })
     .returning();
 
-  return NextResponse.json({ suggestion: serializeSuggestion(rows[0]) }, { status: 201 });
+  const [created] = rows;
+  if (!created) throw new Error("Shop item suggestion insert returned no row.");
+
+  return NextResponse.json({ suggestion: serializeSuggestion(created) }, { status: 201 });
 }

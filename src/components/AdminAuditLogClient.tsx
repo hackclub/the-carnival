@@ -239,7 +239,7 @@ export default function AdminAuditLogClient() {
                 </div>
               </div>
               <pre className="mt-2 overflow-auto rounded-[var(--radius-xl)] bg-background p-3 text-xs text-foreground border border-border">
-                {JSON.stringify(log.details ?? {}, null, 2)}
+                {JSON.stringify(log.details, null, 2)}
               </pre>
             </div>
           ))}

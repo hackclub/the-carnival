@@ -14,7 +14,7 @@ export default async function EditDevlogPage(props: {
   params: Promise<{ id: string; devlogId: string }>;
 }) {
   const session = await getServerSession({ disableCookieCache: true });
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect(`/login?callbackUrl=/projects`);
   }
 
@@ -51,8 +51,7 @@ export default async function EditDevlogPage(props: {
   }
 
   const hackatimeProjectName =
-    (row.hackatimeProjectNameSnapshot ?? "").trim() ||
-    (row.projectHackatimeProjectName ?? "").trim();
+    row.hackatimeProjectNameSnapshot.trim() || (row.projectHackatimeProjectName ?? "").trim();
 
   if (row.projectStatus !== "work-in-progress") {
     return (
@@ -123,15 +122,13 @@ export default async function EditDevlogPage(props: {
         devlogId={devlogId}
         projectId={id}
         projectName={row.projectName ?? "Project"}
-        hackatimeProjectName={
-          (row.hackatimeProjectNameSnapshot ?? "").trim() || hackatimeProjectName
-        }
+        hackatimeProjectName={row.hackatimeProjectNameSnapshot.trim() || hackatimeProjectName}
         linkedHackatimeProjects={linkedHackatimeProjects}
         ceilingIso={ceiling.toISOString()}
         initial={{
           title: row.title,
           content: row.content,
-          attachments: row.attachments ?? [],
+          attachments: row.attachments,
           usedAi: row.usedAi,
           aiUsageDescription: row.aiUsageDescription ?? null,
           startedAtIso: row.startedAt.toISOString(),

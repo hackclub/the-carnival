@@ -7,7 +7,7 @@ export default async function NewShopItemPage() {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
   const canManageShopItems = role === "reviewer" || role === "admin";
-  if (!session?.user?.id) redirect("/login?callbackUrl=/admin/shop/items/new");
+  if (!session?.user.id) redirect("/login?callbackUrl=/admin/shop/items/new");
   if (!canManageShopItems) redirect("/projects");
 
   return (

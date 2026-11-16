@@ -26,7 +26,7 @@ function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin
 
 export default async function ReviewProjectPage(props: { params: Promise<{ id: string }> }) {
   const session = await getServerSession({ disableCookieCache: true });
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect(`/login?callbackUrl=/review`);
   }
 
@@ -176,11 +176,11 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
     createdAt: row.createdAt.toISOString(),
     startedAt: row.startedAt.toISOString(),
     endedAt: row.endedAt.toISOString(),
-    durationSeconds: row.durationSeconds ?? 0,
-    attachments: row.attachments ?? [],
+    durationSeconds: row.durationSeconds,
+    attachments: row.attachments,
     usedAi: row.usedAi,
     aiUsageDescription: row.aiUsageDescription ?? null,
-    hackatimeProjectNameSnapshot: row.hackatimeProjectNameSnapshot ?? "",
+    hackatimeProjectNameSnapshot: row.hackatimeProjectNameSnapshot,
     authorName: row.authorName || "Unknown",
   }));
 
@@ -236,9 +236,7 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
             creatorEmail: p.creatorEmail || "",
             hackatimeUserId:
               typeof p.creatorHackatimeUserId === "string" ? p.creatorHackatimeUserId : null,
-            hackatimeHours: hackatimeHours
-              ? { hours: hackatimeHours.hours, minutes: hackatimeHours.minutes }
-              : null,
+            hackatimeHours,
             hackatimeStartedAt: p.hackatimeStartedAt ? p.hackatimeStartedAt.toISOString() : null,
             hackatimeStoppedAt: p.hackatimeStoppedAt ? p.hackatimeStoppedAt.toISOString() : null,
             createdAt: p.createdAt.toISOString(),
@@ -248,12 +246,12 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
           },
           reviews: reviews.map((r) => ({
             id: r.id,
-            decision: r.decision as ReviewDecision,
+            decision: r.decision,
             reviewComment: r.reviewComment,
             approvedHours: r.approvedHours ?? null,
-            hackatimeSnapshotSeconds: r.hackatimeSnapshotSeconds ?? 0,
+            hackatimeSnapshotSeconds: r.hackatimeSnapshotSeconds,
             reviewJustification: hydrateReviewJustification({
-              decision: r.decision as ReviewDecision,
+              decision: r.decision,
               fallbackHackatimeProjectName: p.hackatimeProjectName,
               reviewEvidenceChecklist: r.reviewEvidenceChecklist,
               reviewedHackatimeRangeStart: r.reviewedHackatimeRangeStart,

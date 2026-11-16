@@ -4,15 +4,12 @@ import { db } from "@/db";
 import { peerReview } from "@/db/schema";
 import { appendReviewAudit } from "@/lib/review-audit";
 import { getServerSession } from "@/lib/server-session";
-
-function isAdmin(role: unknown): role is "admin" {
-  return role === "admin";
-}
+import { isAdmin } from "@/lib/roles";
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
   const role = (session?.user as { role?: unknown } | undefined)?.role;
-  const actorId = session?.user?.id;
+  const actorId = session?.user.id;
   if (!actorId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isAdmin(role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 

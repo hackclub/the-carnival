@@ -26,7 +26,8 @@ export default function CreateProjectModal() {
   const [availableBounties, setAvailableBounties] = useState<
     Array<{ id: string; name: string; prizeUsd: number }>
   >([]);
-  const [bountiesLoading, setBountiesLoading] = useState(false);
+  // Starts true: the list is only visible once the modal opens, which is when the fetch begins.
+  const [bountiesLoading, setBountiesLoading] = useState(true);
   const bountiesLoadedRef = useRef(false);
 
   const shouldBeOpen = useMemo(() => {
@@ -51,7 +52,6 @@ export default function CreateProjectModal() {
 
       if (!bountiesLoadedRef.current) {
         bountiesLoadedRef.current = true;
-        setBountiesLoading(true);
         fetch("/api/bounties")
           .then((r) => r.json())
           .then((data) => {
@@ -162,8 +162,6 @@ export default function CreateProjectModal() {
     },
     [editor, editorOther, bountyProjectId, router],
   );
-
-  const editorLabel = EDITOR_OPTIONS.find((o) => o.value === editor)?.label ?? "Select editor";
 
   return (
     <dialog

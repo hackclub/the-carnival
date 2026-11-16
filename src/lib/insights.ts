@@ -266,8 +266,7 @@ export async function getActivationSegments(db: DbLike): Promise<ActivationSegme
     `),
   ]);
 
-  const mapRows = (rows: unknown) =>
-    (rows as unknown as Record<string, unknown>[]).map(mapSegmentUser);
+  const mapRows = (rows: unknown) => (rows as Record<string, unknown>[]).map(mapSegmentUser);
 
   return {
     never_activated: mapRows(neverActivated),

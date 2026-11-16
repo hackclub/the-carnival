@@ -1,9 +1,10 @@
 import type { ReviewDecision } from "@/db/schema";
 import { toIsoDateOnly as toIsoDateOnlyShared } from "@/lib/hackatime-range";
 import {
-  REVIEW_DEFLATION_REASON_OPTIONS,
+  asRecord,
+  normalizeDeflationReasons,
+  toCleanString,
   REVIEW_EVIDENCE_ITEMS,
-  type ReviewDeflationReason,
   type ReviewEvidenceChecklist,
   type ReviewJustificationPayload,
 } from "@/lib/review-rules";
@@ -18,21 +19,8 @@ type StructuredReviewJustificationInput = {
   hourAdjustmentReasonMetadata?: unknown;
 };
 
-const DEFALTION_REASON_SET = new Set<ReviewDeflationReason>(
-  REVIEW_DEFLATION_REASON_OPTIONS.map((option) => option.key),
-);
-
 function isReviewDecision(value: unknown): value is Exclude<ReviewDecision, "comment"> {
   return value === "approved" || value === "rejected";
-}
-
-function toCleanString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
 }
 
 function toReviewDateOnly(value: unknown) {
@@ -54,17 +42,6 @@ function normalizeEvidence(value: unknown): ReviewEvidenceChecklist {
     next[item.key] = root?.[item.key] === true;
   }
   return next;
-}
-
-function normalizeDeflationReasons(value: unknown): ReviewDeflationReason[] {
-  if (!Array.isArray(value)) return [];
-  const unique = new Set<ReviewDeflationReason>();
-  for (const item of value) {
-    if (typeof item !== "string") continue;
-    if (!DEFALTION_REASON_SET.has(item as ReviewDeflationReason)) continue;
-    unique.add(item as ReviewDeflationReason);
-  }
-  return Array.from(unique);
 }
 
 function hasStructuredJustificationValue(input: StructuredReviewJustificationInput) {

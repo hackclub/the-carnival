@@ -192,66 +192,9 @@ export type AirtableCreateErrorDetails = {
   hints: string[];
 };
 
-export type ValidationResult<T> = { success: true; data: T } | { success: false; errors: string[] };
-
 const DEFLATION_REASON_LABELS = new Map<string, string>(
   REVIEW_DEFLATION_REASON_OPTIONS.map((option) => [option.key, option.label]),
 );
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function toTrimmedStringOrNull(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const s = value.trim();
-  return s ? s : null;
-}
-
-function toNumberOrNull(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const n = Number(value.trim());
-    if (Number.isFinite(n)) return n;
-  }
-  return null;
-}
-
-function isHttpUrlString(value: string): boolean {
-  try {
-    const u = new URL(value);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-function toHttpUrlOrNull(value: unknown): string | null {
-  const s = toTrimmedStringOrNull(value);
-  if (!s) return null;
-  return isHttpUrlString(s) ? s : null;
-}
-
-function toAirtableAttachmentsOrNull(value: unknown): AirtableAttachment[] | null {
-  if (!Array.isArray(value)) return null;
-  const out: AirtableAttachment[] = [];
-  for (const item of value) {
-    if (!isRecord(item)) continue;
-    const url = toTrimmedStringOrNull(item.url);
-    if (!url || !isHttpUrlString(url)) continue;
-    const attachment: AirtableAttachment = { url };
-    if (typeof item.id === "string") attachment.id = item.id;
-    if (typeof item.filename === "string") attachment.filename = item.filename;
-    if (typeof item.type === "string") attachment.type = item.type;
-    if (typeof item.size === "number" && Number.isFinite(item.size)) attachment.size = item.size;
-    out.push(attachment);
-  }
-  return out.length ? out : [];
-}
-
-function getField(fields: Record<string, unknown>, label: YswsAirtableFieldLabel): unknown {
-  return fields[label];
-}
 
 function getGithubUsernameFromUrl(url: string): string | null {
   try {
@@ -313,7 +256,7 @@ function pickLatestApprovedReview(reviews: AirtableGrantReview[]) {
 }
 
 function formatLinkLine(label: string, url: string | null | undefined) {
-  return `- ${label}: ${url && url.trim() ? url.trim() : "—"}`;
+  return `- ${label}: ${url?.trim() ? url.trim() : "—"}`;
 }
 
 function formatHoursAwarded(value: number | null | undefined) {
@@ -421,7 +364,7 @@ export function formatAirtableHoursJustification(
       // window as the one considered, with the original noted alongside.
       const hasReviewedWindow = !!(entry.reviewedStartIso && entry.reviewedEndIso);
       const reviewedRange = hasReviewedWindow
-        ? `${formatHandbookDate(entry.reviewedStartIso!) ?? entry.reviewedStartIso}-${formatHandbookDate(entry.reviewedEndIso!) ?? entry.reviewedEndIso}`
+        ? `${formatHandbookDate(entry.reviewedStartIso) ?? entry.reviewedStartIso}-${formatHandbookDate(entry.reviewedEndIso) ?? entry.reviewedEndIso}`
         : null;
       const rangeLabel = hasReviewedWindow
         ? `considered ${reviewedRange}, trimmed from ${originalRange}`
@@ -535,7 +478,12 @@ export function toAirtableCreateErrorDetails(err: unknown): AirtableCreateErrorD
   const hints: string[] = [];
 
   // Best-effort extraction for AirtableError (airtable.js exports it internally).
-  const e = err as { message?: unknown; statusCode?: unknown; error?: unknown; toString?: unknown };
+  const e = err as {
+    message?: unknown;
+    statusCode?: unknown;
+    error?: unknown;
+    toString?: unknown;
+  } | null;
   const message =
     typeof e?.message === "string"
       ? e.message
@@ -592,7 +540,7 @@ export function buildAirtableGrantFields(input: AirtableGrantCreateInput): Recor
   // (e.g. number fields receiving empty strings, collaborator fields receiving strings, etc).
   const fields: Record<string, unknown> = {};
   const setIf = (label: YswsAirtableFieldLabel, value: unknown) => {
-    if (value === null || value === undefined) return;
+    if (value == null) return;
     if (typeof value === "string" && value.trim() === "") return;
     fields[label] = value;
   };
@@ -615,7 +563,7 @@ export function buildAirtableGrantFields(input: AirtableGrantCreateInput): Recor
     fields[YSWS_AIRTABLE_FIELDS.screenshot] = screenshotAttachments;
   }
   // NOTE: Do not set "Submission Time" on create: it may be a computed field in Airtable.
-  if (input.project.approvedHours !== null && input.project.approvedHours !== undefined) {
+  if (input.project.approvedHours != null) {
     setIf(YSWS_AIRTABLE_FIELDS.overrideHoursSpent, input.project.approvedHours);
   }
 
@@ -743,126 +691,4 @@ export async function deleteAirtableGrantRecord(recordId: string): Promise<void>
   const b = getAirtableBase(process.env);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (b(tableName) as any).destroy(recordId);
-}
-
-/**
- * Validate and normalize an Airtable record `fields` object into a stable shape.
- * Pass the object you get from Airtable's API (typically `record.fields`).
- */
-export function validateYswsSubmissionFields(
-  fields: unknown,
-): ValidationResult<YswsSubmissionFields> {
-  if (!isRecord(fields)) {
-    return { success: false, errors: ["Expected Airtable fields to be an object."] };
-  }
-
-  const errors: string[] = [];
-
-  const codeUrl = toHttpUrlOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.codeUrl));
-  const videoUrl = toHttpUrlOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.videoUrl));
-  const playableDemoUrl = toHttpUrlOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.playableDemoUrl));
-  const hackatimeReviewLink = toHttpUrlOrNull(
-    getField(fields, YSWS_AIRTABLE_FIELDS.hackatimeReviewLink),
-  );
-
-  // URL fields: if present but invalid, report it.
-  const rawCodeUrl = toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.codeUrl));
-  if (rawCodeUrl && !codeUrl)
-    errors.push(`"${YSWS_AIRTABLE_FIELDS.codeUrl}" must be an http(s) URL.`);
-
-  const rawVideoUrl = toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.videoUrl));
-  if (rawVideoUrl && !videoUrl)
-    errors.push(`"${YSWS_AIRTABLE_FIELDS.videoUrl}" must be an http(s) URL.`);
-
-  const rawPlayableDemoUrl = toTrimmedStringOrNull(
-    getField(fields, YSWS_AIRTABLE_FIELDS.playableDemoUrl),
-  );
-  if (rawPlayableDemoUrl && !playableDemoUrl)
-    errors.push(`"${YSWS_AIRTABLE_FIELDS.playableDemoUrl}" must be an http(s) URL.`);
-
-  const rawHackatimeReviewLink = toTrimmedStringOrNull(
-    getField(fields, YSWS_AIRTABLE_FIELDS.hackatimeReviewLink),
-  );
-  if (rawHackatimeReviewLink && !hackatimeReviewLink)
-    errors.push(`"${YSWS_AIRTABLE_FIELDS.hackatimeReviewLink}" must be an http(s) URL.`);
-
-  const screenshot = toAirtableAttachmentsOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.screenshot));
-  const rawScreenshot = getField(fields, YSWS_AIRTABLE_FIELDS.screenshot);
-  if (rawScreenshot !== undefined && rawScreenshot !== null && screenshot === null) {
-    errors.push(`"${YSWS_AIRTABLE_FIELDS.screenshot}" must be an array of attachment objects.`);
-  }
-
-  const overrideHoursSpent = toNumberOrNull(
-    getField(fields, YSWS_AIRTABLE_FIELDS.overrideHoursSpent),
-  );
-  const rawOverrideHours = getField(fields, YSWS_AIRTABLE_FIELDS.overrideHoursSpent);
-  if (
-    rawOverrideHours !== undefined &&
-    rawOverrideHours !== null &&
-    rawOverrideHours !== "" &&
-    overrideHoursSpent === null
-  ) {
-    errors.push(`"${YSWS_AIRTABLE_FIELDS.overrideHoursSpent}" must be a number.`);
-  }
-
-  const data: YswsSubmissionFields = {
-    codeUrl,
-    videoUrl,
-    playableDemoUrl,
-
-    howDidYouHearAboutThis: toTrimmedStringOrNull(
-      getField(fields, YSWS_AIRTABLE_FIELDS.howDidYouHearAboutThis),
-    ),
-    whatAreWeDoingWell: toTrimmedStringOrNull(
-      getField(fields, YSWS_AIRTABLE_FIELDS.whatAreWeDoingWell),
-    ),
-    howCanWeImprove: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.howCanWeImprove)),
-
-    firstName: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.firstName)),
-    lastName: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.lastName)),
-    email: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.email)),
-    screenshot,
-
-    description: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.description)),
-    githubUsername: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.githubUsername)),
-
-    birthday: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.birthday)),
-
-    overrideHoursSpent,
-    overrideHoursSpentJustification: toTrimmedStringOrNull(
-      getField(fields, YSWS_AIRTABLE_FIELDS.overrideHoursSpentJustification),
-    ),
-
-    slackId: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.slackId)),
-    reviewStatus: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.reviewStatus)),
-    reviewer: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.reviewer)),
-    hackatimeReviewLink,
-    submissionTime: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.submissionTime)),
-  };
-
-  if (errors.length) return { success: false, errors };
-  return { success: true, data };
-}
-
-/**
- * Shipping/profile fields live on the user profile (not per-project).
- * Pass Airtable's `record.fields` to extract and normalize shipping values.
- */
-export function validateYswsProfileShippingFields(
-  fields: unknown,
-): ValidationResult<YswsProfileShippingFields> {
-  if (!isRecord(fields)) {
-    return { success: false, errors: ["Expected Airtable fields to be an object."] };
-  }
-
-  const data: YswsProfileShippingFields = {
-    addressLine1: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.addressLine1)),
-    addressLine2: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.addressLine2)),
-    city: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.city)),
-    stateProvince: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.stateProvince)),
-    country: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.country)),
-    zipPostalCode: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.zipPostalCode)),
-  };
-
-  return { success: true, data };
 }

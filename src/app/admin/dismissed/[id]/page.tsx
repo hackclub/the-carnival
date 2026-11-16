@@ -15,7 +15,7 @@ export const fetchCache = "force-no-store";
 export default async function AdminDismissedDetailPage(props: { params: Promise<{ id: string }> }) {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
-  if (!session?.user?.id) redirect("/login?callbackUrl=/admin/dismissed");
+  if (!session?.user.id) redirect("/login?callbackUrl=/admin/dismissed");
   if (role !== "admin") redirect("/projects");
 
   const { id } = await props.params;

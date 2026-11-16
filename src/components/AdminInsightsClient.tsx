@@ -14,7 +14,7 @@ import type {
 } from "@/lib/insights";
 
 // Ordered by how actionable each segment is for outreach.
-const SEGMENT_ORDER: SegmentKey[] = [
+const SEGMENT_ORDER: [SegmentKey, ...SegmentKey[]] = [
   "stalled_with_hours",
   "verification_blocked",
   "zero_hours",
@@ -262,17 +262,12 @@ export default function AdminInsightsClient({
                 </tr>
               ) : (
                 visibleUsers.map((u: SegmentUser) => {
-                  const unreachable = false;
                   return (
-                    <tr
-                      key={u.id}
-                      className={`border-t border-border ${unreachable ? "opacity-50" : ""}`}
-                    >
+                    <tr key={u.id} className="border-t border-border">
                       <td className="px-3 py-2">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(u.id)}
-                          disabled={unreachable}
                           onChange={() => toggleUser(u.id)}
                           className="h-4 w-4 accent-[var(--carnival-red,#e11d48)]"
                         />

@@ -62,7 +62,12 @@ import {
   type ConsideredHackatimeRange,
 } from "@/lib/hackatime-range";
 import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
-import { formatHoursMinutes, type HackatimeRangePreview } from "@/lib/project-form-utils";
+import {
+  formatHoursMinutes,
+  type HackatimeRangePreview,
+  extractApiError,
+  toHoursMinutes,
+} from "@/lib/project-form-utils";
 import { coerceDate, formatDurationHM } from "@/lib/devlog-shared";
 import toast from "react-hot-toast";
 
@@ -113,17 +118,6 @@ type ReviewableProject = {
   bountyProjectId: string | null;
   bountyProjectName: string | null;
 };
-
-function toHackatimeHours(totalSeconds: number | null | undefined) {
-  const safeTotalSeconds =
-    typeof totalSeconds === "number" && Number.isFinite(totalSeconds)
-      ? Math.max(0, Math.floor(totalSeconds))
-      : 0;
-  return {
-    hours: Math.floor(safeTotalSeconds / 3600),
-    minutes: Math.floor(safeTotalSeconds / 60) % 60,
-  };
-}
 
 function formatApprovedHoursInput(value: number | null) {
   if (value === null) return "";
@@ -858,7 +852,7 @@ export default function ReviewProjectClient({
         } | null;
 
         if (!res.ok) {
-          const message = typeof data?.error === "string" ? data.error : "Failed to submit review.";
+          const message = extractApiError(data, "Failed to submit review.");
           setError(message);
           toast.error(message, { id: toastId });
           setSubmitting(false);
@@ -883,7 +877,7 @@ export default function ReviewProjectClient({
                 : p.hackatimeStoppedAt,
             hackatimeHours:
               typeof data.project?.hackatimeTotalSeconds === "number"
-                ? toHackatimeHours(data.project.hackatimeTotalSeconds)
+                ? toHoursMinutes(data.project.hackatimeTotalSeconds)
                 : p.hackatimeHours,
           }));
         }
@@ -1069,8 +1063,7 @@ export default function ReviewProjectClient({
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
-          const message =
-            typeof data?.error === "string" ? data.error : "Failed to delete comment.";
+          const message = extractApiError(data, "Failed to delete comment.");
           toast.error(message, { id: toastId });
           return;
         }
@@ -1097,8 +1090,7 @@ export default function ReviewProjectClient({
         error?: unknown;
       } | null;
       if (!res.ok) {
-        const message =
-          typeof data?.error === "string" ? data.error : "Failed to update assignment.";
+        const message = extractApiError(data, "Failed to update assignment.");
         toast.error(message, { id: toastId });
         setAssignmentBusy(false);
         return;
@@ -1128,8 +1120,7 @@ export default function ReviewProjectClient({
           error?: unknown;
         } | null;
         if (!res.ok || !data?.devlog) {
-          const message =
-            typeof data?.error === "string" ? data.error : "Failed to refresh devlog Hackatime.";
+          const message = extractApiError(data, "Failed to refresh devlog Hackatime.");
           toast.error(message, { id: toastId });
           setRefreshingDevlogIds((prev) => {
             const next = new Set(prev);
@@ -1143,7 +1134,7 @@ export default function ReviewProjectClient({
         setReviewDevlogs((prev) => prev.map((d) => (d.id === refreshed.id ? refreshed : d)));
         setDevlogAssessments((prev) => {
           const draft = prev[refreshed.id];
-          if (!draft || draft.decision !== "adjusted") return prev;
+          if (draft?.decision !== "adjusted") return prev;
           const nextAdjustedSeconds = Math.min(
             Math.max(0, Math.floor(draft.adjustedSeconds ?? 0)),
             Math.max(
@@ -1412,7 +1403,7 @@ export default function ReviewProjectClient({
         )}
       </ReviewSection>
 
-      {project.screenshots?.length ? (
+      {project.screenshots.length ? (
         <div className="platform-surface-card p-6 space-y-4">
           <div className="text-foreground font-semibold text-lg">Screenshots</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2012,7 +2003,7 @@ export default function ReviewProjectClient({
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       {r.decision}
                     </span>
-                    {r.approvedHours !== null && r.approvedHours !== undefined ? (
+                    {r.approvedHours != null ? (
                       <span className="text-xs font-semibold text-foreground">
                         {r.approvedHours}h approved
                       </span>

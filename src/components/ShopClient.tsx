@@ -19,6 +19,7 @@ import {
   Textarea,
 } from "@/components/ui";
 import { SHOP_ORDER_MAX_QUANTITY, calculateShopOrderTotal } from "@/lib/shop-shared";
+import { extractApiError } from "@/lib/project-form-utils";
 
 export type ShopItemDTO = {
   id: string;
@@ -155,7 +156,7 @@ export default function ShopClient({
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown; id?: string } | null;
       if (!res.ok) {
-        const msg = typeof data?.error === "string" ? data.error : "Failed to place order.";
+        const msg = extractApiError(data, "Failed to place order.");
         toast.error(msg, { id: toastId });
         setBusyItemId(null);
         return;
@@ -191,7 +192,7 @@ export default function ShopClient({
         );
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to resubmit.", {
+          toast.error(extractApiError(data, "Failed to resubmit."), {
             id: toastId,
           });
           setResubmitBusyId(null);
@@ -230,7 +231,7 @@ export default function ShopClient({
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to suggest item.", {
+        toast.error(extractApiError(data, "Failed to suggest item."), {
           id: toastId,
         });
         setSuggestBusy(false);

@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { project, user } from "@/db/schema";
 import { toIsoDateOnly } from "@/lib/hackatime-range";
 import { getServerSession } from "@/lib/server-session";
+import { canReview } from "@/lib/roles";
 
 /**
  * GET /api/projects/[id]/hackatime-stats
@@ -52,10 +53,6 @@ function toSafeSeconds(value: unknown) {
     if (Number.isFinite(n)) return Math.max(0, Math.floor(n));
   }
   return 0;
-}
-
-function canReview(role: unknown) {
-  return role === "reviewer" || role === "admin";
 }
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -157,7 +154,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     return NextResponse.json({ error: `Failed to reach Hackatime: ${message}` }, { status: 502 });
   }
 
-  const rawProjects = Array.isArray(raw.data?.projects) ? raw.data!.projects! : [];
+  const rawProjects = Array.isArray(raw.data?.projects) ? raw.data.projects : [];
   const projects = rawProjects
     .map((entry) => ({
       name: typeof entry.name === "string" ? entry.name : "",

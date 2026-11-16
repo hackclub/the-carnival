@@ -9,7 +9,7 @@ import {
   toPositiveInt,
   generateId,
 } from "@/lib/api-utils";
-import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
+import { frozenAccountResponse } from "@/lib/frozen-account-response";
 import { isValidHttpUrl, toBountyHelpfulLinks } from "@/lib/bounties";
 
 type CreateBountyBody = {
@@ -87,13 +87,8 @@ export async function POST(req: Request) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const freezeState = await getFrozenAccountState(user.id);
-  if (freezeState.isFrozen) {
-    return NextResponse.json(
-      { error: getFrozenAccountMessage(freezeState.frozenReason), code: "account_frozen" },
-      { status: 403 },
-    );
-  }
+  const frozen = await frozenAccountResponse(user.id);
+  if (frozen) return frozen;
 
   const body = await parseJsonBody<CreateBountyBody>(req);
   if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });

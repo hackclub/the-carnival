@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { BookOpen, ExternalLink, FileText, Plus, Video, X } from "lucide-react";
 import { Input, NativeSelect, Button, Modal, Card, Badge, EmptyState } from "@/components/ui";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
+import { extractApiError } from "@/lib/project-form-utils";
 
 export type ResourceItem = {
   id: string;
@@ -59,7 +60,7 @@ export default function ResourcesClient({
     try {
       const res = await fetch("/api/editors", { method: "GET" });
       const data = (await res.json().catch(() => null)) as { editors?: unknown } | null;
-      const rawEditors = Array.isArray(data?.editors) ? (data!.editors as unknown[]) : [];
+      const rawEditors = Array.isArray(data?.editors) ? (data.editors as unknown[]) : [];
 
       const editorsWithResources: EditorWithResources[] = await Promise.all(
         rawEditors.map(async (e) => {
@@ -68,7 +69,7 @@ export default function ResourcesClient({
           const resRes = await fetch(`/api/resources?editorId=${encodeURIComponent(editorId)}`);
           const resData = (await resRes.json().catch(() => null)) as { resources?: unknown } | null;
           const rawResources = Array.isArray(resData?.resources)
-            ? (resData!.resources as unknown[])
+            ? (resData.resources as unknown[])
             : [];
 
           return {
@@ -85,7 +86,7 @@ export default function ResourcesClient({
                 title: String(res.title ?? ""),
                 url: String(res.url ?? ""),
                 description: res.description ?? null,
-                type: (res.type as ResourceType) ?? "documentation",
+                type: (res.type as ResourceType | undefined) ?? "documentation",
               };
             }),
           };
@@ -119,9 +120,7 @@ export default function ResourcesClient({
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to create editor.", {
-            id: toastId,
-          });
+          toast.error(extractApiError(data, "Failed to create editor."), { id: toastId });
           setAddingEditor(false);
           return;
         }
@@ -153,9 +152,7 @@ export default function ResourcesClient({
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to save.", {
-            id: toastId,
-          });
+          toast.error(extractApiError(data, "Failed to save."), { id: toastId });
           return;
         }
 
@@ -235,9 +232,7 @@ export default function ResourcesClient({
     field: keyof (typeof newResources)[0],
     value: string,
   ) => {
-    const updated = [...newResources];
-    updated[index] = { ...updated[index], [field]: value };
-    setNewResources(updated);
+    setNewResources(newResources.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
   };
 
   const removeResourceField = (index: number) => {
@@ -444,7 +439,7 @@ export default function ResourcesClient({
                         `Are you sure you want to delete "${selectedEditor.name}"? This will also delete all its resources.`,
                       )
                     ) {
-                      deleteEditor(selectedEditor.id);
+                      void deleteEditor(selectedEditor.id);
                     }
                   }}
                   className="text-red-500 hover:text-red-600 text-sm font-medium"

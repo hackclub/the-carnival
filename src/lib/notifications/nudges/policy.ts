@@ -89,11 +89,11 @@ export function pickNudgeForUser(
   now: Date,
   policy: NudgePolicy = DEFAULT_NUDGE_POLICY,
 ): { planned: PlannedNudge } | { skipped: SkippedNudge } | null {
-  if (candidates.length === 0) return null;
   const sorted = [...candidates].sort(
     (a, b) => nudgeKindPriority(a.kind) - nudgeKindPriority(b.kind),
   );
   const candidate = sorted[0];
+  if (!candidate) return null;
   const storedKind = toStoredNudgeKind(candidate.kind);
   const skip = (reason: NudgeSkipReason) => ({
     skipped: { userId: candidate.userId, kind: candidate.kind, reason },

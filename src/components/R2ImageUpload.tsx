@@ -48,7 +48,6 @@ export function R2ImageUpload({
   const uploadFile = useCallback(
     async (file: File) => {
       setLocalError(null);
-      if (!file) return;
       // PNG/JPG only — mirrors the server-side presign allowlist
       // (src/lib/review/config.ts).
       const contentType = (file.type || "").toLowerCase();
@@ -124,7 +123,7 @@ export function R2ImageUpload({
       e.stopPropagation();
       setDragOver(false);
       if (disabled || uploading) return;
-      const file = e.dataTransfer.files?.[0];
+      const file = e.dataTransfer.files[0];
       if (file) await uploadFile(file);
     },
     [disabled, uploadFile, uploading],

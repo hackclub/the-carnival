@@ -43,7 +43,3 @@ export async function resolveProjectAccess(
   const role = (session?.user as { role?: unknown } | undefined)?.role;
   return { userId, role, project: row };
 }
-
-export function canReadProject(role: unknown, isCreator: boolean) {
-  return isCreator || role === "reviewer" || role === "admin";
-}

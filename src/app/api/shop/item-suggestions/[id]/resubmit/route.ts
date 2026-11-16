@@ -3,7 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { shopItemSuggestion } from "@/db/schema";
 import { getAuthUser, parseJsonBody } from "@/lib/api-utils";
-import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
+import { frozenAccountResponse } from "@/lib/frozen-account-response";
 import { validatePlatformImageUrl } from "@/lib/review/uploads";
 import { sanitizeHttpUrl } from "@/lib/sanitize";
 
@@ -17,13 +17,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const authUser = await getAuthUser();
   if (!authUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const freezeState = await getFrozenAccountState(authUser.id);
-  if (freezeState.isFrozen) {
-    return NextResponse.json(
-      { error: getFrozenAccountMessage(freezeState.frozenReason), code: "account_frozen" },
-      { status: 403 },
-    );
-  }
+  const frozen = await frozenAccountResponse(authUser.id);
+  if (frozen) return frozen;
 
   const body = await parseJsonBody<ResubmitBody>(req);
   const imageUrl = sanitizeHttpUrl(body?.imageUrl);

@@ -11,16 +11,11 @@ import { project } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
 import { fetchHackatimeProjectHoursByName } from "@/lib/hackatime";
 import { buildApprovedProjectAwardSummary } from "@/lib/project-awards";
-
-function formatHoursMinutes(hours: number, minutes: number) {
-  const h = Number.isFinite(hours) ? Math.max(0, Math.floor(hours)) : 0;
-  const m = Number.isFinite(minutes) ? Math.max(0, Math.floor(minutes)) : 0;
-  return `${h}h${String(m).padStart(2, "0")}m`;
-}
+import { formatHoursMinutes } from "@/lib/project-form-utils";
 
 export default async function ProjectsPage() {
   const session = await getServerSession({ disableCookieCache: true });
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect("/login?callbackUrl=/projects");
   }
 

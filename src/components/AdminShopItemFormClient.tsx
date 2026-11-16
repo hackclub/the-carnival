@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Button, Input, Textarea } from "@/components/ui";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
+import { extractApiError } from "@/lib/project-form-utils";
 
 type ItemForm = {
   id?: string;
@@ -80,7 +81,7 @@ export default function AdminShopItemFormClient({
         item?: { id?: string };
       } | null;
       if (!res.ok) {
-        const msg = typeof data?.error === "string" ? data.error : "Failed.";
+        const msg = extractApiError(data, "Failed.");
         toast.error(msg, { id: toastId });
         setBusy(false);
         return;

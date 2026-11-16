@@ -9,7 +9,7 @@ import { getServerSession } from "@/lib/server-session";
 
 export default async function AccountPage() {
   const session = await getServerSession({ disableCookieCache: true });
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect("/login?callbackUrl=/account");
   }
 

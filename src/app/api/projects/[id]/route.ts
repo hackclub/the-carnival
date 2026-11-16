@@ -25,7 +25,7 @@ import {
 import { parseProjectSubmissionChecklist } from "@/lib/project-submission-checklist";
 import { validateCreatorOriginalityDeclaration } from "@/lib/project-originality";
 import { normalizeCategory, normalizeProjectTags } from "@/lib/project-taxonomy";
-import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
+import { frozenAccountResponse } from "@/lib/frozen-account-response";
 import { getIdentityVerificationStatus } from "@/lib/identity-verification";
 import { getIdentitySubmissionBlock } from "@/lib/identity-verification-shared";
 import { approvedHoursWithinSnapshot } from "@/lib/review-rules";
@@ -62,10 +62,6 @@ type UpdateProjectBody = {
   bountyProjectId?: unknown;
   status?: unknown;
 };
-
-function toCleanString(value: unknown) {
-  return cleanUntrustedString(value);
-}
 
 function toOptionalNonNegativeInt(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
@@ -164,16 +160,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const freezeState = await getFrozenAccountState(userId);
-  if (freezeState.isFrozen) {
-    return NextResponse.json(
-      {
-        error: getFrozenAccountMessage(freezeState.frozenReason),
-        code: "account_frozen",
-      },
-      { status: 403 },
-    );
-  }
+  const frozen = await frozenAccountResponse(userId);
+  if (frozen) return frozen;
 
   const { id } = await ctx.params;
 
@@ -282,28 +270,20 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     consideredHackatimeRange = parsedRange.value;
   }
 
-  let refreshedHackatimeSnapshot: {
-    hackatimeStartedAt: Date;
-    hackatimeStoppedAt: Date;
-    hackatimeTotalSeconds: number;
-  } | null = null;
-  let refreshedHackatimeTotalSeconds: number | null = null;
+  // Set by refreshHackatimeSnapshot(); null until a refresh has happened in this request.
+  // Kept on an object because it is assigned from inside that closure.
+  const refreshed: { totalSeconds: number | null } = { totalSeconds: null };
 
   async function refreshHackatimeSnapshot(range: ConsideredHackatimeRange, projectName: string) {
-    const refreshed = await refreshHackatimeProjectSnapshotForRange(userId!, {
+    const snapshot = await refreshHackatimeProjectSnapshotForRange(userId!, {
       projectName,
       range,
     });
-    refreshedHackatimeSnapshot = {
-      hackatimeStartedAt: refreshed.hackatimeStartedAt,
-      hackatimeStoppedAt: refreshed.hackatimeStoppedAt,
-      hackatimeTotalSeconds: refreshed.hackatimeTotalSeconds,
-    };
-    refreshedHackatimeTotalSeconds = refreshed.hackatimeTotalSeconds;
-    set.hackatimeStartedAt = refreshed.hackatimeStartedAt;
-    set.hackatimeStoppedAt = refreshed.hackatimeStoppedAt;
-    set.hackatimeTotalSeconds = refreshed.hackatimeTotalSeconds;
-    return refreshed;
+    refreshed.totalSeconds = snapshot.hackatimeTotalSeconds;
+    set.hackatimeStartedAt = snapshot.hackatimeStartedAt;
+    set.hackatimeStoppedAt = snapshot.hackatimeStoppedAt;
+    set.hackatimeTotalSeconds = snapshot.hackatimeTotalSeconds;
+    return snapshot;
   }
 
   const editorRaw =
@@ -367,7 +347,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   if (body.hackatimeProjectName !== undefined) {
-    const hackatimeProjectName = toCleanString(body.hackatimeProjectName);
+    const hackatimeProjectName = cleanUntrustedString(body.hackatimeProjectName);
     set.hackatimeProjectName = hackatimeProjectName;
   }
   if (body.hackatimeStartedAt !== undefined) {
@@ -500,7 +480,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   // image must have been uploaded through the platform (our R2 bucket, PNG/JPG
   // only). There is deliberately no way to save a pasted image URL.
   if (body.previewImage !== undefined) {
-    const previewImage = toCleanString(body.previewImage);
+    const previewImage = cleanUntrustedString(body.previewImage);
     if (previewImage) {
       const validation = validatePlatformImageUrl(previewImage, "Preview image");
       if (!validation.ok) {
@@ -620,7 +600,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   // Validate final editor/editorOther combination (using current values + pending updates).
-  const nextEditor = (set.editor ?? current.editor) as ProjectEditor;
+  const nextEditor = set.editor ?? current.editor;
   const nextEditorOther =
     set.editorOther !== undefined ? set.editorOther : (current.editorOther ?? null);
   if (nextEditor === "other" && !nextEditorOther) {
@@ -634,7 +614,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   // Enforce required fields when the project is in the review queue.
-  const nextStatus = (set.status ?? current.status) as ProjectStatus;
+  const nextStatus = set.status ?? current.status;
   if (nextStatus === "in-review") {
     if (current.resubmissionBlocked && current.status !== "in-review") {
       return NextResponse.json(
@@ -667,16 +647,17 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       videoUrl: set.videoUrl ?? current.videoUrl,
       playableDemoUrl: set.playableDemoUrl ?? current.playableDemoUrl,
       codeUrl: set.codeUrl ?? current.codeUrl,
-      screenshots: set.screenshots ?? current.screenshots ?? [],
+      screenshots: set.screenshots ?? current.screenshots,
       checklist: (set.submissionChecklist !== undefined
         ? set.submissionChecklist
         : current.submissionChecklist) as Record<string, boolean> | null,
       r2PublicBaseUrl: getR2PublicBaseUrl(),
     });
-    if (gateFailures.length > 0) {
+    const [firstGateFailure] = gateFailures;
+    if (firstGateFailure) {
       return NextResponse.json(
         {
-          error: gateFailures[0].message,
+          error: firstGateFailure.message,
           code: "submission_requirements",
           failures: gateFailures,
         },
@@ -745,7 +726,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       }
 
       try {
-        if (!refreshedHackatimeSnapshot) {
+        if (refreshed.totalSeconds === null) {
           await refreshHackatimeSnapshot(rangeForSubmission, nextHackatime);
         }
       } catch (error) {
@@ -766,15 +747,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     }
   }
 
-  const nextResolvedStatus = (set.status ?? current.status) as ProjectStatus;
+  const nextResolvedStatus = set.status ?? current.status;
   let notice: string | null = null;
   if (
-    refreshedHackatimeSnapshot &&
     current.status === "shipped" &&
     nextResolvedStatus === "shipped" &&
     current.approvedHours !== null &&
-    refreshedHackatimeTotalSeconds !== null &&
-    !approvedHoursWithinSnapshot(current.approvedHours, refreshedHackatimeTotalSeconds)
+    refreshed.totalSeconds !== null &&
+    !approvedHoursWithinSnapshot(current.approvedHours, refreshed.totalSeconds)
   ) {
     set.status = "in-review";
     set.approvedHours = null;
@@ -929,16 +909,8 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const freezeState = await getFrozenAccountState(userId);
-  if (freezeState.isFrozen) {
-    return NextResponse.json(
-      {
-        error: getFrozenAccountMessage(freezeState.frozenReason),
-        code: "account_frozen",
-      },
-      { status: 403 },
-    );
-  }
+  const frozen = await frozenAccountResponse(userId);
+  if (frozen) return frozen;
 
   const { id } = await ctx.params;
 

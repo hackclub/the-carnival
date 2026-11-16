@@ -17,6 +17,7 @@ import { R2ImageUpload } from "@/components/R2ImageUpload";
 import { RichTextContent } from "@/components/RichTextContent";
 import { RichTextField } from "@/components/RichTextField";
 import { FIXED_RATE_TOKENS, FIXED_RATE_USD, TOKENS_PER_HOUR } from "@/lib/wallet-converter";
+import { extractApiError } from "@/lib/project-form-utils";
 
 // 1 approved hour = TOKENS_PER_HOUR tokens = FIXED_RATE_USD dollars.
 const GRANT_USD_PER_HOUR = (FIXED_RATE_USD / FIXED_RATE_TOKENS) * TOKENS_PER_HOUR;
@@ -128,7 +129,7 @@ function HelpfulLinksFields({
               value={link.label}
               onChange={(e) => {
                 const next = [...value];
-                next[index] = { ...next[index], label: e.target.value };
+                next[index] = { ...link, label: e.target.value };
                 onChange(next);
               }}
               disabled={disabled}
@@ -138,7 +139,7 @@ function HelpfulLinksFields({
               value={link.url}
               onChange={(e) => {
                 const next = [...value];
-                next[index] = { ...next[index], url: e.target.value };
+                next[index] = { ...link, url: e.target.value };
                 onChange(next);
               }}
               disabled={disabled}
@@ -229,7 +230,7 @@ export default function BountiesClient({
   const refresh = useCallback(async () => {
     const res = await fetch("/api/bounties", { method: "GET" });
     const data = (await res.json().catch(() => null)) as { projects?: unknown } | null;
-    const raw = Array.isArray(data?.projects) ? (data!.projects as unknown[]) : [];
+    const raw = Array.isArray(data?.projects) ? (data.projects as unknown[]) : [];
     const next = raw
       .map((p) => p as Partial<BountyListItem>)
       .filter((p) => typeof p.id === "string")
@@ -280,8 +281,8 @@ export default function BountiesClient({
     setEditingDescription(item.description);
     setEditingPrizeUsd(String(item.prizeUsd));
     setEditingPreviewImageUrl(item.previewImageUrl ?? "");
-    setEditingRequirements(item.requirements ?? "");
-    setEditingExamples(item.examples ?? "");
+    setEditingRequirements(item.requirements);
+    setEditingExamples(item.examples);
     setEditingHelpfulLinksDraft(getInitialHelpfulLinksDraft(item.helpfulLinks));
   }, []);
 
@@ -320,7 +321,7 @@ export default function BountiesClient({
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to create bounty.", {
+          toast.error(extractApiError(data, "Failed to create bounty."), {
             id: toastId,
           });
           setCreating(false);
@@ -392,7 +393,7 @@ export default function BountiesClient({
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
 
       if (!res.ok) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to save bounty.", {
+        toast.error(extractApiError(data, "Failed to save bounty."), {
           id: toastId,
         });
         setSavingEdit(false);
@@ -433,7 +434,7 @@ export default function BountiesClient({
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
 
       if (!res.ok) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to delete bounty.", {
+        toast.error(extractApiError(data, "Failed to delete bounty."), {
           id: toastId,
         });
         setDeletingId(null);
@@ -460,9 +461,7 @@ export default function BountiesClient({
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
 
         if (!res.ok) {
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to claim.", {
-            id: toastId,
-          });
+          toast.error(extractApiError(data, "Failed to claim."), { id: toastId });
           await refresh();
           return;
         }
@@ -488,9 +487,7 @@ export default function BountiesClient({
 
         if (!res.ok) {
           const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to update.", {
-            id: toastId,
-          });
+          toast.error(extractApiError(data, "Failed to update."), { id: toastId });
           return;
         }
 
@@ -523,9 +520,7 @@ export default function BountiesClient({
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
 
         if (!res.ok) {
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to update.", {
-            id: toastId,
-          });
+          toast.error(extractApiError(data, "Failed to update."), { id: toastId });
           return;
         }
 
@@ -550,7 +545,7 @@ export default function BountiesClient({
       const aAvail = a.claimedCount < 2 ? 1 : 0;
       const bAvail = b.claimedCount < 2 ? 1 : 0;
       if (aAvail !== bAvail) return bAvail - aAvail;
-      return (b.prizeUsd ?? 0) - (a.prizeUsd ?? 0);
+      return b.prizeUsd - a.prizeUsd;
     });
   }, [items]);
 

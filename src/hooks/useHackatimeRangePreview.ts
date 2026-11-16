@@ -67,7 +67,7 @@ export function useHackatimeRangePreview({
     if (!requestKey || !bodyJson) return;
 
     let cancelled = false;
-    const timer = window.setTimeout(async () => {
+    const run = async () => {
       setRemote({ key: requestKey, preview: null, loading: true, error: null });
       try {
         const res = await fetch(endpoint, {
@@ -101,7 +101,8 @@ export function useHackatimeRangePreview({
           error: "Failed to refresh Hackatime hours.",
         });
       }
-    }, debounceMs);
+    };
+    const timer = window.setTimeout(() => void run(), debounceMs);
 
     return () => {
       cancelled = true;

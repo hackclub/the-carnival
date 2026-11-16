@@ -87,7 +87,7 @@ describe("verifyRobertWebhookSignature", () => {
   const rawBody = JSON.stringify({ event: "ping", deliveryId: "d-1" });
   const now = 1_790_172_157;
   const sign = (ts, body = rawBody, key = secret) =>
-    "sha256=" + createHmac("sha256", key).update(`${ts}.${body}`).digest("hex");
+    `sha256=${createHmac("sha256", key).update(`${ts}.${body}`).digest("hex")}`;
 
   test("accepts a correctly signed, fresh request", () => {
     expect(
@@ -104,7 +104,7 @@ describe("verifyRobertWebhookSignature", () => {
   test("rejects a tampered body, wrong secret, or missing headers", () => {
     const base = { secret, timestamp: String(now), nowSeconds: now };
     expect(
-      verifyRobertWebhookSignature({ ...base, signature: sign(now), rawBody: rawBody + " " }),
+      verifyRobertWebhookSignature({ ...base, signature: sign(now), rawBody: `${rawBody} ` }),
     ).toBe(false);
     expect(
       verifyRobertWebhookSignature({ ...base, signature: sign(now, rawBody, "other"), rawBody }),

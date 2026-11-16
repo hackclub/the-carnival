@@ -11,11 +11,12 @@ import {
   type DevlogAssessmentDraft,
 } from "@/lib/devlog-assessments";
 import { buildHackatimeDevlogReviewUrls } from "@/lib/constants";
-import { formatDurationHM } from "@/lib/devlog-shared";
+import { formatDurationHM, formatDateTime } from "@/lib/devlog-shared";
 import { aiDeflatedSeconds } from "@/lib/review/config";
 import { REVIEW_DEFLATION_REASON_OPTIONS } from "@/lib/review-rules";
 import { DateTimePicker } from "@/components/ui/date-picker";
 import toast from "react-hot-toast";
+import { extractApiError } from "@/lib/project-form-utils";
 
 /** ISO timestamp → datetime-local input value (local time, minute precision). */
 function toDatetimeLocalValue(iso: string): string {
@@ -62,18 +63,6 @@ type Props = {
   hackatimeBreakdownByDevlogId?: Record<string, DevlogHackatimeBreakdownEntry[]>;
   hackatimeBreakdownConfigured?: boolean;
 };
-
-function formatDateTime(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 const DECISION_STYLE: Record<DevlogAssessmentDecision, string> = {
   accepted: "border-emerald-500/60 bg-emerald-500/10 text-emerald-200",
@@ -341,7 +330,7 @@ function DevlogItem({
     : false;
 
   const [adjustedHours, adjustedMinutes] = useMemo(() => {
-    if (!draft || draft.decision !== "adjusted") return [undefined, undefined];
+    if (draft?.decision !== "adjusted") return [undefined, undefined];
     const s = Math.max(0, Math.floor(draft.adjustedSeconds ?? 0));
     return [Math.floor(s / 3600), Math.floor(s / 60) % 60];
   }, [draft]);
@@ -518,10 +507,9 @@ function DevlogItem({
         error?: unknown;
       } | null;
       if (!res.ok || typeof data?.totalSeconds !== "number") {
-        toast.error(
-          typeof data?.error === "string" ? data.error : "Failed to pull Hackatime for the window.",
-          { id: toastId },
-        );
+        toast.error(extractApiError(data, "Failed to pull Hackatime for the window."), {
+          id: toastId,
+        });
         setWindowPulling(false);
         return;
       }
@@ -601,7 +589,7 @@ function DevlogItem({
           adjustedSeconds: aiDeflatedSeconds(baseSeconds),
           hackatimeAdjustments: null,
           deflationReasons: prev?.reviewedWindow
-            ? Array.from(new Set([...(prev?.deflationReasons ?? []), "aiUsage"]))
+            ? Array.from(new Set([...(prev.deflationReasons ?? []), "aiUsage"]))
             : ["aiUsage"],
           reviewedWindow: prev?.reviewedWindow ?? null,
           reviewedWindowSeconds: prev?.reviewedWindowSeconds ?? null,
@@ -682,7 +670,7 @@ function DevlogItem({
         </div>
       ) : null}
 
-      {devlog.attachments && devlog.attachments.length > 0 ? (
+      {devlog.attachments.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           {devlog.attachments.map((url, i) => (
             <a

@@ -5,10 +5,7 @@ import { devlog, project, user } from "@/db/schema";
 import { recomputeProjectHoursSpentSeconds } from "@/lib/devlogs";
 import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
 import { getServerSession } from "@/lib/server-session";
-
-function canRefresh(role: unknown) {
-  return role === "reviewer" || role === "admin";
-}
+import { canReview } from "@/lib/roles";
 
 export async function POST(
   _req: Request,
@@ -16,10 +13,10 @@ export async function POST(
 ) {
   const session = await getServerSession();
   const role = (session?.user as { role?: unknown } | undefined)?.role;
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!canRefresh(role)) {
+  if (!canReview(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -48,11 +45,11 @@ export async function POST(
     .limit(1);
 
   const row = rows[0];
-  if (!row || !row.projectIdFromProject) {
+  if (!row?.projectIdFromProject) {
     return NextResponse.json({ error: "Devlog not found" }, { status: 404 });
   }
 
-  const hackatimeProjectName = (row.hackatimeProjectNameSnapshot ?? "").trim();
+  const hackatimeProjectName = row.hackatimeProjectNameSnapshot.trim();
   if (!hackatimeProjectName) {
     return NextResponse.json(
       { error: "This devlog does not have a Hackatime project to refresh." },
@@ -96,7 +93,7 @@ export async function POST(
       startedAt: row.startedAt.toISOString(),
       endedAt: row.endedAt.toISOString(),
       durationSeconds,
-      attachments: row.attachments ?? [],
+      attachments: row.attachments,
       usedAi: row.usedAi,
       aiUsageDescription: row.aiUsageDescription ?? null,
       hackatimeProjectNameSnapshot: hackatimeProjectName,

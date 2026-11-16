@@ -28,7 +28,7 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
       disableRedirect: true,
     });
 
-    if (error || !data?.url) {
+    if (error || !data.url) {
       setAuthLoading(false);
       window.location.href = "/login?callbackUrl=/explore";
       return;

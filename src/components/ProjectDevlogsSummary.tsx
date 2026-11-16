@@ -22,20 +22,8 @@ type Props = {
   totalCount: number;
   canWrite: boolean;
   writeBlockedReason?: string | null;
-  projectStartedAtIso: string | null;
-  submittedAtIso: string | null;
   totalHoursSeconds: number;
 };
-
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 function formatShortDate(iso: string) {
   const d = new Date(iso);
@@ -55,8 +43,6 @@ export default function ProjectDevlogsSummary({
   totalCount,
   canWrite,
   writeBlockedReason,
-  projectStartedAtIso,
-  submittedAtIso,
   totalHoursSeconds,
 }: Props) {
   const remaining = Math.max(0, totalCount - devlogs.length);
@@ -112,10 +98,9 @@ export default function ProjectDevlogsSummary({
             />
 
             <div className="space-y-0">
-              {devlogs.map((d, idx) => {
+              {devlogs.map((d) => {
                 const duration = formatDurationHM(d.durationSeconds);
                 const cat = CATEGORY_CONFIG[d.category ?? "coding"];
-                const isLast = idx === devlogs.length - 1 && remaining === 0;
 
                 return (
                   <div key={d.id} className="relative pl-12 pb-6 group">

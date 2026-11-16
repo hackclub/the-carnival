@@ -268,7 +268,7 @@ export function validateRequiredReviewJustification(input: {
   };
 }
 
-function normalizeDeflationReasons(value: unknown): ReviewDeflationReason[] {
+export function normalizeDeflationReasons(value: unknown): ReviewDeflationReason[] {
   if (!Array.isArray(value)) return [];
   const unique = new Set<ReviewDeflationReason>();
   for (const item of value) {
@@ -295,11 +295,11 @@ function resolveDeflationInput(root: Record<string, unknown>) {
   };
 }
 
-function toCleanString(value: unknown) {
+export function toCleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
+export function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
 }

@@ -21,7 +21,6 @@ import ProjectLinkIcon, { PROJECT_LINK_META } from "@/components/ProjectLinkIcon
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
 import { Modal } from "@/components/ui";
-import { R2ImageUpload } from "@/components/R2ImageUpload";
 import { ScreenshotGrid } from "@/components/ScreenshotGrid";
 import { DateTimePicker } from "@/components/ui/date-picker";
 import {
@@ -53,6 +52,7 @@ import {
   formatTotalSeconds,
   type HackatimeProjectOption,
   type HackatimeRangePreview,
+  extractApiError,
 } from "@/lib/project-form-utils";
 
 export type ManageProjectInitial = {
@@ -168,10 +168,8 @@ export default function ManageProjectClient({
   const [name, setName] = useState(initial.name);
   const [description, setDescription] = useState(initial.description);
   const [category, setCategory] = useState(initial.category ?? "");
-  const [tagsInput, setTagsInput] = useState((initial.tags ?? []).join(", "));
-  const [projectType, setProjectType] = useState<ProjectType>(
-    initial.projectType ?? "extension-plugin",
-  );
+  const [tagsInput, setTagsInput] = useState(initial.tags.join(", "));
+  const [projectType, setProjectType] = useState<ProjectType>(initial.projectType);
   const [editor, setEditor] = useState<ProjectEditor>(initial.editor);
   const [editorOther, setEditorOther] = useState(initial.editorOther);
   const [hackatimeProjectName, setHackatimeProjectName] = useState(initial.hackatimeProjectName);
@@ -187,12 +185,12 @@ export default function ManageProjectClient({
   const [videoUrl, setVideoUrl] = useState(initial.videoUrl);
   const [playableDemoUrl, setPlayableDemoUrl] = useState(initial.playableDemoUrl);
   const [codeUrl, setCodeUrl] = useState(initial.codeUrl);
-  const [previewImage, setPreviewImage] = useState(initial.previewImage ?? "");
+  const [previewImage, setPreviewImage] = useState(initial.previewImage);
   const [previewDragOver, setPreviewDragOver] = useState(false);
   const [previewUploading, setPreviewUploading] = useState(false);
   const previewInputRef = useRef<HTMLInputElement | null>(null);
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>(
-    (initial.screenshots?.length ?? 0) > 0 ? initial.screenshots : [""],
+    initial.screenshots.length > 0 ? initial.screenshots : [""],
   );
   const [status, setStatus] = useState<ProjectStatus>(initial.status);
   const [approvedHours, setApprovedHours] = useState<number | null>(initial.approvedHours);
@@ -324,12 +322,7 @@ export default function ManageProjectClient({
     return reviews.find((r) => r.decision === "rejected") ?? null;
   }, [reviews]);
 
-  const isReReview =
-    !isGranted &&
-    !isInReview &&
-    !isShipped &&
-    status === "work-in-progress" &&
-    !!latestRejectedReview;
+  const isReReview = !isGranted && !isInReview && !isShipped && !!latestRejectedReview;
 
   const screenshots = useMemo(() => cleanList(screenshotUrls), [screenshotUrls]);
   const submitConsideredRange = useMemo(
@@ -508,18 +501,19 @@ export default function ManageProjectClient({
   );
   const setChecklistValue = useCallback(
     (key: keyof ProjectSubmissionChecklist, checked: boolean) => {
-      if (key === "readmeInstructions") setCheckReadme(checked);
-      else if (key === "readmeDescribesProject") setCheckReadmeDescribes(checked);
-      else if (key === "testedWorking") setCheckTested(checked);
-      else if (key === "usedAi") setAiUsage(checked);
-      else if (key === "githubPublic") setCheckGithubPublic(checked);
-      else if (key === "descriptionClear") setCheckDescriptionClear(checked);
-      else if (key === "screenshotsWorking") setCheckScreenshotsWorking(checked);
-      else if (key === "worksOnDeclaredPlatform") setCheckWorksOnPlatform(checked);
-      else if (key === "didNotManipulateHackatimeData")
-        setCheckDidNotManipulateHackatimeData(checked);
-      else if (key === "didNotCopyCodeWithoutAttribution")
-        setCheckDidNotCopyCodeWithoutAttribution(checked);
+      const setters: Record<keyof ProjectSubmissionChecklist, (value: boolean) => void> = {
+        readmeInstructions: setCheckReadme,
+        readmeDescribesProject: setCheckReadmeDescribes,
+        testedWorking: setCheckTested,
+        usedAi: setAiUsage,
+        githubPublic: setCheckGithubPublic,
+        descriptionClear: setCheckDescriptionClear,
+        screenshotsWorking: setCheckScreenshotsWorking,
+        worksOnDeclaredPlatform: setCheckWorksOnPlatform,
+        didNotManipulateHackatimeData: setCheckDidNotManipulateHackatimeData,
+        didNotCopyCodeWithoutAttribution: setCheckDidNotCopyCodeWithoutAttribution,
+      };
+      setters[key](checked);
     },
     [],
   );
@@ -551,7 +545,7 @@ export default function ManageProjectClient({
           );
           setHackatimeNeedsReconnect(reason === "revoked");
         }
-        const message = typeof data?.error === "string" ? data.error : "Failed to load.";
+        const message = extractApiError(data, "Failed to load.");
         setHackatimeError(message);
         setHackatimeProjects(null);
         setHackatimeLoading(false);
@@ -595,26 +589,63 @@ export default function ManageProjectClient({
 
   useEffect(() => {
     if (hackatimeProjects === null && !hackatimeLoading) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      refreshHackatimeProjects();
+      void refreshHackatimeProjects();
     }
   }, [hackatimeLoading, hackatimeProjects, refreshHackatimeProjects]);
 
-  const addScreenshotField = useCallback(() => {
-    setScreenshotUrls((prev) => [...prev, ""]);
-  }, []);
+  /** The editable fields, as the PATCH endpoint expects them. Shared by save and submit. */
+  const buildProjectFields = () => ({
+    name: name.trim(),
+    description: description.trim(),
+    category: category.trim(),
+    tags: tagsInput,
+    projectType,
+    editor,
+    editorOther: editor === "other" ? editorOther.trim() : "",
+    hackatimeProjectName: hackatimeProjectName.trim(),
+    hackatimeStartedAt: effectiveHackatimeStartedAt,
+    hackatimeStoppedAt: effectiveHackatimeStoppedAt,
+    hackatimeTotalSeconds: effectiveHackatimeTotalSeconds,
+    videoUrl: videoUrl.trim(),
+    playableDemoUrl: playableDemoUrl.trim(),
+    codeUrl: codeUrl.trim(),
+    previewImage: previewImage.trim(),
+    screenshots: cleanList(screenshotUrls),
+    bountyProjectId: bountyProjectId || null,
+    creatorDeclaredOriginality,
+    creatorDuplicateExplanation: creatorDuplicateExplanation?.trim() ?? "",
+    creatorOriginalityRationale: creatorOriginalityRationale?.trim() ?? "",
+  });
 
-  const updateScreenshotField = useCallback((idx: number, value: string) => {
-    setScreenshotUrls((prev) => prev.map((v, i) => (i === idx ? value : v)));
-  }, []);
-
-  const removeScreenshotField = useCallback((idx: number) => {
-    setScreenshotUrls((prev) => {
-      if (prev.length <= 1) return [""];
-      const next = prev.filter((_, i) => i !== idx);
-      return next.length === 0 ? [""] : next;
-    });
-  }, []);
+  /** Sync local form state with the project the server just returned. */
+  const applyServerProject = (p: ApiProject) => {
+    setName(p.name);
+    setDescription(p.description);
+    setCategory(p.category ?? "");
+    setTagsInput(p.tags.join(", "));
+    setProjectType(p.projectType);
+    setEditor(p.editor);
+    setEditorOther(p.editorOther);
+    setHackatimeProjectName(p.hackatimeProjectName);
+    setHackatimeStartedAt(p.hackatimeStartedAt ?? null);
+    setHackatimeStoppedAt(p.hackatimeStoppedAt ?? null);
+    setHackatimeTotalSeconds(
+      typeof p.hackatimeTotalSeconds === "number" ? p.hackatimeTotalSeconds : null,
+    );
+    setVideoUrl(p.videoUrl);
+    setPlayableDemoUrl(p.playableDemoUrl);
+    setCodeUrl(p.codeUrl);
+    setPreviewImage(p.previewImage);
+    setScreenshotUrls(p.screenshots.length > 0 ? p.screenshots : [""]);
+    setSavedSubmissionChecklist(p.submissionChecklist ?? null);
+    setCreatorDeclaredOriginality(p.creatorDeclaredOriginality);
+    setCreatorDuplicateExplanation(p.creatorDuplicateExplanation ?? null);
+    setCreatorOriginalityRationale(p.creatorOriginalityRationale ?? null);
+    setStatus(p.status);
+    setApprovedHours(p.approvedHours ?? null);
+    setSubmitRangeStartDate(p.hackatimeStartedAt ?? "");
+    setSubmitRangeEndDate(p.hackatimeStoppedAt ?? "");
+  };
 
   const onSave = async () => {
     if (isGranted) {
@@ -630,27 +661,8 @@ export default function ManageProjectClient({
     setError(null);
     setSavedAt(null);
 
-    const payload: Record<string, unknown> = {
-      name: name.trim(),
-      description: description.trim(),
-      category: category.trim(),
-      tags: tagsInput,
-      projectType,
-      editor,
-      editorOther: editor === "other" ? editorOther.trim() : "",
-      hackatimeProjectName: hackatimeProjectName.trim(),
-      hackatimeStartedAt: effectiveHackatimeStartedAt,
-      hackatimeStoppedAt: effectiveHackatimeStoppedAt,
-      hackatimeTotalSeconds: effectiveHackatimeTotalSeconds,
-      videoUrl: videoUrl.trim(),
-      playableDemoUrl: playableDemoUrl.trim(),
-      codeUrl: codeUrl.trim(),
-      previewImage: previewImage.trim(),
-      screenshots: cleanList(screenshotUrls),
-      bountyProjectId: bountyProjectId || null,
-      creatorDeclaredOriginality,
-      creatorDuplicateExplanation: creatorDuplicateExplanation?.trim() ?? "",
-      creatorOriginalityRationale: creatorOriginalityRationale?.trim() ?? "",
+    const payload = {
+      ...buildProjectFields(),
       consideredHackatimeRange:
         hackatimeProjectName.trim() && submitConsideredRange.ok
           ? submitConsideredRange.value
@@ -671,42 +683,14 @@ export default function ManageProjectClient({
       } | null;
 
       if (!res.ok) {
-        const message = typeof data?.error === "string" ? data.error : "Failed to save changes.";
+        const message = extractApiError(data, "Failed to save changes.");
         setError(message);
         toast.error(message, { id: toastId });
         setSaving(false);
         return;
       }
 
-      const p = data?.project;
-      if (p) {
-        setName(p.name);
-        setDescription(p.description);
-        setCategory(p.category ?? "");
-        setTagsInput((p.tags ?? []).join(", "));
-        setProjectType(p.projectType ?? "extension-plugin");
-        setEditor(p.editor);
-        setEditorOther(p.editorOther ?? "");
-        setHackatimeProjectName(p.hackatimeProjectName);
-        setHackatimeStartedAt(p.hackatimeStartedAt ?? null);
-        setHackatimeStoppedAt(p.hackatimeStoppedAt ?? null);
-        setHackatimeTotalSeconds(
-          typeof p.hackatimeTotalSeconds === "number" ? p.hackatimeTotalSeconds : null,
-        );
-        setVideoUrl(p.videoUrl);
-        setPlayableDemoUrl(p.playableDemoUrl);
-        setCodeUrl(p.codeUrl);
-        setPreviewImage(p.previewImage ?? "");
-        setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
-        setSavedSubmissionChecklist(p.submissionChecklist ?? null);
-        setCreatorDeclaredOriginality(p.creatorDeclaredOriginality);
-        setCreatorDuplicateExplanation(p.creatorDuplicateExplanation ?? null);
-        setCreatorOriginalityRationale(p.creatorOriginalityRationale ?? null);
-        setStatus(p.status);
-        setApprovedHours(p.approvedHours ?? null);
-        setSubmitRangeStartDate(p.hackatimeStartedAt ?? "");
-        setSubmitRangeEndDate(p.hackatimeStoppedAt ?? "");
-      }
+      if (data?.project) applyServerProject(data.project);
 
       setSavedAt(Date.now());
       const notice = typeof data?.notice === "string" ? data.notice : null;
@@ -791,31 +775,12 @@ export default function ManageProjectClient({
     }
     setSubmitting(true);
 
-    const payload: Record<string, unknown> = {
-      name: name.trim(),
-      description: description.trim(),
-      category: category.trim(),
-      tags: tagsInput,
-      projectType,
-      editor,
-      editorOther: editor === "other" ? editorOther.trim() : "",
-      hackatimeProjectName: hackatimeProjectName.trim(),
-      hackatimeStartedAt: effectiveHackatimeStartedAt,
-      hackatimeStoppedAt: effectiveHackatimeStoppedAt,
-      hackatimeTotalSeconds: effectiveHackatimeTotalSeconds,
-      videoUrl: videoUrl.trim(),
-      playableDemoUrl: playableDemoUrl.trim(),
-      codeUrl: codeUrl.trim(),
-      previewImage: previewImage.trim(),
-      screenshots: cleanList(screenshotUrls),
-      bountyProjectId: bountyProjectId || null,
+    const payload = {
+      ...buildProjectFields(),
       status: "in-review",
       consideredHackatimeRange: submitConsideredRange.value,
-      creatorDeclaredOriginality,
-      creatorDuplicateExplanation: creatorDuplicateExplanation?.trim() ?? "",
-      creatorOriginalityRationale: creatorOriginalityRationale?.trim() ?? "",
+      submissionChecklist,
     };
-    payload.submissionChecklist = submissionChecklist;
 
     const toastId = toast.loading("Submitting for review…");
     try {
@@ -833,8 +798,7 @@ export default function ManageProjectClient({
       } | null;
 
       if (!res.ok) {
-        const message =
-          typeof data?.error === "string" ? data.error : "Failed to submit for review.";
+        const message = extractApiError(data, "Failed to submit for review.");
         const code = typeof data?.code === "string" ? data.code : null;
         if (code === "missing_profile_address") {
           toast.custom(
@@ -872,35 +836,7 @@ export default function ManageProjectClient({
         return;
       }
 
-      const p = data?.project;
-      if (p) {
-        setName(p.name);
-        setDescription(p.description);
-        setCategory(p.category ?? "");
-        setTagsInput((p.tags ?? []).join(", "));
-        setProjectType(p.projectType ?? "extension-plugin");
-        setEditor(p.editor);
-        setEditorOther(p.editorOther ?? "");
-        setHackatimeProjectName(p.hackatimeProjectName);
-        setHackatimeStartedAt(p.hackatimeStartedAt ?? null);
-        setHackatimeStoppedAt(p.hackatimeStoppedAt ?? null);
-        setHackatimeTotalSeconds(
-          typeof p.hackatimeTotalSeconds === "number" ? p.hackatimeTotalSeconds : null,
-        );
-        setVideoUrl(p.videoUrl);
-        setPlayableDemoUrl(p.playableDemoUrl);
-        setCodeUrl(p.codeUrl);
-        setPreviewImage(p.previewImage ?? "");
-        setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
-        setSavedSubmissionChecklist(p.submissionChecklist ?? null);
-        setCreatorDeclaredOriginality(p.creatorDeclaredOriginality);
-        setCreatorDuplicateExplanation(p.creatorDuplicateExplanation ?? null);
-        setCreatorOriginalityRationale(p.creatorOriginalityRationale ?? null);
-        setStatus(p.status);
-        setApprovedHours(p.approvedHours ?? null);
-        setSubmitRangeStartDate(p.hackatimeStartedAt ?? "");
-        setSubmitRangeEndDate(p.hackatimeStoppedAt ?? "");
-      }
+      if (data?.project) applyServerProject(data.project);
 
       const notice = typeof data?.notice === "string" ? data.notice : null;
       toast.success(notice ?? "Submitted for review.", { id: toastId });
@@ -922,7 +858,7 @@ export default function ManageProjectClient({
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        const message = typeof data?.error === "string" ? data.error : "Failed to delete project.";
+        const message = extractApiError(data, "Failed to delete project.");
         toast.error(message, { id: toastId });
         setDeleting(false);
         return;
@@ -946,7 +882,7 @@ export default function ManageProjectClient({
             <div className="text-muted-foreground mt-1">
               Manage your project details and status.
             </div>
-            {approvedHours !== null && approvedHours !== undefined ? (
+            {approvedHours != null ? (
               <div className="text-sm text-muted-foreground mt-2">
                 Approved hours:{" "}
                 <span className="text-foreground font-semibold">{approvedHours}h</span>
@@ -1194,7 +1130,7 @@ export default function ManageProjectClient({
             onDrop={async (e) => {
               e.preventDefault();
               setPreviewDragOver(false);
-              const file = e.dataTransfer.files?.[0];
+              const file = e.dataTransfer.files[0];
               if (file) await uploadPreviewImage(file);
             }}
             className={[
@@ -1239,7 +1175,7 @@ export default function ManageProjectClient({
             <Select
               value={editor}
               onValueChange={(v) => {
-                if (v) setEditor(v as ProjectEditor);
+                if (v) setEditor(v);
               }}
             >
               <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
@@ -1754,12 +1690,10 @@ export default function ManageProjectClient({
                 Most recent rejection feedback
               </div>
               <div className="text-xs text-muted-foreground mt-1">
-                {latestRejectedReview
-                  ? `${latestRejectedReview.reviewerName} • ${new Date(latestRejectedReview.createdAt).toLocaleString()}`
-                  : "No rejection feedback found."}
+                {`${latestRejectedReview.reviewerName} • ${new Date(latestRejectedReview.createdAt).toLocaleString()}`}
               </div>
               <div className="text-sm text-foreground mt-3 whitespace-pre-wrap">
-                {latestRejectedReview?.reviewComment ?? "—"}
+                {latestRejectedReview.reviewComment}
               </div>
             </div>
 

@@ -22,7 +22,8 @@ if (!fs.existsSync(JOURNAL_PATH)) {
 }
 
 type Journal = {
-  entries: Array<{
+  // Optional: the journal is parsed JSON, so a malformed file may lack it.
+  entries?: Array<{
     idx: number;
     when: number;
     tag: string;
@@ -33,16 +34,18 @@ type Journal = {
 
 const journal = JSON.parse(fs.readFileSync(JOURNAL_PATH, "utf8")) as Journal;
 const entries = journal.entries ?? [];
-if (entries.length === 0) {
+const lastEntry = entries.at(-1);
+if (!lastEntry) {
   console.error("No journal entries found.");
   process.exit(1);
 }
+const lastTag = lastEntry.tag;
+// With a single migration there is no "previous" one, so both point at it.
+const prevTag = entries.at(-2)?.tag ?? lastTag;
 
 const args = new Set(process.argv.slice(2));
 const force = args.has("--force");
 if (args.has("--help") || args.has("-h")) {
-  const last = entries[entries.length - 1]!.tag;
-  const prev = entries.length >= 2 ? entries[entries.length - 2]!.tag : last;
   console.log(`Usage: bun scripts/db/baseline-drizzle-migrations.ts [options]
 
 Drizzle "migrate" only looks at the latest row in drizzle.__drizzle_migrations
@@ -66,7 +69,7 @@ Examples (DB fully matches repo including latest migration; fix empty migration 
   bun run db:baseline -- --to=last --force
   bun run db:migrate
 
-Current journal tail: … ${prev} → ${last}`);
+Current journal tail: … ${prevTag} → ${lastTag}`);
   process.exit(0);
 }
 
@@ -74,12 +77,12 @@ const toArg = process.argv.find((a) => a.startsWith("--to="));
 const toTag = (() => {
   if (toArg) {
     const v = toArg.split("=").slice(1).join("=");
-    if (v === "last") return entries[entries.length - 1]!.tag;
+    if (v === "last") return lastTag;
     return v;
   }
   // Default: baseline up to the second-to-last migration,
   // leaving the newest migration to be applied via `db:migrate`.
-  return entries.length >= 2 ? entries[entries.length - 2]!.tag : entries[entries.length - 1]!.tag;
+  return prevTag;
 })();
 
 const target = entries.find((e) => e.tag === toTag);

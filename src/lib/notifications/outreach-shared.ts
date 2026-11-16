@@ -40,7 +40,7 @@ export function parseSlackIdList(text: string): ParsedSlackIds {
     const token = raw.trim();
     if (!token) continue;
     const mention = token.match(/^<@([A-Za-z0-9]+)(?:\|[^>]*)?>$/);
-    const candidate = (mention ? mention[1] : token.replace(/^@/, "")).toUpperCase();
+    const candidate = (mention?.[1] ?? token.replace(/^@/, "")).toUpperCase();
     if (!isSlackUserId(candidate)) {
       invalid.push(token);
       continue;

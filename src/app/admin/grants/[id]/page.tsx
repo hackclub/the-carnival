@@ -4,14 +4,14 @@ import { asc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import AdminGrantClient from "@/components/AdminGrantClient";
 import { db } from "@/db";
-import { peerReview, project, user, type ReviewDecision } from "@/db/schema";
+import { peerReview, project, user } from "@/db/schema";
 import { hydrateReviewJustification } from "@/lib/review-justification";
 import { getServerSession } from "@/lib/server-session";
 
 export default async function AdminGrantDetailPage(props: { params: Promise<{ id: string }> }) {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
-  if (!session?.user?.id) redirect("/login?callbackUrl=/admin/grants");
+  if (!session?.user.id) redirect("/login?callbackUrl=/admin/grants");
   if (role !== "admin") redirect("/projects");
 
   const { id } = await props.params;
@@ -123,9 +123,7 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
             submittedAt: p.submittedAt ? p.submittedAt.toISOString() : null,
             hackatimeUserId:
               typeof p.creatorHackatimeUserId === "string" ? p.creatorHackatimeUserId : null,
-            hackatimeHours: hackatimeHours
-              ? { hours: hackatimeHours.hours, minutes: hackatimeHours.minutes }
-              : null,
+            hackatimeHours,
             hackatimeStartedAt: p.hackatimeStartedAt ? p.hackatimeStartedAt.toISOString() : null,
             hackatimeStoppedAt: p.hackatimeStoppedAt ? p.hackatimeStoppedAt.toISOString() : null,
             airtableRecordId: p.airtableRecordId ?? null,
@@ -145,7 +143,7 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
             reviewComment: r.reviewComment,
             approvedHours: r.approvedHours ?? null,
             reviewJustification: hydrateReviewJustification({
-              decision: r.decision as ReviewDecision,
+              decision: r.decision,
               fallbackHackatimeProjectName: p.hackatimeProjectName,
               reviewEvidenceChecklist: r.reviewEvidenceChecklist,
               reviewedHackatimeRangeStart: r.reviewedHackatimeRangeStart,

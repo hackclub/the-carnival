@@ -7,6 +7,7 @@ import type { ProjectStatus } from "@/db/schema";
 import { Modal } from "@/components/ui";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import toast from "react-hot-toast";
+import { extractApiError } from "@/lib/project-form-utils";
 
 type DismissedProject = {
   id: string;
@@ -69,8 +70,7 @@ export default function AdminDismissedClient({
         error?: unknown;
       } | null;
       if (!res.ok) {
-        const message =
-          typeof data?.error === "string" ? data.error : "Failed to re-enable resubmission.";
+        const message = extractApiError(data, "Failed to re-enable resubmission.");
         toast.error(message, { id: toastId });
         setSaving(false);
         return;

@@ -74,7 +74,8 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
     .where(eq(announcement.id, id))
     .returning({ id: announcement.id, message: announcement.message });
 
-  if (deleted.length === 0) {
+  const [removed] = deleted;
+  if (!removed) {
     return NextResponse.json({ error: "Announcement not found" }, { status: 404 });
   }
   bustAnnouncementCache();
@@ -83,7 +84,7 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
     actorId: user.id,
     actorRole: "admin",
     action: "announcement_deleted",
-    details: { announcementId: id, message: deleted[0]!.message.slice(0, 200) },
+    details: { announcementId: id, message: removed.message.slice(0, 200) },
   });
 
   const announcements = await getAllAnnouncements();

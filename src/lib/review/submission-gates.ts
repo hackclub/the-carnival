@@ -320,13 +320,11 @@ function validatePlayableUrl(input: SubmissionGateInput, failures: SubmissionGat
               : "CLIs must be released on a package host (PyPI, npm, crates.io, ...) or as an executable build on a forge release.",
         });
       }
-      return;
     }
     // website-webapp, game-web, hardware, other: the common floor above
     // (public host, blocklist) is the rule — any real deployment host is
     // fine, since custom domains make an allowlist impossible.
     default:
-      return;
   }
 }
 

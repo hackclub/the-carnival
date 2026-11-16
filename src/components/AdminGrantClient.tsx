@@ -27,7 +27,11 @@ import {
 } from "@/lib/hackatime-range";
 import { coerceDate } from "@/lib/devlog-shared";
 import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
-import { formatHoursMinutes, type HackatimeRangePreview } from "@/lib/project-form-utils";
+import {
+  formatHoursMinutes,
+  type HackatimeRangePreview,
+  extractApiError,
+} from "@/lib/project-form-utils";
 import toast from "react-hot-toast";
 
 type GrantProject = {
@@ -90,6 +94,69 @@ function trustLevelColor(level: string | null): string {
   return "bg-gray-500/15 text-gray-300 border-gray-500/30";
 }
 
+type AirtableErrorBody = {
+  error?: unknown;
+  details?: unknown;
+  hints?: unknown;
+  statusCode?: unknown;
+  airtableError?: unknown;
+} | null;
+
+/** Show a failed Airtable-backed request: a plain error toast, or a detailed one when the API explains why. */
+function showAirtableErrorToast(data: AirtableErrorBody, fallback: string, toastId: string) {
+  const message = extractApiError(data, fallback);
+  const details = typeof data?.details === "string" ? data.details : null;
+  const hints = Array.isArray(data?.hints)
+    ? data.hints.filter((h): h is string => typeof h === "string")
+    : [];
+  const statusCode = typeof data?.statusCode === "number" ? data.statusCode : undefined;
+  const airtableError = typeof data?.airtableError === "string" ? data.airtableError : undefined;
+
+  if (!details && !hints.length) {
+    toast.error(message, { id: toastId });
+    return;
+  }
+  toast.custom(
+    (t) => (
+      <div className="platform-surface-card px-4 py-3 shadow-xl max-w-[720px]">
+        <div className="text-foreground font-semibold">{message}</div>
+        {statusCode || airtableError ? (
+          <div className="text-muted-foreground text-xs mt-1">
+            {statusCode ? `Airtable status: ${statusCode}` : null}
+            {statusCode && airtableError ? " • " : null}
+            {airtableError ? `Airtable error: ${airtableError}` : null}
+          </div>
+        ) : null}
+        {details ? (
+          <pre className="mt-3 text-xs text-muted-foreground whitespace-pre-wrap break-words bg-muted border border-border rounded-[var(--radius-xl)] p-3">
+            {details}
+          </pre>
+        ) : null}
+        {hints.length ? (
+          <div className="mt-3 text-sm">
+            <div className="text-foreground font-semibold">What may be wrong</div>
+            <ul className="mt-2 space-y-1 text-muted-foreground list-disc pl-5">
+              {hints.map((h) => (
+                <li key={h}>{h}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        <div className="mt-3 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => toast.dismiss(t.id)}
+            className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    ),
+    { id: toastId, duration: 20000 },
+  );
+}
+
 export default function AdminGrantClient({
   initial,
 }: {
@@ -146,7 +213,7 @@ export default function AdminGrantClient({
         error?: unknown;
       } | null;
       if (!res.ok || !data?.fields) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to load preview.");
+        toast.error(extractApiError(data, "Failed to load preview."));
         setPreviewLoading(false);
         return;
       }
@@ -175,9 +242,7 @@ export default function AdminGrantClient({
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to save.", {
-          id: toastId,
-        });
+        toast.error(extractApiError(data, "Failed to save."), { id: toastId });
         setJustificationSaving(false);
         return;
       }
@@ -311,7 +376,7 @@ export default function AdminGrantClient({
     );
   }, [canonicalProjectRange, project.hackatimeUserId]);
 
-  const screenshots = project.screenshots ?? [];
+  const screenshots = project.screenshots;
   const activeScreenshot = screenshots[screenshotIndex] ?? null;
 
   const onSaveRange = useCallback(async () => {
@@ -345,8 +410,7 @@ export default function AdminGrantClient({
         error?: unknown;
       } | null;
       if (!res.ok) {
-        const message =
-          typeof data?.error === "string" ? data.error : "Failed to save considered range.";
+        const message = extractApiError(data, "Failed to save considered range.");
         toast.error(message, { id: toastId });
         setRangeSaving(false);
         return;
@@ -354,7 +418,7 @@ export default function AdminGrantClient({
 
       setProject((prev) => ({
         ...prev,
-        status: (data?.project?.status ?? prev.status) as ProjectStatus,
+        status: data?.project?.status ?? prev.status,
         approvedHours:
           data?.project?.approvedHours !== undefined
             ? (data.project.approvedHours ?? null)
@@ -425,64 +489,13 @@ export default function AdminGrantClient({
           airtableError?: unknown;
         } | null;
         if (!res.ok) {
-          const message = typeof data?.error === "string" ? data.error : "Failed to update status.";
-          const details = typeof data?.details === "string" ? data.details : null;
-          const hints = Array.isArray(data?.hints)
-            ? data?.hints.filter((h): h is string => typeof h === "string")
-            : [];
-          const statusCode = typeof data?.statusCode === "number" ? data.statusCode : undefined;
-          const airtableError =
-            typeof data?.airtableError === "string" ? data.airtableError : undefined;
-
-          if (details || hints.length) {
-            toast.custom(
-              (t) => (
-                <div className="platform-surface-card px-4 py-3 shadow-xl max-w-[720px]">
-                  <div className="text-foreground font-semibold">{message}</div>
-                  {statusCode || airtableError ? (
-                    <div className="text-muted-foreground text-xs mt-1">
-                      {statusCode ? `Airtable status: ${statusCode}` : null}
-                      {statusCode && airtableError ? " • " : null}
-                      {airtableError ? `Airtable error: ${airtableError}` : null}
-                    </div>
-                  ) : null}
-                  {details ? (
-                    <pre className="mt-3 text-xs text-muted-foreground whitespace-pre-wrap break-words bg-muted border border-border rounded-[var(--radius-xl)] p-3">
-                      {details}
-                    </pre>
-                  ) : null}
-                  {hints.length ? (
-                    <div className="mt-3 text-sm">
-                      <div className="text-foreground font-semibold">What may be wrong</div>
-                      <ul className="mt-2 space-y-1 text-muted-foreground list-disc pl-5">
-                        {hints.map((h) => (
-                          <li key={h}>{h}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  <div className="mt-3 flex items-center justify-end gap-3">
-                    <button
-                      type="button"
-                      onClick={() => toast.dismiss(t.id)}
-                      className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-              ),
-              { id: toastId, duration: 20000 },
-            );
-          } else {
-            toast.error(message, { id: toastId });
-          }
+          showAirtableErrorToast(data, "Failed to update status.", toastId);
           setBusy(false);
           return;
         }
         setProject((p) => ({
           ...p,
-          status: (data?.project?.status ?? status) as ProjectStatus,
+          status: data?.project?.status ?? status,
           ...(status === "granted"
             ? { grantTechnicalJustification: technicalJustification || null }
             : {}),
@@ -510,7 +523,7 @@ export default function AdminGrantClient({
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        const message = typeof data?.error === "string" ? data.error : "Failed to delete project.";
+        const message = extractApiError(data, "Failed to delete project.");
         toast.error(message, { id: toastId });
         setBusy(false);
         return;
@@ -564,59 +577,7 @@ export default function AdminGrantClient({
           airtableError?: unknown;
         } | null;
         if (!res.ok) {
-          const message =
-            typeof data?.error === "string" ? data.error : "Failed to push to Airtable.";
-          const details = typeof data?.details === "string" ? data.details : null;
-          const hints = Array.isArray(data?.hints)
-            ? data?.hints.filter((h): h is string => typeof h === "string")
-            : [];
-          const statusCode = typeof data?.statusCode === "number" ? data.statusCode : undefined;
-          const airtableError =
-            typeof data?.airtableError === "string" ? data.airtableError : undefined;
-
-          if (details || hints.length) {
-            toast.custom(
-              (t) => (
-                <div className="platform-surface-card px-4 py-3 shadow-xl max-w-[720px]">
-                  <div className="text-foreground font-semibold">{message}</div>
-                  {statusCode || airtableError ? (
-                    <div className="text-muted-foreground text-xs mt-1">
-                      {statusCode ? `Airtable status: ${statusCode}` : null}
-                      {statusCode && airtableError ? " • " : null}
-                      {airtableError ? `Airtable error: ${airtableError}` : null}
-                    </div>
-                  ) : null}
-                  {details ? (
-                    <pre className="mt-3 text-xs text-muted-foreground whitespace-pre-wrap break-words bg-muted border border-border rounded-[var(--radius-xl)] p-3">
-                      {details}
-                    </pre>
-                  ) : null}
-                  {hints.length ? (
-                    <div className="mt-3 text-sm">
-                      <div className="text-foreground font-semibold">What may be wrong</div>
-                      <ul className="mt-2 space-y-1 text-muted-foreground list-disc pl-5">
-                        {hints.map((h) => (
-                          <li key={h}>{h}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  <div className="mt-3 flex items-center justify-end gap-3">
-                    <button
-                      type="button"
-                      onClick={() => toast.dismiss(t.id)}
-                      className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-              ),
-              { id: toastId, duration: 20000 },
-            );
-          } else {
-            toast.error(message, { id: toastId });
-          }
+          showAirtableErrorToast(data, "Failed to push to Airtable.", toastId);
           setBusy(false);
           return;
         }
@@ -697,9 +658,7 @@ export default function AdminGrantClient({
             <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
               <div className="text-sm text-muted-foreground">Approved hours</div>
               <div className="text-foreground font-semibold">
-                {project.approvedHours !== null && project.approvedHours !== undefined
-                  ? `${project.approvedHours}h`
-                  : "—"}
+                {project.approvedHours != null ? `${project.approvedHours}h` : "—"}
               </div>
             </div>
             <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
@@ -822,7 +781,7 @@ export default function AdminGrantClient({
             Considered range: {canonicalProjectRangeLabel}
           </div>
 
-          {project.screenshots?.length ? (
+          {project.screenshots.length ? (
             <div className="pt-2 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-foreground font-semibold">Screenshots</div>

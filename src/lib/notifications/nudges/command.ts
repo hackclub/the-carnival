@@ -131,8 +131,9 @@ export async function runNudgeCommand(
       deps.log(
         `${result.dryRun ? "DRY RUN" : "LIVE RUN"} · sending ${result.sendingEnabled ? "enabled" : "disabled"} · ` +
           `Slack ${result.slackConfigured ? "configured" : "NOT configured"} · ` +
-          `deadline ${result.deadlineIso ?? "unknown"} (${result.daysLeft ?? "?"} days left) · cap ${result.maxSends}` +
-          (result.allowlist ? ` · allowlist ${result.allowlist.join(",")}` : ""),
+          `deadline ${result.deadlineIso ?? "unknown"} (${result.daysLeft ?? "?"} days left) · cap ${result.maxSends}${
+            result.allowlist ? ` · allowlist ${result.allowlist.join(",")}` : ""
+          }`,
       );
       if (result.daysLeft !== null && result.daysLeft < 0)
         deps.log("Deadline passed: nothing is sent.");

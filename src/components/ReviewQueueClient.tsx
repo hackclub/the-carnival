@@ -115,10 +115,7 @@ function formatLatestReview(
 ) {
   if (!latestReview) return "No review yet";
   const decision = latestReview.decision.charAt(0).toUpperCase() + latestReview.decision.slice(1);
-  const hoursText =
-    latestReview.approvedHours !== null && latestReview.approvedHours !== undefined
-      ? ` • ${latestReview.approvedHours}h`
-      : "";
+  const hoursText = latestReview.approvedHours != null ? ` • ${latestReview.approvedHours}h` : "";
   const at = formatDateTime(latestReview.createdAt);
   const queued = formatQueueAge(fallbackSubmittedAt, fallbackCreatedAt);
   return `${decision}${hoursText} by ${latestReview.reviewerName} • ${at} • queue ${queued}`;
@@ -387,13 +384,13 @@ export default function ReviewQueueClient() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {projects.map((projectRow) => {
             const categoryLabel = formatCategoryLabel(projectRow.category);
-            const tagLabels = (projectRow.tags ?? [])
+            const tagLabels = projectRow.tags
               .map((tag) => formatTagLabel(tag))
               .filter((value): value is string => !!value);
 
             const cardImage =
-              projectRow.previewImage?.trim() ||
-              projectRow.screenshots?.find((u) => u.trim().length > 0) ||
+              projectRow.previewImage.trim() ||
+              projectRow.screenshots.find((u) => u.trim().length > 0) ||
               "";
 
             return (

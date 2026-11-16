@@ -19,7 +19,7 @@ import {
   FolderKanban,
   Gift,
   LogOut,
-  LucideIcon,
+  type LucideIcon,
   Megaphone,
   MessageSquare,
   NotebookPen,
@@ -94,7 +94,7 @@ function asUserRole(value: unknown): UserRole {
 
 function isActivePath(pathname: string | null, href: string) {
   const baseHref = href.split("?")[0] ?? href;
-  return pathname === baseHref || pathname?.startsWith(baseHref + "/");
+  return pathname === baseHref || pathname?.startsWith(`${baseHref}/`);
 }
 
 function withAdminIndicators(items: NavItem[], counts: AdminIndicatorCounts | null): NavItem[] {
@@ -397,7 +397,7 @@ export default function AppSidebar({
             >
               <Tooltip>
                 <TooltipTrigger className="shrink-0">
-                  {sessionUser?.image ? (
+                  {sessionUser.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={sessionUser.image}
@@ -413,7 +413,7 @@ export default function AppSidebar({
                 </TooltipTrigger>
                 <TooltipContent side="right">
                   <div className="font-medium">{displayName}</div>
-                  {sessionUser?.email ? (
+                  {sessionUser.email ? (
                     <div className="text-xs opacity-80">{sessionUser.email}</div>
                   ) : null}
                 </TooltipContent>
@@ -424,7 +424,7 @@ export default function AppSidebar({
                   <div className="sidebar-user-name truncate text-sm font-bold text-[var(--platform-ink)]">
                     {displayName}
                   </div>
-                  {sessionUser?.email ? (
+                  {sessionUser.email ? (
                     <div className="truncate text-[0.68rem] font-medium text-[var(--platform-ink-muted)]">
                       {sessionUser.email}
                     </div>

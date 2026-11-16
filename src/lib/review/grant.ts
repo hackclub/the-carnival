@@ -458,7 +458,7 @@ export async function loadGrantContext(
       codeUrl: current.codeUrl,
       playableDemoUrl: current.playableDemoUrl,
       videoUrl: current.videoUrl,
-      screenshots: current.screenshots ?? [],
+      screenshots: current.screenshots,
       submittedAtIso: current.submittedAt ? current.submittedAt.toISOString() : null,
       approvedHours: current.approvedHours ?? null,
       approvedAtIso: latestApprovedAtIso,

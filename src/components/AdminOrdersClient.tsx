@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import ShopOrderStatusBadge from "@/components/ShopOrderStatusBadge";
 import CopyableText from "@/components/CopyableText";
 import { Button, Input, Modal, Textarea } from "@/components/ui";
+import { extractApiError } from "@/lib/project-form-utils";
 
 export type AdminShopOrderDTO = {
   id: string;
@@ -112,7 +113,7 @@ export default function AdminOrdersClient({
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
-          const msg = typeof data?.error === "string" ? data.error : "Failed to fulfill order.";
+          const msg = extractApiError(data, "Failed to fulfill order.");
           toast.error(msg, { id: toastId });
           setBusyOrderId(null);
           return;
@@ -150,7 +151,7 @@ export default function AdminOrdersClient({
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
-          const msg = typeof data?.error === "string" ? data.error : "Failed to deny order.";
+          const msg = extractApiError(data, "Failed to deny order.");
           toast.error(msg, { id: toastId });
           setBusyOrderId(null);
           return;
@@ -251,8 +252,7 @@ export default function AdminOrdersClient({
                         {o.requesterEmail ? (
                           <>
                             {" ("}
-                            <CopyableText text={o.requesterEmail} className="inline text-xs" />
-                            {")"}
+                            <CopyableText text={o.requesterEmail} className="inline text-xs" />)
                           </>
                         ) : (
                           ""

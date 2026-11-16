@@ -15,6 +15,6 @@ export default function ShopItemSuggestionStatusBadge({
 }: {
   status: ShopItemSuggestionStatus;
 }) {
-  const meta = SUGGESTION_STATUS_META[status] ?? SUGGESTION_STATUS_META.pending;
+  const meta = SUGGESTION_STATUS_META[status];
   return <Badge variant={meta.variant}>{meta.label}</Badge>;
 }

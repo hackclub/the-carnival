@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { coerceDate, formatDurationHM, parseDevlogWindow } from "@/lib/devlog-shared";
 import { NotebookPen } from "lucide-react";
+import { extractApiError } from "@/lib/project-form-utils";
 
 type DevlogFormMode = "create" | "edit";
 
@@ -109,8 +110,7 @@ export default function NewDevlogForm({
   const [hackatimeNeedsReconnect, setHackatimeNeedsReconnect] = useState(false);
   const [attachments, setAttachments] = useState<string[]>(initial?.attachments ?? []);
   const [devlogCategory, setDevlogCategory] = useState<"learning" | "design" | "coding">(
-    ((initial as { category?: string } | undefined)?.category as
-      "learning" | "design" | "coding") ?? "coding",
+    (initial as { category?: "learning" | "design" | "coding" } | undefined)?.category ?? "coding",
   );
   const [usedAi, setUsedAi] = useState(initial?.usedAi ?? false);
   const [aiDesc, setAiDesc] = useState(initial?.aiUsageDescription ?? "");
@@ -196,9 +196,7 @@ export default function NewDevlogForm({
           );
           setHackatimeNeedsReconnect(reason === "revoked");
         }
-        setHackatimeError(
-          typeof data?.error === "string" ? data.error : "Failed to load Hackatime projects.",
-        );
+        setHackatimeError(extractApiError(data, "Failed to load Hackatime projects."));
         setHackatimeProjects([]);
         setHackatimeLoading(false);
         return;
@@ -253,10 +251,10 @@ export default function NewDevlogForm({
   useEffect(() => {
     if (!canEditWindow || isEdit || !selectedDate || !timelineEnabled) return;
 
-    let cancelled = false;
+    const controller = new AbortController();
     setTimeline({ status: "loading" });
 
-    (async () => {
+    void (async () => {
       try {
         const res = await fetch(
           `/api/projects/${encodeURIComponent(projectId)}/devlogs/timeline?date=${encodeURIComponent(selectedDate)}`,
@@ -269,7 +267,7 @@ export default function NewDevlogForm({
           code?: unknown;
         } | null;
 
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
 
         if (!res.ok) {
           const code = typeof data?.code === "string" ? data.code : undefined;
@@ -281,7 +279,7 @@ export default function NewDevlogForm({
           }
           setTimeline({
             status: "error",
-            message: typeof data?.error === "string" ? data.error : "Failed to load timeline.",
+            message: extractApiError(data, "Failed to load timeline."),
             code,
           });
           return;
@@ -297,14 +295,12 @@ export default function NewDevlogForm({
           totalCodedTime: typeof data?.totalCodedTime === "number" ? data.totalCodedTime : 0,
         });
       } catch {
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         setTimeline({ status: "error", message: "Failed to load timeline." });
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, [canEditWindow, isEdit, projectId, selectedDate, timelineEnabled]);
 
   const windowError = useMemo(() => {
@@ -334,7 +330,7 @@ export default function NewDevlogForm({
     let cancelled = false;
     setPreviewLoading(true);
     setPreviewError(null);
-    const timer = window.setTimeout(async () => {
+    const run = async () => {
       try {
         const url = new URL(
           `/api/projects/${encodeURIComponent(projectId)}/devlogs/preview`,
@@ -350,7 +346,7 @@ export default function NewDevlogForm({
         } | null;
         if (cancelled) return;
         if (!res.ok) {
-          const msg = typeof data?.error === "string" ? data.error : "Failed to preview hours.";
+          const msg = extractApiError(data, "Failed to preview hours.");
           setPreviewError(msg);
           setPreviewSeconds(null);
         } else {
@@ -365,7 +361,8 @@ export default function NewDevlogForm({
       } finally {
         if (!cancelled) setPreviewLoading(false);
       }
-    }, 400);
+    };
+    const timer = window.setTimeout(() => void run(), 400);
 
     return () => {
       cancelled = true;
