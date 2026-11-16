@@ -21,10 +21,7 @@ import {
   Users,
 } from "lucide-react";
 import { buildJoeFraudUrl } from "@/lib/constants";
-import {
-  AI_SLOP_REJECTION_MESSAGE,
-  UNCLEAR_README_REJECTION_MESSAGE,
-} from "@/lib/review/config";
+import { AI_SLOP_REJECTION_MESSAGE, UNCLEAR_README_REJECTION_MESSAGE } from "@/lib/review/config";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ProjectEditorBadge from "@/components/ProjectEditorBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
@@ -35,9 +32,7 @@ import ProjectLinkIcon, {
 import ReviewHackatimeTools from "@/components/ReviewHackatimeTools";
 import TelescreenPanel from "@/components/TelescreenPanel";
 import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
-import DevlogAssessmentPanel, {
-  type ReviewDevlogFull,
-} from "@/components/DevlogAssessmentPanel";
+import DevlogAssessmentPanel, { type ReviewDevlogFull } from "@/components/DevlogAssessmentPanel";
 import {
   assessmentDeflatesHours,
   assessmentSecondsToApprovedHours,
@@ -70,6 +65,8 @@ import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
 import {
   formatHoursMinutes,
   type HackatimeRangePreview,
+  extractApiError,
+  toHoursMinutes,
 } from "@/lib/project-form-utils";
 import { coerceDate, formatDurationHM } from "@/lib/devlog-shared";
 import toast from "react-hot-toast";
@@ -122,17 +119,6 @@ type ReviewableProject = {
   bountyProjectName: string | null;
 };
 
-function toHackatimeHours(totalSeconds: number | null | undefined) {
-  const safeTotalSeconds =
-    typeof totalSeconds === "number" && Number.isFinite(totalSeconds)
-      ? Math.max(0, Math.floor(totalSeconds))
-      : 0;
-  return {
-    hours: Math.floor(safeTotalSeconds / 3600),
-    minutes: Math.floor(safeTotalSeconds / 60) % 60,
-  };
-}
-
 function formatApprovedHoursInput(value: number | null) {
   if (value === null) return "";
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
@@ -177,7 +163,13 @@ function ReviewSection({
   );
 }
 
-function ProjectLinkButton({ kind, url }: { kind: ProjectLinkKind; url: string | null | undefined }) {
+function ProjectLinkButton({
+  kind,
+  url,
+}: {
+  kind: ProjectLinkKind;
+  url: string | null | undefined;
+}) {
   const meta = PROJECT_LINK_META[kind];
   const href = url?.trim();
   if (!href) {
@@ -209,7 +201,10 @@ function ProjectLinkButton({ kind, url }: { kind: ProjectLinkKind; url: string |
         <div className="text-sm font-semibold">Open {meta.label.toLowerCase()}</div>
         <div className="text-xs text-muted-foreground truncate">{host}</div>
       </div>
-      <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-carnival-blue" aria-hidden="true" />
+      <ExternalLink
+        className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-carnival-blue"
+        aria-hidden="true"
+      />
     </a>
   );
 }
@@ -301,9 +296,7 @@ function LinkedHackatimeBreakdownCard({
         <ul className="space-y-2">
           {rows.map((row) => {
             const percent =
-              totalSeconds > 0
-                ? Math.round((row.seconds / totalSeconds) * 1000) / 10
-                : 0;
+              totalSeconds > 0 ? Math.round((row.seconds / totalSeconds) * 1000) / 10 : 0;
             const hm = formatDurationHM(row.seconds);
             return (
               <li
@@ -329,9 +322,7 @@ function LinkedHackatimeBreakdownCard({
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <span className="font-semibold text-foreground">{hm.label}</span>
-                    {breakdown.configured ? (
-                      <span>{percent.toFixed(1)}%</span>
-                    ) : null}
+                    {breakdown.configured ? <span>{percent.toFixed(1)}%</span> : null}
                   </div>
                 </div>
                 {breakdown.configured ? (
@@ -386,7 +377,9 @@ export default function ReviewProjectClient({
   // hours justification — the granting admin edits/finalizes it at pass 2.
   const [technicalFeaturesDraft, setTechnicalFeaturesDraft] = useState("");
   const [comment, setComment] = useState("");
-  const [devlogAssessments, setDevlogAssessments] = useState<Record<string, DevlogAssessmentDraft>>({});
+  const [devlogAssessments, setDevlogAssessments] = useState<Record<string, DevlogAssessmentDraft>>(
+    {},
+  );
   const [refreshingDevlogIds, setRefreshingDevlogIds] = useState<Set<string>>(() => new Set());
   const [submitting, setSubmitting] = useState(false);
   const [assignmentBusy, setAssignmentBusy] = useState(false);
@@ -405,7 +398,12 @@ export default function ReviewProjectClient({
         submittedAt: project.submittedAt,
         createdAt: project.createdAt,
       }),
-    [project.createdAt, project.hackatimeStartedAt, project.hackatimeStoppedAt, project.submittedAt],
+    [
+      project.createdAt,
+      project.hackatimeStartedAt,
+      project.hackatimeStoppedAt,
+      project.submittedAt,
+    ],
   );
   const canonicalProjectRangeLabel = useMemo(
     () => formatConsideredHackatimeRangeLabel(canonicalProjectRange),
@@ -413,25 +411,26 @@ export default function ReviewProjectClient({
   );
   const defaultReviewStartDate = canonicalProjectRange?.startDate ?? "";
   const defaultReviewEndDate = canonicalProjectRange?.endDate ?? "";
-  const [reviewJustificationDraft, setReviewJustificationDraftState] = useState<ReviewJustificationDraft>(() =>
-    buildDefaultReviewJustificationDraft({
-      hackatimeProjectName: initial.project.hackatimeProjectName,
-      startDate:
-        getProjectConsideredHackatimeRange({
-          hackatimeStartedAt: initial.project.hackatimeStartedAt,
-          hackatimeStoppedAt: initial.project.hackatimeStoppedAt,
-          submittedAt: initial.project.submittedAt,
-          createdAt: initial.project.createdAt,
-        })?.startDate ?? "",
-      endDate:
-        getProjectConsideredHackatimeRange({
-          hackatimeStartedAt: initial.project.hackatimeStartedAt,
-          hackatimeStoppedAt: initial.project.hackatimeStoppedAt,
-          submittedAt: initial.project.submittedAt,
-          createdAt: initial.project.createdAt,
-        })?.endDate ?? "",
-    }),
-  );
+  const [reviewJustificationDraft, setReviewJustificationDraftState] =
+    useState<ReviewJustificationDraft>(() =>
+      buildDefaultReviewJustificationDraft({
+        hackatimeProjectName: initial.project.hackatimeProjectName,
+        startDate:
+          getProjectConsideredHackatimeRange({
+            hackatimeStartedAt: initial.project.hackatimeStartedAt,
+            hackatimeStoppedAt: initial.project.hackatimeStoppedAt,
+            submittedAt: initial.project.submittedAt,
+            createdAt: initial.project.createdAt,
+          })?.startDate ?? "",
+        endDate:
+          getProjectConsideredHackatimeRange({
+            hackatimeStartedAt: initial.project.hackatimeStartedAt,
+            hackatimeStoppedAt: initial.project.hackatimeStoppedAt,
+            submittedAt: initial.project.submittedAt,
+            createdAt: initial.project.createdAt,
+          })?.endDate ?? "",
+      }),
+    );
   // Seed the approval range with the project's PRECISE stored window (not
   // date-only values): the review page lists devlogs using these exact
   // timestamps, so a widened default would count devlogs the reviewer never saw.
@@ -468,7 +467,12 @@ export default function ReviewProjectClient({
     const bounds = consideredRangeBoundaries(parsed.value);
     const windowStart = coerceDate(project.hackatimeStartedAt);
     const windowEnd = coerceDate(project.hackatimeStoppedAt);
-    if (bounds && windowStart && windowEnd && (bounds.start < windowStart || bounds.end > windowEnd)) {
+    if (
+      bounds &&
+      windowStart &&
+      windowEnd &&
+      (bounds.start < windowStart || bounds.end > windowEnd)
+    ) {
       return {
         ok: false as const,
         error:
@@ -562,12 +566,17 @@ export default function ReviewProjectClient({
       return null;
     }
     return {
-        hackatimeTotalSeconds: project.hackatimeHours
-          ? project.hackatimeHours.hours * 3600 + project.hackatimeHours.minutes * 60
-          : null,
-        hackatimeHours: project.hackatimeHours,
+      hackatimeTotalSeconds: project.hackatimeHours
+        ? project.hackatimeHours.hours * 3600 + project.hackatimeHours.minutes * 60
+        : null,
+      hackatimeHours: project.hackatimeHours,
     };
-  }, [adminApprovalRange, project.hackatimeHours, project.hackatimeStartedAt, project.hackatimeStoppedAt]);
+  }, [
+    adminApprovalRange,
+    project.hackatimeHours,
+    project.hackatimeStartedAt,
+    project.hackatimeStoppedAt,
+  ]);
 
   const {
     preview: adminHackatimePreview,
@@ -585,11 +594,7 @@ export default function ReviewProjectClient({
   });
 
   const approvalHackatimeHoursValue = useMemo(() => {
-    if (
-      isAdmin &&
-      decision === "approved" &&
-      adminHackatimePreview?.hackatimeHours
-    ) {
+    if (isAdmin && decision === "approved" && adminHackatimePreview?.hackatimeHours) {
       return (
         adminHackatimePreview.hackatimeHours.hours +
         adminHackatimePreview.hackatimeHours.minutes / 60
@@ -665,7 +670,11 @@ export default function ReviewProjectClient({
     if (comment.trim().length === 0) return false;
     if (decision === "approved") {
       if (hasDevlogs && !allDevlogsAssessed) return false;
-      if (!hasDevlogs && isAdmin && (adminHackatimePreviewLoading || !!adminHackatimePreviewError)) {
+      if (
+        !hasDevlogs &&
+        isAdmin &&
+        (adminHackatimePreviewLoading || !!adminHackatimePreviewError)
+      ) {
         return false;
       }
       return !approvedHoursInputError && approvedHoursValue !== null && approvedHoursValue > 0;
@@ -685,11 +694,7 @@ export default function ReviewProjectClient({
   ]);
 
   const approvalHackatimeLabel = useMemo(() => {
-    if (
-      isAdmin &&
-      decision === "approved" &&
-      adminHackatimePreview?.hackatimeHours
-    ) {
+    if (isAdmin && decision === "approved" && adminHackatimePreview?.hackatimeHours) {
       return formatHoursMinutes(
         adminHackatimePreview.hackatimeHours.hours,
         adminHackatimePreview.hackatimeHours.minutes,
@@ -744,7 +749,11 @@ export default function ReviewProjectClient({
   const joeFraudLink = useMemo(() => {
     const hackatimeId = project.hackatimeUserId?.trim();
     if (!hackatimeId || !canonicalProjectRange) return null;
-    return buildJoeFraudUrl(hackatimeId, canonicalProjectRange.startDate, canonicalProjectRange.endDate);
+    return buildJoeFraudUrl(
+      hackatimeId,
+      canonicalProjectRange.startDate,
+      canonicalProjectRange.endDate,
+    );
   }, [canonicalProjectRange, project.hackatimeUserId]);
 
   const resetReviewJustificationDraft = useCallback(() => {
@@ -760,151 +769,160 @@ export default function ReviewProjectClient({
       endDate: project.hackatimeStoppedAt ?? defaultReviewEndDate,
     });
     setModalError(null);
-  }, [defaultReviewEndDate, defaultReviewStartDate, project.hackatimeProjectName, project.hackatimeStartedAt, project.hackatimeStoppedAt, setReviewJustificationDraft]);
-
-  const submitReview = useCallback(async (input: {
-    requestReviewJustification: ReviewJustificationDraft | null;
-    optimisticReviewJustification: ReviewJustificationPayload | null;
-    consideredHackatimeRange: ConsideredHackatimeRange | null;
-    dismiss?: boolean;
-    dismissReason?: string;
-  }) => {
-    setSubmitting(true);
-    setError(null);
-    setSuccessAt(null);
-
-    const dismiss = input.dismiss === true;
-    const trimmedDismissReason = dismiss ? (input.dismissReason ?? "").trim() : "";
-    const toastId = toast.loading(dismiss ? "Rejecting and dismissing…" : "Submitting review…");
-    try {
-      const assessmentsPayload = Object.values(devlogAssessments).map((a) => ({
-        devlogId: a.devlogId,
-        decision: a.decision,
-        ...(a.decision === "adjusted"
-          ? { adjustedSeconds: Math.max(0, Math.floor(a.adjustedSeconds ?? 0)) }
-          : {}),
-        ...(a.decision === "adjusted" && a.hackatimeAdjustments?.length
-          ? {
-              hackatimeAdjustments: a.hackatimeAdjustments.map((entry) => ({
-                name: entry.name,
-                seconds: Math.max(0, Math.floor(entry.seconds)),
-              })),
-            }
-          : {}),
-        ...(a.deflationReasons?.length ? { deflationReasons: a.deflationReasons } : {}),
-        ...(a.decision === "adjusted" && a.reviewedWindow
-          ? {
-              reviewedWindow: {
-                startedAt: a.reviewedWindow.startedAt,
-                endedAt: a.reviewedWindow.endedAt,
-              },
-            }
-          : {}),
-        ...(a.comment ? { comment: a.comment } : {}),
-      }));
-
-      const res = await fetch(`/api/review/${encodeURIComponent(project.id)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          decision,
-          comment: comment.trim(),
-          approvedHours: decision === "approved" ? approvedHoursValue : null,
-          reviewJustification: input.requestReviewJustification,
-          consideredHackatimeRange: input.consideredHackatimeRange,
-          devlogAssessments: assessmentsPayload,
-          ...(decision === "rejected" && rejectionCategory ? { rejectionCategory } : {}),
-          ...(decision === "approved" && technicalFeaturesDraft.trim()
-            ? { specificTechnicalFeatures: technicalFeaturesDraft.trim() }
-            : {}),
-          ...(dismiss ? { dismiss: true, dismissReason: trimmedDismissReason } : {}),
-        }),
-      });
-      const data = (await res.json().catch(() => null)) as
-        | {
-            project?: {
-              status?: ProjectStatus;
-              approvedHours?: number | null;
-              hackatimeStartedAt?: string | null;
-              hackatimeStoppedAt?: string | null;
-              hackatimeTotalSeconds?: number | null;
-            };
-            review?: Omit<ReviewItem, "reviewJustification"> & {
-              reviewJustification?: ReviewJustificationPayload | null;
-            };
-            error?: unknown;
-          }
-        | null;
-
-      if (!res.ok) {
-        const message =
-          typeof data?.error === "string" ? data.error : "Failed to submit review.";
-        setError(message);
-        toast.error(message, { id: toastId });
-        setSubmitting(false);
-        return;
-      }
-
-      if (data?.project?.status) {
-        setProject((p) => ({
-          ...p,
-          status: data.project!.status!,
-          approvedHours:
-            data.project?.approvedHours !== undefined ? data.project.approvedHours : p.approvedHours,
-          hackatimeStartedAt:
-            data.project?.hackatimeStartedAt !== undefined
-              ? data.project.hackatimeStartedAt
-              : p.hackatimeStartedAt,
-          hackatimeStoppedAt:
-            data.project?.hackatimeStoppedAt !== undefined
-              ? data.project.hackatimeStoppedAt
-              : p.hackatimeStoppedAt,
-          hackatimeHours:
-            typeof data.project?.hackatimeTotalSeconds === "number"
-              ? toHackatimeHours(data.project.hackatimeTotalSeconds)
-              : p.hackatimeHours,
-        }));
-      }
-
-      if (data?.review) {
-        const nextReview: ReviewItem = {
-          ...data.review,
-          reviewJustification:
-            data.review.reviewJustification ?? input.optimisticReviewJustification ?? null,
-        };
-        setReviews((prev) => [...prev, nextReview]);
-      }
-
-      setComment("");
-      setDecision("comment");
-      setRejectionCategory("");
-      setTechnicalFeaturesDraft("");
-      setDevlogAssessments({});
-      setShowConfirmationModal(false);
-      setShowDismissConfirmationModal(false);
-      setDismissReason("");
-      resetReviewJustificationDraft();
-      setSuccessAt(Date.now());
-      toast.success(dismiss ? "Project rejected and dismissed." : "Review submitted.", {
-        id: toastId,
-      });
-      setSubmitting(false);
-    } catch {
-      const failureMessage = dismiss ? "Failed to dismiss project." : "Failed to submit review.";
-      setError(failureMessage);
-      toast.error(failureMessage, { id: toastId });
-      setSubmitting(false);
-    }
   }, [
-    approvedHoursValue,
-    comment,
-    decision,
-    devlogAssessments,
-    project.id,
-    rejectionCategory,
-    resetReviewJustificationDraft,
-    technicalFeaturesDraft,
+    defaultReviewEndDate,
+    defaultReviewStartDate,
+    project.hackatimeProjectName,
+    project.hackatimeStartedAt,
+    project.hackatimeStoppedAt,
+    setReviewJustificationDraft,
   ]);
+
+  const submitReview = useCallback(
+    async (input: {
+      requestReviewJustification: ReviewJustificationDraft | null;
+      optimisticReviewJustification: ReviewJustificationPayload | null;
+      consideredHackatimeRange: ConsideredHackatimeRange | null;
+      dismiss?: boolean;
+      dismissReason?: string;
+    }) => {
+      setSubmitting(true);
+      setError(null);
+      setSuccessAt(null);
+
+      const dismiss = input.dismiss === true;
+      const trimmedDismissReason = dismiss ? (input.dismissReason ?? "").trim() : "";
+      const toastId = toast.loading(dismiss ? "Rejecting and dismissing…" : "Submitting review…");
+      try {
+        const assessmentsPayload = Object.values(devlogAssessments).map((a) => ({
+          devlogId: a.devlogId,
+          decision: a.decision,
+          ...(a.decision === "adjusted"
+            ? { adjustedSeconds: Math.max(0, Math.floor(a.adjustedSeconds ?? 0)) }
+            : {}),
+          ...(a.decision === "adjusted" && a.hackatimeAdjustments?.length
+            ? {
+                hackatimeAdjustments: a.hackatimeAdjustments.map((entry) => ({
+                  name: entry.name,
+                  seconds: Math.max(0, Math.floor(entry.seconds)),
+                })),
+              }
+            : {}),
+          ...(a.deflationReasons?.length ? { deflationReasons: a.deflationReasons } : {}),
+          ...(a.decision === "adjusted" && a.reviewedWindow
+            ? {
+                reviewedWindow: {
+                  startedAt: a.reviewedWindow.startedAt,
+                  endedAt: a.reviewedWindow.endedAt,
+                },
+              }
+            : {}),
+          ...(a.comment ? { comment: a.comment } : {}),
+        }));
+
+        const res = await fetch(`/api/review/${encodeURIComponent(project.id)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            decision,
+            comment: comment.trim(),
+            approvedHours: decision === "approved" ? approvedHoursValue : null,
+            reviewJustification: input.requestReviewJustification,
+            consideredHackatimeRange: input.consideredHackatimeRange,
+            devlogAssessments: assessmentsPayload,
+            ...(decision === "rejected" && rejectionCategory ? { rejectionCategory } : {}),
+            ...(decision === "approved" && technicalFeaturesDraft.trim()
+              ? { specificTechnicalFeatures: technicalFeaturesDraft.trim() }
+              : {}),
+            ...(dismiss ? { dismiss: true, dismissReason: trimmedDismissReason } : {}),
+          }),
+        });
+        const data = (await res.json().catch(() => null)) as {
+          project?: {
+            status?: ProjectStatus;
+            approvedHours?: number | null;
+            hackatimeStartedAt?: string | null;
+            hackatimeStoppedAt?: string | null;
+            hackatimeTotalSeconds?: number | null;
+          };
+          review?: Omit<ReviewItem, "reviewJustification"> & {
+            reviewJustification?: ReviewJustificationPayload | null;
+          };
+          error?: unknown;
+        } | null;
+
+        if (!res.ok) {
+          const message = extractApiError(data, "Failed to submit review.");
+          setError(message);
+          toast.error(message, { id: toastId });
+          setSubmitting(false);
+          return;
+        }
+
+        if (data?.project?.status) {
+          setProject((p) => ({
+            ...p,
+            status: data.project!.status!,
+            approvedHours:
+              data.project?.approvedHours !== undefined
+                ? data.project.approvedHours
+                : p.approvedHours,
+            hackatimeStartedAt:
+              data.project?.hackatimeStartedAt !== undefined
+                ? data.project.hackatimeStartedAt
+                : p.hackatimeStartedAt,
+            hackatimeStoppedAt:
+              data.project?.hackatimeStoppedAt !== undefined
+                ? data.project.hackatimeStoppedAt
+                : p.hackatimeStoppedAt,
+            hackatimeHours:
+              typeof data.project?.hackatimeTotalSeconds === "number"
+                ? toHoursMinutes(data.project.hackatimeTotalSeconds)
+                : p.hackatimeHours,
+          }));
+        }
+
+        if (data?.review) {
+          const nextReview: ReviewItem = {
+            ...data.review,
+            reviewJustification:
+              data.review.reviewJustification ?? input.optimisticReviewJustification ?? null,
+          };
+          setReviews((prev) => [...prev, nextReview]);
+        }
+
+        setComment("");
+        setDecision("comment");
+        setRejectionCategory("");
+        setTechnicalFeaturesDraft("");
+        setDevlogAssessments({});
+        setShowConfirmationModal(false);
+        setShowDismissConfirmationModal(false);
+        setDismissReason("");
+        resetReviewJustificationDraft();
+        setSuccessAt(Date.now());
+        toast.success(dismiss ? "Project rejected and dismissed." : "Review submitted.", {
+          id: toastId,
+        });
+        setSubmitting(false);
+      } catch {
+        const failureMessage = dismiss ? "Failed to dismiss project." : "Failed to submit review.";
+        setError(failureMessage);
+        toast.error(failureMessage, { id: toastId });
+        setSubmitting(false);
+      }
+    },
+    [
+      approvedHoursValue,
+      comment,
+      decision,
+      devlogAssessments,
+      project.id,
+      rejectionCategory,
+      resetReviewJustificationDraft,
+      technicalFeaturesDraft,
+    ],
+  );
 
   const onSubmit = useCallback(() => {
     if (!canSubmit) return;
@@ -996,33 +1014,44 @@ export default function ReviewProjectClient({
     setModalError(null);
   }, [submitting]);
 
-  const onToggleEvidence = useCallback((key: keyof ReviewJustificationDraft["evidence"]) => {
-    setReviewJustificationDraft((prev) => ({
-      ...prev,
-      evidence: {
-        ...prev.evidence,
-        [key]: !prev.evidence[key],
-      },
-    }));
-    setModalError(null);
-  }, [setReviewJustificationDraft]);
+  const onToggleEvidence = useCallback(
+    (key: keyof ReviewJustificationDraft["evidence"]) => {
+      setReviewJustificationDraft((prev) => ({
+        ...prev,
+        evidence: {
+          ...prev.evidence,
+          [key]: !prev.evidence[key],
+        },
+      }));
+      setModalError(null);
+    },
+    [setReviewJustificationDraft],
+  );
 
-  const onDecisionChange = useCallback((nextDecision: ReviewDecision) => {
-    setDecision(nextDecision);
-    setError(null);
-    setModalError(null);
-    if (nextDecision !== "approved") {
-      setShowConfirmationModal(false);
-      setApprovedHoursInput("");
+  const onDecisionChange = useCallback(
+    (nextDecision: ReviewDecision) => {
+      setDecision(nextDecision);
+      setError(null);
+      setModalError(null);
+      if (nextDecision !== "approved") {
+        setShowConfirmationModal(false);
+        setApprovedHoursInput("");
+        setApprovedHoursManuallyEdited(false);
+        return;
+      }
       setApprovedHoursManuallyEdited(false);
-      return;
-    }
-    setApprovedHoursManuallyEdited(false);
-    setApprovalProjectRange({
-      startDate: project.hackatimeStartedAt ?? defaultReviewStartDate,
-      endDate: project.hackatimeStoppedAt ?? defaultReviewEndDate,
-    });
-  }, [defaultReviewEndDate, defaultReviewStartDate, project.hackatimeStartedAt, project.hackatimeStoppedAt]);
+      setApprovalProjectRange({
+        startDate: project.hackatimeStartedAt ?? defaultReviewStartDate,
+        endDate: project.hackatimeStoppedAt ?? defaultReviewEndDate,
+      });
+    },
+    [
+      defaultReviewEndDate,
+      defaultReviewStartDate,
+      project.hackatimeStartedAt,
+      project.hackatimeStoppedAt,
+    ],
+  );
 
   const onDeleteReview = useCallback(
     async (reviewId: string) => {
@@ -1034,7 +1063,7 @@ export default function ReviewProjectClient({
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
-          const message = typeof data?.error === "string" ? data.error : "Failed to delete comment.";
+          const message = extractApiError(data, "Failed to delete comment.");
           toast.error(message, { id: toastId });
           return;
         }
@@ -1056,11 +1085,12 @@ export default function ReviewProjectClient({
       const res = await fetch(`/api/review/${encodeURIComponent(project.id)}/assignment`, {
         method: assigning ? "POST" : "DELETE",
       });
-      const data = (await res.json().catch(() => null)) as
-        | { assignments?: AssignmentItem[]; error?: unknown }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        assignments?: AssignmentItem[];
+        error?: unknown;
+      } | null;
       if (!res.ok) {
-        const message = typeof data?.error === "string" ? data.error : "Failed to update assignment.";
+        const message = extractApiError(data, "Failed to update assignment.");
         toast.error(message, { id: toastId });
         setAssignmentBusy(false);
         return;
@@ -1075,62 +1105,65 @@ export default function ReviewProjectClient({
     }
   }, [assignmentBusy, isAssignedToMe, project.id]);
 
-  const onRefreshDevlogHackatime = useCallback(async (devlogId: string) => {
-    if (refreshingDevlogIds.has(devlogId)) return;
-    setRefreshingDevlogIds((prev) => new Set(prev).add(devlogId));
-    const toastId = toast.loading("Refreshing devlog Hackatime…");
-    try {
-      const res = await fetch(
-        `/api/projects/${encodeURIComponent(project.id)}/devlogs/${encodeURIComponent(devlogId)}/refresh`,
-        { method: "POST" },
-      );
-      const data = (await res.json().catch(() => null)) as
-        | { devlog?: ReviewDevlogFull; error?: unknown }
-        | null;
-      if (!res.ok || !data?.devlog) {
-        const message =
-          typeof data?.error === "string" ? data.error : "Failed to refresh devlog Hackatime.";
-        toast.error(message, { id: toastId });
+  const onRefreshDevlogHackatime = useCallback(
+    async (devlogId: string) => {
+      if (refreshingDevlogIds.has(devlogId)) return;
+      setRefreshingDevlogIds((prev) => new Set(prev).add(devlogId));
+      const toastId = toast.loading("Refreshing devlog Hackatime…");
+      try {
+        const res = await fetch(
+          `/api/projects/${encodeURIComponent(project.id)}/devlogs/${encodeURIComponent(devlogId)}/refresh`,
+          { method: "POST" },
+        );
+        const data = (await res.json().catch(() => null)) as {
+          devlog?: ReviewDevlogFull;
+          error?: unknown;
+        } | null;
+        if (!res.ok || !data?.devlog) {
+          const message = extractApiError(data, "Failed to refresh devlog Hackatime.");
+          toast.error(message, { id: toastId });
+          setRefreshingDevlogIds((prev) => {
+            const next = new Set(prev);
+            next.delete(devlogId);
+            return next;
+          });
+          return;
+        }
+
+        const refreshed = data.devlog;
+        setReviewDevlogs((prev) => prev.map((d) => (d.id === refreshed.id ? refreshed : d)));
+        setDevlogAssessments((prev) => {
+          const draft = prev[refreshed.id];
+          if (draft?.decision !== "adjusted") return prev;
+          const nextAdjustedSeconds = Math.min(
+            Math.max(0, Math.floor(draft.adjustedSeconds ?? 0)),
+            Math.max(
+              Math.max(0, Math.floor(refreshed.durationSeconds || 0)),
+              breakdownTotalByDevlogId.get(refreshed.id) ?? 0,
+            ),
+          );
+          if (nextAdjustedSeconds === draft.adjustedSeconds) return prev;
+          return {
+            ...prev,
+            [refreshed.id]: {
+              ...draft,
+              adjustedSeconds: nextAdjustedSeconds,
+            },
+          };
+        });
+        toast.success("Devlog Hackatime refreshed.", { id: toastId });
+      } catch {
+        toast.error("Failed to refresh devlog Hackatime.", { id: toastId });
+      } finally {
         setRefreshingDevlogIds((prev) => {
           const next = new Set(prev);
           next.delete(devlogId);
           return next;
         });
-        return;
       }
-
-      const refreshed = data.devlog;
-      setReviewDevlogs((prev) => prev.map((d) => (d.id === refreshed.id ? refreshed : d)));
-      setDevlogAssessments((prev) => {
-        const draft = prev[refreshed.id];
-        if (!draft || draft.decision !== "adjusted") return prev;
-        const nextAdjustedSeconds = Math.min(
-          Math.max(0, Math.floor(draft.adjustedSeconds ?? 0)),
-          Math.max(
-            Math.max(0, Math.floor(refreshed.durationSeconds || 0)),
-            breakdownTotalByDevlogId.get(refreshed.id) ?? 0,
-          ),
-        );
-        if (nextAdjustedSeconds === draft.adjustedSeconds) return prev;
-        return {
-          ...prev,
-          [refreshed.id]: {
-            ...draft,
-            adjustedSeconds: nextAdjustedSeconds,
-          },
-        };
-      });
-      toast.success("Devlog Hackatime refreshed.", { id: toastId });
-    } catch {
-      toast.error("Failed to refresh devlog Hackatime.", { id: toastId });
-    } finally {
-      setRefreshingDevlogIds((prev) => {
-        const next = new Set(prev);
-        next.delete(devlogId);
-        return next;
-      });
-    }
-  }, [breakdownTotalByDevlogId, project.id, refreshingDevlogIds]);
+    },
+    [breakdownTotalByDevlogId, project.id, refreshingDevlogIds],
+  );
 
   return (
     <div className="space-y-6">
@@ -1283,7 +1316,10 @@ export default function ReviewProjectClient({
         <details className="group rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
           <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold text-foreground">
             Check a custom window
-            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" />
+            <ChevronDown
+              className="h-4 w-4 transition-transform group-open:rotate-180"
+              aria-hidden="true"
+            />
           </summary>
           <div className="mt-3">
             <ReviewHackatimeTools
@@ -1307,11 +1343,19 @@ export default function ReviewProjectClient({
               return (
                 <li key={item.key} className="flex items-start gap-2.5 text-sm">
                   {checked ? (
-                    <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-label="Checked" />
+                    <CircleCheck
+                      className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600"
+                      aria-label="Checked"
+                    />
                   ) : (
-                    <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-label="Unchecked" />
+                    <Circle
+                      className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                      aria-label="Unchecked"
+                    />
                   )}
-                  <span className={checked ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
+                  <span className={checked ? "text-foreground" : "text-muted-foreground"}>
+                    {item.label}
+                  </span>
                 </li>
               );
             })}
@@ -1345,7 +1389,10 @@ export default function ReviewProjectClient({
         ) : (
           <div className="flex flex-wrap items-center gap-2">
             {assignments.map((a) => (
-              <div key={`${a.reviewerId}-${a.createdAt}`} className="rounded-[var(--carnival-squircle-radius)] border border-border bg-card px-3 py-1 font-bold">
+              <div
+                key={`${a.reviewerId}-${a.createdAt}`}
+                className="rounded-[var(--carnival-squircle-radius)] border border-border bg-card px-3 py-1 font-bold"
+              >
                 <span className="text-xs text-foreground font-semibold">
                   {a.reviewerName}
                   {a.reviewerId === initial.viewerUserId ? " (You)" : ""}
@@ -1356,7 +1403,7 @@ export default function ReviewProjectClient({
         )}
       </ReviewSection>
 
-      {project.screenshots?.length ? (
+      {project.screenshots.length ? (
         <div className="platform-surface-card p-6 space-y-4">
           <div className="text-foreground font-semibold text-lg">Screenshots</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1380,266 +1427,267 @@ export default function ReviewProjectClient({
           <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-foreground">
             <div className="font-semibold mb-1">This is your own project</div>
             <div className="text-muted-foreground">
-              Reviewers can&apos;t assess, assign themselves to, or decide on their own
-              submissions. Another reviewer will pick it up from the queue.
+              Reviewers can&apos;t assess, assign themselves to, or decide on their own submissions.
+              Another reviewer will pick it up from the queue.
             </div>
           </div>
         </div>
       ) : (
         <>
-      <DevlogAssessmentPanel
-        projectId={project.id}
-        hackatimeUserId={project.hackatimeUserId}
-        devlogs={reviewDevlogs}
-        assessments={devlogAssessments}
-        onChange={setDevlogAssessments}
-        onRefreshHackatime={onRefreshDevlogHackatime}
-        refreshingDevlogIds={refreshingDevlogIds}
-        hackatimeBreakdownByDevlogId={hackatimeBreakdown.byDevlog}
-        hackatimeBreakdownConfigured={hackatimeBreakdown.configured}
-      />
+          <DevlogAssessmentPanel
+            projectId={project.id}
+            hackatimeUserId={project.hackatimeUserId}
+            devlogs={reviewDevlogs}
+            assessments={devlogAssessments}
+            onChange={setDevlogAssessments}
+            onRefreshHackatime={onRefreshDevlogHackatime}
+            refreshingDevlogIds={refreshingDevlogIds}
+            hackatimeBreakdownByDevlogId={hackatimeBreakdown.byDevlog}
+            hackatimeBreakdownConfigured={hackatimeBreakdown.configured}
+          />
 
-      <div className="platform-surface-card p-6 space-y-4">
-        <div className="text-foreground font-semibold text-lg">Leave a review</div>
+          <div className="platform-surface-card p-6 space-y-4">
+            <div className="text-foreground font-semibold text-lg">Leave a review</div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <button
-            type="button"
-            onClick={() => onDecisionChange("approved")}
-            className={[
-              "rounded-[var(--radius-2xl)] border px-4 py-3 text-left transition-colors",
-              decision === "approved"
-                ? "border-carnival-blue/50 bg-carnival-blue/10"
-                : "border-border bg-muted hover:bg-muted/70",
-            ].join(" ")}
-          >
-            <div className="text-foreground font-semibold">Approve (pass 1)</div>
-            <div className="text-sm text-muted-foreground">
-              Moves to the admin grant queue. The creator is not notified until granted.
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => onDecisionChange("approved")}
+                className={[
+                  "rounded-[var(--radius-2xl)] border px-4 py-3 text-left transition-colors",
+                  decision === "approved"
+                    ? "border-carnival-blue/50 bg-carnival-blue/10"
+                    : "border-border bg-muted hover:bg-muted/70",
+                ].join(" ")}
+              >
+                <div className="text-foreground font-semibold">Approve (pass 1)</div>
+                <div className="text-sm text-muted-foreground">
+                  Moves to the admin grant queue. The creator is not notified until granted.
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => onDecisionChange("rejected")}
+                className={[
+                  "rounded-[var(--radius-2xl)] border px-4 py-3 text-left transition-colors",
+                  decision === "rejected"
+                    ? "border-carnival-blue/50 bg-carnival-blue/10"
+                    : "border-border bg-muted hover:bg-muted/70",
+                ].join(" ")}
+              >
+                <div className="text-foreground font-semibold">Reject</div>
+                <div className="text-sm text-muted-foreground">Send back to work in progress.</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => onDecisionChange("comment")}
+                className={[
+                  "rounded-[var(--radius-2xl)] border px-4 py-3 text-left transition-colors",
+                  decision === "comment"
+                    ? "border-carnival-blue/50 bg-carnival-blue/10"
+                    : "border-border bg-muted hover:bg-muted/70",
+                ].join(" ")}
+              >
+                <div className="text-foreground font-semibold">Comment</div>
+                <div className="text-sm text-muted-foreground">Keep in review queue.</div>
+              </button>
             </div>
-          </button>
-          <button
-            type="button"
-            onClick={() => onDecisionChange("rejected")}
-            className={[
-              "rounded-[var(--radius-2xl)] border px-4 py-3 text-left transition-colors",
-              decision === "rejected"
-                ? "border-carnival-blue/50 bg-carnival-blue/10"
-                : "border-border bg-muted hover:bg-muted/70",
-            ].join(" ")}
-          >
-            <div className="text-foreground font-semibold">Reject</div>
-            <div className="text-sm text-muted-foreground">Send back to work in progress.</div>
-          </button>
-          <button
-            type="button"
-            onClick={() => onDecisionChange("comment")}
-            className={[
-              "rounded-[var(--radius-2xl)] border px-4 py-3 text-left transition-colors",
-              decision === "comment"
-                ? "border-carnival-blue/50 bg-carnival-blue/10"
-                : "border-border bg-muted hover:bg-muted/70",
-            ].join(" ")}
-          >
-            <div className="text-foreground font-semibold">Comment</div>
-            <div className="text-sm text-muted-foreground">Keep in review queue.</div>
-          </button>
-        </div>
 
-        <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-sm text-muted-foreground">Approved hours</div>
-            <div className="text-sm font-semibold text-foreground">
-              {approvedHoursValue !== null
-                ? `${approvedHoursValue}h`
-                : !hasDevlogs
-                  ? "Pending Hackatime range"
-                  : allDevlogsAssessed
-                    ? "0h"
-                    : "Pending assessment"}
-            </div>
-          </div>
-          {decision === "approved" ? (
-            <label className="mt-3 block">
-              <div className="text-xs text-muted-foreground mb-1">
-                Approved hours to save
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm text-muted-foreground">Approved hours</div>
+                <div className="text-sm font-semibold text-foreground">
+                  {approvedHoursValue !== null
+                    ? `${approvedHoursValue}h`
+                    : !hasDevlogs
+                      ? "Pending Hackatime range"
+                      : allDevlogsAssessed
+                        ? "0h"
+                        : "Pending assessment"}
+                </div>
               </div>
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0.1"
-                step="0.1"
-                value={approvedHoursInput}
-                onChange={(e) => {
-                  setApprovedHoursManuallyEdited(true);
-                  setApprovedHoursInput(e.target.value);
-                  setModalError(null);
-                }}
-                className="w-full max-w-xs bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                placeholder={
-                  suggestedApprovedHoursValue !== null
-                    ? formatApprovedHoursInput(suggestedApprovedHoursValue)
-                    : "0.0"
-                }
-              />
-              {approvedHoursInputError ? (
-                <div className="mt-1 text-xs text-red-200">{approvedHoursInputError}</div>
+              {decision === "approved" ? (
+                <label className="mt-3 block">
+                  <div className="text-xs text-muted-foreground mb-1">Approved hours to save</div>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0.1"
+                    step="0.1"
+                    value={approvedHoursInput}
+                    onChange={(e) => {
+                      setApprovedHoursManuallyEdited(true);
+                      setApprovedHoursInput(e.target.value);
+                      setModalError(null);
+                    }}
+                    className="w-full max-w-xs bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                    placeholder={
+                      suggestedApprovedHoursValue !== null
+                        ? formatApprovedHoursInput(suggestedApprovedHoursValue)
+                        : "0.0"
+                    }
+                  />
+                  {approvedHoursInputError ? (
+                    <div className="mt-1 text-xs text-red-200">{approvedHoursInputError}</div>
+                  ) : null}
+                  {suggestedApprovedHoursValue !== null ? (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Suggested from current review data:{" "}
+                      <span className="text-foreground font-semibold">
+                        {suggestedApprovedHoursValue}h
+                      </span>
+                    </div>
+                  ) : null}
+                </label>
               ) : null}
-              {suggestedApprovedHoursValue !== null ? (
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Suggested from current review data:{" "}
-                  <span className="text-foreground font-semibold">{suggestedApprovedHoursValue}h</span>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {hasDevlogs
+                  ? "Start from the assessed devlog total, then enter the approved hours you want to save."
+                  : "Start from the selected considered Hackatime range, then enter the approved hours you want to save."}
+              </div>
+              {decision === "approved" && hasDevlogs && !allDevlogsAssessed ? (
+                <div className="mt-2 text-xs text-red-200">
+                  {`Assess every devlog before approving (${Object.keys(devlogAssessments).length}/${reviewDevlogs.length} done).`}
                 </div>
               ) : null}
-            </label>
-          ) : null}
-          <div className="mt-1 text-xs text-muted-foreground">
-            {hasDevlogs
-              ? "Start from the assessed devlog total, then enter the approved hours you want to save."
-              : "Start from the selected considered Hackatime range, then enter the approved hours you want to save."}
-          </div>
-          {decision === "approved" && hasDevlogs && !allDevlogsAssessed ? (
-            <div className="mt-2 text-xs text-red-200">
-              {`Assess every devlog before approving (${Object.keys(devlogAssessments).length}/${reviewDevlogs.length} done).`}
-            </div>
-          ) : null}
-          {decision === "approved" && !hasDevlogs && isAdmin ? (
-            <div className="mt-2 text-xs text-muted-foreground">
-              Pick the project considered range in the approval confirmation step to preview and save
-              the Hackatime hours for this no-devlog project.
-            </div>
-          ) : null}
-        </div>
-
-        {decision === "rejected" ? (
-          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 space-y-2">
-            <div className="text-sm font-semibold text-foreground">One-click rejections</div>
-            <div className="text-xs text-muted-foreground">
-              These record a structured cause and prefill a friendly message the creator will
-              receive. You can still edit the comment before submitting.
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setRejectionCategory("ai-slop");
-                  setComment(AI_SLOP_REJECTION_MESSAGE);
-                }}
-                className={[
-                  "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
-                  rejectionCategory === "ai-slop"
-                    ? "border-carnival-red/60 bg-carnival-red/15 text-carnival-red"
-                    : "border-border bg-background text-foreground hover:bg-muted/70",
-                ].join(" ")}
-              >
-                AI slop
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setRejectionCategory("unclear-readme");
-                  setComment(UNCLEAR_README_REJECTION_MESSAGE);
-                }}
-                className={[
-                  "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
-                  rejectionCategory === "unclear-readme"
-                    ? "border-carnival-red/60 bg-carnival-red/15 text-carnival-red"
-                    : "border-border bg-background text-foreground hover:bg-muted/70",
-                ].join(" ")}
-              >
-                Unclear README
-              </button>
-              {rejectionCategory ? (
-                <button
-                  type="button"
-                  onClick={() => setRejectionCategory("")}
-                  className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/70"
-                >
-                  Clear
-                </button>
+              {decision === "approved" && !hasDevlogs && isAdmin ? (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Pick the project considered range in the approval confirmation step to preview and
+                  save the Hackatime hours for this no-devlog project.
+                </div>
               ) : null}
             </div>
-          </div>
-        ) : null}
 
-        <label className="block">
-          <div className="text-sm text-muted-foreground font-medium mb-2">Comment</div>
-          <textarea
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            rows={5}
-            className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-            placeholder="Be specific and kind. What should they improve?"
-          />
-        </label>
-
-        {decision === "approved" ? (
-          <label className="block">
-            <div className="text-sm text-muted-foreground font-medium mb-2">
-              Specific technical features (draft, internal)
-            </div>
-            <textarea
-              value={technicalFeaturesDraft}
-              onChange={(e) => setTechnicalFeaturesDraft(e.target.value)}
-              rows={3}
-              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-              placeholder='Technical qualities that justify the hours — be specific (e.g. "OAuth flow, content-script messaging, custom build pipeline"), not just a list of languages.'
-            />
-            <div className="mt-1 text-xs text-muted-foreground">
-              Optional draft for the granting admin. It seeds the human-written hours
-              justification sent to the Unified Database — the creator never sees it.
-            </div>
-          </label>
-        ) : null}
-
-        {error ? (
-          <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
-            {error}
-          </div>
-        ) : null}
-
-        {decision === "approved" ? (
-          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-            Approvals require confirmation with evidence checks and a review range.
-          </div>
-        ) : null}
-
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
-          <div className="text-sm text-muted-foreground">{successAt ? "Submitted." : null}</div>
-          <div className="flex flex-wrap items-center gap-3">
-            {isAdmin && decision === "rejected" ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (!canSubmit) return;
-                  setShowDismissConfirmationModal(true);
-                }}
-                disabled={!canSubmit}
-                className="inline-flex items-center justify-center border border-carnival-red/60 bg-carnival-red/10 hover:bg-carnival-red/20 disabled:opacity-50 disabled:cursor-not-allowed text-carnival-red px-6 py-3 rounded-[var(--radius-xl)] font-bold transition-colors"
-                title="Reject and prevent resubmission"
-              >
-                Reject and dismiss
-              </button>
+            {decision === "rejected" ? (
+              <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 space-y-2">
+                <div className="text-sm font-semibold text-foreground">One-click rejections</div>
+                <div className="text-xs text-muted-foreground">
+                  These record a structured cause and prefill a friendly message the creator will
+                  receive. You can still edit the comment before submitting.
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRejectionCategory("ai-slop");
+                      setComment(AI_SLOP_REJECTION_MESSAGE);
+                    }}
+                    className={[
+                      "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                      rejectionCategory === "ai-slop"
+                        ? "border-carnival-red/60 bg-carnival-red/15 text-carnival-red"
+                        : "border-border bg-background text-foreground hover:bg-muted/70",
+                    ].join(" ")}
+                  >
+                    AI slop
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRejectionCategory("unclear-readme");
+                      setComment(UNCLEAR_README_REJECTION_MESSAGE);
+                    }}
+                    className={[
+                      "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                      rejectionCategory === "unclear-readme"
+                        ? "border-carnival-red/60 bg-carnival-red/15 text-carnival-red"
+                        : "border-border bg-background text-foreground hover:bg-muted/70",
+                    ].join(" ")}
+                  >
+                    Unclear README
+                  </button>
+                  {rejectionCategory ? (
+                    <button
+                      type="button"
+                      onClick={() => setRejectionCategory("")}
+                      className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/70"
+                    >
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
+              </div>
             ) : null}
-            <button
-              type="button"
-              onClick={onSubmit}
-              disabled={!canSubmit}
-              className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-[var(--radius-xl)] font-bold transition-colors"
-            >
-              {submitting ? "Submitting…" : "Submit review"}
-            </button>
+
+            <label className="block">
+              <div className="text-sm text-muted-foreground font-medium mb-2">Comment</div>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={5}
+                className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                placeholder="Be specific and kind. What should they improve?"
+              />
+            </label>
+
+            {decision === "approved" ? (
+              <label className="block">
+                <div className="text-sm text-muted-foreground font-medium mb-2">
+                  Specific technical features (draft, internal)
+                </div>
+                <textarea
+                  value={technicalFeaturesDraft}
+                  onChange={(e) => setTechnicalFeaturesDraft(e.target.value)}
+                  rows={3}
+                  className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                  placeholder='Technical qualities that justify the hours — be specific (e.g. "OAuth flow, content-script messaging, custom build pipeline"), not just a list of languages.'
+                />
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Optional draft for the granting admin. It seeds the human-written hours
+                  justification sent to the Unified Database — the creator never sees it.
+                </div>
+              </label>
+            ) : null}
+
+            {error ? (
+              <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
+                {error}
+              </div>
+            ) : null}
+
+            {decision === "approved" ? (
+              <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+                Approvals require confirmation with evidence checks and a review range.
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+              <div className="text-sm text-muted-foreground">{successAt ? "Submitted." : null}</div>
+              <div className="flex flex-wrap items-center gap-3">
+                {isAdmin && decision === "rejected" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!canSubmit) return;
+                      setShowDismissConfirmationModal(true);
+                    }}
+                    disabled={!canSubmit}
+                    className="inline-flex items-center justify-center border border-carnival-red/60 bg-carnival-red/10 hover:bg-carnival-red/20 disabled:opacity-50 disabled:cursor-not-allowed text-carnival-red px-6 py-3 rounded-[var(--radius-xl)] font-bold transition-colors"
+                    title="Reject and prevent resubmission"
+                  >
+                    Reject and dismiss
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={onSubmit}
+                  disabled={!canSubmit}
+                  className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-[var(--radius-xl)] font-bold transition-colors"
+                >
+                  {submitting ? "Submitting…" : "Submit review"}
+                </button>
+              </div>
+            </div>
+            {isAdmin && decision === "rejected" ? (
+              <div className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">Reject and dismiss</span> rejects
+                the project and prevents the creator from resubmitting it. You can re-enable
+                resubmission later from the{" "}
+                <span className="font-semibold text-foreground">Dismissed projects</span> admin
+                page.
+              </div>
+            ) : null}
           </div>
-        </div>
-        {isAdmin && decision === "rejected" ? (
-          <div className="text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">Reject and dismiss</span> rejects the
-            project and prevents the creator from resubmitting it. You can re-enable resubmission
-            later from the <span className="font-semibold text-foreground">Dismissed projects</span>{" "}
-            admin page.
-          </div>
-        ) : null}
-      </div>
         </>
       )}
 
@@ -1665,7 +1713,9 @@ export default function ReviewProjectClient({
           </div>
           <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
             <div className="font-semibold text-foreground mb-1">Reviewer comment</div>
-            <div className="whitespace-pre-wrap">{comment.trim() || "(empty — please add a comment before dismissing)"}</div>
+            <div className="whitespace-pre-wrap">
+              {comment.trim() || "(empty — please add a comment before dismissing)"}
+            </div>
           </div>
           <div className="space-y-2">
             <label htmlFor="dismiss-reason" className="block text-sm font-semibold text-foreground">
@@ -1741,7 +1791,8 @@ export default function ReviewProjectClient({
             </div>
             {decision === "approved" && approvedHoursValue !== null ? (
               <div className="mt-1">
-                Approved hours: <span className="text-foreground font-semibold">{approvedHoursValue}h</span>
+                Approved hours:{" "}
+                <span className="text-foreground font-semibold">{approvedHoursValue}h</span>
                 {isApprovedHoursReduced ? (
                   <span className="text-foreground">
                     {" "}
@@ -1753,7 +1804,9 @@ export default function ReviewProjectClient({
             {suggestedApprovedHoursValue !== null ? (
               <div className="mt-1">
                 Suggested hours:{" "}
-                <span className="text-foreground font-semibold">{suggestedApprovedHoursValue}h</span>
+                <span className="text-foreground font-semibold">
+                  {suggestedApprovedHoursValue}h
+                </span>
               </div>
             ) : null}
           </div>
@@ -1787,7 +1840,9 @@ export default function ReviewProjectClient({
             <div className="text-sm font-semibold text-foreground">Evidence checklist</div>
 
             <div className="block">
-              <div className="text-xs text-muted-foreground mb-2">Hackatime project name reviewed</div>
+              <div className="text-xs text-muted-foreground mb-2">
+                Hackatime project name reviewed
+              </div>
               <div className="w-full bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2 text-foreground font-mono">
                 {project.hackatimeProjectName || "—"}
               </div>
@@ -1815,16 +1870,29 @@ export default function ReviewProjectClient({
             <div className="space-y-2">
               <div className="text-sm font-semibold text-foreground">Project considered range</div>
               <div className="text-xs text-muted-foreground">
-                This updates the project’s canonical Hackatime window before approval and is also used for this approval note.
+                This updates the project’s canonical Hackatime window before approval and is also
+                used for this approval note.
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="block">
                   <div className="text-xs text-muted-foreground mb-1">Start</div>
-                  <DateTimePicker value={approvalProjectRange.startDate} onChange={(v) => { setApprovalProjectRange((prev) => ({ ...prev, startDate: v })); setModalError(null); }} />
+                  <DateTimePicker
+                    value={approvalProjectRange.startDate}
+                    onChange={(v) => {
+                      setApprovalProjectRange((prev) => ({ ...prev, startDate: v }));
+                      setModalError(null);
+                    }}
+                  />
                 </label>
                 <label className="block">
                   <div className="text-xs text-muted-foreground mb-1">End</div>
-                  <DateTimePicker value={approvalProjectRange.endDate} onChange={(v) => { setApprovalProjectRange((prev) => ({ ...prev, endDate: v })); setModalError(null); }} />
+                  <DateTimePicker
+                    value={approvalProjectRange.endDate}
+                    onChange={(v) => {
+                      setApprovalProjectRange((prev) => ({ ...prev, endDate: v }));
+                      setModalError(null);
+                    }}
+                  />
                 </label>
               </div>
               {!adminApprovalRange.ok ? (
@@ -1847,11 +1915,29 @@ export default function ReviewProjectClient({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="block">
                   <div className="text-xs text-muted-foreground mb-1">Start date</div>
-                  <DatePicker value={reviewJustificationDraft.reviewDateRange.startDate} onChange={(v) => { setReviewJustificationDraft((prev) => ({ ...prev, reviewDateRange: { ...prev.reviewDateRange, startDate: v } })); setModalError(null); }} />
+                  <DatePicker
+                    value={reviewJustificationDraft.reviewDateRange.startDate}
+                    onChange={(v) => {
+                      setReviewJustificationDraft((prev) => ({
+                        ...prev,
+                        reviewDateRange: { ...prev.reviewDateRange, startDate: v },
+                      }));
+                      setModalError(null);
+                    }}
+                  />
                 </label>
                 <label className="block">
                   <div className="text-xs text-muted-foreground mb-1">End date</div>
-                  <DatePicker value={reviewJustificationDraft.reviewDateRange.endDate} onChange={(v) => { setReviewJustificationDraft((prev) => ({ ...prev, reviewDateRange: { ...prev.reviewDateRange, endDate: v } })); setModalError(null); }} />
+                  <DatePicker
+                    value={reviewJustificationDraft.reviewDateRange.endDate}
+                    onChange={(v) => {
+                      setReviewJustificationDraft((prev) => ({
+                        ...prev,
+                        reviewDateRange: { ...prev.reviewDateRange, endDate: v },
+                      }));
+                      setModalError(null);
+                    }}
+                  />
                 </label>
               </div>
             </div>
@@ -1860,8 +1946,8 @@ export default function ReviewProjectClient({
           {decision === "approved" && isApprovedHoursReduced ? (
             <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
               Hours are reduced versus logged time. The reasons live on the individual devlog
-              assessments (each tied to its time range) — those, not a generic summary, go into
-              the Airtable justification.
+              assessments (each tied to its time range) — those, not a generic summary, go into the
+              Airtable justification.
             </div>
           ) : null}
 
@@ -1899,7 +1985,10 @@ export default function ReviewProjectClient({
         ) : (
           <div className="space-y-3">
             {reviews.map((r) => (
-              <div key={r.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
+              <div
+                key={r.id}
+                className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4"
+              >
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-foreground font-semibold truncate">
@@ -1914,7 +2003,7 @@ export default function ReviewProjectClient({
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       {r.decision}
                     </span>
-                    {r.approvedHours !== null && r.approvedHours !== undefined ? (
+                    {r.approvedHours != null ? (
                       <span className="text-xs font-semibold text-foreground">
                         {r.approvedHours}h approved
                       </span>

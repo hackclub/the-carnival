@@ -37,25 +37,38 @@ function filterCondition(f: AudienceFilter): SQL {
     case "in_review":
       return sql`a.in_review = ${f.value}`;
     case "hackatime_connected":
-      return f.value ? sql`a.hackatime_connected_at is not null` : sql`a.hackatime_connected_at is null`;
+      return f.value
+        ? sql`a.hackatime_connected_at is not null`
+        : sql`a.hackatime_connected_at is null`;
     case "verification": {
       const named = f.values.filter((v) => v !== "none");
       const parts: SQL[] = [];
-      if (named.length) parts.push(sql`a.verification_status in (${sql.join(named.map((v) => sql`${v}`), sql`, `)})`);
-      if (f.values.includes("none")) parts.push(sql`(a.verification_status is null or a.verification_status = '')`);
+      if (named.length)
+        parts.push(
+          sql`a.verification_status in (${sql.join(
+            named.map((v) => sql`${v}`),
+            sql`, `,
+          )})`,
+        );
+      if (f.values.includes("none"))
+        parts.push(sql`(a.verification_status is null or a.verification_status = '')`);
       return sql`(${sql.join(parts, sql` or `)})`;
     }
     case "signed_up": {
       // Signup times are stored in UTC; "after" includes the day itself.
       const day = `${f.date} 00:00:00`;
-      return f.op === "before" ? sql`a.created_at < ${day}::timestamp` : sql`a.created_at >= ${day}::timestamp`;
+      return f.op === "before"
+        ? sql`a.created_at < ${day}::timestamp`
+        : sql`a.created_at >= ${day}::timestamp`;
     }
   }
 }
 
 /** IDs of every user matching all the filters (no filters: everyone), newest signups first. */
 export async function findAudience(filters: AudienceFilter[]): Promise<string[]> {
-  const where = filters.length ? sql`where ${sql.join(filters.map(filterCondition), sql` and `)}` : sql``;
+  const where = filters.length
+    ? sql`where ${sql.join(filters.map(filterCondition), sql` and `)}`
+    : sql``;
   const rows = await db.execute(sql`
     select a.id from (
       select

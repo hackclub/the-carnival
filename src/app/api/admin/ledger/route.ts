@@ -97,7 +97,7 @@ export async function GET(req: Request) {
       referenceId: row.referenceId,
       createdAt: row.createdAt.toISOString(),
       issuedTo: usersById.get(row.issuedToUserId) ?? { id: row.issuedToUserId },
-      by: row.byUserId ? usersById.get(row.byUserId) ?? { id: row.byUserId } : null,
+      by: row.byUserId ? (usersById.get(row.byUserId) ?? { id: row.byUserId }) : null,
     })),
     totals: {
       issued,

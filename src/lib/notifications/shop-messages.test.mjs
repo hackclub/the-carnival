@@ -17,7 +17,12 @@ describe("buildOrderDeniedMessage", () => {
   });
 
   test("works without a Slack ID", () => {
-    const text = buildOrderDeniedMessage({ slackId: null, itemName: "X", reason: "No", shopUrl: "https://c.test/shop" });
+    const text = buildOrderDeniedMessage({
+      slackId: null,
+      itemName: "X",
+      reason: "No",
+      shopUrl: "https://c.test/shop",
+    });
     expect(text.startsWith("Hey,")).toBe(true);
   });
 });

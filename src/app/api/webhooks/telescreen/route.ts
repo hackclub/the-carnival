@@ -52,7 +52,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const deliveryId =
-    typeof payload.deliveryId === "string" ? payload.deliveryId : req.headers.get("x-robert-delivery");
+    typeof payload.deliveryId === "string"
+      ? payload.deliveryId
+      : req.headers.get("x-robert-delivery");
   if (!deliveryId) return NextResponse.json({ error: "Missing deliveryId" }, { status: 400 });
 
   const handled = await db
@@ -95,7 +97,8 @@ async function handleOutcomeSet(payload: OutcomeSetPayload) {
   if (!row) return;
 
   const { outcome } = payload;
-  const fraud = outcome.status === "rejected" && telescreenBandForScore(outcome.trustScore) === "fraud";
+  const fraud =
+    outcome.status === "rejected" && telescreenBandForScore(outcome.trustScore) === "fraud";
   const state: RobertState = fraud ? "rejected_fraud" : "decided";
   await applyRobertProject(row, {
     state,

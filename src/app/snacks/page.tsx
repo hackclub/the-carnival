@@ -177,18 +177,15 @@ export default async function SnacksPage() {
 
           <p className="mt-2 text-[clamp(1.3rem,4.5vw,2rem)] font-semibold leading-[1.15] text-[#5b1f0a] [text-wrap:balance] sm:mt-3">
             Build a thing,{" "}
-            <span
-              className={`${caveat.className} text-[#e08609]`}
-              style={{ fontSize: "1.2em" }}
-            >
+            <span className={`${caveat.className} text-[#e08609]`} style={{ fontSize: "1.2em" }}>
               get snacks
             </span>
             .
           </p>
           <p className="mt-3 max-w-xl text-[15px] leading-6 text-[#6d3510] [text-wrap:pretty] sm:mt-4 sm:text-base sm:leading-7">
-            Build a <strong>new</strong> extension for Carnival before {deadlineMonthDay}.
-            If it&apos;s worth 12+ hours, you get $1.50 per hour in snacks — on
-            top of your normal grant.
+            Build a <strong>new</strong> extension for Carnival before {deadlineMonthDay}. If
+            it&apos;s worth 12+ hours, you get $1.50 per hour in snacks — on top of your normal
+            grant.
           </p>
 
           {/* the criteria, at a glance */}
@@ -206,9 +203,7 @@ export default async function SnacksPage() {
                 >
                   {stat.value}
                 </p>
-                <p className="mt-2 text-sm font-bold text-[#5b1f0a] sm:text-[15px]">
-                  {stat.label}
-                </p>
+                <p className="mt-2 text-sm font-bold text-[#5b1f0a] sm:text-[15px]">{stat.label}</p>
               </li>
             ))}
           </ul>
@@ -224,12 +219,8 @@ export default async function SnacksPage() {
       {/* story beats — each step gets its own snack mascot */}
       <section className="relative mx-auto mt-20 max-w-5xl px-5 sm:mt-32 sm:px-8">
         <div className="text-center">
-          <h2 className="text-[clamp(2rem,4.5vw,3rem)] font-bold leading-tight">
-            How it works
-          </h2>
-          <p
-            className={`${caveat.className} mt-1 text-2xl text-[#e08609] sm:text-3xl`}
-          >
+          <h2 className="text-[clamp(2rem,4.5vw,3rem)] font-bold leading-tight">How it works</h2>
+          <p className={`${caveat.className} mt-1 text-2xl text-[#e08609] sm:text-3xl`}>
             three stops to a sugar rush
           </p>
         </div>
@@ -242,10 +233,7 @@ export default async function SnacksPage() {
                 beat.reverse ? "sm:flex-row-reverse" : "sm:flex-row"
               }`}
             >
-              <div
-                className="relative w-36 shrink-0 sm:w-56 lg:w-64"
-                aria-hidden="false"
-              >
+              <div className="relative w-36 shrink-0 sm:w-56 lg:w-64" aria-hidden="false">
                 <div
                   className={`snack-jiggle ${beat.delay} aspect-square w-full`}
                   style={snackStyle(beat.rotate)}
@@ -263,9 +251,7 @@ export default async function SnacksPage() {
               <div
                 className={`flex-1 ${beat.reverse ? "sm:text-right" : "sm:text-left"} text-center`}
               >
-                <p
-                  className={`${caveat.className} text-2xl text-[#e08609] sm:text-3xl`}
-                >
+                <p className={`${caveat.className} text-2xl text-[#e08609] sm:text-3xl`}>
                   {beat.eyebrow}
                 </p>
                 <h3 className="mt-1 text-[clamp(1.6rem,3vw,2.2rem)] font-bold leading-tight">
@@ -283,37 +269,39 @@ export default async function SnacksPage() {
       {/* fine print */}
       <section className="relative mx-auto mt-20 max-w-3xl px-5 sm:mt-36 sm:px-8">
         <div className="relative rounded-3xl border-2 border-[#74210a] bg-[#fff7dc] p-8 shadow-[5px_5px_0_rgba(116,33,10,1)] sm:p-10">
-          <h3
-            className={`${caveat.className} text-3xl text-[#74210a] sm:text-4xl`}
-          >
+          <h3 className={`${caveat.className} text-3xl text-[#74210a] sm:text-4xl`}>
             the fine print
           </h3>
           <ul className="mt-5 space-y-3 text-[15px] leading-7 text-[#6d3510] sm:text-base">
             <li className="flex gap-3">
-              <span aria-hidden="true" className="shrink-0 text-[#e08609]">•</span>
+              <span aria-hidden="true" className="shrink-0 text-[#e08609]">
+                •
+              </span>
               <span>
-                It has to be a <strong>new</strong> extension or plugin — fill a
-                bounty or come up with your own idea. No copies of things that
-                already exist.
+                It has to be a <strong>new</strong> extension or plugin — fill a bounty or come up
+                with your own idea. No copies of things that already exist.
               </span>
             </li>
             <li className="flex gap-3">
-              <span aria-hidden="true" className="shrink-0 text-[#e08609]">•</span>
+              <span aria-hidden="true" className="shrink-0 text-[#e08609]">
+                •
+              </span>
               <span>Under 12 approved hours? No snacks.</span>
             </li>
             <li className="flex gap-3">
-              <span aria-hidden="true" className="shrink-0 text-[#e08609]">•</span>
+              <span aria-hidden="true" className="shrink-0 text-[#e08609]">
+                •
+              </span>
               <span>
-                Submit by {deadlineMonthDayYear}. Reviews can finish after — you
-                just need to be in by then.
+                Submit by {deadlineMonthDayYear}. Reviews can finish after — you just need to be in
+                by then.
               </span>
             </li>
             <li className="flex gap-3">
-              <span aria-hidden="true" className="shrink-0 text-[#e08609]">•</span>
-              <span>
-                We&apos;ll DM you to sort shipping once your project clears
-                review.
+              <span aria-hidden="true" className="shrink-0 text-[#e08609]">
+                •
               </span>
+              <span>We&apos;ll DM you to sort shipping once your project clears review.</span>
             </li>
           </ul>
         </div>
@@ -322,10 +310,7 @@ export default async function SnacksPage() {
       <footer className="mx-auto mt-20 max-w-5xl px-5 pb-16 text-center text-sm font-semibold text-[#8f4a18] sm:mt-24 sm:px-8">
         <p>
           A side quest from{" "}
-          <Link
-            href="/"
-            className="font-bold text-[#74210a] underline-offset-4 hover:underline"
-          >
+          <Link href="/" className="font-bold text-[#74210a] underline-offset-4 hover:underline">
             Carnival
           </Link>
           , by Hack Club.

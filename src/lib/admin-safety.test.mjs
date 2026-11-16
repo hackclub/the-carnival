@@ -51,7 +51,12 @@ describe("admin-safety", () => {
   });
 
   test("defaults the reference type and accepts a predefined one", () => {
-    const base = { kind: "issue", amount: 5, reason: "x", confirmation: LEDGER_ADJUSTMENT_CONFIRMATION };
+    const base = {
+      kind: "issue",
+      amount: 5,
+      reason: "x",
+      confirmation: LEDGER_ADJUSTMENT_CONFIRMATION,
+    };
     const defaulted = parseLedgerAdjustmentPayload(base);
     expect(defaulted.ok && defaulted.value.referenceType).toBe("admin_adjustment");
     const picked = parseLedgerAdjustmentPayload({ ...base, referenceType: "admin_refund" });
@@ -59,8 +64,15 @@ describe("admin-safety", () => {
   });
 
   test("rejects system and unknown reference types", () => {
-    const base = { kind: "issue", amount: 5, reason: "x", confirmation: LEDGER_ADJUSTMENT_CONFIRMATION };
-    expect(parseLedgerAdjustmentPayload({ ...base, referenceType: "project_grant" }).ok).toBe(false);
+    const base = {
+      kind: "issue",
+      amount: 5,
+      reason: "x",
+      confirmation: LEDGER_ADJUSTMENT_CONFIRMATION,
+    };
+    expect(parseLedgerAdjustmentPayload({ ...base, referenceType: "project_grant" }).ok).toBe(
+      false,
+    );
     expect(parseLedgerAdjustmentPayload({ ...base, referenceType: "whatever" }).ok).toBe(false);
   });
 

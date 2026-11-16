@@ -73,11 +73,11 @@ export type SessionUser = {
 export async function getAuthUser(): Promise<SessionUser | null> {
   const session = await getServerSession();
   const userId = (session?.user as { id?: string } | undefined)?.id;
-  
+
   if (!userId) return null;
-  
+
   const role = (session?.user as { role?: string | null } | undefined)?.role ?? null;
-  
+
   return {
     id: userId,
     role,
@@ -96,7 +96,7 @@ export async function getAuthUser(): Promise<SessionUser | null> {
  */
 export async function parseJsonBody<T>(req: Request): Promise<T | null> {
   try {
-    return await req.json() as T;
+    return (await req.json()) as T;
   } catch {
     return null;
   }

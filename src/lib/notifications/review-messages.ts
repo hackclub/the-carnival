@@ -145,7 +145,11 @@ export function buildCreatorReviewMessage(input: CreatorReviewMessageInput): str
       "❌ Your project is rejected for now and needs more work.",
       "See the reviewer notes and iterate, then resubmit for a re-review.",
     ],
-    comment: [hey, "💬 A reviewer left feedback on your project.", "Check the notes and follow up if needed."],
+    comment: [
+      hey,
+      "💬 A reviewer left feedback on your project.",
+      "Check the notes and follow up if needed.",
+    ],
     shipped: [hey, "🚢 Your project is shipped!", "Nice work—share your launch and keep building."],
   };
 
@@ -179,7 +183,9 @@ export function buildStaffSubmissionMessage(input: StaffSubmissionMessageInput):
     `*Creator:* ${mentionOrName(input.creatorSlackId, input.creatorName)}`,
     `*Type:* ${escapeSlackText(input.projectTypeLabel)} · ${escapeSlackText(input.editorLabel)}`,
     `*Hours:* ${formatHoursFromSeconds(input.devlogSeconds)} in devlogs${
-      input.hackatimeSeconds !== null ? ` · ${formatHoursFromSeconds(input.hackatimeSeconds)} Hackatime` : ""
+      input.hackatimeSeconds !== null
+        ? ` · ${formatHoursFromSeconds(input.hackatimeSeconds)} Hackatime`
+        : ""
     }`,
   ];
 
@@ -195,7 +201,9 @@ export function buildStaffSubmissionMessage(input: StaffSubmissionMessageInput):
     }
   }
 
-  return [headline, ...facts, ...history, `${slackLink(input.reviewUrl, "Open review →")}`].join("\n");
+  return [headline, ...facts, ...history, `${slackLink(input.reviewUrl, "Open review →")}`].join(
+    "\n",
+  );
 }
 
 /** Thread reply under the submission post (or a standalone post when the thread is unknown). */

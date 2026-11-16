@@ -33,11 +33,7 @@ type FormLabelProps = {
 
 export function FormLabel({ children, className = "", size = "default" }: FormLabelProps) {
   const sizeClass = size === "small" ? "text-xs" : "text-sm";
-  return (
-    <div className={cn(sizeClass, "carnival-label mb-2", className)}>
-      {children}
-    </div>
-  );
+  return <div className={cn(sizeClass, "carnival-label mb-2", className)}>{children}</div>;
 }
 
 // ============================================================================
@@ -52,7 +48,7 @@ type InputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> & {
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, className = "", size = "default", ...props }, ref) => {
     const inputClass = size === "small" ? smallInputStyles : baseInputStyles;
-    
+
     if (label) {
       return (
         <label className="block">
@@ -61,9 +57,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         </label>
       );
     }
-    
+
     return <ShadInput ref={ref} className={cn(inputClass, className)} {...props} />;
-  }
+  },
 );
 
 Input.displayName = "Input";
@@ -80,7 +76,7 @@ type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ label, className = "", size = "default", ...props }, ref) => {
     const inputClass = size === "small" ? smallInputStyles : baseInputStyles;
-    
+
     if (label) {
       return (
         <label className="block">
@@ -89,9 +85,9 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         </label>
       );
     }
-    
+
     return <ShadTextarea ref={ref} className={cn(inputClass, className)} {...props} />;
-  }
+  },
 );
 
 Textarea.displayName = "Textarea";

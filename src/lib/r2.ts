@@ -147,7 +147,11 @@ export async function presignR2PutObject(input: {
 }) {
   const cfg = getR2Config();
   const expiresInSeconds = input.expiresInSeconds ?? 15 * 60;
-  if (!Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0 || expiresInSeconds > 7 * 24 * 60 * 60) {
+  if (
+    !Number.isFinite(expiresInSeconds) ||
+    expiresInSeconds <= 0 ||
+    expiresInSeconds > 7 * 24 * 60 * 60
+  ) {
     throw new Error("expiresInSeconds must be between 1 and 604800 seconds");
   }
 

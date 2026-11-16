@@ -32,7 +32,8 @@ function hoursLabel(seconds: number): string {
 export const DEADLINE_MENTION_DAYS = 21;
 
 export function deadlineLine(ctx: NudgeTemplateContext): string | null {
-  if (ctx.daysLeft === null || ctx.daysLeft > DEADLINE_MENTION_DAYS || !ctx.deadlineIso) return null;
+  if (ctx.daysLeft === null || ctx.daysLeft > DEADLINE_MENTION_DAYS || !ctx.deadlineIso)
+    return null;
   const when = formatDeadlineMonthDay(ctx.deadlineIso);
   if (ctx.daysLeft <= 0) return `⏰ The Carnival closes today (${when}).`;
   if (ctx.daysLeft === 1) return `⏰ The Carnival closes tomorrow (${when}).`;
@@ -55,7 +56,9 @@ function projectLabel(n: PlannedNudge): string {
 }
 
 function projectUrl(n: PlannedNudge, ctx: NudgeTemplateContext): string {
-  return n.projectId ? `${base(ctx)}/projects/${encodeURIComponent(n.projectId)}` : `${base(ctx)}/projects`;
+  return n.projectId
+    ? `${base(ctx)}/projects/${encodeURIComponent(n.projectId)}`
+    : `${base(ctx)}/projects`;
 }
 
 function bodyFor(n: PlannedNudge, ctx: NudgeTemplateContext): string[] {

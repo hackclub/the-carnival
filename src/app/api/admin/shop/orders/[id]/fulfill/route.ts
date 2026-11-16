@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { shopOrder, tokenLedger, user } from "@/db/schema";
-import { getAuthUser, parseJsonBody, toCleanString, toPositiveInt, generateId } from "@/lib/api-utils";
+import {
+  getAuthUser,
+  parseJsonBody,
+  toCleanString,
+  toPositiveInt,
+  generateId,
+} from "@/lib/api-utils";
 import { getAppBaseUrl, sendShopOrderFulfilledParticipantEmail } from "@/lib/loops";
 import { getTokenBalance } from "@/lib/wallet";
 
@@ -43,9 +49,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
   const body = await parseJsonBody<FulfillBody>(req);
   const fulfillmentLink = toCleanString(body?.fulfillmentLink);
-  if (!fulfillmentLink) return NextResponse.json({ error: "fulfillmentLink is required" }, { status: 400 });
+  if (!fulfillmentLink)
+    return NextResponse.json({ error: "fulfillmentLink is required" }, { status: 400 });
   const rawOverride =
-    typeof body?.deductTokensOverride === "string" ? body.deductTokensOverride.trim() : body?.deductTokensOverride;
+    typeof body?.deductTokensOverride === "string"
+      ? body.deductTokensOverride.trim()
+      : body?.deductTokensOverride;
   const overrideNote = toCleanString(body?.deductTokensOverrideNote);
   const hasOverride = rawOverride !== undefined && rawOverride !== null && rawOverride !== "";
   let deductTokensOverride: number | null = null;
@@ -104,7 +113,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
 
     const balance = await getTokenBalance(tx, order.userId);
-    const cost = hasOverride ? (deductTokensOverride ?? 0) : (order.tokenCost ?? 0);
+    const cost = hasOverride ? (deductTokensOverride ?? 0) : order.tokenCost;
     if (balance < cost) {
       return {
         kind: "error",
@@ -113,7 +122,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       };
     }
 
-    const defaultCost = order.tokenCost ?? 0;
+    const defaultCost = order.tokenCost;
     const reason = hasOverride
       ? `Deducted ${cost} tokens for purchasing ${order.itemName} from the shop (manual override; default cost ${defaultCost}). Override note: ${overrideNote}. Fulfilled with ${fulfillmentLink}.`
       : `Deducted ${cost} tokens for purchasing ${order.itemName} from the shop. ${order.itemName} cost ${cost} tokens. Fulfilled with ${fulfillmentLink}.`;
@@ -161,7 +170,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         fulfillmentLink,
         fulfilledAt: now.toISOString(),
         tokensDeducted: cost,
-        tokenCostSnapshot: order.tokenCost ?? 0,
+        tokenCostSnapshot: order.tokenCost,
       },
     };
   });

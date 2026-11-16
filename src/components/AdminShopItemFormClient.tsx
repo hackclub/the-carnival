@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Button, Input, Textarea } from "@/components/ui";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
+import { extractApiError } from "@/lib/project-form-utils";
 
 type ItemForm = {
   id?: string;
@@ -75,9 +76,12 @@ export default function AdminShopItemFormClient({
               body: JSON.stringify(payload),
             });
 
-      const data = (await res.json().catch(() => null)) as { error?: unknown; item?: { id?: string } } | null;
+      const data = (await res.json().catch(() => null)) as {
+        error?: unknown;
+        item?: { id?: string };
+      } | null;
       if (!res.ok) {
-        const msg = typeof data?.error === "string" ? data.error : "Failed.";
+        const msg = extractApiError(data, "Failed.");
         toast.error(msg, { id: toastId });
         setBusy(false);
         return;
@@ -96,7 +100,10 @@ export default function AdminShopItemFormClient({
         <div className="text-muted-foreground">
           {mode === "create" ? "Create a new shop item." : "Edit this shop item."}
         </div>
-        <Link href="/admin/shop" className="text-sm font-semibold text-carnival-blue hover:underline">
+        <Link
+          href="/admin/shop"
+          className="text-sm font-semibold text-carnival-blue hover:underline"
+        >
           ← Back
         </Link>
       </div>
@@ -154,7 +161,12 @@ export default function AdminShopItemFormClient({
       </div>
 
       <div className="pt-2">
-        <Button variant="secondary" loading={busy} loadingText={mode === "create" ? "Creating…" : "Saving…"} onClick={onSubmit}>
+        <Button
+          variant="secondary"
+          loading={busy}
+          loadingText={mode === "create" ? "Creating…" : "Saving…"}
+          onClick={onSubmit}
+        >
           {mode === "create" ? "Create item" : "Save changes"}
         </Button>
       </div>

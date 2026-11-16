@@ -2,9 +2,10 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { project, projectReviewerAssignment, user, type UserRole } from "@/db/schema";
+import { project, projectReviewerAssignment, user } from "@/db/schema";
 import { appendReviewAudit } from "@/lib/review-audit";
 import { getServerSession } from "@/lib/server-session";
+import { canReview } from "@/lib/roles";
 
 type AssignmentRow = {
   reviewerId: string;
@@ -12,10 +13,6 @@ type AssignmentRow = {
   reviewerEmail: string;
   createdAt: string;
 };
-
-function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
-  return role === "reviewer" || role === "admin";
-}
 
 class ReviewAssignmentError extends Error {
   status: number;

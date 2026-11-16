@@ -10,7 +10,7 @@ export default async function EditShopItemPage(props: { params: Promise<{ id: st
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
   const canManageShopItems = role === "reviewer" || role === "admin";
-  if (!session?.user?.id) redirect("/login?callbackUrl=/admin/shop");
+  if (!session?.user.id) redirect("/login?callbackUrl=/admin/shop");
   if (!canManageShopItems) redirect("/projects");
 
   const { id } = await props.params;
@@ -40,9 +40,9 @@ export default async function EditShopItemPage(props: { params: Promise<{ id: st
           name: item.name,
           description: item.description ?? null,
           imageUrl: item.imageUrl,
-          orderNoteRequired: item.orderNoteRequired ?? false,
-          approvedHoursNeeded: item.approvedHoursNeeded ?? 0,
-          tokenCost: item.tokenCost ?? 0,
+          orderNoteRequired: item.orderNoteRequired,
+          approvedHoursNeeded: item.approvedHoursNeeded,
+          tokenCost: item.tokenCost,
         }}
       />
     </AppShell>

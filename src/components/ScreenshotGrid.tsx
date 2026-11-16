@@ -48,23 +48,17 @@ export function ScreenshotGrid({
           body: JSON.stringify({ kind, contentType, projectId }),
         });
 
-        const presignData = (await presignRes
-          .json()
-          .catch(() => null)) as PresignResponse | null;
+        const presignData = (await presignRes.json().catch(() => null)) as PresignResponse | null;
         if (!presignRes.ok) {
           const msg =
-            typeof presignData?.error === "string"
-              ? presignData.error
-              : "Failed to start upload.";
+            typeof presignData?.error === "string" ? presignData.error : "Failed to start upload.";
           toast.error(msg, { id: toastId });
           setUploading(false);
           return;
         }
 
-        const uploadUrl =
-          typeof presignData?.uploadUrl === "string" ? presignData.uploadUrl : "";
-        const publicUrl =
-          typeof presignData?.publicUrl === "string" ? presignData.publicUrl : "";
+        const uploadUrl = typeof presignData?.uploadUrl === "string" ? presignData.uploadUrl : "";
+        const publicUrl = typeof presignData?.publicUrl === "string" ? presignData.publicUrl : "";
         if (!uploadUrl || !publicUrl) {
           toast.error("Upload response missing URLs.", { id: toastId });
           setUploading(false);
@@ -133,11 +127,7 @@ export function ScreenshotGrid({
             className="group relative aspect-[4/3] rounded-[var(--radius-xl)] border border-border bg-muted overflow-hidden"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={url}
-              alt={`Screenshot ${idx + 1}`}
-              className="h-full w-full object-cover"
-            />
+            <img src={url} alt={`Screenshot ${idx + 1}`} className="h-full w-full object-cover" />
             {!disabled && (
               <button
                 type="button"

@@ -14,7 +14,7 @@ export default async function EditDevlogPage(props: {
   params: Promise<{ id: string; devlogId: string }>;
 }) {
   const session = await getServerSession({ disableCookieCache: true });
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect(`/login?callbackUrl=/projects`);
   }
 
@@ -51,8 +51,7 @@ export default async function EditDevlogPage(props: {
   }
 
   const hackatimeProjectName =
-    (row.hackatimeProjectNameSnapshot ?? "").trim() ||
-    (row.projectHackatimeProjectName ?? "").trim();
+    row.hackatimeProjectNameSnapshot.trim() || (row.projectHackatimeProjectName ?? "").trim();
 
   if (row.projectStatus !== "work-in-progress") {
     return (
@@ -69,8 +68,8 @@ export default async function EditDevlogPage(props: {
           <CardContent className="pt-6 space-y-2">
             <div className="font-semibold text-foreground">This devlog is frozen</div>
             <p className="text-sm text-muted-foreground">
-              You can only edit devlogs while the project is work-in-progress. Once the project
-              is submitted for review, devlogs lock.
+              You can only edit devlogs while the project is work-in-progress. Once the project is
+              submitted for review, devlogs lock.
             </p>
           </CardContent>
         </Card>
@@ -91,9 +90,7 @@ export default async function EditDevlogPage(props: {
         </div>
         <Card>
           <CardContent className="pt-6 space-y-2">
-            <div className="font-semibold text-foreground">
-              Set a Hackatime project first
-            </div>
+            <div className="font-semibold text-foreground">Set a Hackatime project first</div>
             <p className="text-sm text-muted-foreground">
               Each devlog pulls its hours from Hackatime for this project&apos;s configured
               Hackatime project. Pick one on the project page before editing this devlog.
@@ -125,13 +122,13 @@ export default async function EditDevlogPage(props: {
         devlogId={devlogId}
         projectId={id}
         projectName={row.projectName ?? "Project"}
-        hackatimeProjectName={(row.hackatimeProjectNameSnapshot ?? "").trim() || hackatimeProjectName}
+        hackatimeProjectName={row.hackatimeProjectNameSnapshot.trim() || hackatimeProjectName}
         linkedHackatimeProjects={linkedHackatimeProjects}
         ceilingIso={ceiling.toISOString()}
         initial={{
           title: row.title,
           content: row.content,
-          attachments: row.attachments ?? [],
+          attachments: row.attachments,
           usedAi: row.usedAi,
           aiUsageDescription: row.aiUsageDescription ?? null,
           startedAtIso: row.startedAt.toISOString(),

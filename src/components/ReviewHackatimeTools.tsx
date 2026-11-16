@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui";
 import { DatePicker } from "@/components/ui/date-picker";
+import { extractApiError } from "@/lib/project-form-utils";
 
 type Props = {
   projectId: string;
@@ -18,7 +19,11 @@ function formatHours(totalSeconds: number): string {
   return `${hours}h ${minutes}m`;
 }
 
-export default function ReviewHackatimeTools({ projectId, defaultStartDate, defaultEndDate }: Props) {
+export default function ReviewHackatimeTools({
+  projectId,
+  defaultStartDate,
+  defaultEndDate,
+}: Props) {
   // "Check a custom window": how much time did the creator log for the
   // linked Hackatime project(s) within an arbitrary date range? Read-only —
   // useful for spotting overlap between devlogs before trimming a devlog's
@@ -50,19 +55,15 @@ export default function ReviewHackatimeTools({ projectId, defaultStartDate, defa
           endedAt: `${customEnd}T23:59:59.999Z`,
         }),
       });
-      const data = (await res.json().catch(() => null)) as
-        | {
-            startedAt?: string;
-            endedAt?: string;
-            projects?: Array<{ name: string; seconds: number }>;
-            totalSeconds?: number;
-            error?: unknown;
-          }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        startedAt?: string;
+        endedAt?: string;
+        projects?: Array<{ name: string; seconds: number }>;
+        totalSeconds?: number;
+        error?: unknown;
+      } | null;
       if (!res.ok || typeof data?.totalSeconds !== "number") {
-        setCustomError(
-          typeof data?.error === "string" ? data.error : "Failed to fetch the window.",
-        );
+        setCustomError(extractApiError(data, "Failed to fetch the window."));
         setCustomResult(null);
         setCustomLoading(false);
         return;
@@ -85,9 +86,8 @@ export default function ReviewHackatimeTools({ projectId, defaultStartDate, defa
     <div className="space-y-3">
       <div>
         <div className="mt-1 text-xs text-muted-foreground">
-          See how much time was logged for the linked Hackatime project(s) in any range —
-          handy for spotting overlap between devlogs before trimming a devlog&apos;s
-          considered window.
+          See how much time was logged for the linked Hackatime project(s) in any range — handy for
+          spotting overlap between devlogs before trimming a devlog&apos;s considered window.
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">

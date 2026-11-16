@@ -1,14 +1,8 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { editor, resource, ResourceType } from "@/db/schema";
-import {
-  getAuthUser,
-  parseJsonBody,
-  toCleanString,
-  generateId,
-  timestamps,
-} from "@/lib/api-utils";
+import { editor, resource, type ResourceType } from "@/db/schema";
+import { getAuthUser, parseJsonBody, toCleanString, generateId, timestamps } from "@/lib/api-utils";
 import { sanitizeHttpUrl, sanitizeText, TEXT_LIMITS } from "@/lib/sanitize";
 
 type CreateResourceBody = {
@@ -87,7 +81,10 @@ export async function POST(req: Request) {
   }
   if (!url) return NextResponse.json({ error: "URL is required" }, { status: 400 });
   if (!isValidType(type)) {
-    return NextResponse.json({ error: "Type must be one of: video, documentation, article" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Type must be one of: video, documentation, article" },
+      { status: 400 },
+    );
   }
 
   const [editorRow] = await db

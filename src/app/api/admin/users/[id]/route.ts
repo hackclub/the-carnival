@@ -5,16 +5,13 @@ import { user, userRole } from "@/db/schema";
 import { appendAdminAudit } from "@/lib/admin-audit";
 import { toCleanString } from "@/lib/api-utils";
 import { getServerSession } from "@/lib/server-session";
+import { isAdmin } from "@/lib/roles";
 
 type AdminUserPatchBody = {
   role?: unknown;
   freeze?: unknown;
   reason?: unknown;
 };
-
-function isAdmin(role: unknown): role is "admin" {
-  return role === "admin";
-}
 
 const validRoles = userRole.enumValues;
 

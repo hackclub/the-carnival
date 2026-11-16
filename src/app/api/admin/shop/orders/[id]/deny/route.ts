@@ -41,7 +41,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const order = rows[0];
     if (!order) return { error: "Not found" as const, status: 404 as const };
     if (order.status === "fulfilled") {
-      return { error: "Cannot deny an order that is already fulfilled" as const, status: 409 as const };
+      return {
+        error: "Cannot deny an order that is already fulfilled" as const,
+        status: 409 as const,
+      };
     }
     if (order.status === "cancelled") return { ok: true as const };
 
@@ -63,7 +66,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return { ok: true as const, notify: order };
   });
 
-  if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
+  if ("error" in result)
+    return NextResponse.json({ error: result.error }, { status: result.status });
 
   // Tell the participant why, so they don't repeat the mistake. Only on the
   // pending -> cancelled transition (re-denying is a no-op above).
@@ -103,4 +107,3 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   return NextResponse.json({ ok: true });
 }
-

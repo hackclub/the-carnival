@@ -1,12 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
-const { deriveHackatimeConnectionStatus, hackatimeConnectUrl } = await import(
-  "./hackatime-connection.ts"
-);
+const { deriveHackatimeConnectionStatus, hackatimeConnectUrl } =
+  await import("./hackatime-connection.ts");
 
 describe("deriveHackatimeConnectionStatus", () => {
   test("a stored token means connected regardless of connected-at", () => {
-    expect(deriveHackatimeConnectionStatus({ hasToken: true, connectedAt: null })).toBe("connected");
+    expect(deriveHackatimeConnectionStatus({ hasToken: true, connectedAt: null })).toBe(
+      "connected",
+    );
     expect(
       deriveHackatimeConnectionStatus({ hasToken: true, connectedAt: new Date("2026-03-01") }),
     ).toBe("connected");

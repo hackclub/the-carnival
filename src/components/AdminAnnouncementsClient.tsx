@@ -130,9 +130,10 @@ export default function AdminAnnouncementsClient({ initial }: { initial: Announc
           body: JSON.stringify(payload),
         },
       );
-      const data = (await res.json().catch(() => null)) as
-        | { announcements?: AnnouncementDto[]; error?: string }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        announcements?: AnnouncementDto[];
+        error?: string;
+      } | null;
       if (!res.ok || !data?.announcements) {
         toast.error(data?.error || "Failed to save announcement.", { id: toastId });
         return;
@@ -166,9 +167,10 @@ export default function AdminAnnouncementsClient({ initial }: { initial: Announc
           endsAt: a.endsAtIso,
         }),
       });
-      const data = (await res.json().catch(() => null)) as
-        | { announcements?: AnnouncementDto[]; error?: string }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        announcements?: AnnouncementDto[];
+        error?: string;
+      } | null;
       if (!res.ok || !data?.announcements) {
         toast.error(data?.error || "Failed to update.", { id: toastId });
         return;
@@ -182,29 +184,33 @@ export default function AdminAnnouncementsClient({ initial }: { initial: Announc
     }
   }, []);
 
-  const remove = useCallback(async (a: AnnouncementDto) => {
-    setBusy(true);
-    const toastId = toast.loading("Deleting…");
-    try {
-      const res = await fetch(`/api/admin/announcements/${encodeURIComponent(a.id)}`, {
-        method: "DELETE",
-      });
-      const data = (await res.json().catch(() => null)) as
-        | { announcements?: AnnouncementDto[]; error?: string }
-        | null;
-      if (!res.ok || !data?.announcements) {
-        toast.error(data?.error || "Failed to delete.", { id: toastId });
-        return;
+  const remove = useCallback(
+    async (a: AnnouncementDto) => {
+      setBusy(true);
+      const toastId = toast.loading("Deleting…");
+      try {
+        const res = await fetch(`/api/admin/announcements/${encodeURIComponent(a.id)}`, {
+          method: "DELETE",
+        });
+        const data = (await res.json().catch(() => null)) as {
+          announcements?: AnnouncementDto[];
+          error?: string;
+        } | null;
+        if (!res.ok || !data?.announcements) {
+          toast.error(data?.error || "Failed to delete.", { id: toastId });
+          return;
+        }
+        setAnnouncements(data.announcements);
+        if (editingId === a.id) resetForm();
+        toast.success("Deleted.", { id: toastId });
+      } catch {
+        toast.error("Failed to delete.", { id: toastId });
+      } finally {
+        setBusy(false);
       }
-      setAnnouncements(data.announcements);
-      if (editingId === a.id) resetForm();
-      toast.success("Deleted.", { id: toastId });
-    } catch {
-      toast.error("Failed to delete.", { id: toastId });
-    } finally {
-      setBusy(false);
-    }
-  }, [editingId, resetForm]);
+    },
+    [editingId, resetForm],
+  );
 
   const now = new Date();
 
@@ -215,8 +221,8 @@ export default function AdminAnnouncementsClient({ initial }: { initial: Announc
           {editingId ? "Edit announcement" : "New announcement"}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Shows as a banner at the top of every page. Leave the window empty to show it
-          immediately and indefinitely. Times are UTC.
+          Shows as a banner at the top of every page. Leave the window empty to show it immediately
+          and indefinitely. Times are UTC.
         </p>
 
         <div className="mt-4 space-y-3">

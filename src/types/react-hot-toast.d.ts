@@ -2,5 +2,3 @@
 // Now that `react-hot-toast` is installed, we intentionally leave this file empty
 // so TypeScript uses the package's own types.
 export {};
-
-

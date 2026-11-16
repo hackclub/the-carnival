@@ -10,7 +10,7 @@ export default async function AdminOrdersPage() {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
   const isAdmin = role === "admin";
-  if (!session?.user?.id) redirect("/login?callbackUrl=/admin/orders");
+  if (!session?.user.id) redirect("/login?callbackUrl=/admin/orders");
   if (!isAdmin) redirect("/projects");
 
   const orders = await db
@@ -40,17 +40,18 @@ export default async function AdminOrdersPage() {
     .orderBy(desc(shopOrder.createdAt));
 
   const orderUserIds = Array.from(new Set(orders.map((o) => o.userId)));
-  const tokenBalances = orderUserIds.length > 0
-    ? await db
-        .select({
-          userId: tokenLedger.issuedToUserId,
-          balance: sql<number>`coalesce(sum(case when ${tokenLedger.kind} = 'issue' then ${tokenLedger.tokens} else -${tokenLedger.tokens} end), 0)`,
-        })
-        .from(tokenLedger)
-        .where(inArray(tokenLedger.issuedToUserId, orderUserIds))
-        .groupBy(tokenLedger.issuedToUserId)
-    : [];
-  const balanceByUserId = new Map(tokenBalances.map((row) => [row.userId, Number(row.balance ?? 0)]));
+  const tokenBalances =
+    orderUserIds.length > 0
+      ? await db
+          .select({
+            userId: tokenLedger.issuedToUserId,
+            balance: sql<number>`coalesce(sum(case when ${tokenLedger.kind} = 'issue' then ${tokenLedger.tokens} else -${tokenLedger.tokens} end), 0)`,
+          })
+          .from(tokenLedger)
+          .where(inArray(tokenLedger.issuedToUserId, orderUserIds))
+          .groupBy(tokenLedger.issuedToUserId)
+      : [];
+  const balanceByUserId = new Map(tokenBalances.map((row) => [row.userId, Number(row.balance)]));
 
   const initialOrders: AdminShopOrderDTO[] = orders.map((o) => ({
     id: o.id,
@@ -63,9 +64,9 @@ export default async function AdminOrdersPage() {
     itemImageUrl: o.itemImageUrl,
     itemDescription: o.itemDescription ?? o.currentItemDescription ?? null,
     orderNote: o.orderNote ?? null,
-    quantity: o.quantity ?? 1,
-    unitTokenCost: o.unitTokenCost ?? o.tokenCost ?? 0,
-    tokenCost: o.tokenCost ?? 0,
+    quantity: o.quantity,
+    unitTokenCost: o.unitTokenCost,
+    tokenCost: o.tokenCost,
     fulfillmentLink: o.fulfillmentLink ?? null,
     cancellationReason: o.cancellationReason ?? null,
     cancelledAt: o.cancelledAt ? o.cancelledAt.toISOString() : null,

@@ -43,7 +43,12 @@ export default function ExploreProjectsFilters({
         <span className="block text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">
           Status
         </span>
-        <Select value={status} onValueChange={(v) => { if (v) setStatus(v); }}>
+        <Select
+          value={status}
+          onValueChange={(v) => {
+            if (v) setStatus(v);
+          }}
+        >
           <SelectTrigger className={triggerClass}>
             <SelectValue placeholder="Status" />
           </SelectTrigger>

@@ -67,9 +67,7 @@ export default async function AppShell({
             <DashboardTopBar title={title} />
             {hackatimeStatus === "needs_reconnect" ? <HackatimeReconnectBanner /> : null}
 
-            <PlatformContent className="pt-6 md:pt-8">
-              {children}
-            </PlatformContent>
+            <PlatformContent className="pt-6 md:pt-8">{children}</PlatformContent>
           </main>
         </div>
       </SidebarProvider>

@@ -16,11 +16,7 @@ type BadgeProps = {
   className?: string;
 };
 
-export function Badge({
-  children,
-  variant = "default",
-  className = "",
-}: BadgeProps) {
+export function Badge({ children, variant = "default", className = "" }: BadgeProps) {
   return (
     <span
       className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[0.68rem] font-semibold tracking-wide ${badgeVariants[variant]} ${className}`}

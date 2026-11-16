@@ -73,7 +73,12 @@ describe("POST /api/resources", () => {
   });
 
   test("rejects non-http(s) URLs", async () => {
-    for (const url of ["javascript:alert(1)", "ftp://example.com/x", "example.com/docs", "not a url"]) {
+    for (const url of [
+      "javascript:alert(1)",
+      "ftp://example.com/x",
+      "example.com/docs",
+      "not a url",
+    ]) {
       resetState();
       const { res, json } = await postResource({ ...valid, url });
 

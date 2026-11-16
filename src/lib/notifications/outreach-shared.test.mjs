@@ -17,13 +17,9 @@ const {
 
 describe("parseSlackIdList", () => {
   test("accepts IDs separated by commas, spaces and new lines, and mentions", () => {
-    expect(parseSlackIdList("U0123ABCD, W0999ZZZZ\n<@U0AAAAAAA> <@U0BBBBBBB|ada> @U0CCCCCCC").ids).toEqual([
-      "U0123ABCD",
-      "W0999ZZZZ",
-      "U0AAAAAAA",
-      "U0BBBBBBB",
-      "U0CCCCCCC",
-    ]);
+    expect(
+      parseSlackIdList("U0123ABCD, W0999ZZZZ\n<@U0AAAAAAA> <@U0BBBBBBB|ada> @U0CCCCCCC").ids,
+    ).toEqual(["U0123ABCD", "W0999ZZZZ", "U0AAAAAAA", "U0BBBBBBB", "U0CCCCCCC"]);
   });
 
   test("uppercases, reports duplicates and junk separately", () => {
@@ -74,15 +70,22 @@ describe("decideRecipient", () => {
   });
 
   test("exclusion wins over every other reason", () => {
-    expect(decideRecipient({ ...base, isExcluded: true, isFrozen: true, hasSlackId: false })).toEqual({
+    expect(
+      decideRecipient({ ...base, isExcluded: true, isFrozen: true, hasSlackId: false }),
+    ).toEqual({
       status: "skipped",
       reason: "excluded",
     });
   });
 
   test("opting out on the Account page skips hand-written sends too, right after exclusion", () => {
-    expect(decideRecipient({ ...base, optedOut: true })).toEqual({ status: "skipped", reason: "opted_out" });
-    expect(decideRecipient({ ...base, optedOut: true, isFrozen: true, recentlyNudged: true }).reason).toBe("opted_out");
+    expect(decideRecipient({ ...base, optedOut: true })).toEqual({
+      status: "skipped",
+      reason: "opted_out",
+    });
+    expect(
+      decideRecipient({ ...base, optedOut: true, isFrozen: true, recentlyNudged: true }).reason,
+    ).toBe("opted_out");
     expect(decideRecipient({ ...base, optedOut: true, isExcluded: true }).reason).toBe("excluded");
     expect(OUTREACH_REASON_LABELS.opted_out).toBeTruthy();
   });
@@ -92,12 +95,18 @@ describe("decideRecipient", () => {
     expect(decideRecipient({ ...base, recentlyNudged: true }).reason).toBe("recently_nudged");
     expect(decideRecipient({ ...base, hasSlackId: false }).reason).toBe("no_slack_id");
     expect(decideRecipient({ ...base, channel: "email", hasEmail: false }).reason).toBe("no_email");
-    expect(decideRecipient({ ...base, channel: "email", hasSlackId: false })).toEqual({ status: "pending" });
+    expect(decideRecipient({ ...base, channel: "email", hasSlackId: false })).toEqual({
+      status: "pending",
+    });
   });
 });
 
 describe("outreach footer", () => {
-  const ctx = { appBaseUrl: "https://carnival.test/", contactSlackId: "U0JOSIAS", channel: "slack" };
+  const ctx = {
+    appBaseUrl: "https://carnival.test/",
+    contactSlackId: "U0JOSIAS",
+    channel: "slack",
+  };
 
   test("Slack footer links to the Account toggle and mentions the contact, never 'reply here'", () => {
     const footer = buildOutreachFooter(ctx);
@@ -108,14 +117,20 @@ describe("outreach footer", () => {
   });
 
   test("falls back to a plain @Josias without a contact ID, and always for email", () => {
-    expect(buildOutreachFooter({ ...ctx, contactSlackId: null })).toContain("or DM @Josias on Slack.");
-    expect(buildOutreachFooter({ ...ctx, contactSlackId: "  " })).toContain("or DM @Josias on Slack.");
+    expect(buildOutreachFooter({ ...ctx, contactSlackId: null })).toContain(
+      "or DM @Josias on Slack.",
+    );
+    expect(buildOutreachFooter({ ...ctx, contactSlackId: "  " })).toContain(
+      "or DM @Josias on Slack.",
+    );
     expect(buildOutreachFooter({ ...ctx, channel: "email" })).toContain("or DM @Josias on Slack.");
     expect(buildOutreachFooter({ ...ctx, channel: "email" })).not.toContain("<@");
   });
 
   test("withOutreachFooter puts a blank line between the message and the footer", () => {
-    expect(withOutreachFooter("Hey Ada! 🎪 Ship it.  \n", ctx)).toBe(`Hey Ada! 🎪 Ship it.\n\n${buildOutreachFooter(ctx)}`);
+    expect(withOutreachFooter("Hey Ada! 🎪 Ship it.  \n", ctx)).toBe(
+      `Hey Ada! 🎪 Ship it.\n\n${buildOutreachFooter(ctx)}`,
+    );
   });
 });
 
@@ -161,11 +176,15 @@ describe("recentWindowCutoff", () => {
 
 describe("assignBatches", () => {
   test("fills batches in order with people who will be messaged", () => {
-    expect(assignBatches(["pending", "pending", "pending", "pending", "pending"], 2)).toEqual([1, 1, 2, 2, 3]);
+    expect(assignBatches(["pending", "pending", "pending", "pending", "pending"], 2)).toEqual([
+      1, 1, 2, 2, 3,
+    ]);
   });
 
   test("skipped people don't take a slot", () => {
-    expect(assignBatches(["skipped", "pending", "skipped", "pending", "pending"], 2)).toEqual([1, 1, 1, 1, 2]);
+    expect(assignBatches(["skipped", "pending", "skipped", "pending", "pending"], 2)).toEqual([
+      1, 1, 1, 1, 2,
+    ]);
   });
 
   test("600 people in batches of 300 is two batches", () => {

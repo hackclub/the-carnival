@@ -32,8 +32,12 @@ describe("deadlineLine", () => {
     expect(deadlineLine({ ...ctx, daysLeft: 30 })).toBeNull();
     expect(deadlineLine({ ...ctx, daysLeft: null })).toBeNull();
     expect(deadlineLine(ctx)).toBe("⏰ The Carnival closes in 17 days (October 31).");
-    expect(deadlineLine({ ...ctx, daysLeft: 1 })).toBe("⏰ The Carnival closes tomorrow (October 31).");
-    expect(deadlineLine({ ...ctx, daysLeft: 0 })).toBe("⏰ The Carnival closes today (October 31).");
+    expect(deadlineLine({ ...ctx, daysLeft: 1 })).toBe(
+      "⏰ The Carnival closes tomorrow (October 31).",
+    );
+    expect(deadlineLine({ ...ctx, daysLeft: 0 })).toBe(
+      "⏰ The Carnival closes today (October 31).",
+    );
   });
 });
 
@@ -69,16 +73,28 @@ describe("buildNudgeText", () => {
     const text = buildNudgeText(planned({ kind: "hours_unsubmitted" }), ctx);
     expect(text).toContain("2.5 hours on *Tab Rot*");
     expect(text).toContain("https://carnival.test/projects/p1");
-    const repeat = buildNudgeText(planned({ kind: "hours_unsubmitted", variant: "repeat_shipper" }), ctx);
+    const repeat = buildNudgeText(
+      planned({ kind: "hours_unsubmitted", variant: "repeat_shipper" }),
+      ctx,
+    );
     expect(repeat).toContain("already shipped on Carnival");
   });
 
   test("project_no_hours_7d variants point at the right fix", () => {
-    const noToken = buildNudgeText(planned({ kind: "project_no_hours_7d", variant: "no_token" }), ctx);
+    const noToken = buildNudgeText(
+      planned({ kind: "project_no_hours_7d", variant: "no_token" }),
+      ctx,
+    );
     expect(noToken).toContain("Hackatime isn't connected");
-    const hasTime = buildNudgeText(planned({ kind: "project_no_hours_7d", variant: "has_hackatime_time" }), ctx);
+    const hasTime = buildNudgeText(
+      planned({ kind: "project_no_hours_7d", variant: "has_hackatime_time" }),
+      ctx,
+    );
     expect(hasTime).toContain("no devlog has claimed it yet");
-    const noTime = buildNudgeText(planned({ kind: "project_no_hours_7d", variant: "no_hackatime_time" }), ctx);
+    const noTime = buildNudgeText(
+      planned({ kind: "project_no_hours_7d", variant: "no_hackatime_time" }),
+      ctx,
+    );
     expect(noTime).toContain("editor plugin isn't set up");
   });
 

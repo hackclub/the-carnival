@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-const { nudgeCommandExitCode, parseNudgeCommandArgs, runNudgeCommand } = await import("./command.ts");
+const { nudgeCommandExitCode, parseNudgeCommandArgs, runNudgeCommand } =
+  await import("./command.ts");
 
 function result(overrides = {}) {
   return {
@@ -12,8 +13,18 @@ function result(overrides = {}) {
     daysLeft: 13,
     maxSends: 200,
     allowlist: null,
-    candidatesByKind: { hours_unsubmitted: 1, project_no_hours_7d: 0, connected_no_project: 0, never_connected: 0 },
-    plannedByKind: { hours_unsubmitted: 1, project_no_hours_7d: 0, connected_no_project: 0, never_connected: 0 },
+    candidatesByKind: {
+      hours_unsubmitted: 1,
+      project_no_hours_7d: 0,
+      connected_no_project: 0,
+      never_connected: 0,
+    },
+    plannedByKind: {
+      hours_unsubmitted: 1,
+      project_no_hours_7d: 0,
+      connected_no_project: 0,
+      never_connected: 0,
+    },
     skippedByReason: {},
     planned: [{ userId: "u1" }],
     sent: [{ userId: "u1" }],
@@ -72,7 +83,9 @@ describe("parseNudgeCommandArgs", () => {
   test("rejects --max with a missing operand or another flag in its place", () => {
     expect(parseNudgeCommandArgs(["--send", "--max"])).toMatchObject({ ok: false });
     expect(parseNudgeCommandArgs(["--max", "--send"])).toMatchObject({ ok: false });
-    expect(parseNudgeCommandArgs(["--max", "--allow", "U1"]).error).toContain("--max needs a number");
+    expect(parseNudgeCommandArgs(["--max", "--allow", "U1"]).error).toContain(
+      "--max needs a number",
+    );
   });
 
   test("rejects invalid --max values instead of falling back to the default cap", () => {

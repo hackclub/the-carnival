@@ -24,7 +24,9 @@ export type OutreachLoopDeps = {
   heartbeat: () => Promise<void>;
 };
 
-export async function runOutreachLoop(deps: OutreachLoopDeps): Promise<{ sent: number; failed: number }> {
+export async function runOutreachLoop(
+  deps: OutreachLoopDeps,
+): Promise<{ sent: number; failed: number }> {
   let sent = 0;
   let failed = 0;
   // Bounded by the number of pending rows; the guard stops a storage bug that

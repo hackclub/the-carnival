@@ -48,10 +48,7 @@ function formatHoursMinutes(seconds: number): string {
 type DevlogWindow = { startedAt: Date; endedAt: Date };
 
 /** Smallest window covering the given span indices, or null if none are valid. */
-function windowFromIndices(
-  spans: TimelineSpan[],
-  indices: Iterable<number>,
-): DevlogWindow | null {
+function windowFromIndices(spans: TimelineSpan[], indices: Iterable<number>): DevlogWindow | null {
   let minStart = Infinity;
   let maxEnd = -Infinity;
   for (const i of indices) {
@@ -104,7 +101,9 @@ function TimelineBar({
             disabled={isAlreadyLogged}
             className={[
               "absolute top-1 bottom-1 rounded transition-all",
-              isAlreadyLogged ? "cursor-not-allowed opacity-30 bg-muted-foreground/30" : "cursor-pointer",
+              isAlreadyLogged
+                ? "cursor-not-allowed opacity-30 bg-muted-foreground/30"
+                : "cursor-pointer",
               !isAlreadyLogged && isSelected
                 ? "opacity-100 ring-2 ring-white/50"
                 : !isAlreadyLogged && "opacity-60 hover:opacity-80",
@@ -180,8 +179,8 @@ export default function DevlogTimelineSelector({
   if (spans.length === 0) {
     return (
       <PlatformNestedSurface className="px-4 py-3 text-sm text-muted-foreground">
-        No coding activity found on {date}. Try a different date, or use the manual
-        time pickers below.
+        No coding activity found on {date}. Try a different date, or use the manual time pickers
+        below.
       </PlatformNestedSurface>
     );
   }
@@ -192,7 +191,9 @@ export default function DevlogTimelineSelector({
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>
           {spans.length} span{spans.length === 1 ? "" : "s"} ·{" "}
-          <span className="text-foreground font-semibold">{formatHoursMinutes(totalCodedTime)}</span>{" "}
+          <span className="text-foreground font-semibold">
+            {formatHoursMinutes(totalCodedTime)}
+          </span>{" "}
           total · linked projects:{" "}
           <span className="text-foreground font-medium">{linkedNames}</span>
         </span>
@@ -236,10 +237,13 @@ export default function DevlogTimelineSelector({
               disabled={isAlreadyLogged}
               className={[
                 "w-full text-left rounded-[var(--radius-xl)] border px-3 py-2 transition-colors",
-                isAlreadyLogged ? "cursor-not-allowed opacity-50 bg-muted/50 border-border" : "cursor-pointer",
+                isAlreadyLogged
+                  ? "cursor-not-allowed opacity-50 bg-muted/50 border-border"
+                  : "cursor-pointer",
                 !isAlreadyLogged && isSelected
                   ? "border-carnival-blue/50 bg-carnival-blue/10"
-                  : !isAlreadyLogged && "border-border bg-background hover:border-muted-foreground/30",
+                  : !isAlreadyLogged &&
+                    "border-border bg-background hover:border-muted-foreground/30",
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -267,9 +271,7 @@ export default function DevlogTimelineSelector({
                     {projectNames ? (
                       <div className="text-xs text-muted-foreground mt-0.5 truncate">
                         {span.hasLinkedProject ? (
-                          <span className="text-carnival-blue font-medium">
-                            {projectNames}
-                          </span>
+                          <span className="text-carnival-blue font-medium">{projectNames}</span>
                         ) : (
                           projectNames
                         )}
@@ -297,14 +299,15 @@ export default function DevlogTimelineSelector({
             {formatTime(derivedWindow.endedAt.getTime() / 1000)}
           </span>
           <span className="text-muted-foreground">
-            {" "}· {formatHoursMinutes(selectedDuration)} raw span time
+            {" "}
+            · {formatHoursMinutes(selectedDuration)} raw span time
             {selectedIndices.size > 1 ? ` across ${selectedIndices.size} spans` : ""}
           </span>
         </PlatformNestedSurface>
       ) : (
         <PlatformNestedSurface className="px-3 py-2 text-sm text-muted-foreground">
-          Select one or more spans above to set your working window, or use the manual
-          pickers below.
+          Select one or more spans above to set your working window, or use the manual pickers
+          below.
         </PlatformNestedSurface>
       )}
     </div>

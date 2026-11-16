@@ -16,7 +16,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const body = await parseJsonBody<RejectBody>(req);
   const reason = sanitizeText(body?.reason, { maxLength: TEXT_LIMITS.reason, multiline: true });
-  if (!reason) return NextResponse.json({ error: "Rejection reason is required." }, { status: 400 });
+  if (!reason)
+    return NextResponse.json({ error: "Rejection reason is required." }, { status: 400 });
 
   const { id } = await ctx.params;
   const now = new Date();

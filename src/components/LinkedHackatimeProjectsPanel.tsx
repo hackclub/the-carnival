@@ -27,9 +27,10 @@ type Props = {
 async function readProjectsResponse(
   res: Response,
 ): Promise<{ projects: LinkedProject[]; error: string | null }> {
-  const data = (await res.json().catch(() => null)) as
-    | { projects?: unknown; error?: unknown }
-    | null;
+  const data = (await res.json().catch(() => null)) as {
+    projects?: unknown;
+    error?: unknown;
+  } | null;
   return {
     projects: Array.isArray(data?.projects) ? (data.projects as LinkedProject[]) : [],
     error: typeof data?.error === "string" ? data.error : null,
@@ -81,12 +82,14 @@ export default function LinkedHackatimeProjectsPanel({ projectId, readonly = fal
     setUserProjectsLoading(true);
     try {
       const returnTo = `${window.location.pathname}${window.location.search}`;
-      const res = await fetch(
-        `/api/hackatime/projects?returnTo=${encodeURIComponent(returnTo)}`,
-      );
-      const data = (await res.json().catch(() => null)) as
-        | { projects?: unknown; error?: unknown; code?: unknown; reason?: unknown; connectUrl?: unknown }
-        | null;
+      const res = await fetch(`/api/hackatime/projects?returnTo=${encodeURIComponent(returnTo)}`);
+      const data = (await res.json().catch(() => null)) as {
+        projects?: unknown;
+        error?: unknown;
+        code?: unknown;
+        reason?: unknown;
+        connectUrl?: unknown;
+      } | null;
       if (res.ok && Array.isArray(data?.projects)) {
         setHackatimeConnect(null);
         setUserProjects(
@@ -116,10 +119,7 @@ export default function LinkedHackatimeProjectsPanel({ projectId, readonly = fal
     void loadUserProjects();
   }, [loadLinked, loadUserProjects]);
 
-  const linkedNameSet = useMemo(
-    () => new Set(linked.map((p) => p.name.toLowerCase())),
-    [linked],
-  );
+  const linkedNameSet = useMemo(() => new Set(linked.map((p) => p.name.toLowerCase())), [linked]);
 
   const suggestedProjects = useMemo(
     () => userProjects.filter((p) => !linkedNameSet.has(p.name.toLowerCase())),
@@ -132,14 +132,11 @@ export default function LinkedHackatimeProjectsPanel({ projectId, readonly = fal
     setAdding(true);
     setAddError(null);
     try {
-      const res = await fetch(
-        `/api/projects/${encodeURIComponent(projectId)}/hackatime-projects`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
-        },
-      );
+      const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/hackatime-projects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
       const { projects, error } = await readProjectsResponse(res);
       if (!res.ok) {
         setAddError(error ?? "Failed to add project.");
@@ -182,9 +179,9 @@ export default function LinkedHackatimeProjectsPanel({ projectId, readonly = fal
         <div>
           <div className="font-semibold text-foreground">Linked Hackatime projects</div>
           <p className="text-xs text-muted-foreground mt-1">
-            All Hackatime project names that count toward this carnival project.
-            Devlogs can be posted against any of these. Projects are also added here
-            automatically when you post a devlog with a new project name.
+            All Hackatime project names that count toward this carnival project. Devlogs can be
+            posted against any of these. Projects are also added here automatically when you post a
+            devlog with a new project name.
           </p>
         </div>
 
@@ -194,8 +191,7 @@ export default function LinkedHackatimeProjectsPanel({ projectId, readonly = fal
           <div className="text-sm text-red-200">{error}</div>
         ) : linked.length === 0 ? (
           <PlatformNestedSurface className="px-3 py-2 text-sm text-muted-foreground">
-            No Hackatime projects linked yet. Add one below or post a devlog to link
-            automatically.
+            No Hackatime projects linked yet. Add one below or post a devlog to link automatically.
           </PlatformNestedSurface>
         ) : (
           <ul className="space-y-1.5">
@@ -212,9 +208,7 @@ export default function LinkedHackatimeProjectsPanel({ projectId, readonly = fal
                     </span>
                   ) : null}
                   {p.firstDevlogId ? (
-                    <span className="flex-shrink-0 text-xs text-muted-foreground">
-                      has devlogs
-                    </span>
+                    <span className="flex-shrink-0 text-xs text-muted-foreground">has devlogs</span>
                   ) : null}
                 </div>
                 {!readonly ? (
@@ -263,7 +257,10 @@ export default function LinkedHackatimeProjectsPanel({ projectId, readonly = fal
                 value={addName}
                 onChange={(e) => setAddName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") { e.preventDefault(); void handleAdd(); }
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleAdd();
+                  }
                 }}
                 placeholder="Project name…"
                 className="flex-1 bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40 min-w-0"
@@ -279,9 +276,7 @@ export default function LinkedHackatimeProjectsPanel({ projectId, readonly = fal
                 Add
               </Button>
             </div>
-            {addError ? (
-              <div className="text-xs text-red-200">{addError}</div>
-            ) : null}
+            {addError ? <div className="text-xs text-red-200">{addError}</div> : null}
             {hackatimeConnect ? (
               <div className="text-xs text-muted-foreground">
                 {hackatimeConnect.reconnect

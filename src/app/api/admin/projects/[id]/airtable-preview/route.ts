@@ -25,18 +25,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const { id } = await ctx.params;
 
-  const body = (await req.json().catch(() => null)) as
-    | { technicalJustification?: unknown }
-    | null;
+  const body = (await req.json().catch(() => null)) as { technicalJustification?: unknown } | null;
   const technicalJustificationOverride =
     body && typeof body.technicalJustification === "string"
       ? body.technicalJustification.trim().slice(0, 8000)
       : undefined;
 
   const context = await loadGrantContext(id, {
-    ...(technicalJustificationOverride !== undefined
-      ? { technicalJustificationOverride }
-      : {}),
+    ...(technicalJustificationOverride !== undefined ? { technicalJustificationOverride } : {}),
   });
   if (!context) return NextResponse.json({ error: "Not found" }, { status: 404 });
 

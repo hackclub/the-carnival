@@ -3,11 +3,21 @@
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Input, Textarea, Button, Card, Badge, EmptyState, FormLabel, Modal } from "@/components/ui";
+import {
+  Input,
+  Textarea,
+  Button,
+  Card,
+  Badge,
+  EmptyState,
+  FormLabel,
+  Modal,
+} from "@/components/ui";
 import { R2ImageUpload } from "@/components/R2ImageUpload";
 import { RichTextContent } from "@/components/RichTextContent";
 import { RichTextField } from "@/components/RichTextField";
 import { FIXED_RATE_TOKENS, FIXED_RATE_USD, TOKENS_PER_HOUR } from "@/lib/wallet-converter";
+import { extractApiError } from "@/lib/project-form-utils";
 
 // 1 approved hour = TOKENS_PER_HOUR tokens = FIXED_RATE_USD dollars.
 const GRANT_USD_PER_HOUR = (FIXED_RATE_USD / FIXED_RATE_TOKENS) * TOKENS_PER_HOUR;
@@ -36,7 +46,9 @@ function parseHelpfulLinks(value: unknown): BountyHelpfulLink[] {
           ? (item as { label: string }).label.trim()
           : "";
       const url =
-        typeof (item as { url?: unknown }).url === "string" ? (item as { url: string }).url.trim() : "";
+        typeof (item as { url?: unknown }).url === "string"
+          ? (item as { url: string }).url.trim()
+          : "";
       if (!label || !url) return null;
       return { label, url };
     })
@@ -108,13 +120,16 @@ function HelpfulLinksFields({
       <FormLabel>Helpful links (optional)</FormLabel>
       <div className="space-y-3">
         {value.map((link, index) => (
-          <div key={`helpful-link-${index}`} className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1fr_auto]">
+          <div
+            key={`helpful-link-${index}`}
+            className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1fr_auto]"
+          >
             <Input
               placeholder="Docs"
               value={link.label}
               onChange={(e) => {
                 const next = [...value];
-                next[index] = { ...next[index], label: e.target.value };
+                next[index] = { ...link, label: e.target.value };
                 onChange(next);
               }}
               disabled={disabled}
@@ -124,7 +139,7 @@ function HelpfulLinksFields({
               value={link.url}
               onChange={(e) => {
                 const next = [...value];
-                next[index] = { ...next[index], url: e.target.value };
+                next[index] = { ...link, url: e.target.value };
                 onChange(next);
               }}
               disabled={disabled}
@@ -215,7 +230,7 @@ export default function BountiesClient({
   const refresh = useCallback(async () => {
     const res = await fetch("/api/bounties", { method: "GET" });
     const data = (await res.json().catch(() => null)) as { projects?: unknown } | null;
-    const raw = Array.isArray(data?.projects) ? (data!.projects as unknown[]) : [];
+    const raw = Array.isArray(data?.projects) ? (data.projects as unknown[]) : [];
     const next = raw
       .map((p) => p as Partial<BountyListItem>)
       .filter((p) => typeof p.id === "string")
@@ -228,7 +243,10 @@ export default function BountiesClient({
             ? p.status
             : ("approved" as BountyListItem["status"]),
         prizeUsd: Number(p.prizeUsd ?? 0),
-        previewImageUrl: typeof p.previewImageUrl === "string" && p.previewImageUrl.trim() ? p.previewImageUrl : null,
+        previewImageUrl:
+          typeof p.previewImageUrl === "string" && p.previewImageUrl.trim()
+            ? p.previewImageUrl
+            : null,
         requirements: String(p.requirements ?? ""),
         examples: String(p.examples ?? ""),
         helpfulLinks: parseHelpfulLinks(p.helpfulLinks),
@@ -263,8 +281,8 @@ export default function BountiesClient({
     setEditingDescription(item.description);
     setEditingPrizeUsd(String(item.prizeUsd));
     setEditingPreviewImageUrl(item.previewImageUrl ?? "");
-    setEditingRequirements(item.requirements ?? "");
-    setEditingExamples(item.examples ?? "");
+    setEditingRequirements(item.requirements);
+    setEditingExamples(item.examples);
     setEditingHelpfulLinksDraft(getInitialHelpfulLinksDraft(item.helpfulLinks));
   }, []);
 
@@ -303,13 +321,15 @@ export default function BountiesClient({
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to create bounty.", {
+          toast.error(extractApiError(data, "Failed to create bounty."), {
             id: toastId,
           });
           setCreating(false);
           return;
         }
-        toast.success(isAdmin ? "Created." : "Proposal submitted for admin review.", { id: toastId });
+        toast.success(isAdmin ? "Created." : "Proposal submitted for admin review.", {
+          id: toastId,
+        });
       } catch {
         toast.error("Failed to create bounty.", { id: toastId });
         setCreating(false);
@@ -358,22 +378,22 @@ export default function BountiesClient({
     const toastId = toast.loading("Saving bounty…");
     try {
       const res = await fetch(`/api/bounties/${encodeURIComponent(editingId)}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name,
-            description,
-            prizeUsd,
-            previewImageUrl: editingPreviewImageUrl,
-            requirements: editingRequirements,
-            examples: editingExamples,
-            helpfulLinks,
-          }),
-        });
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          description,
+          prizeUsd,
+          previewImageUrl: editingPreviewImageUrl,
+          requirements: editingRequirements,
+          examples: editingExamples,
+          helpfulLinks,
+        }),
+      });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
 
       if (!res.ok) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to save bounty.", {
+        toast.error(extractApiError(data, "Failed to save bounty."), {
           id: toastId,
         });
         setSavingEdit(false);
@@ -414,7 +434,7 @@ export default function BountiesClient({
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
 
       if (!res.ok) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to delete bounty.", {
+        toast.error(extractApiError(data, "Failed to delete bounty."), {
           id: toastId,
         });
         setDeletingId(null);
@@ -435,11 +455,13 @@ export default function BountiesClient({
     async (id: string) => {
       const toastId = toast.loading("Claiming…");
       try {
-        const res = await fetch(`/api/bounties/${encodeURIComponent(id)}/claim`, { method: "POST" });
+        const res = await fetch(`/api/bounties/${encodeURIComponent(id)}/claim`, {
+          method: "POST",
+        });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
 
         if (!res.ok) {
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to claim.", { id: toastId });
+          toast.error(extractApiError(data, "Failed to claim."), { id: toastId });
           await refresh();
           return;
         }
@@ -465,11 +487,13 @@ export default function BountiesClient({
 
         if (!res.ok) {
           const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to update.", { id: toastId });
+          toast.error(extractApiError(data, "Failed to update."), { id: toastId });
           return;
         }
 
-        toast.success(completed ? "Bounty marked as completed" : "Bounty reopened", { id: toastId });
+        toast.success(completed ? "Bounty marked as completed" : "Bounty reopened", {
+          id: toastId,
+        });
         await refresh();
       } catch {
         toast.error("Failed to update.", { id: toastId });
@@ -481,7 +505,11 @@ export default function BountiesClient({
   const updateStatus = useCallback(
     async (id: string, status: BountyListItem["status"], reason = "") => {
       const toastId = toast.loading(
-        status === "approved" ? "Approving bounty…" : status === "rejected" ? "Rejecting bounty…" : "Updating…",
+        status === "approved"
+          ? "Approving bounty…"
+          : status === "rejected"
+            ? "Rejecting bounty…"
+            : "Updating…",
       );
       try {
         const res = await fetch(`/api/bounties/${encodeURIComponent(id)}`, {
@@ -492,7 +520,7 @@ export default function BountiesClient({
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
 
         if (!res.ok) {
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to update.", { id: toastId });
+          toast.error(extractApiError(data, "Failed to update."), { id: toastId });
           return;
         }
 
@@ -517,7 +545,7 @@ export default function BountiesClient({
       const aAvail = a.claimedCount < 2 ? 1 : 0;
       const bAvail = b.claimedCount < 2 ? 1 : 0;
       if (aAvail !== bAvail) return bAvail - aAvail;
-      return (b.prizeUsd ?? 0) - (a.prizeUsd ?? 0);
+      return b.prizeUsd - a.prizeUsd;
     });
   }, [items]);
 
@@ -527,86 +555,89 @@ export default function BountiesClient({
         <div className="text-foreground font-semibold text-lg">How bounty eligibility works</div>
         <div className="text-muted-foreground mt-2 text-sm leading-6">
           Every bounty bonus is shown as an hours equivalent using Carnival&apos;s $
-          <span className="text-foreground font-medium">{GRANT_USD_PER_HOUR}/hour</span> rate. To earn the bounty,
-          your extension still needs to meet the bounty requirements in the description, and you need to spend at
-          least{" "}
-          <span className="text-foreground font-medium">(hours needed for the extension / 2) + 1 hour</span>.
+          <span className="text-foreground font-medium">{GRANT_USD_PER_HOUR}/hour</span> rate. To
+          earn the bounty, your extension still needs to meet the bounty requirements in the
+          description, and you need to spend at least{" "}
+          <span className="text-foreground font-medium">
+            (hours needed for the extension / 2) + 1 hour
+          </span>
+          .
         </div>
       </Card>
 
       <Card className="p-6">
-          <div className="text-foreground font-semibold text-lg">
-            {isAdmin ? "Create official bounty" : "Submit a bounty proposal"}
-          </div>
-          <div className="text-muted-foreground mt-1 text-sm">
-            {isAdmin
-              ? "Admin-created bounties go live immediately."
-              : "An admin will review your proposal before it becomes official."}
-          </div>
+        <div className="text-foreground font-semibold text-lg">
+          {isAdmin ? "Create official bounty" : "Submit a bounty proposal"}
+        </div>
+        <div className="text-muted-foreground mt-1 text-sm">
+          {isAdmin
+            ? "Admin-created bounties go live immediately."
+            : "An admin will review your proposal before it becomes official."}
+        </div>
 
-          <form onSubmit={onCreate} className="mt-5 space-y-4">
-            <Input
-              name="name"
-              label="Name"
-              required
-              placeholder="Build a VS Code extension for XYZ"
-              disabled={creating}
-            />
-            <Input
-              name="prizeUsd"
-              label="Prize (USD)"
-              type="number"
-              min={1}
-              step={1}
-              required
-              placeholder="250"
-              disabled={creating}
-            />
-            <R2ImageUpload
-              label="Preview image (optional)"
-              value={previewImageUrl}
-              onChange={setPreviewImageUrl}
-              kind="bounty_preview"
-              disabled={creating}
-              helperText="A visual preview for the bounty card and detail page."
-            />
-            <RichTextField
-              name="description"
-              label="Description"
-              value={createDescription}
-              onChange={setCreateDescription}
-              rows={7}
-              required
-              placeholder="What should the bounty extension do? List the requirements and acceptance criteria."
-              disabled={creating}
-            />
-            <RichTextField
-              name="requirements"
-              label="Requirements (optional)"
-              value={createRequirements}
-              onChange={setCreateRequirements}
-              rows={7}
-              placeholder="What must a project do to qualify?"
-              disabled={creating}
-            />
-            <Textarea
-              name="examples"
-              label="Examples or resources (optional)"
-              rows={3}
-              placeholder="Example ideas, references, APIs, or starter resources."
-              disabled={creating}
-            />
-            <HelpfulLinksFields
-              value={helpfulLinksDraft}
-              onChange={setHelpfulLinksDraft}
-              disabled={creating}
-            />
-            <div className="flex items-center justify-end">
-              <Button type="submit" loading={creating} loadingText="Creating…">
-                {isAdmin ? "Create bounty" : "Submit proposal"}
-              </Button>
-            </div>
-          </form>
+        <form onSubmit={onCreate} className="mt-5 space-y-4">
+          <Input
+            name="name"
+            label="Name"
+            required
+            placeholder="Build a VS Code extension for XYZ"
+            disabled={creating}
+          />
+          <Input
+            name="prizeUsd"
+            label="Prize (USD)"
+            type="number"
+            min={1}
+            step={1}
+            required
+            placeholder="250"
+            disabled={creating}
+          />
+          <R2ImageUpload
+            label="Preview image (optional)"
+            value={previewImageUrl}
+            onChange={setPreviewImageUrl}
+            kind="bounty_preview"
+            disabled={creating}
+            helperText="A visual preview for the bounty card and detail page."
+          />
+          <RichTextField
+            name="description"
+            label="Description"
+            value={createDescription}
+            onChange={setCreateDescription}
+            rows={7}
+            required
+            placeholder="What should the bounty extension do? List the requirements and acceptance criteria."
+            disabled={creating}
+          />
+          <RichTextField
+            name="requirements"
+            label="Requirements (optional)"
+            value={createRequirements}
+            onChange={setCreateRequirements}
+            rows={7}
+            placeholder="What must a project do to qualify?"
+            disabled={creating}
+          />
+          <Textarea
+            name="examples"
+            label="Examples or resources (optional)"
+            rows={3}
+            placeholder="Example ideas, references, APIs, or starter resources."
+            disabled={creating}
+          />
+          <HelpfulLinksFields
+            value={helpfulLinksDraft}
+            onChange={setHelpfulLinksDraft}
+            disabled={creating}
+          />
+          <div className="flex items-center justify-end">
+            <Button type="submit" loading={creating} loadingText="Creating…">
+              {isAdmin ? "Create bounty" : "Submit proposal"}
+            </Button>
+          </div>
+        </form>
       </Card>
 
       {sorted.length === 0 ? (
@@ -626,7 +657,10 @@ export default function BountiesClient({
                 key={b.id}
                 className={`p-6 ${isCompleted ? "opacity-50" : isFull ? "opacity-70" : "hover:bg-muted"}`}
               >
-                <Link href={`/bounties/${encodeURIComponent(b.id)}`} className="block -mx-1 -mt-1 rounded-[var(--radius-xl)] p-1 hover:bg-background/40">
+                <Link
+                  href={`/bounties/${encodeURIComponent(b.id)}`}
+                  className="block -mx-1 -mt-1 rounded-[var(--radius-xl)] p-1 hover:bg-background/40"
+                >
                   {b.previewImageUrl ? (
                     <div className="mb-4 h-40 overflow-hidden rounded-[var(--radius-xl)]  border border-border bg-muted">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -654,13 +688,24 @@ export default function BountiesClient({
                       {b.status === "rejected" && <Badge variant="error">Rejected</Badge>}
                     </div>
                     <div className="text-muted-foreground mt-1 text-sm">
-                      by <span className="text-foreground font-medium">{b.authorName || "Unknown creator"}</span>
+                      by{" "}
+                      <span className="text-foreground font-medium">
+                        {b.authorName || "Unknown creator"}
+                      </span>
                     </div>
-                    <RichTextContent value={b.description} className="mt-2 text-muted-foreground" clamp />
+                    <RichTextContent
+                      value={b.description}
+                      className="mt-2 text-muted-foreground"
+                      clamp
+                    />
                     {b.requirements ? (
                       <div className="mt-3 rounded-[var(--radius-xl)]  border border-border bg-muted/40 px-3 py-2 text-sm">
                         <div className="font-semibold text-foreground">Requirements</div>
-                        <RichTextContent value={b.requirements} className="mt-1 text-muted-foreground" clamp />
+                        <RichTextContent
+                          value={b.requirements}
+                          className="mt-1 text-muted-foreground"
+                          clamp
+                        />
                       </div>
                     ) : null}
                     {b.helpfulLinks.length > 0 && (
@@ -681,7 +726,9 @@ export default function BountiesClient({
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="text-sm text-muted-foreground">Prize</div>
-                    <div className="text-foreground font-bold text-lg">${b.prizeUsd.toLocaleString("en-US")}</div>
+                    <div className="text-foreground font-bold text-lg">
+                      ${b.prizeUsd.toLocaleString("en-US")}
+                    </div>
                   </div>
                 </div>
 
@@ -708,7 +755,8 @@ export default function BountiesClient({
 
                 {isOfficial ? (
                   <div className="mt-3 text-sm text-muted-foreground">
-                    Your extension must meet every bounty requirement above to qualify for the payout.
+                    Your extension must meet every bounty requirement above to qualify for the
+                    payout.
                   </div>
                 ) : null}
                 {b.status === "rejected" && b.rejectionReason ? (
@@ -721,7 +769,8 @@ export default function BountiesClient({
                   <div className="text-sm text-muted-foreground">
                     {isOfficial ? (
                       <>
-                        Claims: <span className="text-foreground font-semibold">{b.claimedCount}/2</span>
+                        Claims:{" "}
+                        <span className="text-foreground font-semibold">{b.claimedCount}/2</span>
                       </>
                     ) : (
                       "Proposal review"
@@ -740,7 +789,11 @@ export default function BountiesClient({
                       </Button>
                     )}
                     {isAdmin && b.status === "pending" && (
-                      <Button type="button" variant="secondary" onClick={() => updateStatus(b.id, "approved")}>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => updateStatus(b.id, "approved")}
+                      >
                         Approve
                       </Button>
                     )}
@@ -765,7 +818,13 @@ export default function BountiesClient({
                         onClick={() => claim(b.id)}
                         disabled={!canClaim}
                       >
-                        {isCompleted ? "Done" : b.claimedByMe ? "Claimed" : isFull ? "Full" : "Claim"}
+                        {isCompleted
+                          ? "Done"
+                          : b.claimedByMe
+                            ? "Claimed"
+                            : isFull
+                              ? "Full"
+                              : "Claim"}
                       </Button>
                     ) : null}
                   </div>
@@ -853,12 +912,7 @@ export default function BountiesClient({
             >
               {deletingId === editingId ? "Deleting…" : "Delete bounty"}
             </button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={closeEditModal}
-              disabled={editBusy}
-            >
+            <Button type="button" variant="ghost" onClick={closeEditModal} disabled={editBusy}>
               Cancel
             </Button>
             <Button

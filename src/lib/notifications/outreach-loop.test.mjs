@@ -15,7 +15,10 @@ function store(rows) {
       rows.find((x) => x.id === r.id).status = "sent";
     },
     markFailed: async (r, reason) => {
-      Object.assign(rows.find((x) => x.id === r.id), { status: "failed", reason });
+      Object.assign(
+        rows.find((x) => x.id === r.id),
+        { status: "failed", reason },
+      );
     },
     heartbeat: async () => {
       heartbeats += 1;
@@ -24,7 +27,14 @@ function store(rows) {
   return { deps, delivered, heartbeats: () => heartbeats };
 }
 
-const row = (id, status, slackId = `U${id}`) => ({ id, status, slackId, userId: null, name: null, email: null });
+const row = (id, status, slackId = `U${id}`) => ({
+  id,
+  status,
+  slackId,
+  userId: null,
+  name: null,
+  email: null,
+});
 
 describe("runOutreachLoop", () => {
   test("delivers every pending recipient once and records each result", async () => {
@@ -37,7 +47,13 @@ describe("runOutreachLoop", () => {
   });
 
   test("resume only touches recipients still pending", async () => {
-    const rows = [row("1", "sent"), row("2", "skipped"), row("3", "failed"), row("4", "pending"), row("5", "pending")];
+    const rows = [
+      row("1", "sent"),
+      row("2", "skipped"),
+      row("3", "failed"),
+      row("4", "pending"),
+      row("5", "pending"),
+    ];
     const s = store(rows);
     await runOutreachLoop(s.deps);
     expect(s.delivered).toEqual(["4", "5"]);

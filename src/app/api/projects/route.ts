@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { db } from "@/db";
 import { project, projectEditor, type ProjectEditor } from "@/db/schema";
-import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
+import { frozenAccountResponse } from "@/lib/frozen-account-response";
 import { refreshHackatimeProjectSnapshotForRange } from "@/lib/hackatime";
 import { parseConsideredHackatimeRange } from "@/lib/hackatime-range";
 import { validateCreatorOriginalityDeclaration } from "@/lib/project-originality";
@@ -37,10 +37,6 @@ type CreateProjectBody = {
   status?: unknown;
 };
 
-function toCleanString(value: unknown) {
-  return cleanUntrustedString(value);
-}
-
 function toOptionalTrimmedString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -49,8 +45,7 @@ function toOptionalTrimmedString(value: unknown): string | null {
 
 function isProjectEditor(value: unknown): value is ProjectEditor {
   return (
-    typeof value === "string" &&
-    (projectEditor.enumValues as readonly string[]).includes(value)
+    typeof value === "string" && (projectEditor.enumValues as readonly string[]).includes(value)
   );
 }
 
@@ -61,16 +56,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const freezeState = await getFrozenAccountState(userId);
-  if (freezeState.isFrozen) {
-    return NextResponse.json(
-      {
-        error: getFrozenAccountMessage(freezeState.frozenReason),
-        code: "account_frozen",
-      },
-      { status: 403 },
-    );
-  }
+  const frozen = await frozenAccountResponse(userId);
+  if (frozen) return frozen;
 
   let body: CreateProjectBody;
   try {
@@ -86,7 +73,7 @@ export async function POST(req: Request) {
   });
   const editorRaw = typeof body.editor === "string" ? body.editor.trim() : body.editor;
   const editorOther = sanitizeText(body.editorOther, { maxLength: TEXT_LIMITS.shortText });
-  const hackatimeProjectName = toCleanString(body.hackatimeProjectName);
+  const hackatimeProjectName = cleanUntrustedString(body.hackatimeProjectName);
   const videoUrl = sanitizeHttpUrl(body.videoUrl);
   const playableDemoUrl = sanitizeHttpUrl(body.playableDemoUrl);
   const codeUrl = sanitizeHttpUrl(body.codeUrl);
@@ -96,7 +83,7 @@ export async function POST(req: Request) {
     body.consideredHackatimeRange === undefined
       ? null
       : parseConsideredHackatimeRange(body.consideredHackatimeRange);
-  const consideredHackatimeRange = parsedRange && parsedRange.ok ? parsedRange.value : null;
+  const consideredHackatimeRange = parsedRange?.ok ? parsedRange.value : null;
 
   const screenshots = Array.isArray(body.screenshots)
     ? body.screenshots
@@ -126,16 +113,15 @@ export async function POST(req: Request) {
   }
 
   const editor =
-    editorRaw === undefined || editorRaw === null || editorRaw === "" ? ("vscode" as const) : editorRaw;
+    editorRaw === undefined || editorRaw === null || editorRaw === ""
+      ? ("vscode" as const)
+      : editorRaw;
 
   if (!isProjectEditor(editor)) {
     return NextResponse.json({ error: "Invalid editor" }, { status: 400 });
   }
   if (editor === "other" && !editorOther) {
-    return NextResponse.json(
-      { error: "Please enter the editor name (Other)" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Please enter the editor name (Other)" }, { status: 400 });
   }
   if (editor !== "other" && editorOther) {
     return NextResponse.json(
@@ -168,9 +154,7 @@ export async function POST(req: Request) {
 
   // Originality declaration is optional at creation; defaults if not provided
   const creatorDeclaredOriginality =
-    typeof body.creatorDeclaredOriginality === "boolean"
-      ? body.creatorDeclaredOriginality
-      : false;
+    typeof body.creatorDeclaredOriginality === "boolean" ? body.creatorDeclaredOriginality : false;
 
   let originalityValues = {
     creatorDeclaredOriginality: false,

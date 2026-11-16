@@ -1,4 +1,4 @@
-import { betterAuth, OAuth2UserInfo } from "better-auth";
+import { betterAuth, type OAuth2UserInfo } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { genericOAuth } from "better-auth/plugins";
 import { db } from "@/db";
@@ -9,8 +9,7 @@ let _auth: ReturnType<typeof createAuth> | null = null;
 // A user column better-auth should select onto `session.user` but never accept
 // from a client payload (`input: false` keeps it out of `/update-user`).
 // better-auth 1.6 dropped `createFieldAttribute`; fields are plain attribute objects.
-const serverManagedString = () =>
-  ({ type: "string", required: false, input: false }) as const;
+const serverManagedString = () => ({ type: "string", required: false, input: false }) as const;
 
 function toNullableString(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -27,9 +26,7 @@ function toIsoDateOnlyOrNull(value: unknown): string | null {
   return d.toISOString().slice(0, 10);
 }
 
-function extractIdentityAddress(
-  userData: Record<string, unknown>,
-): {
+function extractIdentityAddress(userData: Record<string, unknown>): {
   addressLine1: string | null;
   addressLine2: string | null;
   city: string | null;
@@ -51,11 +48,10 @@ function extractIdentityAddress(
       ? (userData.address as Record<string, unknown>)
       : Array.isArray(userData.addresses)
         ? ((userData.addresses.find((a) => a && typeof a === "object" && !Array.isArray(a)) as
-            | Record<string, unknown>
-            | undefined) ?? null)
+            Record<string, unknown> | undefined) ?? null)
         : null) ?? userData;
 
-  if (!source || typeof source !== "object") return empty;
+  if (typeof source !== "object") return empty;
 
   return {
     addressLine1: toNullableString(
@@ -77,7 +73,7 @@ function extractIdentityAddress(
 
 function createAuth() {
   const identityHost = process.env.HC_IDENTITY_HOST!;
-  
+
   return betterAuth({
     database: drizzleAdapter(db, {
       provider: "pg",
@@ -158,7 +154,6 @@ function createAuth() {
                 },
               });
 
-
               let userInfo: Record<string, unknown> | null = null;
 
               if (userInfoResponse.ok) {
@@ -179,7 +174,10 @@ function createAuth() {
                   const verificationStatus =
                     (userData.verification_status as string | undefined) ?? null;
                   const birthday = toIsoDateOnlyOrNull(
-                    userData.birthdate ?? userData.birthday ?? userData.date_of_birth ?? userData.dob,
+                    userData.birthdate ??
+                      userData.birthday ??
+                      userData.date_of_birth ??
+                      userData.dob,
                   );
                   const {
                     addressLine1,
@@ -272,10 +270,10 @@ function createAuth() {
               };
             },
 
-            getUserInfo: async (tokens) => {
+            getUserInfo: (tokens) => {
               // User is identified/created in `getToken`; just return it here.
               const userInfo = (tokens.raw as { userInfo?: unknown } | undefined)?.userInfo;
-              return (userInfo ?? null) as OAuth2UserInfo | null;
+              return Promise.resolve((userInfo ?? null) as OAuth2UserInfo | null);
             },
           },
         ],

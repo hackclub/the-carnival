@@ -1,0 +1,17 @@
+# Build output and dependencies
+.next
+out
+build
+dist
+node_modules
+bun.lock
+
+# Generated: drizzle-kit owns these
+drizzle
+
+# Static assets and tool state
+public
+.claude
+.intent
+next-env.d.ts
+*.md

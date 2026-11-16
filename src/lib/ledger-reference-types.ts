@@ -64,3 +64,6 @@ export function adminReferenceTypesForKind(kind: LedgerAdjustmentKind) {
     (t.kinds as readonly LedgerAdjustmentKind[]).includes(kind),
   );
 }
+
+/** What an admin must type before a manual ledger adjustment is sent. */
+export const LEDGER_CONFIRMATION_PHRASE = "CONFIRM_LEDGER_ADJUSTMENT";

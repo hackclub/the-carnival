@@ -3,13 +3,19 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui";
 import { Input, FormLabel } from "@/components/ui/form";
 import { DatePicker } from "@/components/ui/date-picker";
-import {
-  deriveHackatimeConnectionStatus,
-  hackatimeConnectUrl,
-} from "@/lib/hackatime-connection";
+import { deriveHackatimeConnectionStatus, hackatimeConnectUrl } from "@/lib/hackatime-connection";
+import { extractApiError } from "@/lib/project-form-utils";
 
 export type AccountProfileInitial = {
   birthday: string | null;
@@ -61,8 +67,7 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
       const res = await fetch("/api/hackatime/disconnect", { method: "POST" });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        const message =
-          typeof data?.error === "string" ? data.error : "Failed to disconnect Hackatime.";
+        const message = extractApiError(data, "Failed to disconnect Hackatime.");
         toast.error(message, { id: toastId });
         return;
       }
@@ -134,7 +139,7 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        const message = typeof data?.error === "string" ? data.error : "Failed to save profile.";
+        const message = extractApiError(data, "Failed to save profile.");
         toast.error(message, { id: toastId });
         setSaving(false);
         return;
@@ -230,9 +235,10 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
         <CardHeader>
           <CardTitle>Slack messages</CardTitle>
           <CardDescription>
-            Carnival DMs you on Slack with reminders when a project looks stuck (hours logged but never
-            submitted, a project with no devlogs, Hackatime not connected) and with occasional announcements
-            from the team. Review updates (feedback, grants) and shop order updates are always sent.
+            Carnival DMs you on Slack with reminders when a project looks stuck (hours logged but
+            never submitted, a project with no devlogs, Hackatime not connected) and with occasional
+            announcements from the team. Review updates (feedback, grants) and shop order updates
+            are always sent.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -245,10 +251,13 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
               onChange={(e) => void onToggleSlackNudges(!e.target.checked)}
             />
             <span>
-              <span className="font-medium text-foreground">Send me reminders and announcements on Slack</span>
+              <span className="font-medium text-foreground">
+                Send me reminders and announcements on Slack
+              </span>
               <span className="block text-muted-foreground">
-                Reminders are at most a couple per topic and never more than one a week; announcements are rare.
-                Turn this off and the bot only contacts you about your own projects and orders.
+                Reminders are at most a couple per topic and never more than one a week;
+                announcements are rare. Turn this off and the bot only contacts you about your own
+                projects and orders.
               </span>
             </span>
           </label>
@@ -259,78 +268,78 @@ export default function AccountProfileClient({ initial }: { initial: AccountProf
         <CardHeader>
           <CardTitle>Shipping address</CardTitle>
           <CardDescription>
-            We use this for grants. You’ll fill it once on your first submission, and you can update it any time.
+            We use this for grants. You’ll fill it once on your first submission, and you can update
+            it any time.
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <FormLabel>Birthday</FormLabel>
+              <DatePicker value={birthday} onChange={(v) => setBirthday(v)} />
+            </div>
+            <Input
+              label="Address (Line 1) *"
+              value={addressLine1}
+              onChange={(e) => setAddressLine1(e.target.value)}
+              placeholder="Street address, PO box, company name, c/o"
+              autoComplete="address-line1"
+            />
+            <Input
+              label="Address (Line 2)"
+              value={addressLine2}
+              onChange={(e) => setAddressLine2(e.target.value)}
+              placeholder="Apartment, suite, unit, building, floor"
+              autoComplete="address-line2"
+            />
+            <Input
+              label="City *"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="City"
+              autoComplete="address-level2"
+            />
+            <Input
+              label="State / Province *"
+              value={stateProvince}
+              onChange={(e) => setStateProvince(e.target.value)}
+              placeholder="State / Province"
+              autoComplete="address-level1"
+            />
+            <Input
+              label="Country *"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              placeholder="Country"
+              autoComplete="country-name"
+            />
+            <Input
+              label="ZIP / Postal Code *"
+              value={zipPostalCode}
+              onChange={(e) => setZipPostalCode(e.target.value)}
+              placeholder="ZIP / Postal Code"
+              autoComplete="postal-code"
+            />
+          </div>
 
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <FormLabel>Birthday</FormLabel>
-          <DatePicker value={birthday} onChange={(v) => setBirthday(v)} />
-        </div>
-        <Input
-          label="Address (Line 1) *"
-          value={addressLine1}
-          onChange={(e) => setAddressLine1(e.target.value)}
-          placeholder="Street address, PO box, company name, c/o"
-          autoComplete="address-line1"
-        />
-        <Input
-          label="Address (Line 2)"
-          value={addressLine2}
-          onChange={(e) => setAddressLine2(e.target.value)}
-          placeholder="Apartment, suite, unit, building, floor"
-          autoComplete="address-line2"
-        />
-        <Input
-          label="City *"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-          placeholder="City"
-          autoComplete="address-level2"
-        />
-        <Input
-          label="State / Province *"
-          value={stateProvince}
-          onChange={(e) => setStateProvince(e.target.value)}
-          placeholder="State / Province"
-          autoComplete="address-level1"
-        />
-        <Input
-          label="Country *"
-          value={country}
-          onChange={(e) => setCountry(e.target.value)}
-          placeholder="Country"
-          autoComplete="country-name"
-        />
-        <Input
-          label="ZIP / Postal Code *"
-          value={zipPostalCode}
-          onChange={(e) => setZipPostalCode(e.target.value)}
-          placeholder="ZIP / Postal Code"
-          autoComplete="postal-code"
-        />
-      </div>
+          {requiredMissing.length ? (
+            <div className="mt-5 text-sm text-muted-foreground">
+              Missing required fields for first submission:{" "}
+              <span className="text-foreground font-medium">{requiredMissing.join(", ")}</span>
+            </div>
+          ) : null}
 
-      {requiredMissing.length ? (
-        <div className="mt-5 text-sm text-muted-foreground">
-          Missing required fields for first submission:{" "}
-          <span className="text-foreground font-medium">{requiredMissing.join(", ")}</span>
-        </div>
-      ) : null}
-
-      <div className="mt-6 flex items-center justify-end gap-3">
-        <Button
-          type="button"
-          onClick={onSave}
-          disabled={saving}
-          loading={saving}
-          loadingText="Saving..."
-        >
-          Save
-        </Button>
-      </div>
+          <div className="mt-6 flex items-center justify-end gap-3">
+            <Button
+              type="button"
+              onClick={onSave}
+              disabled={saving}
+              loading={saving}
+              loadingText="Saving..."
+            >
+              Save
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

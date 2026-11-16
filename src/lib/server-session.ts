@@ -68,5 +68,3 @@ export async function getServerSession(options?: {
   await db.delete(sessionTable).where(eq(sessionTable.userId, userId));
   return null;
 }
-
-

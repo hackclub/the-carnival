@@ -51,7 +51,11 @@ describe("formatRejectionCategory", () => {
 
 describe("buildCreatorReviewMessage", () => {
   test("first submission vs resubmission wording", () => {
-    const base = { projectName: "Tab Rot", status: "submitted", projectUrl: "https://c.test/projects/1" };
+    const base = {
+      projectName: "Tab Rot",
+      status: "submitted",
+      projectUrl: "https://c.test/projects/1",
+    };
     expect(buildCreatorReviewMessage(base)).toContain("We got your submission.");
     expect(buildCreatorReviewMessage({ ...base, isResubmission: true })).toContain(
       "We got your resubmission.",
@@ -139,7 +143,9 @@ describe("buildStaffThreadReply", () => {
       dismissed: false,
       rejectionCategory: null,
     });
-    expect(text).toBe("✅ <@U2> approved *Tab Rot* (pass 1) · 7.5h approved — ready for the grant page.");
+    expect(text).toBe(
+      "✅ <@U2> approved *Tab Rot* (pass 1) · 7.5h approved — ready for the grant page.",
+    );
   });
 
   test("dismissed rejection with category and quoted comment", () => {

@@ -1,6 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import type { PostgresJsTransaction } from "drizzle-orm/postgres-js";
+import type { PostgresJsDatabase, PostgresJsTransaction } from "drizzle-orm/postgres-js";
 import type { TablesRelationalConfig } from "drizzle-orm/relations";
 import type * as schema from "@/db/schema";
 import { tokenLedger } from "@/db/schema";
@@ -15,13 +14,9 @@ export type WalletLedgerRow = {
 };
 
 type DbLike =
-  | PostgresJsDatabase<typeof schema>
-  | PostgresJsTransaction<typeof schema, TablesRelationalConfig>;
+  PostgresJsDatabase<typeof schema> | PostgresJsTransaction<typeof schema, TablesRelationalConfig>;
 
-export async function getTokenBalance(
-  db: DbLike,
-  userId: string,
-): Promise<number> {
+export async function getTokenBalance(db: DbLike, userId: string): Promise<number> {
   const rows = await db
     .select({
       balance: sql<number>`coalesce(sum(case when ${tokenLedger.kind} = 'issue' then ${tokenLedger.tokens} else -${tokenLedger.tokens} end), 0)`,
@@ -56,17 +51,14 @@ export async function getLedgerForUser(
   return rows.map((r) => ({
     id: r.id,
     kind: r.kind,
-    tokens: r.tokens ?? 0,
+    tokens: r.tokens,
     reason: r.reason,
     byUserId: r.byUserId ?? null,
     createdAt: r.createdAt,
   }));
 }
 
-export async function hasIssuedTokensForProjectGrant(
-  db: DbLike,
-  projectId: string,
-) {
+export async function hasIssuedTokensForProjectGrant(db: DbLike, projectId: string) {
   const rows = await db
     .select({ id: tokenLedger.id })
     .from(tokenLedger)
@@ -80,4 +72,3 @@ export async function hasIssuedTokensForProjectGrant(
     .limit(1);
   return !!rows[0];
 }
-

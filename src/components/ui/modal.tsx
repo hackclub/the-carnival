@@ -37,11 +37,7 @@ export function Modal({
         <div className="sticky top-0 flex items-center justify-between border-b border-border bg-card/95 backdrop-blur p-5">
           <div>
             <h2 className="text-lg font-bold text-foreground">{title}</h2>
-            {description && (
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                {description}
-              </p>
-            )}
+            {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
           </div>
           <button
             onClick={onClose}

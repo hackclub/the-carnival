@@ -38,7 +38,9 @@ describe("validatePlatformImageUrl", () => {
   test("rejects non-http(s) and non-PNG/JPG URLs before looking at the bucket", () => {
     process.env.R2_PUBLIC_BASE_URL = R2_BASE;
 
-    expect(validatePlatformImageUrl("javascript:alert(1)", "Icon").error).toBe("Icon must be a valid URL.");
+    expect(validatePlatformImageUrl("javascript:alert(1)", "Icon").error).toBe(
+      "Icon must be a valid URL.",
+    );
     expect(validatePlatformImageUrl(`${R2_BASE}/x/a.svg`, "Icon").error).toContain("PNG or JPG");
     expect(validatePlatformImageUrl(`${R2_BASE}/x/noext`, "Icon").error).toContain("PNG or JPG");
   });
@@ -56,7 +58,9 @@ describe("validatePlatformImageUrl", () => {
     delete process.env.R2_PUBLIC_BASE_URL;
     process.env.NODE_ENV = "development";
 
-    expect(validatePlatformImageUrl("https://anywhere.example/pixel.png", "Icon")).toEqual({ ok: true });
+    expect(validatePlatformImageUrl("https://anywhere.example/pixel.png", "Icon")).toEqual({
+      ok: true,
+    });
     expect(validatePlatformImageUrl("https://anywhere.example/pixel.gif", "Icon").ok).toBe(false);
   });
 });

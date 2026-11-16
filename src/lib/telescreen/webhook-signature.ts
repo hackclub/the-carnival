@@ -21,8 +21,7 @@ export function verifyRobertWebhookSignature(input: {
   const now = input.nowSeconds ?? Date.now() / 1000;
   if (Math.abs(now - Number(timestamp)) > ROBERT_WEBHOOK_TOLERANCE_SECONDS) return false;
 
-  const expected =
-    "sha256=" + createHmac("sha256", secret).update(`${timestamp}.${rawBody}`).digest("hex");
+  const expected = `sha256=${createHmac("sha256", secret).update(`${timestamp}.${rawBody}`).digest("hex")}`;
   const a = Buffer.from(expected);
   const b = Buffer.from(signature);
   return a.length === b.length && timingSafeEqual(a, b);

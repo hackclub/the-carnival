@@ -20,11 +20,14 @@ import {
 
 type ExploreStatusFilter = "all" | "shipped" | "granted";
 
-const STATUS_FILTERS: Array<{
+type StatusFilter = {
   value: ExploreStatusFilter;
   label: string;
   statuses: Array<"shipped" | "granted">;
-}> = [
+};
+
+// Non-empty tuple: the first entry is the fallback filter.
+const STATUS_FILTERS: [StatusFilter, ...StatusFilter[]] = [
   { value: "all", label: "All", statuses: ["shipped", "granted"] },
   { value: "shipped", label: "Shipped", statuses: ["shipped"] },
   { value: "granted", label: "Granted", statuses: ["granted"] },
@@ -44,20 +47,18 @@ export default async function ExplorePage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await getServerSession();
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect("/login?callbackUrl=/explore");
   }
 
   const sp = await searchParams;
   const statusParam = toSingleValue(sp?.status);
   const allowedStatus = new Set(STATUS_FILTERS.map((f) => f.value));
-  const activeStatus: ExploreStatusFilter = allowedStatus.has(
-    statusParam as ExploreStatusFilter,
-  )
+  const activeStatus: ExploreStatusFilter = allowedStatus.has(statusParam as ExploreStatusFilter)
     ? (statusParam as ExploreStatusFilter)
     : "all";
   const activeStatusConfig =
-    STATUS_FILTERS.find((f) => f.value === activeStatus) ?? STATUS_FILTERS[0]!;
+    STATUS_FILTERS.find((f) => f.value === activeStatus) ?? STATUS_FILTERS[0];
 
   const query = (toSingleValue(sp?.q) ?? "").trim().slice(0, 120);
   const activeCategory = normalizeCategory(toSingleValue(sp?.category));
@@ -100,9 +101,7 @@ export default async function ExplorePage({
     })
     .from(project)
     .leftJoin(user, eq(project.creatorId, user.id))
-    .where(
-      whereParts.length === 1 ? whereParts[0] : and(...whereParts),
-    )
+    .where(whereParts.length === 1 ? whereParts[0] : and(...whereParts))
     .orderBy(desc(project.createdAt));
 
   const taxonomyRows = await db
@@ -110,17 +109,11 @@ export default async function ExplorePage({
     .from(project)
     .where(statusWhere);
 
-  const categoryOptions = buildCategorySuggestions(
-    taxonomyRows.map((r) => r.category),
-  );
+  const categoryOptions = buildCategorySuggestions(taxonomyRows.map((r) => r.category));
   const tagOptions = buildTagSuggestions(taxonomyRows.map((r) => r.tags));
 
   const slackIds = Array.from(
-    new Set(
-      projects
-        .map((p) => p.creatorSlackId)
-        .filter((id): id is string => !!id),
-    ),
+    new Set(projects.map((p) => p.creatorSlackId).filter((id): id is string => !!id)),
   );
   const slackNameById = new Map<string, string>();
   if (slack && slackIds.length) {
@@ -133,8 +126,7 @@ export default async function ExplorePage({
             user?: { name?: string; profile?: { display_name?: string } };
           }
         ).user;
-        const label =
-          u?.profile?.display_name?.trim() || u?.name?.trim() || id;
+        const label = u?.profile?.display_name?.trim() || u?.name?.trim() || id;
         slackNameById.set(id, label);
       }),
     );
@@ -210,11 +202,9 @@ export default async function ExplorePage({
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {projects.map((p) => {
             const cardImage =
-              p.previewImage?.trim() ||
-              p.screenshots.find((url) => url.trim().length > 0) ||
-              "";
+              p.previewImage.trim() || p.screenshots.find((url) => url.trim().length > 0) || "";
             const categoryLabel = formatCategoryLabel(p.category);
-            const tagLabels = (p.tags ?? [])
+            const tagLabels = p.tags
               .map((tag) => formatTagLabel(tag))
               .filter((v): v is string => !!v);
 
@@ -244,22 +234,16 @@ export default async function ExplorePage({
                 <div className="p-5 flex flex-col flex-1">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-foreground font-bold text-lg truncate">
-                        {p.name}
-                      </div>
+                      <div className="text-foreground font-bold text-lg truncate">{p.name}</div>
                       <div className="text-muted-foreground text-sm mt-0.5 truncate">
                         by{" "}
-                        {p.creatorSlackId &&
-                        slackNameById.get(p.creatorSlackId)
+                        {p.creatorSlackId && slackNameById.get(p.creatorSlackId)
                           ? `@${slackNameById.get(p.creatorSlackId)}`
                           : "Unknown"}
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
-                      <ProjectEditorBadge
-                        editor={p.editor}
-                        editorOther={p.editorOther}
-                      />
+                      <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
                       <ProjectStatusBadge status={p.status} />
                     </div>
                   </div>

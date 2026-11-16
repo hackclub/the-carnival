@@ -123,6 +123,17 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+### Code quality
+
+```bash
+bun run check        # lint + typecheck + format check (what CI runs)
+bun run lint         # ESLint, zero warnings allowed
+bun run typecheck    # tsc --noEmit
+bun run format       # rewrite files with Prettier
+```
+
+`bun install` points git at `.githooks/`, so the same checks run on every `git push`. CI (`.github/workflows/ci.yml`) runs them again on each pull request.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

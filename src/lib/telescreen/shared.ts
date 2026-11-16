@@ -74,14 +74,16 @@ export function evaluateTelescreenGrantGate(input: {
     return {
       ok: false,
       code: "telescreen_not_sent",
-      message: "This submission hasn't reached Telescreen yet. Send it, then wait for the fraud review.",
+      message:
+        "This submission hasn't reached Telescreen yet. Send it, then wait for the fraud review.",
     };
   }
   if (s.state === "awaiting_review") {
     return {
       ok: false,
       code: "telescreen_awaiting_review",
-      message: "Waiting on the Telescreen fraud review. Projects can only be granted once they're scored.",
+      message:
+        "Waiting on the Telescreen fraud review. Projects can only be granted once they're scored.",
     };
   }
   const band = telescreenBandForScore(s.trustScore);
@@ -96,7 +98,8 @@ export function evaluateTelescreenGrantGate(input: {
     return {
       ok: false,
       code: "telescreen_awaiting_review",
-      message: "Telescreen's score hasn't been read back yet. Refresh the fraud review and try again.",
+      message:
+        "Telescreen's score hasn't been read back yet. Refresh the fraud review and try again.",
     };
   }
   if (s.state === "decided" && s.outcomeStatus === "rejected") {

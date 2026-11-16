@@ -15,7 +15,10 @@ export const fetchCache = "force-no-store";
 
 type FilterKey = "all" | "granted" | "shipped";
 
-const FILTERS: Array<{ label: string; value: FilterKey; statuses: Array<"shipped" | "granted"> }> = [
+type GrantFilter = { label: string; value: FilterKey; statuses: Array<"shipped" | "granted"> };
+
+// Non-empty tuple: the first entry is the fallback filter.
+const FILTERS: [GrantFilter, ...GrantFilter[]] = [
   { label: "All", value: "all", statuses: ["shipped", "granted"] },
   { label: "Granted", value: "granted", statuses: ["granted"] },
   { label: "Shipped", value: "shipped", statuses: ["shipped"] },
@@ -28,7 +31,7 @@ export default async function AdminGrantsPage({
 }) {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
-  if (!session?.user?.id) redirect("/login?callbackUrl=/admin/grants");
+  if (!session?.user.id) redirect("/login?callbackUrl=/admin/grants");
   if (role !== "admin") redirect("/projects");
 
   const sp = await searchParams;
@@ -80,8 +83,8 @@ export default async function AdminGrantsPage({
       </div>
 
       <div className="mb-6 text-sm text-muted-foreground">
-        Showing <span className="font-semibold text-foreground">{active.label.toLowerCase()}</span> projects{" "}
-        <span className="text-muted-foreground">({rows.length})</span>
+        Showing <span className="font-semibold text-foreground">{active.label.toLowerCase()}</span>{" "}
+        projects <span className="text-muted-foreground">({rows.length})</span>
       </div>
 
       {rows.length === 0 ? (
@@ -119,7 +122,7 @@ export default async function AdminGrantsPage({
                           {formatCategoryLabel(p.category) ?? p.category}
                         </span>
                       ) : null}
-                      {(p.tags ?? []).slice(0, 3).map((tag) => (
+                      {p.tags.slice(0, 3).map((tag) => (
                         <span
                           key={`${p.id}-${tag}`}
                           className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
@@ -128,7 +131,9 @@ export default async function AdminGrantsPage({
                         </span>
                       ))}
                     </div>
-                    <div className="text-muted-foreground mt-3 line-clamp-4 leading-6">{p.description}</div>
+                    <div className="text-muted-foreground mt-3 line-clamp-4 leading-6">
+                      {p.description}
+                    </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />

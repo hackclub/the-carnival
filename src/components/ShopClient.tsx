@@ -19,6 +19,7 @@ import {
   Textarea,
 } from "@/components/ui";
 import { SHOP_ORDER_MAX_QUANTITY, calculateShopOrderTotal } from "@/lib/shop-shared";
+import { extractApiError } from "@/lib/project-form-utils";
 
 export type ShopItemDTO = {
   id: string;
@@ -113,8 +114,11 @@ export default function ShopClient({
     });
   }, [initial.items, search]);
 
-  const itemsById = useMemo(() => new Map(initial.items.map((item) => [item.id, item])), [initial.items]);
-  const selectedItem = selectedItemId ? itemsById.get(selectedItemId) ?? null : null;
+  const itemsById = useMemo(
+    () => new Map(initial.items.map((item) => [item.id, item])),
+    [initial.items],
+  );
+  const selectedItem = selectedItemId ? (itemsById.get(selectedItemId) ?? null) : null;
 
   const openOrderModal = useCallback((itemId: string) => {
     setSelectedItemId(itemId);
@@ -125,7 +129,11 @@ export default function ShopClient({
   const onOrder = useCallback(async (item: ShopItemDTO, note: string, rawQuantity: string) => {
     const cleanedNote = note.trim();
     const parsedQuantity = Number(rawQuantity);
-    if (!Number.isInteger(parsedQuantity) || parsedQuantity < 1 || parsedQuantity > SHOP_ORDER_MAX_QUANTITY) {
+    if (
+      !Number.isInteger(parsedQuantity) ||
+      parsedQuantity < 1 ||
+      parsedQuantity > SHOP_ORDER_MAX_QUANTITY
+    ) {
       toast.error(`Quantity must be a whole number between 1 and ${SHOP_ORDER_MAX_QUANTITY}.`);
       return;
     }
@@ -148,7 +156,7 @@ export default function ShopClient({
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown; id?: string } | null;
       if (!res.ok) {
-        const msg = typeof data?.error === "string" ? data.error : "Failed to place order.";
+        const msg = extractApiError(data, "Failed to place order.");
         toast.error(msg, { id: toastId });
         setBusyItemId(null);
         return;
@@ -184,7 +192,7 @@ export default function ShopClient({
         );
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to resubmit.", {
+          toast.error(extractApiError(data, "Failed to resubmit."), {
             id: toastId,
           });
           setResubmitBusyId(null);
@@ -223,7 +231,7 @@ export default function ShopClient({
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to suggest item.", {
+        toast.error(extractApiError(data, "Failed to suggest item."), {
           id: toastId,
         });
         setSuggestBusy(false);
@@ -247,24 +255,24 @@ export default function ShopClient({
           <div>
             <CardTitle>Your wallet</CardTitle>
             <CardDescription>
-            Balance: <span className="text-foreground font-bold">{initial.balance}</span> tokens
+              Balance: <span className="text-foreground font-bold">{initial.balance}</span> tokens
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-          <Button variant="secondary" onClick={() => setShowSuggest(true)}>
-            Suggest item
-          </Button>
-          <Button variant="outline" onClick={() => setShowSuggestions(true)}>
-            My suggestions{initial.suggestions.length ? ` (${initial.suggestions.length})` : ""}
-          </Button>
-          {canViewLedger ? (
-            <Button variant="secondary" onClick={() => setShowLedger(true)}>
-              View ledger
+            <Button variant="secondary" onClick={() => setShowSuggest(true)}>
+              Suggest item
             </Button>
-          ) : null}
-          <Button variant="outline" onClick={() => setShowOrders(true)}>
-            My orders{pendingCount ? ` (${pendingCount})` : ""}
-          </Button>
+            <Button variant="outline" onClick={() => setShowSuggestions(true)}>
+              My suggestions{initial.suggestions.length ? ` (${initial.suggestions.length})` : ""}
+            </Button>
+            {canViewLedger ? (
+              <Button variant="secondary" onClick={() => setShowLedger(true)}>
+                View ledger
+              </Button>
+            ) : null}
+            <Button variant="outline" onClick={() => setShowOrders(true)}>
+              My orders{pendingCount ? ` (${pendingCount})` : ""}
+            </Button>
           </div>
         </CardHeader>
       </Card>
@@ -273,7 +281,9 @@ export default function ShopClient({
         <CardHeader className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <CardTitle>Shop items</CardTitle>
-            <CardDescription>Order items with your tokens. Admins fulfill orders later.</CardDescription>
+            <CardDescription>
+              Order items with your tokens. Admins fulfill orders later.
+            </CardDescription>
           </div>
           <div className="w-full md:w-80">
             <Input
@@ -287,49 +297,56 @@ export default function ShopClient({
         </CardHeader>
 
         <CardContent>
-        {items.length === 0 ? (
-          <EmptyState title="No shop items yet" description="Suggest something you would like to see here." />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-6">
-            {items.map((i) => (
-              <Card key={i.id} variant="flat">
-                <CardContent className="pt-5">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={i.imageUrl}
-                  alt=""
-                  className="h-44 w-full rounded-[var(--radius-xl)]  border border-border bg-background object-cover"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="mt-4 flex flex-col gap-1">
-                  <div className="text-foreground font-bold text-lg truncate">{i.name}</div>
-                  {i.description ? (
-                    <div className="text-sm text-muted-foreground mt-1 line-clamp-2">{i.description}</div>
-                  ) : null}
-                  <div className="text-sm text-muted-foreground mt-1">
-                    ~{i.approvedHoursNeeded} hours • Exact:{" "}
-                    <span className="text-foreground font-semibold">{i.tokenCost}</span> tokens
-                  </div>
-                  {i.orderNoteRequired ? (
-                    <div className="text-xs text-carnival-blue mt-1 font-medium">Requester note required</div>
-                  ) : null}
-                </div>
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  <Badge variant="info">{i.tokenCost} tokens each</Badge>
-                  <Button
-                    variant="secondary"
-                    loading={busyItemId === i.id}
-                    loadingText="Ordering…"
-                    onClick={() => openOrderModal(i.id)}
-                  >
-                    Order
-                  </Button>
-                </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+          {items.length === 0 ? (
+            <EmptyState
+              title="No shop items yet"
+              description="Suggest something you would like to see here."
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-6">
+              {items.map((i) => (
+                <Card key={i.id} variant="flat">
+                  <CardContent className="pt-5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={i.imageUrl}
+                      alt=""
+                      className="h-44 w-full rounded-[var(--radius-xl)]  border border-border bg-background object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="mt-4 flex flex-col gap-1">
+                      <div className="text-foreground font-bold text-lg truncate">{i.name}</div>
+                      {i.description ? (
+                        <div className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                          {i.description}
+                        </div>
+                      ) : null}
+                      <div className="text-sm text-muted-foreground mt-1">
+                        ~{i.approvedHoursNeeded} hours • Exact:{" "}
+                        <span className="text-foreground font-semibold">{i.tokenCost}</span> tokens
+                      </div>
+                      {i.orderNoteRequired ? (
+                        <div className="text-xs text-carnival-blue mt-1 font-medium">
+                          Requester note required
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                      <Badge variant="info">{i.tokenCost} tokens each</Badge>
+                      <Button
+                        variant="secondary"
+                        loading={busyItemId === i.id}
+                        loadingText="Ordering…"
+                        onClick={() => openOrderModal(i.id)}
+                      >
+                        Order
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -347,38 +364,40 @@ export default function ShopClient({
             {initial.orders.map((o) => (
               <Card key={o.id} variant="flat">
                 <CardContent className="pt-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="text-foreground font-semibold truncate">{o.itemName}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {new Date(o.createdAt).toLocaleString()} • Qty {o.quantity} • {o.tokenCost} tokens
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="text-foreground font-semibold truncate">{o.itemName}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {new Date(o.createdAt).toLocaleString()} • Qty {o.quantity} • {o.tokenCost}{" "}
+                        tokens
+                      </div>
+                      {o.orderNote ? (
+                        <div className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
+                          Request note: {o.orderNote}
+                        </div>
+                      ) : null}
+                      {o.status === "cancelled" ? (
+                        <div className="mt-2 rounded-[var(--radius-lg)] border border-carnival-red/30 bg-carnival-red/5 px-3 py-2 text-sm whitespace-pre-wrap">
+                          <span className="font-semibold text-carnival-red">Denied: </span>
+                          <span className="text-foreground">
+                            {o.cancellationReason ??
+                              "No reason was given. Ask in #carnival if you're unsure why."}
+                          </span>
+                        </div>
+                      ) : null}
+                      {o.fulfillmentLink ? (
+                        <a
+                          href={o.fulfillmentLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm font-semibold text-carnival-blue hover:underline mt-2 inline-block"
+                        >
+                          Fulfillment proof
+                        </a>
+                      ) : null}
                     </div>
-                    {o.orderNote ? (
-                      <div className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
-                        Request note: {o.orderNote}
-                      </div>
-                    ) : null}
-                    {o.status === "cancelled" ? (
-                      <div className="mt-2 rounded-[var(--radius-lg)] border border-carnival-red/30 bg-carnival-red/5 px-3 py-2 text-sm whitespace-pre-wrap">
-                        <span className="font-semibold text-carnival-red">Denied: </span>
-                        <span className="text-foreground">
-                          {o.cancellationReason ?? "No reason was given. Ask in #carnival if you're unsure why."}
-                        </span>
-                      </div>
-                    ) : null}
-                    {o.fulfillmentLink ? (
-                      <a
-                        href={o.fulfillmentLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm font-semibold text-carnival-blue hover:underline mt-2 inline-block"
-                      >
-                        Fulfillment proof
-                      </a>
-                    ) : null}
+                    <ShopOrderStatusBadge status={o.status} />
                   </div>
-                  <ShopOrderStatusBadge status={o.status} />
-                </div>
                 </CardContent>
               </Card>
             ))}
@@ -425,7 +444,11 @@ export default function ShopClient({
               </span>
             </div>
             <Textarea
-              label={selectedItem.orderNoteRequired ? "Request note (required)" : "Request note (optional)"}
+              label={
+                selectedItem.orderNoteRequired
+                  ? "Request note (required)"
+                  : "Request note (optional)"
+              }
               placeholder="Add any details admins should know before fulfilling this request..."
               value={orderNote}
               onChange={(e) => setOrderNote(e.target.value)}
@@ -505,7 +528,9 @@ export default function ShopClient({
             />
             <span className="text-sm">
               <span className="block font-medium text-foreground">Require requester note</span>
-              <span className="block text-muted-foreground">Useful for items with size, color, or shipping choices.</span>
+              <span className="block text-muted-foreground">
+                Useful for items with size, color, or shipping choices.
+              </span>
             </span>
           </label>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -530,7 +555,12 @@ export default function ShopClient({
             <Button variant="outline" onClick={() => setShowSuggest(false)} disabled={suggestBusy}>
               Cancel
             </Button>
-            <Button variant="secondary" loading={suggestBusy} loadingText="Sending..." onClick={onSuggest}>
+            <Button
+              variant="secondary"
+              loading={suggestBusy}
+              loadingText="Sending..."
+              onClick={onSuggest}
+            >
               Send suggestion
             </Button>
           </div>
@@ -545,7 +575,10 @@ export default function ShopClient({
         maxWidth="lg"
       >
         {initial.suggestions.length === 0 ? (
-          <EmptyState title="No suggestions yet" description="Suggest an item you want to see in the shop." />
+          <EmptyState
+            title="No suggestions yet"
+            description="Suggest an item you want to see in the shop."
+          />
         ) : (
           <div className="flex flex-col gap-3">
             {initial.suggestions.map((s) => (
@@ -617,7 +650,9 @@ export default function ShopClient({
                       </div>
                     </div>
                     <div className="shrink-0 text-sm font-bold">
-                      <span className={l.kind === "issue" ? "text-carnival-blue" : "text-carnival-red"}>
+                      <span
+                        className={l.kind === "issue" ? "text-carnival-blue" : "text-carnival-red"}
+                      >
                         {l.kind === "issue" ? "+" : "-"}
                         {l.tokens}
                       </span>

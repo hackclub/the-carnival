@@ -16,9 +16,11 @@ function stringifyEmailParams(emailParams: LoopsEmailParams): Record<string, str
 }
 
 export function getAppBaseUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL?.trim()
-    || process.env.APP_URL?.trim()
-    || "https://carnival.hackclub.com";
+  return (
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    process.env.APP_URL?.trim() ||
+    "https://carnival.hackclub.com"
+  );
 }
 
 const LOOPS_TRANSACTIONAL_URL = "https://app.loops.so/api/v1/transactional";
@@ -146,11 +148,11 @@ export async function sendReviewEmail(
   reviewer: string,
   project_link: string,
 ) {
-  await sendEmailWithLoops(
-    LOOPS_TRANSACTIONAL_REVIEW_EMAIL_ID,
-    targetEmail,
-    { updates, reviewer, project_link },
-  );
+  await sendEmailWithLoops(LOOPS_TRANSACTIONAL_REVIEW_EMAIL_ID, targetEmail, {
+    updates,
+    reviewer,
+    project_link,
+  });
 }
 
 export async function sendShopOrderCreatedAdminEmail(
@@ -237,5 +239,9 @@ export async function sendShopOrderDeniedParticipantEmail(
     shop_url: string;
   },
 ) {
-  await sendEmailWithLoops(LOOPS_TRANSACTIONAL_SHOP_ORDER_DENIED_PARTICIPANT_EMAIL_ID, targetEmail, params);
+  await sendEmailWithLoops(
+    LOOPS_TRANSACTIONAL_SHOP_ORDER_DENIED_PARTICIPANT_EMAIL_ID,
+    targetEmail,
+    params,
+  );
 }

@@ -1,9 +1,10 @@
 import type { ReviewDecision } from "@/db/schema";
 import { toIsoDateOnly as toIsoDateOnlyShared } from "@/lib/hackatime-range";
 import {
-  REVIEW_DEFLATION_REASON_OPTIONS,
+  asRecord,
+  normalizeDeflationReasons,
+  toCleanString,
   REVIEW_EVIDENCE_ITEMS,
-  type ReviewDeflationReason,
   type ReviewEvidenceChecklist,
   type ReviewJustificationPayload,
 } from "@/lib/review-rules";
@@ -18,21 +19,8 @@ type StructuredReviewJustificationInput = {
   hourAdjustmentReasonMetadata?: unknown;
 };
 
-const DEFALTION_REASON_SET = new Set<ReviewDeflationReason>(
-  REVIEW_DEFLATION_REASON_OPTIONS.map((option) => option.key),
-);
-
 function isReviewDecision(value: unknown): value is Exclude<ReviewDecision, "comment"> {
   return value === "approved" || value === "rejected";
-}
-
-function toCleanString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
 }
 
 function toReviewDateOnly(value: unknown) {
@@ -56,17 +44,6 @@ function normalizeEvidence(value: unknown): ReviewEvidenceChecklist {
   return next;
 }
 
-function normalizeDeflationReasons(value: unknown): ReviewDeflationReason[] {
-  if (!Array.isArray(value)) return [];
-  const unique = new Set<ReviewDeflationReason>();
-  for (const item of value) {
-    if (typeof item !== "string") continue;
-    if (!DEFALTION_REASON_SET.has(item as ReviewDeflationReason)) continue;
-    unique.add(item as ReviewDeflationReason);
-  }
-  return Array.from(unique);
-}
-
 function hasStructuredJustificationValue(input: StructuredReviewJustificationInput) {
   const evidence = normalizeEvidence(input.reviewEvidenceChecklist);
   const hasAnyEvidence = REVIEW_EVIDENCE_ITEMS.some((item) => evidence[item.key]);
@@ -77,7 +54,9 @@ function hasStructuredJustificationValue(input: StructuredReviewJustificationInp
   return hasAnyEvidence || hasStart || hasEnd || hasMetadata;
 }
 
-export function coerceReviewJustificationPayload(value: unknown): ReviewJustificationPayload | null {
+export function coerceReviewJustificationPayload(
+  value: unknown,
+): ReviewJustificationPayload | null {
   const root = asRecord(value);
   if (!root) return null;
 
@@ -124,7 +103,8 @@ export function hydrateReviewJustification(input: StructuredReviewJustificationI
   const metadata = asRecord(input.hourAdjustmentReasonMetadata);
   const decision = isReviewDecision(metadata?.decision) ? metadata.decision : input.decision;
   const hackatimeProjectName =
-    toCleanString(metadata?.hackatimeProjectName) || toCleanString(input.fallbackHackatimeProjectName);
+    toCleanString(metadata?.hackatimeProjectName) ||
+    toCleanString(input.fallbackHackatimeProjectName);
   const startDate = toReviewDateOnly(input.reviewedHackatimeRangeStart);
   const endDate = toReviewDateOnly(input.reviewedHackatimeRangeEnd);
   if (!hackatimeProjectName || !startDate || !endDate) return null;

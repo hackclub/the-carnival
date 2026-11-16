@@ -3,7 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { shopItem, shopOrder, user } from "@/db/schema";
 import { generateId, getAuthUser, parseJsonBody, toCleanString } from "@/lib/api-utils";
-import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
+import { frozenAccountResponse } from "@/lib/frozen-account-response";
 import { getAppBaseUrl, sendShopOrderCreatedAdminEmail } from "@/lib/loops";
 import { calculateShopOrderTotal, parseShopOrderQuantity } from "@/lib/shop-shared";
 import { getTokenBalance } from "@/lib/wallet";
@@ -57,21 +57,17 @@ export async function POST(req: Request) {
   const authUser = await getAuthUser();
   if (!authUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const freezeState = await getFrozenAccountState(authUser.id);
-  if (freezeState.isFrozen) {
-    return NextResponse.json(
-      {
-        error: getFrozenAccountMessage(freezeState.frozenReason),
-        code: "account_frozen",
-      },
-      { status: 403 },
-    );
-  }
+  const frozen = await frozenAccountResponse(authUser.id);
+  if (frozen) return frozen;
 
   const body = await parseJsonBody<CreateOrderBody>(req);
   const itemId = toCleanString(body?.itemId);
   if (!itemId) return NextResponse.json({ error: "itemId is required" }, { status: 400 });
-  if (body?.orderNote !== undefined && body?.orderNote !== null && typeof body.orderNote !== "string") {
+  if (
+    body?.orderNote !== undefined &&
+    body.orderNote !== null &&
+    typeof body.orderNote !== "string"
+  ) {
     return NextResponse.json({ error: "orderNote must be a string" }, { status: 400 });
   }
   const orderNote = toCleanString(body?.orderNote);
@@ -99,14 +95,17 @@ export async function POST(req: Request) {
   const item = rows[0];
   if (!item) return NextResponse.json({ error: "Item not found" }, { status: 404 });
   if (item.orderNoteRequired && !orderNote) {
-    return NextResponse.json({ error: "A request note is required for this item." }, { status: 400 });
+    return NextResponse.json(
+      { error: "A request note is required for this item." },
+      { status: 400 },
+    );
   }
 
   const balance = await getTokenBalance(db, authUser.id);
   if (balance <= 0) {
     return NextResponse.json({ error: "You must have tokens to place an order" }, { status: 409 });
   }
-  const unitTokenCost = item.tokenCost ?? 0;
+  const unitTokenCost = item.tokenCost;
   const totalTokenCost = calculateShopOrderTotal(unitTokenCost, quantity);
   if (balance < totalTokenCost) {
     return NextResponse.json({ error: "Insufficient tokens" }, { status: 409 });

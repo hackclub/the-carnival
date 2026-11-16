@@ -132,7 +132,9 @@ export default function AdminAuditLogClient() {
             Target user ID
             <input
               value={formFilters.targetUserId}
-              onChange={(e) => setFormFilters((prev) => ({ ...prev, targetUserId: e.target.value }))}
+              onChange={(e) =>
+                setFormFilters((prev) => ({ ...prev, targetUserId: e.target.value }))
+              }
               className="rounded-lg  border border-border bg-background px-3 py-2 text-sm text-foreground"
             />
           </label>
@@ -215,14 +217,18 @@ export default function AdminAuditLogClient() {
       ) : error ? (
         <div className="platform-surface-card p-6 text-red-600">{error}</div>
       ) : logs.length === 0 ? (
-        <div className="platform-surface-card p-6 text-muted-foreground">No audit entries matched your filters.</div>
+        <div className="platform-surface-card p-6 text-muted-foreground">
+          No audit entries matched your filters.
+        </div>
       ) : (
         <div className="space-y-3">
           {logs.map((log) => (
             <div key={log.id} className="platform-surface-card p-4 space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="font-semibold text-foreground">{log.action}</div>
-                <div className="text-xs text-muted-foreground">{new Date(log.createdAt).toLocaleString()}</div>
+                <div className="text-xs text-muted-foreground">
+                  {new Date(log.createdAt).toLocaleString()}
+                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                 <div className="text-muted-foreground">
@@ -233,7 +239,7 @@ export default function AdminAuditLogClient() {
                 </div>
               </div>
               <pre className="mt-2 overflow-auto rounded-[var(--radius-xl)] bg-background p-3 text-xs text-foreground border border-border">
-                {JSON.stringify(log.details ?? {}, null, 2)}
+                {JSON.stringify(log.details, null, 2)}
               </pre>
             </div>
           ))}

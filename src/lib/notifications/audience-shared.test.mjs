@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
-const { AUDIENCE_FILTER_KEYS, AUDIENCE_PRESETS, defaultFilter, describeFilter, parseAudienceFilter, parseAudienceFilters } =
-  await import("./audience-shared.ts");
+const {
+  AUDIENCE_FILTER_KEYS,
+  AUDIENCE_PRESETS,
+  defaultFilter,
+  describeFilter,
+  parseAudienceFilter,
+  parseAudienceFilters,
+} = await import("./audience-shared.ts");
 
 describe("parseAudienceFilter", () => {
   test("accepts each kind of filter", () => {
@@ -19,7 +25,9 @@ describe("parseAudienceFilter", () => {
       key: "hackatime_connected",
       value: false,
     });
-    expect(parseAudienceFilter({ key: "verification", values: ["pending", "pending", "bogus", "none"] })).toEqual({
+    expect(
+      parseAudienceFilter({ key: "verification", values: ["pending", "pending", "bogus", "none"] }),
+    ).toEqual({
       key: "verification",
       values: ["pending", "none"],
     });
@@ -67,9 +75,17 @@ describe("presets and defaults", () => {
   });
 
   test("describes filters in words", () => {
-    expect(describeFilter({ key: "projects_submitted", op: "gt", value: 3 })).toBe("Projects submitted more than 3");
-    expect(describeFilter({ key: "unsubmitted_hours", op: "gte", value: 2 })).toBe("Unsubmitted hours at least 2 h");
-    expect(describeFilter({ key: "hackatime_connected", value: false })).toBe("Hackatime connected: no");
-    expect(describeFilter({ key: "signed_up", op: "after", date: "2026-10-01" })).toBe("Signed up on or after 2026-10-01");
+    expect(describeFilter({ key: "projects_submitted", op: "gt", value: 3 })).toBe(
+      "Projects submitted more than 3",
+    );
+    expect(describeFilter({ key: "unsubmitted_hours", op: "gte", value: 2 })).toBe(
+      "Unsubmitted hours at least 2 h",
+    );
+    expect(describeFilter({ key: "hackatime_connected", value: false })).toBe(
+      "Hackatime connected: no",
+    );
+    expect(describeFilter({ key: "signed_up", op: "after", date: "2026-10-01" })).toBe(
+      "Signed up on or after 2026-10-01",
+    );
   });
 });

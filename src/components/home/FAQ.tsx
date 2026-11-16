@@ -44,10 +44,7 @@ export default function FAQ() {
         const isOpen = openIndex === index;
 
         return (
-          <div
-            key={faq.id}
-            className="border-b-2 border-dashed border-[#b4621f]/40"
-          >
+          <div key={faq.id} className="border-b-2 border-dashed border-[#b4621f]/40">
             <button
               type="button"
               onClick={() => setOpenIndex(isOpen ? -1 : index)}

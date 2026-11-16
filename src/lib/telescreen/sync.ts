@@ -9,8 +9,17 @@
 import { and, eq, inArray, isNull, notExists, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { project, telescreenSubmission } from "@/db/schema";
-import { isTelescreenEnabled, listRobertProjects, type RobertProject, type RobertState } from "./client";
-import { applyRobertProject, sendTelescreenSubmission, submitProjectToTelescreen } from "./submissions";
+import {
+  isTelescreenEnabled,
+  listRobertProjects,
+  type RobertProject,
+  type RobertState,
+} from "./client";
+import {
+  applyRobertProject,
+  sendTelescreenSubmission,
+  submitProjectToTelescreen,
+} from "./submissions";
 
 const SYNC_INTERVAL_MS = 60_000;
 // Per run, so one sync never makes hundreds of Robert calls.
@@ -71,10 +80,15 @@ async function retryPendingSends() {
   const pending = await db
     .select()
     .from(telescreenSubmission)
-    .where(and(eq(telescreenSubmission.state, "pending"), isNull(telescreenSubmission.robertProjectId)))
+    .where(
+      and(eq(telescreenSubmission.state, "pending"), isNull(telescreenSubmission.robertProjectId)),
+    )
     // Never-tried rows first, then the longest-failing, so rows that always
     // fail (e.g. a creator with no Slack or Hackatime ID) can't starve the rest.
-    .orderBy(sql`${telescreenSubmission.lastErrorAt} asc nulls first`, telescreenSubmission.createdAt)
+    .orderBy(
+      sql`${telescreenSubmission.lastErrorAt} asc nulls first`,
+      telescreenSubmission.createdAt,
+    )
     .limit(MAX_SENDS_PER_RUN);
   for (const row of pending) await sendTelescreenSubmission(row);
 }

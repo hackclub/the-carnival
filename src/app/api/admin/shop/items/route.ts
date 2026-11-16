@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { shopItem } from "@/db/schema";
-import { getAuthUser, parseJsonBody, toCleanString, toPositiveInt, generateId } from "@/lib/api-utils";
+import {
+  getAuthUser,
+  parseJsonBody,
+  toCleanString,
+  toPositiveInt,
+  generateId,
+} from "@/lib/api-utils";
 
 type CreateItemBody = {
   name?: unknown;
@@ -62,7 +68,8 @@ export async function POST(req: Request) {
   const description = toCleanString(body?.description) || null;
   const imageUrl = toCleanString(body?.imageUrl);
   const orderNoteRequiredInput = body?.orderNoteRequired;
-  const orderNoteRequired = orderNoteRequiredInput === undefined ? false : toBoolean(orderNoteRequiredInput);
+  const orderNoteRequired =
+    orderNoteRequiredInput === undefined ? false : toBoolean(orderNoteRequiredInput);
   const approvedHoursNeeded = toPositiveInt(body?.approvedHoursNeeded);
   const tokenCost = toPositiveInt(body?.tokenCost);
 
@@ -72,10 +79,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "orderNoteRequired must be a boolean" }, { status: 400 });
   }
   if (!Number.isFinite(approvedHoursNeeded) || approvedHoursNeeded < 0) {
-    return NextResponse.json({ error: "approvedHoursNeeded must be a non-negative integer" }, { status: 400 });
+    return NextResponse.json(
+      { error: "approvedHoursNeeded must be a non-negative integer" },
+      { status: 400 },
+    );
   }
   if (!Number.isFinite(tokenCost) || tokenCost < 0) {
-    return NextResponse.json({ error: "tokenCost must be a non-negative integer" }, { status: 400 });
+    return NextResponse.json(
+      { error: "tokenCost must be a non-negative integer" },
+      { status: 400 },
+    );
   }
 
   const now = new Date();

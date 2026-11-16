@@ -22,20 +22,8 @@ type Props = {
   totalCount: number;
   canWrite: boolean;
   writeBlockedReason?: string | null;
-  projectStartedAtIso: string | null;
-  submittedAtIso: string | null;
   totalHoursSeconds: number;
 };
-
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 function formatShortDate(iso: string) {
   const d = new Date(iso);
@@ -55,8 +43,6 @@ export default function ProjectDevlogsSummary({
   totalCount,
   canWrite,
   writeBlockedReason,
-  projectStartedAtIso,
-  submittedAtIso,
   totalHoursSeconds,
 }: Props) {
   const remaining = Math.max(0, totalCount - devlogs.length);
@@ -73,8 +59,8 @@ export default function ProjectDevlogsSummary({
               <Badge variant="info">{totalFormatted.label} logged</Badge>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Log what you worked on and when. Devlogs can describe work from any point in
-              the project timeline.
+              Log what you worked on and when. Devlogs can describe work from any point in the
+              project timeline.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -86,11 +72,7 @@ export default function ProjectDevlogsSummary({
                 <Button variant="primary">New entry</Button>
               </Link>
             ) : (
-              <Button
-                variant="primary"
-                disabled
-                title={writeBlockedReason ?? undefined}
-              >
+              <Button variant="primary" disabled title={writeBlockedReason ?? undefined}>
                 New entry
               </Button>
             )}
@@ -98,9 +80,7 @@ export default function ProjectDevlogsSummary({
         </div>
 
         {!canWrite && writeBlockedReason ? (
-          <div className="mt-3 text-xs text-muted-foreground">
-            {writeBlockedReason}
-          </div>
+          <div className="mt-3 text-xs text-muted-foreground">{writeBlockedReason}</div>
         ) : null}
 
         {devlogs.length === 0 ? (
@@ -118,10 +98,9 @@ export default function ProjectDevlogsSummary({
             />
 
             <div className="space-y-0">
-              {devlogs.map((d, idx) => {
+              {devlogs.map((d) => {
                 const duration = formatDurationHM(d.durationSeconds);
                 const cat = CATEGORY_CONFIG[d.category ?? "coding"];
-                const isLast = idx === devlogs.length - 1 && remaining === 0;
 
                 return (
                   <div key={d.id} className="relative pl-12 pb-6 group">
@@ -156,9 +135,7 @@ export default function ProjectDevlogsSummary({
                           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                             <span>{d.authorName}</span>
                             <span className="opacity-40">·</span>
-                            <span className="font-semibold text-foreground">
-                              {duration.label}
-                            </span>
+                            <span className="font-semibold text-foreground">{duration.label}</span>
                             {d.usedAi ? (
                               <>
                                 <span className="opacity-40">·</span>

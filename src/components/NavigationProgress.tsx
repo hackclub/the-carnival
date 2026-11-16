@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { usePathname } from "next/navigation";
 
 type NavigationProgressContextValue = {
@@ -33,9 +41,7 @@ function shouldTrackLinkClick(event: MouseEvent) {
   if (nextUrl.origin !== window.location.origin) return false;
 
   const currentUrl = new URL(window.location.href);
-  const samePage =
-    nextUrl.pathname === currentUrl.pathname &&
-    nextUrl.search === currentUrl.search;
+  const samePage = nextUrl.pathname === currentUrl.pathname && nextUrl.search === currentUrl.search;
 
   return !samePage;
 }

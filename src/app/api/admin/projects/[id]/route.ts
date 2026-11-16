@@ -27,6 +27,7 @@ import { sendReviewEmail } from "@/lib/loops";
 import { notifyReviewDM, notifyStaffReviewThread } from "@/lib/slack";
 import { runAfterResponse } from "@/lib/notifications/after-response";
 import { getTelescreenGrantGate, setCarnivalOutcome } from "@/lib/telescreen/submissions";
+import { isAdmin } from "@/lib/roles";
 
 type AdminProjectPatchBody = {
   status?: unknown;
@@ -44,10 +45,6 @@ type AdminProjectPatchBody = {
    */
   telescreenDoubtfulAcknowledged?: unknown;
 };
-
-function isAdmin(role: unknown): role is "admin" {
-  return role === "admin";
-}
 
 function isAdminEditableStatus(value: unknown): value is ProjectStatus {
   return (
@@ -109,7 +106,11 @@ async function notifyCreatorGranted(input: {
   }
   await notifyStaffReviewThread({
     projectId: input.projectId,
-    event: { kind: "granted", approvedHours: input.approvedHours, tokensIssued: input.tokensIssued },
+    event: {
+      kind: "granted",
+      approvedHours: input.approvedHours,
+      tokensIssued: input.tokensIssued,
+    },
   });
 }
 
@@ -148,12 +149,23 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     : null;
 
   // Standalone save of the technical justification draft (no status change).
-  if (hasTechnicalJustificationUpdate && !hasStatusUpdate && !hasRangeUpdate && !hasResubmissionBlockUpdate) {
+  if (
+    hasTechnicalJustificationUpdate &&
+    !hasStatusUpdate &&
+    !hasRangeUpdate &&
+    !hasResubmissionBlockUpdate
+  ) {
     const updated = await db
       .update(project)
-      .set({ grantTechnicalJustification: technicalJustificationInput || null, updatedAt: new Date() })
+      .set({
+        grantTechnicalJustification: technicalJustificationInput || null,
+        updatedAt: new Date(),
+      })
       .where(eq(project.id, id))
-      .returning({ id: project.id, grantTechnicalJustification: project.grantTechnicalJustification });
+      .returning({
+        id: project.id,
+        grantTechnicalJustification: project.grantTechnicalJustification,
+      });
     if (!updated[0]) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ project: updated[0] });
   }
@@ -164,10 +176,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     );
   }
   if (hasResubmissionBlockUpdate && typeof body.resubmissionBlocked !== "boolean") {
-    return NextResponse.json(
-      { error: "resubmissionBlocked must be a boolean" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "resubmissionBlocked must be a boolean" }, { status: 400 });
   }
 
   const now = new Date();
@@ -308,7 +317,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       if (outside.length > 0) {
         const listed = outside
           .slice(0, 3)
-          .map((d) => `"${d.title}" (${formatUtcInstant(d.startedAt)} → ${formatUtcInstant(d.endedAt)})`)
+          .map(
+            (d) =>
+              `"${d.title}" (${formatUtcInstant(d.startedAt)} → ${formatUtcInstant(d.endedAt)})`,
+          )
           .join(", ");
         const suffix = outside.length > 3 ? ` and ${outside.length - 3} more` : "";
         return NextResponse.json(
@@ -437,7 +449,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
             { status: 409 },
           );
         }
-        if (current.approvedHours === null || current.approvedHours === undefined) {
+        if (current.approvedHours == null) {
           return NextResponse.json(
             { error: "Project has no approved hours; cannot create Airtable record." },
             { status: 409 },
@@ -586,26 +598,30 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       if (nextStatus === "granted") {
         // Only allow granting from shipped (or no-op if already granted).
         if (current.status !== "shipped" && current.status !== "granted") {
-          return { error: "Project must be shipped before it can be granted.", status: 409 as const };
+          return {
+            error: "Project must be shipped before it can be granted.",
+            status: 409 as const,
+          };
         }
         if (!current.creatorId) {
           return { error: "Project has no creator; cannot issue tokens.", status: 409 as const };
         }
-        if (current.approvedHours === null || current.approvedHours === undefined) {
-          return { error: "Project has no approved hours; cannot issue tokens.", status: 409 as const };
+        if (current.approvedHours == null) {
+          return {
+            error: "Project has no approved hours; cannot issue tokens.",
+            status: 409 as const,
+          };
         }
 
         const tokensToIssue = tokensForApprovedHours(current.approvedHours);
         const projectUrl = current.codeUrl;
         const reason = `Issue ${tokensToIssue} tokens for Shipped project (${current.name}) ${current.id}, ${projectUrl}`;
         const bountyReferenceType = "bounty_bonus";
-        let bountyBonus:
-          | {
-              referenceId: string;
-              tokens: number;
-              reason: string;
-            }
-          | null = null;
+        let bountyBonus: {
+          referenceId: string;
+          tokens: number;
+          reason: string;
+        } | null = null;
 
         if (current.bountyProjectId) {
           const bountyRows = await tx
@@ -689,7 +705,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       return { ok: true as const };
     });
 
-    if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
+    if ("error" in result)
+      return NextResponse.json({ error: result.error }, { status: result.status });
 
     // Tokens are issued and the Airtable record exists — this is the moment
     // the creator finally hears "approved" (best-effort, outside the txn).
@@ -698,7 +715,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     }
     if (nextStatus === "granted") {
       // Close the submission in Telescreen with Carnival's decision.
-      runAfterResponse(() => setCarnivalOutcome(id, { status: "approved" }), "telescreen outcome (granted)");
+      runAfterResponse(
+        () => setCarnivalOutcome(id, { status: "approved" }),
+        "telescreen outcome (granted)",
+      );
     }
 
     // If the project moves away from the grant queue while a [PREVIEW]
@@ -777,9 +797,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   let preview = false;
   let previewTechnicalJustification: string | undefined;
   try {
-    const body = (await req.json().catch(() => null)) as
-      | { createNew?: unknown; preview?: unknown; technicalJustification?: unknown }
-      | null;
+    const body = (await req.json().catch(() => null)) as {
+      createNew?: unknown;
+      preview?: unknown;
+      technicalJustification?: unknown;
+    } | null;
     createNew = body?.createNew === true;
     preview = body?.preview === true;
     previewTechnicalJustification =
@@ -840,7 +862,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       { status: 409 },
     );
   }
-  if (current.approvedHours === null || current.approvedHours === undefined) {
+  if (current.approvedHours == null) {
     return NextResponse.json(
       { error: "Project has no approved hours; cannot create Airtable record." },
       { status: 409 },
@@ -868,7 +890,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   try {
     // Preview always upserts the stored record (never duplicates).
-    const shouldUpdate = preview ? !!current.airtableRecordId : !createNew && !!current.airtableRecordId;
+    const shouldUpdate = preview
+      ? !!current.airtableRecordId
+      : !createNew && !!current.airtableRecordId;
     const input = preview ? { ...context.input, preview: true } : context.input;
     const record = shouldUpdate
       ? await updateAirtableGrantRecord(current.airtableRecordId as string, input)
@@ -906,7 +930,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
-  const actorId = session?.user?.id;
+  const actorId = session?.user.id;
   const role = (session?.user as { role?: unknown } | undefined)?.role;
   if (!actorId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isAdmin(role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

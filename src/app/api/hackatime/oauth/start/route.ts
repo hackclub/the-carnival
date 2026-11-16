@@ -3,22 +3,10 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/server-session";
 import { safeReturnTo } from "@/lib/safe-return-to";
+import { getAppOrigin } from "@/lib/app-origin";
 
 const OAUTH_STATE_COOKIE = "hackatime_oauth_state";
 const OAUTH_RETURN_COOKIE = "hackatime_oauth_return_to";
-
-function getAppOrigin(request: Request) {
-  const configured = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "";
-  if (configured) {
-    try {
-      const u = new URL(configured);
-      if (u.protocol === "http:" || u.protocol === "https:") return u.origin;
-    } catch {
-      // Fallback to request origin.
-    }
-  }
-  return new URL(request.url).origin;
-}
 
 export async function GET(request: Request) {
   const appOrigin = getAppOrigin(request);

@@ -2,11 +2,9 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { devlog, projectHackatimeProject } from "@/db/schema";
-import {
-  listProjectHackatimeProjects,
-  upsertProjectHackatimeProject,
-} from "@/lib/devlogs";
-import { canReadProject, resolveProjectAccess } from "@/lib/project-route";
+import { listProjectHackatimeProjects, upsertProjectHackatimeProject } from "@/lib/devlogs";
+import { resolveProjectAccess } from "@/lib/project-route";
+import { canReadProject } from "@/lib/roles";
 
 /**
  * GET /api/projects/[id]/hackatime-projects
@@ -63,7 +61,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   // Only make this the default if there are no linked projects yet AND the
   // project has no canonical hackatimeProjectName set. This prevents
   // overwriting an existing primary project name when a user adds an extra one.
-  const hasCanonicalName = (access.project.hackatimeProjectName ?? "").trim().length > 0;
+  const hasCanonicalName = access.project.hackatimeProjectName.trim().length > 0;
   const makeDefault = existing.length === 0 && !hasCanonicalName;
 
   await upsertProjectHackatimeProject({ projectId, name, makeDefault });
@@ -129,15 +127,13 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
     }
   }
 
-  await db
-    .delete(projectHackatimeProject)
-    .where(eq(projectHackatimeProject.id, found.id));
+  await db.delete(projectHackatimeProject).where(eq(projectHackatimeProject.id, found.id));
 
   // If the deleted entry was the default, promote the alphabetically-first remaining entry
   if (found.isDefault) {
     const remaining = allLinked.filter((r) => r.id !== found.id);
-    if (remaining.length > 0) {
-      const next = remaining.sort((a, b) => a.name.localeCompare(b.name))[0];
+    const next = remaining.sort((a, b) => a.name.localeCompare(b.name))[0];
+    if (next) {
       await db
         .update(projectHackatimeProject)
         .set({ isDefault: true, updatedAt: new Date() })

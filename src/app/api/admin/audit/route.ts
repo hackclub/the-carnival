@@ -83,9 +83,9 @@ export async function GET(req: Request) {
       actorRole: row.actorRole,
       details: row.details,
       createdAt: row.createdAt.toISOString(),
-      actor: row.actorId ? usersById.get(row.actorId) ?? { id: row.actorId } : null,
+      actor: row.actorId ? (usersById.get(row.actorId) ?? { id: row.actorId }) : null,
       targetUser: row.targetUserId
-        ? usersById.get(row.targetUserId) ?? { id: row.targetUserId }
+        ? (usersById.get(row.targetUserId) ?? { id: row.targetUserId })
         : null,
     })),
     filters: {

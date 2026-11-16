@@ -142,8 +142,12 @@ describe("POST /api/projects", () => {
         },
       ],
     ]);
-    expect(state.insertedProjectValues.hackatimeStartedAt.toISOString()).toBe("2026-03-10T00:00:00.000Z");
-    expect(state.insertedProjectValues.hackatimeStoppedAt.toISOString()).toBe("2026-03-20T23:59:59.999Z");
+    expect(state.insertedProjectValues.hackatimeStartedAt.toISOString()).toBe(
+      "2026-03-10T00:00:00.000Z",
+    );
+    expect(state.insertedProjectValues.hackatimeStoppedAt.toISOString()).toBe(
+      "2026-03-20T23:59:59.999Z",
+    );
     expect(state.insertedProjectValues.hackatimeTotalSeconds).toBe(3660);
   });
 

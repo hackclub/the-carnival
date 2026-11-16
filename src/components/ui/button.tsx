@@ -60,27 +60,14 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
-    {
-      variant = "primary",
-      loading,
-      loadingText,
-      className = "",
-      children,
-      disabled,
-      ...props
-    },
+    { variant = "primary", loading, loadingText, className = "", children, disabled, ...props },
     ref,
   ) => {
     const baseClass = buttonVariants[variant];
     const isDisabled = disabled || loading;
 
     return (
-      <button
-        ref={ref}
-        className={`${baseClass} ${className}`}
-        disabled={isDisabled}
-        {...props}
-      >
+      <button ref={ref} className={`${baseClass} ${className}`} disabled={isDisabled} {...props}>
         {loading ? (loadingText ?? "Loading...") : children}
       </button>
     );

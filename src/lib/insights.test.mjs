@@ -26,9 +26,9 @@ describe("firstNameOf", () => {
 
 describe("renderNudgeMessage", () => {
   test("replaces every {firstName} placeholder", () => {
-    expect(
-      renderNudgeMessage("Hey {firstName}! Go {firstName}!", { name: "Ada Lovelace" }),
-    ).toBe("Hey Ada! Go Ada!");
+    expect(renderNudgeMessage("Hey {firstName}! Go {firstName}!", { name: "Ada Lovelace" })).toBe(
+      "Hey Ada! Go Ada!",
+    );
   });
 
   test("uses the fallback when the user has no name", () => {

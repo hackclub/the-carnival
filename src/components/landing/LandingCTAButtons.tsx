@@ -17,7 +17,7 @@ export default function LandingCTAButtons() {
       disableRedirect: true,
     });
 
-    if (error || !data?.url) {
+    if (error || !data.url) {
       setAuthLoading(false);
       window.location.href = "/login?callbackUrl=/explore";
       return;

@@ -51,11 +51,7 @@ export type ReviewQueueProject = {
 
 type FilterKey = "pending" | "approved" | "rejected";
 type SortKey =
-  | "queue-age-desc"
-  | "submitted-desc"
-  | "submitted-asc"
-  | "last-review-desc"
-  | "name-asc";
+  "queue-age-desc" | "submitted-desc" | "submitted-asc" | "last-review-desc" | "name-asc";
 type AssignmentFilter = "all" | "mine" | "assigned" | "unassigned";
 
 type ReviewQueueResponse = {
@@ -118,12 +114,8 @@ function formatLatestReview(
   fallbackCreatedAt: string,
 ) {
   if (!latestReview) return "No review yet";
-  const decision =
-    latestReview.decision.charAt(0).toUpperCase() + latestReview.decision.slice(1);
-  const hoursText =
-    latestReview.approvedHours !== null && latestReview.approvedHours !== undefined
-      ? ` • ${latestReview.approvedHours}h`
-      : "";
+  const decision = latestReview.decision.charAt(0).toUpperCase() + latestReview.decision.slice(1);
+  const hoursText = latestReview.approvedHours != null ? ` • ${latestReview.approvedHours}h` : "";
   const at = formatDateTime(latestReview.createdAt);
   const queued = formatQueueAge(fallbackSubmittedAt, fallbackCreatedAt);
   return `${decision}${hoursText} by ${latestReview.reviewerName} • ${at} • queue ${queued}`;
@@ -252,7 +244,10 @@ export default function ReviewQueueClient() {
   return (
     <div className="space-y-6">
       <div className="platform-surface-card p-4 md:p-5">
-        <form onSubmit={onSearchSubmit} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+        <form
+          onSubmit={onSearchSubmit}
+          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3"
+        >
           <label className="xl:col-span-2">
             <span className="block text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">
               Search
@@ -270,7 +265,9 @@ export default function ReviewQueueClient() {
             </span>
             <Select
               value={activeSort}
-              onValueChange={(v) => { if (v) replaceParams((params) => params.set("sort", v)); }}
+              onValueChange={(v) => {
+                if (v) replaceParams((params) => params.set("sort", v));
+              }}
             >
               <SelectTrigger className="w-full h-11 rounded-[var(--radius-xl)] border-input bg-background px-3 text-sm text-foreground">
                 <SelectValue placeholder="Sort" />
@@ -290,7 +287,9 @@ export default function ReviewQueueClient() {
             </span>
             <Select
               value={activeAssignment}
-              onValueChange={(v) => { if (v) replaceParams((params) => params.set("assignment", v)); }}
+              onValueChange={(v) => {
+                if (v) replaceParams((params) => params.set("assignment", v));
+              }}
             >
               <SelectTrigger className="w-full h-11 rounded-[var(--radius-xl)] border-input bg-background px-3 text-sm text-foreground">
                 <SelectValue placeholder="Assignment" />
@@ -374,7 +373,9 @@ export default function ReviewQueueClient() {
 
       {projects.length === 0 ? (
         <div className="platform-surface-card p-8">
-          <div className="text-foreground font-semibold text-lg">No projects match these filters</div>
+          <div className="text-foreground font-semibold text-lg">
+            No projects match these filters
+          </div>
           <div className="text-muted-foreground mt-1">
             Adjust search, assignment, category, or tag filters to broaden the queue.
           </div>
@@ -383,11 +384,14 @@ export default function ReviewQueueClient() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {projects.map((projectRow) => {
             const categoryLabel = formatCategoryLabel(projectRow.category);
-            const tagLabels = (projectRow.tags ?? [])
+            const tagLabels = projectRow.tags
               .map((tag) => formatTagLabel(tag))
               .filter((value): value is string => !!value);
 
-            const cardImage = projectRow.previewImage?.trim() || projectRow.screenshots?.find((u) => u.trim().length > 0) || "";
+            const cardImage =
+              projectRow.previewImage.trim() ||
+              projectRow.screenshots.find((u) => u.trim().length > 0) ||
+              "";
 
             return (
               <Link
@@ -410,84 +414,87 @@ export default function ReviewQueueClient() {
                     </div>
                   ) : null}
                   <div className="p-5 flex-1 flex flex-col">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="text-foreground font-bold text-xl truncate">{projectRow.name}</div>
-                      <div className="text-muted-foreground text-sm mt-1 truncate">
-                        by {projectRow.creatorName || "Unknown creator"}
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="text-foreground font-bold text-xl truncate">
+                          {projectRow.name}
+                        </div>
+                        <div className="text-muted-foreground text-sm mt-1 truncate">
+                          by {projectRow.creatorName || "Unknown creator"}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        <ProjectEditorBadge
+                          editor={
+                            projectRow.editor as
+                              | "vscode"
+                              | "chrome"
+                              | "firefox"
+                              | "figma"
+                              | "neovim"
+                              | "gnu-emacs"
+                              | "jupyterlab"
+                              | "obsidian"
+                              | "blender"
+                              | "freecad"
+                              | "kicad"
+                              | "krita"
+                              | "gimp"
+                              | "inkscape"
+                              | "godot-engine"
+                              | "unity"
+                              | "other"
+                          }
+                          editorOther={projectRow.editorOther ?? ""}
+                        />
+                        <ProjectStatusBadge
+                          status={
+                            projectRow.status as
+                              "shipped" | "granted" | "in-review" | "work-in-progress"
+                          }
+                        />
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                      <ProjectEditorBadge
-                        editor={
-                          projectRow.editor as
-                            | "vscode"
-                            | "chrome"
-                            | "firefox"
-                            | "figma"
-                            | "neovim"
-                            | "gnu-emacs"
-                            | "jupyterlab"
-                            | "obsidian"
-                            | "blender"
-                            | "freecad"
-                            | "kicad"
-                            | "krita"
-                            | "gimp"
-                            | "inkscape"
-                            | "godot-engine"
-                            | "unity"
-                            | "other"
-                        }
-                        editorOther={projectRow.editorOther ?? ""}
-                      />
-                      <ProjectStatusBadge
-                        status={
-                          projectRow.status as "shipped" | "granted" | "in-review" | "work-in-progress"
-                        }
-                      />
-                    </div>
-                  </div>
 
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {categoryLabel ? (
-                      <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
-                        {categoryLabel}
-                      </span>
-                    ) : null}
-                    {tagLabels.slice(0, 3).map((tag) => (
-                      <span
-                        key={`${projectRow.id}-${tag}`}
-                        className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {categoryLabel ? (
+                        <span className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
+                          {categoryLabel}
+                        </span>
+                      ) : null}
+                      {tagLabels.slice(0, 3).map((tag) => (
+                        <span
+                          key={`${projectRow.id}-${tag}`}
+                          className="inline-flex items-center rounded-[var(--carnival-squircle-radius)] border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
 
-                  <div className="text-muted-foreground mt-3 text-sm leading-6 line-clamp-4">
-                    {projectRow.description}
-                  </div>
+                    <div className="text-muted-foreground mt-3 text-sm leading-6 line-clamp-4">
+                      {projectRow.description}
+                    </div>
 
-                  <div className="mt-auto pt-4 space-y-1.5">
-                    <div className="text-xs text-muted-foreground">
-                      Submitted: {formatDateTime(projectRow.submittedAt)}
+                    <div className="mt-auto pt-4 space-y-1.5">
+                      <div className="text-xs text-muted-foreground">
+                        Submitted: {formatDateTime(projectRow.submittedAt)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Queue age: {formatQueueAge(projectRow.submittedAt, projectRow.createdAt)}
+                      </div>
+                      <div className="text-xs text-muted-foreground line-clamp-2">
+                        Latest review:{" "}
+                        {formatLatestReview(
+                          projectRow.latestReview,
+                          projectRow.submittedAt,
+                          projectRow.createdAt,
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground line-clamp-2">
+                        Assignments: {summarizeAssignments(projectRow)}
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      Queue age: {formatQueueAge(projectRow.submittedAt, projectRow.createdAt)}
-                    </div>
-                    <div className="text-xs text-muted-foreground line-clamp-2">
-                      Latest review:{" "}
-                      {formatLatestReview(
-                        projectRow.latestReview,
-                        projectRow.submittedAt,
-                        projectRow.createdAt,
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground line-clamp-2">
-                      Assignments: {summarizeAssignments(projectRow)}
-                    </div>
-                  </div>
                   </div>
                 </div>
               </Link>

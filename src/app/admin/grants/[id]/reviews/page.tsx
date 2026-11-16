@@ -76,7 +76,7 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 export default async function AdminGrantReviewsPage(props: { params: Promise<{ id: string }> }) {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
-  if (!session?.user?.id) redirect("/login?callbackUrl=/admin/grants");
+  if (!session?.user.id) redirect("/login?callbackUrl=/admin/grants");
   if (role !== "admin") redirect("/projects");
 
   const { id } = await props.params;
@@ -212,7 +212,7 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
 
   const finalJustification = finalReview
     ? hydrateReviewJustification({
-        decision: finalReview.decision as ReviewDecision,
+        decision: finalReview.decision,
         fallbackHackatimeProjectName: p.hackatimeProjectName,
         reviewEvidenceChecklist: finalReview.reviewEvidenceChecklist,
         reviewedHackatimeRangeStart: finalReview.reviewedHackatimeRangeStart,
@@ -236,11 +236,11 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
         )
       : null;
 
-  const devlogSeconds = Math.max(0, Math.floor(p.hoursSpentSeconds ?? 0));
+  const devlogSeconds = Math.max(0, Math.floor(p.hoursSpentSeconds));
   const legacySeconds = Math.max(0, Math.floor(p.hackatimeTotalSeconds ?? 0));
   const loggedSeconds = devlogSeconds > 0 ? devlogSeconds : legacySeconds;
 
-  const screenshots = p.screenshots ?? [];
+  const screenshots = p.screenshots;
   const grantJustification = p.grantTechnicalJustification?.trim() || null;
   const passOneDraft = finalReview?.specificTechnicalFeatures?.trim() || null;
 
@@ -296,9 +296,7 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
             </Fact>
             <Fact label="Hours logged">{formatSeconds(loggedSeconds)}</Fact>
             <Fact label="Approved hours">
-              {p.approvedHours !== null && p.approvedHours !== undefined
-                ? `${p.approvedHours}h`
-                : "—"}
+              {p.approvedHours != null ? `${p.approvedHours}h` : "—"}
             </Fact>
             <Fact label="Considered Hackatime range">
               {formatConsideredHackatimeRangeLabel(consideredRange)}
@@ -372,8 +370,7 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
                     >
                       {finalReview.decision}
                     </Badge>
-                    {finalReview.approvedHours !== null &&
-                    finalReview.approvedHours !== undefined ? (
+                    {finalReview.approvedHours != null ? (
                       <span className="text-xs font-semibold text-foreground">
                         {finalReview.approvedHours}h approved
                       </span>
@@ -575,14 +572,14 @@ export default async function AdminGrantReviewsPage(props: { params: Promise<{ i
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {formatDateTime(r.createdAt)} UTC
-                        {finalReview && r.id === finalReview.id ? " • final review" : ""}
+                        {r.id === finalReview?.id ? " • final review" : ""}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <Badge variant={REVIEW_DECISION_VARIANT[r.decision]} className="uppercase">
                         {r.decision}
                       </Badge>
-                      {r.approvedHours !== null && r.approvedHours !== undefined ? (
+                      {r.approvedHours != null ? (
                         <span className="text-xs font-semibold text-foreground">
                           {r.approvedHours}h approved
                         </span>

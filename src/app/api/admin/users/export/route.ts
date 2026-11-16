@@ -25,7 +25,7 @@ export async function GET() {
   for (const r of rows) {
     lines.push(
       [
-        csvEscape(r.name ?? ""),
+        csvEscape(r.name),
         csvEscape(r.email),
         csvEscape(r.slackId ?? ""),
         csvEscape(r.emailVerified ? "true" : "false"),

@@ -7,6 +7,7 @@ import type { ProjectStatus } from "@/db/schema";
 import { Modal } from "@/components/ui";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import toast from "react-hot-toast";
+import { extractApiError } from "@/lib/project-form-utils";
 
 type DismissedProject = {
   id: string;
@@ -64,12 +65,12 @@ export default function AdminDismissedClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resubmissionBlocked: false }),
       });
-      const data = (await res.json().catch(() => null)) as
-        | { project?: { resubmissionBlocked?: boolean }; error?: unknown }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        project?: { resubmissionBlocked?: boolean };
+        error?: unknown;
+      } | null;
       if (!res.ok) {
-        const message =
-          typeof data?.error === "string" ? data.error : "Failed to re-enable resubmission.";
+        const message = extractApiError(data, "Failed to re-enable resubmission.");
         toast.error(message, { id: toastId });
         setSaving(false);
         return;
@@ -97,8 +98,7 @@ export default function AdminDismissedClient({
           <div className="min-w-0">
             <div className="text-foreground font-bold text-2xl truncate">{project.name}</div>
             <div className="text-muted-foreground mt-1">
-              by{" "}
-              <span className="text-foreground font-medium">{initial.creator.name}</span>
+              by <span className="text-foreground font-medium">{initial.creator.name}</span>
               {initial.creator.email ? (
                 <span className="text-muted-foreground"> &middot; {initial.creator.email}</span>
               ) : null}
@@ -140,9 +140,7 @@ export default function AdminDismissedClient({
                   {initial.dismissedBy ? initial.dismissedBy.name : "Unknown admin"}
                 </div>
                 {initial.dismissedBy?.email ? (
-                  <div className="text-muted-foreground text-xs">
-                    {initial.dismissedBy.email}
-                  </div>
+                  <div className="text-muted-foreground text-xs">{initial.dismissedBy.email}</div>
                 ) : null}
               </div>
             </div>

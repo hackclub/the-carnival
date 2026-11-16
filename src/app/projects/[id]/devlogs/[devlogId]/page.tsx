@@ -16,7 +16,7 @@ export default async function DevlogDetailPage(props: {
   params: Promise<{ id: string; devlogId: string }>;
 }) {
   const session = await getServerSession({ disableCookieCache: true });
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect(`/login?callbackUrl=/projects`);
   }
 
@@ -91,10 +91,10 @@ export default async function DevlogDetailPage(props: {
           startedAt: row.startedAt.toISOString(),
           endedAt: row.endedAt.toISOString(),
           durationSeconds: row.durationSeconds,
-          attachments: row.attachments ?? [],
+          attachments: row.attachments,
           usedAi: row.usedAi,
           aiUsageDescription: row.aiUsageDescription ?? null,
-          hackatimeProjectNameSnapshot: row.hackatimeProjectNameSnapshot ?? "",
+          hackatimeProjectNameSnapshot: row.hackatimeProjectNameSnapshot,
           createdAt: row.createdAt.toISOString(),
           updatedAt: row.updatedAt.toISOString(),
           authorName: row.authorName || "Unknown",

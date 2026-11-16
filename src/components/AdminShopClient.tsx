@@ -21,6 +21,7 @@ import {
   Modal,
   Textarea,
 } from "@/components/ui";
+import { extractApiError } from "@/lib/project-form-utils";
 
 export type AdminShopItemDTO = {
   id: string;
@@ -105,7 +106,9 @@ export default function AdminShopClient({
   const [deductOverrides, setDeductOverrides] = useState<Record<string, string>>({});
   const [deductOverrideNotes, setDeductOverrideNotes] = useState<Record<string, string>>({});
   const [denyReasons, setDenyReasons] = useState<Record<string, string>>({});
-  const [suggestionRejectReasons, setSuggestionRejectReasons] = useState<Record<string, string>>({});
+  const [suggestionRejectReasons, setSuggestionRejectReasons] = useState<Record<string, string>>(
+    {},
+  );
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
   const [busySuggestionId, setBusySuggestionId] = useState<string | null>(null);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
@@ -115,7 +118,7 @@ export default function AdminShopClient({
     () => new Map(initial.orders.map((order) => [order.id, order])),
     [initial.orders],
   );
-  const selectedOrder = selectedOrderId ? ordersById.get(selectedOrderId) ?? null : null;
+  const selectedOrder = selectedOrderId ? (ordersById.get(selectedOrderId) ?? null) : null;
 
   const filteredOrders = useMemo(() => {
     if (activeFilter === "all") return initial.orders;
@@ -129,79 +132,87 @@ export default function AdminShopClient({
     [initial.suggestions],
   );
 
-  const onFulfill = useCallback(async (orderId: string) => {
-    const order = ordersById.get(orderId);
-    if (!order) return toast.error("Order not found.");
-    const link = (fulfillmentLinks[orderId] ?? "").trim();
-    const override = (deductOverrides[orderId] ?? "").trim();
-    const overrideNote = (deductOverrideNotes[orderId] ?? "").trim();
-    if (!link) return toast.error("Enter a fulfillment proof link first.");
-    if (override !== "" && !overrideNote) {
-      return toast.error("Add an override note when manually setting token deduction.");
-    }
-    if (override !== "" && !/^\d+$/.test(override)) {
-      return toast.error("Override token deduction must be a non-negative integer.");
-    }
-    if (override !== "" && Number(override) > order.requesterTokenBalance) {
-      return toast.error(`Cannot deduct more than ${order.requesterTokenBalance} available tokens.`);
-    }
-    if (!window.confirm(`Fulfill order for ${order.requesterName}?`)) return;
-
-    setBusyOrderId(orderId);
-    const toastId = toast.loading("Fulfilling...");
-    try {
-      const res = await fetch(`/api/admin/shop/orders/${encodeURIComponent(orderId)}/fulfill`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fulfillmentLink: link,
-          deductTokensOverride: override === "" ? undefined : override,
-          deductTokensOverrideNote: override === "" ? undefined : overrideNote,
-        }),
-      });
-      const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
-      if (!res.ok) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to fulfill order.", {
-          id: toastId,
-        });
-        setBusyOrderId(null);
-        return;
+  const onFulfill = useCallback(
+    async (orderId: string) => {
+      const order = ordersById.get(orderId);
+      if (!order) return toast.error("Order not found.");
+      const link = (fulfillmentLinks[orderId] ?? "").trim();
+      const override = (deductOverrides[orderId] ?? "").trim();
+      const overrideNote = (deductOverrideNotes[orderId] ?? "").trim();
+      if (!link) return toast.error("Enter a fulfillment proof link first.");
+      if (override !== "" && !overrideNote) {
+        return toast.error("Add an override note when manually setting token deduction.");
       }
-      toast.success("Fulfilled.", { id: toastId });
-      window.location.reload();
-    } catch {
-      toast.error("Failed to fulfill order.", { id: toastId });
-      setBusyOrderId(null);
-    }
-  }, [deductOverrideNotes, deductOverrides, fulfillmentLinks, ordersById]);
-
-  const onDeny = useCallback(async (orderId: string) => {
-    const reason = (denyReasons[orderId] ?? "").trim();
-    if (!reason) return toast.error("Add a reason before denying this order.");
-
-    setBusyOrderId(orderId);
-    const toastId = toast.loading("Denying...");
-    try {
-      const res = await fetch(`/api/admin/shop/orders/${encodeURIComponent(orderId)}/deny`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason }),
-      });
-      const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
-      if (!res.ok) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to deny order.", {
-          id: toastId,
-        });
-        setBusyOrderId(null);
-        return;
+      if (override !== "" && !/^\d+$/.test(override)) {
+        return toast.error("Override token deduction must be a non-negative integer.");
       }
-      toast.success("Order denied.", { id: toastId });
-      window.location.reload();
-    } catch {
-      toast.error("Failed to deny order.", { id: toastId });
-      setBusyOrderId(null);
-    }
-  }, [denyReasons]);
+      if (override !== "" && Number(override) > order.requesterTokenBalance) {
+        return toast.error(
+          `Cannot deduct more than ${order.requesterTokenBalance} available tokens.`,
+        );
+      }
+      if (!window.confirm(`Fulfill order for ${order.requesterName}?`)) return;
+
+      setBusyOrderId(orderId);
+      const toastId = toast.loading("Fulfilling...");
+      try {
+        const res = await fetch(`/api/admin/shop/orders/${encodeURIComponent(orderId)}/fulfill`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fulfillmentLink: link,
+            deductTokensOverride: override === "" ? undefined : override,
+            deductTokensOverrideNote: override === "" ? undefined : overrideNote,
+          }),
+        });
+        const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+        if (!res.ok) {
+          toast.error(extractApiError(data, "Failed to fulfill order."), {
+            id: toastId,
+          });
+          setBusyOrderId(null);
+          return;
+        }
+        toast.success("Fulfilled.", { id: toastId });
+        window.location.reload();
+      } catch {
+        toast.error("Failed to fulfill order.", { id: toastId });
+        setBusyOrderId(null);
+      }
+    },
+    [deductOverrideNotes, deductOverrides, fulfillmentLinks, ordersById],
+  );
+
+  const onDeny = useCallback(
+    async (orderId: string) => {
+      const reason = (denyReasons[orderId] ?? "").trim();
+      if (!reason) return toast.error("Add a reason before denying this order.");
+
+      setBusyOrderId(orderId);
+      const toastId = toast.loading("Denying...");
+      try {
+        const res = await fetch(`/api/admin/shop/orders/${encodeURIComponent(orderId)}/deny`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason }),
+        });
+        const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+        if (!res.ok) {
+          toast.error(extractApiError(data, "Failed to deny order."), {
+            id: toastId,
+          });
+          setBusyOrderId(null);
+          return;
+        }
+        toast.success("Order denied.", { id: toastId });
+        window.location.reload();
+      } catch {
+        toast.error("Failed to deny order.", { id: toastId });
+        setBusyOrderId(null);
+      }
+    },
+    [denyReasons],
+  );
 
   const onApproveSuggestion = useCallback(async (suggestionId: string) => {
     setBusySuggestionId(suggestionId);
@@ -213,7 +224,7 @@ export default function AdminShopClient({
       );
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to approve.", {
+        toast.error(extractApiError(data, "Failed to approve."), {
           id: toastId,
         });
         setBusySuggestionId(null);
@@ -227,35 +238,38 @@ export default function AdminShopClient({
     }
   }, []);
 
-  const onRejectSuggestion = useCallback(async (suggestionId: string, presetReason?: string) => {
-    const reason = (presetReason ?? suggestionRejectReasons[suggestionId] ?? "").trim();
-    if (!reason) return toast.error("Add a rejection reason first.");
-    setBusySuggestionId(suggestionId);
-    const toastId = toast.loading("Rejecting suggestion...");
-    try {
-      const res = await fetch(
-        `/api/admin/shop/item-suggestions/${encodeURIComponent(suggestionId)}/reject`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reason }),
-        },
-      );
-      const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
-      if (!res.ok) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to reject.", {
-          id: toastId,
-        });
+  const onRejectSuggestion = useCallback(
+    async (suggestionId: string, presetReason?: string) => {
+      const reason = (presetReason ?? suggestionRejectReasons[suggestionId] ?? "").trim();
+      if (!reason) return toast.error("Add a rejection reason first.");
+      setBusySuggestionId(suggestionId);
+      const toastId = toast.loading("Rejecting suggestion...");
+      try {
+        const res = await fetch(
+          `/api/admin/shop/item-suggestions/${encodeURIComponent(suggestionId)}/reject`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason }),
+          },
+        );
+        const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+        if (!res.ok) {
+          toast.error(extractApiError(data, "Failed to reject."), {
+            id: toastId,
+          });
+          setBusySuggestionId(null);
+          return;
+        }
+        toast.success("Suggestion rejected.", { id: toastId });
+        window.location.reload();
+      } catch {
+        toast.error("Failed to reject.", { id: toastId });
         setBusySuggestionId(null);
-        return;
       }
-      toast.success("Suggestion rejected.", { id: toastId });
-      window.location.reload();
-    } catch {
-      toast.error("Failed to reject.", { id: toastId });
-      setBusySuggestionId(null);
-    }
-  }, [suggestionRejectReasons]);
+    },
+    [suggestionRejectReasons],
+  );
 
   const onDeleteItem = useCallback(async (itemId: string) => {
     if (!window.confirm("Delete this shop item? This cannot be undone.")) return;
@@ -267,7 +281,7 @@ export default function AdminShopClient({
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to delete item.", { id: toastId });
+        toast.error(extractApiError(data, "Failed to delete item."), { id: toastId });
         setDeletingItemId(null);
         return;
       }
@@ -289,7 +303,10 @@ export default function AdminShopClient({
           </CardHeader>
           <CardContent>
             {pendingSuggestions.length === 0 ? (
-              <EmptyState title="No pending suggestions" description="Suggested items will appear here." />
+              <EmptyState
+                title="No pending suggestions"
+                description="Suggested items will appear here."
+              />
             ) : (
               <div className="flex flex-col gap-3">
                 {pendingSuggestions.map((s) => (
@@ -317,11 +334,13 @@ export default function AdminShopClient({
                           </div>
                           <div className="mt-1 text-xs text-muted-foreground">
                             Suggested by {s.submitterName}
-                            {s.submitterEmail ? ` (${s.submitterEmail})` : ""} • {s.tokenCost} tokens • ~
-                            {s.approvedHoursNeeded} hours
+                            {s.submitterEmail ? ` (${s.submitterEmail})` : ""} • {s.tokenCost}{" "}
+                            tokens • ~{s.approvedHoursNeeded} hours
                           </div>
                           {s.description ? (
-                            <div className="mt-2 text-sm text-muted-foreground line-clamp-2">{s.description}</div>
+                            <div className="mt-2 text-sm text-muted-foreground line-clamp-2">
+                              {s.description}
+                            </div>
                           ) : null}
                           {s.referenceUrl ? (
                             <a
@@ -338,7 +357,10 @@ export default function AdminShopClient({
                           <Textarea
                             value={suggestionRejectReasons[s.id] ?? ""}
                             onChange={(e) =>
-                              setSuggestionRejectReasons((prev) => ({ ...prev, [s.id]: e.target.value }))
+                              setSuggestionRejectReasons((prev) => ({
+                                ...prev,
+                                [s.id]: e.target.value,
+                              }))
                             }
                             rows={2}
                             placeholder="Reason if rejecting..."
@@ -371,7 +393,9 @@ export default function AdminShopClient({
                               loading={busySuggestionId === s.id}
                               loadingText="Approving..."
                               disabled={!s.imageUrl}
-                              title={!s.imageUrl ? "Needs an image before it can be approved" : undefined}
+                              title={
+                                !s.imageUrl ? "Needs an image before it can be approved" : undefined
+                              }
                               onClick={() => onApproveSuggestion(s.id)}
                             >
                               Approve
@@ -410,13 +434,17 @@ export default function AdminShopClient({
                     <div className="mt-3">
                       <div className="font-bold text-foreground truncate">{i.name}</div>
                       {i.description ? (
-                        <div className="mt-1 text-sm text-muted-foreground line-clamp-2">{i.description}</div>
+                        <div className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                          {i.description}
+                        </div>
                       ) : null}
                       <div className="mt-1 text-sm text-muted-foreground">
                         ~{i.approvedHoursNeeded} hours • {i.tokenCost} tokens
                       </div>
                       {i.orderNoteRequired ? (
-                        <div className="mt-1 text-xs font-medium text-carnival-blue">Requester note required</div>
+                        <div className="mt-1 text-xs font-medium text-carnival-blue">
+                          Requester note required
+                        </div>
                       ) : null}
                     </div>
                     <div className="mt-4 flex items-center gap-3">
@@ -505,12 +533,25 @@ export default function AdminShopClient({
                             referrerPolicy="no-referrer"
                           />
                           <div className="min-w-0">
-                            <div className="font-semibold text-foreground truncate">Requested item: {o.itemName}</div>
+                            <div className="font-semibold text-foreground truncate">
+                              Requested item: {o.itemName}
+                            </div>
                             <div className="mt-1 text-xs text-muted-foreground">
-                              {new Date(o.createdAt).toLocaleString()} • qty {o.quantity} • {o.tokenCost} tokens •{" "}
-                              {o.requesterName}
-                              {o.requesterEmail ? <>{" ("}<CopyableText text={o.requesterEmail} className="inline text-xs" />{")"}</> : ""} • available{" "}
-                              {o.requesterTokenBalance} tokens
+                              {new Date(o.createdAt).toLocaleString()} • qty {o.quantity} •{" "}
+                              {o.tokenCost} tokens • {o.requesterName}
+                              {o.requesterEmail ? (
+                                <>
+                                  {" ("}
+                                  <CopyableText
+                                    text={o.requesterEmail}
+                                    className="inline text-xs"
+                                  />
+                                  )
+                                </>
+                              ) : (
+                                ""
+                              )}{" "}
+                              • available {o.requesterTokenBalance} tokens
                             </div>
                             <div className="mt-2">
                               <ShopOrderStatusBadge status={o.status} />
@@ -557,7 +598,9 @@ export default function AdminShopClient({
                     referrerPolicy="no-referrer"
                   />
                   <div className="min-w-0">
-                    <div className="text-lg font-bold text-foreground">{selectedOrder.itemName}</div>
+                    <div className="text-lg font-bold text-foreground">
+                      {selectedOrder.itemName}
+                    </div>
                     {selectedOrder.itemDescription ? (
                       <div className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
                         {selectedOrder.itemDescription}
@@ -565,11 +608,16 @@ export default function AdminShopClient({
                     ) : null}
                     <div className="mt-3 text-sm text-muted-foreground">
                       Qty {selectedOrder.quantity} × {selectedOrder.unitTokenCost} tokens ={" "}
-                      <span className="font-semibold text-foreground">{selectedOrder.tokenCost}</span> tokens
+                      <span className="font-semibold text-foreground">
+                        {selectedOrder.tokenCost}
+                      </span>{" "}
+                      tokens
                     </div>
                     <div className="mt-1 text-sm text-muted-foreground">
                       Available tokens now:{" "}
-                      <span className="font-semibold text-foreground">{selectedOrder.requesterTokenBalance}</span>
+                      <span className="font-semibold text-foreground">
+                        {selectedOrder.requesterTokenBalance}
+                      </span>
                     </div>
                     <div className="mt-2">
                       <ShopOrderStatusBadge status={selectedOrder.status} />

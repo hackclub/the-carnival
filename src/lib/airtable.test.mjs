@@ -44,7 +44,9 @@ describe("airtable hours justification", () => {
     expect(output).toContain("Hackatime project: project-one");
     expect(output).toContain("Reviewed range: 2026-03-01 to 2026-03-31");
     expect(output).toContain("- Hackatime project reviewed: Yes");
-    expect(output).toContain("- Deflation reasons: Some claimed work could not be verified, Other (add context in note)");
+    expect(output).toContain(
+      "- Deflation reasons: Some claimed work could not be verified, Other (add context in note)",
+    );
     expect(output).toContain("- Deflation note: Scope verification was incomplete.");
     expect(output).toContain("Review comment:");
     expect(output).toContain("Approved with reduction.");

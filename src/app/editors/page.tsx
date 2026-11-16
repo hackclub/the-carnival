@@ -25,10 +25,15 @@ export default async function EditorsPage() {
 
       <main className="relative z-10 mx-auto max-w-5xl px-6 pb-20 md:px-10">
         <div className="platform-page-heading mb-8 px-6 py-5">
-          <h1 className="text-3xl font-bold uppercase leading-none tracking-[0.06em] text-foreground md:text-4xl">Editors you can build for</h1>
+          <h1 className="text-3xl font-bold uppercase leading-none tracking-[0.06em] text-foreground md:text-4xl">
+            Editors you can build for
+          </h1>
           <p className="mt-3 text-sm font-bold leading-6 text-muted-foreground md:text-base">
             Pick any supported program/editor and ship an extension/plugin/widget. Check out the{" "}
-            <Link href="/resources" className="font-bold text-[var(--platform-ink)] underline decoration-[3px] underline-offset-4 hover:text-[var(--platform-accent-strong)]">
+            <Link
+              href="/resources"
+              className="font-bold text-[var(--platform-ink)] underline decoration-[3px] underline-offset-4 hover:text-[var(--platform-accent-strong)]"
+            >
               Resources
             </Link>{" "}
             section for documentation and tutorials.
@@ -52,7 +57,8 @@ export default async function EditorsPage() {
             </span>
           </div>
           <div className="mt-5 text-sm font-bold leading-6 text-muted-foreground">
-            Tip: in your project submission, include screenshots and clear install/run steps for that editor.
+            Tip: in your project submission, include screenshots and clear install/run steps for
+            that editor.
           </div>
         </div>
       </main>

@@ -8,6 +8,6 @@ const ORDER_STATUS_META: Record<ShopOrderStatus, { label: string; variant: Badge
 };
 
 export default function ShopOrderStatusBadge({ status }: { status: ShopOrderStatus }) {
-  const meta = ORDER_STATUS_META[status] ?? ORDER_STATUS_META.pending;
+  const meta = ORDER_STATUS_META[status];
   return <Badge variant={meta.variant}>{meta.label}</Badge>;
 }

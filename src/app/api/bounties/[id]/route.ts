@@ -22,10 +22,7 @@ function isBountyProjectStatus(value: unknown): value is BountyProjectStatus {
   return value === "pending" || value === "approved" || value === "rejected";
 }
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -67,7 +64,8 @@ export async function PATCH(
 
   if (body.description !== undefined) {
     const description = toCleanString(body.description);
-    if (!description) return NextResponse.json({ error: "Description is required" }, { status: 400 });
+    if (!description)
+      return NextResponse.json({ error: "Description is required" }, { status: 400 });
     updates.description = description;
   }
 
@@ -82,7 +80,10 @@ export async function PATCH(
   if (body.helpfulLinks !== undefined) {
     const helpfulLinks = toBountyHelpfulLinks(body.helpfulLinks);
     if (!helpfulLinks) {
-      return NextResponse.json({ error: "Helpful links must be valid label + URL pairs" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Helpful links must be valid label + URL pairs" },
+        { status: 400 },
+      );
     }
     updates.helpfulLinks = helpfulLinks;
   }
@@ -142,10 +143,7 @@ export async function PATCH(
   return NextResponse.json({ success: true, status: updates.status ?? existing.status });
 }
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

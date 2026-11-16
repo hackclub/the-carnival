@@ -51,9 +51,7 @@ describe("hackatime-range", () => {
     expect(toUtcBoundaryDate("2026-03-10", "start")?.toISOString()).toBe(
       "2026-03-10T00:00:00.000Z",
     );
-    expect(toUtcBoundaryDate("2026-03-10", "end")?.toISOString()).toBe(
-      "2026-03-10T23:59:59.999Z",
-    );
+    expect(toUtcBoundaryDate("2026-03-10", "end")?.toISOString()).toBe("2026-03-10T23:59:59.999Z");
   });
 
   test("formats canonical ranges as date-only labels", () => {

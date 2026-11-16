@@ -40,14 +40,18 @@ describe("evaluateTelescreenGrantGate", () => {
   });
 
   test("blocks until a fraud reviewer has scored it", () => {
-    expect(gate({ state: "awaiting_review", trustScore: null, outcomeStatus: null })).toMatchObject({
-      ok: false,
-      code: "telescreen_awaiting_review",
-    });
+    expect(gate({ state: "awaiting_review", trustScore: null, outcomeStatus: null })).toMatchObject(
+      {
+        ok: false,
+        code: "telescreen_awaiting_review",
+      },
+    );
   });
 
   test("blocks a fraud rejection", () => {
-    expect(gate({ state: "rejected_fraud", trustScore: 3, outcomeStatus: "rejected" })).toMatchObject({
+    expect(
+      gate({ state: "rejected_fraud", trustScore: 3, outcomeStatus: "rejected" }),
+    ).toMatchObject({
       ok: false,
       code: "telescreen_fraud",
     });
@@ -68,7 +72,9 @@ describe("evaluateTelescreenGrantGate", () => {
   });
 
   test("an already-recorded approval passes; a recorded rejection blocks", () => {
-    expect(gate({ state: "decided", trustScore: 8, outcomeStatus: "approved" })).toMatchObject({ ok: true });
+    expect(gate({ state: "decided", trustScore: 8, outcomeStatus: "approved" })).toMatchObject({
+      ok: true,
+    });
     expect(gate({ state: "decided", trustScore: 8, outcomeStatus: "rejected" })).toMatchObject({
       ok: false,
       code: "telescreen_outcome_conflict",
@@ -81,36 +87,66 @@ describe("verifyRobertWebhookSignature", () => {
   const rawBody = JSON.stringify({ event: "ping", deliveryId: "d-1" });
   const now = 1_790_172_157;
   const sign = (ts, body = rawBody, key = secret) =>
-    "sha256=" + createHmac("sha256", key).update(`${ts}.${body}`).digest("hex");
+    `sha256=${createHmac("sha256", key).update(`${ts}.${body}`).digest("hex")}`;
 
   test("accepts a correctly signed, fresh request", () => {
     expect(
-      verifyRobertWebhookSignature({ secret, timestamp: String(now), signature: sign(now), rawBody, nowSeconds: now }),
+      verifyRobertWebhookSignature({
+        secret,
+        timestamp: String(now),
+        signature: sign(now),
+        rawBody,
+        nowSeconds: now,
+      }),
     ).toBe(true);
   });
 
   test("rejects a tampered body, wrong secret, or missing headers", () => {
     const base = { secret, timestamp: String(now), nowSeconds: now };
-    expect(verifyRobertWebhookSignature({ ...base, signature: sign(now), rawBody: rawBody + " " })).toBe(false);
-    expect(verifyRobertWebhookSignature({ ...base, signature: sign(now, rawBody, "other"), rawBody })).toBe(false);
+    expect(
+      verifyRobertWebhookSignature({ ...base, signature: sign(now), rawBody: `${rawBody} ` }),
+    ).toBe(false);
+    expect(
+      verifyRobertWebhookSignature({ ...base, signature: sign(now, rawBody, "other"), rawBody }),
+    ).toBe(false);
     expect(verifyRobertWebhookSignature({ ...base, signature: null, rawBody })).toBe(false);
-    expect(verifyRobertWebhookSignature({ ...base, timestamp: null, signature: sign(now), rawBody })).toBe(false);
+    expect(
+      verifyRobertWebhookSignature({ ...base, timestamp: null, signature: sign(now), rawBody }),
+    ).toBe(false);
   });
 
   test("rejects timestamps more than five minutes from our clock", () => {
     const stale = now - 301;
     expect(
-      verifyRobertWebhookSignature({ secret, timestamp: String(stale), signature: sign(stale), rawBody, nowSeconds: now }),
+      verifyRobertWebhookSignature({
+        secret,
+        timestamp: String(stale),
+        signature: sign(stale),
+        rawBody,
+        nowSeconds: now,
+      }),
     ).toBe(false);
     const edge = now - 300;
     expect(
-      verifyRobertWebhookSignature({ secret, timestamp: String(edge), signature: sign(edge), rawBody, nowSeconds: now }),
+      verifyRobertWebhookSignature({
+        secret,
+        timestamp: String(edge),
+        signature: sign(edge),
+        rawBody,
+        nowSeconds: now,
+      }),
     ).toBe(true);
   });
 
   test("rejects a non-numeric timestamp", () => {
     expect(
-      verifyRobertWebhookSignature({ secret, timestamp: "12a", signature: sign("12a"), rawBody, nowSeconds: now }),
+      verifyRobertWebhookSignature({
+        secret,
+        timestamp: "12a",
+        signature: sign("12a"),
+        rawBody,
+        nowSeconds: now,
+      }),
     ).toBe(false);
   });
 });

@@ -21,7 +21,6 @@ import ProjectLinkIcon, { PROJECT_LINK_META } from "@/components/ProjectLinkIcon
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import ReviewJustificationSummary from "@/components/ReviewJustificationSummary";
 import { Modal } from "@/components/ui";
-import { R2ImageUpload } from "@/components/R2ImageUpload";
 import { ScreenshotGrid } from "@/components/ScreenshotGrid";
 import { DateTimePicker } from "@/components/ui/date-picker";
 import {
@@ -53,6 +52,7 @@ import {
   formatTotalSeconds,
   type HackatimeProjectOption,
   type HackatimeRangePreview,
+  extractApiError,
 } from "@/lib/project-form-utils";
 
 export type ManageProjectInitial = {
@@ -109,7 +109,9 @@ export default function ManageProjectClient({
     hackatimeStartedAt: initial.hackatimeStartedAt,
     hackatimeStoppedAt: initial.hackatimeStoppedAt,
   });
-  const initialSubmissionChecklist = normalizeProjectSubmissionChecklist(initial.submissionChecklist);
+  const initialSubmissionChecklist = normalizeProjectSubmissionChecklist(
+    initial.submissionChecklist,
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -128,9 +130,8 @@ export default function ManageProjectClient({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const [savedSubmissionChecklist, setSavedSubmissionChecklist] = useState<ProjectSubmissionChecklist | null>(
-    initial.submissionChecklist ?? null,
-  );
+  const [savedSubmissionChecklist, setSavedSubmissionChecklist] =
+    useState<ProjectSubmissionChecklist | null>(initial.submissionChecklist ?? null);
   const [checkReadme, setCheckReadme] = useState(initialSubmissionChecklist.readmeInstructions);
   const [checkReadmeDescribes, setCheckReadmeDescribes] = useState(
     initialSubmissionChecklist.readmeDescribesProject,
@@ -140,7 +141,9 @@ export default function ManageProjectClient({
     initialSubmissionChecklist.worksOnDeclaredPlatform,
   );
   const [aiUsage, setAiUsage] = useState(initialSubmissionChecklist.usedAi);
-  const [checkGithubPublic, setCheckGithubPublic] = useState(initialSubmissionChecklist.githubPublic);
+  const [checkGithubPublic, setCheckGithubPublic] = useState(
+    initialSubmissionChecklist.githubPublic,
+  );
   const [checkDescriptionClear, setCheckDescriptionClear] = useState(
     initialSubmissionChecklist.descriptionClear,
   );
@@ -150,9 +153,8 @@ export default function ManageProjectClient({
   const [checkDidNotManipulateHackatimeData, setCheckDidNotManipulateHackatimeData] = useState(
     initialSubmissionChecklist.didNotManipulateHackatimeData,
   );
-  const [checkDidNotCopyCodeWithoutAttribution, setCheckDidNotCopyCodeWithoutAttribution] = useState(
-    initialSubmissionChecklist.didNotCopyCodeWithoutAttribution,
-  );
+  const [checkDidNotCopyCodeWithoutAttribution, setCheckDidNotCopyCodeWithoutAttribution] =
+    useState(initialSubmissionChecklist.didNotCopyCodeWithoutAttribution);
   const [checkAddressedRejection, setCheckAddressedRejection] = useState(false);
 
   const [hackatimeProjects, setHackatimeProjects] = useState<HackatimeProjectOption[] | null>(null);
@@ -166,27 +168,29 @@ export default function ManageProjectClient({
   const [name, setName] = useState(initial.name);
   const [description, setDescription] = useState(initial.description);
   const [category, setCategory] = useState(initial.category ?? "");
-  const [tagsInput, setTagsInput] = useState((initial.tags ?? []).join(", "));
-  const [projectType, setProjectType] = useState<ProjectType>(
-    initial.projectType ?? "extension-plugin",
-  );
+  const [tagsInput, setTagsInput] = useState(initial.tags.join(", "));
+  const [projectType, setProjectType] = useState<ProjectType>(initial.projectType);
   const [editor, setEditor] = useState<ProjectEditor>(initial.editor);
   const [editorOther, setEditorOther] = useState(initial.editorOther);
   const [hackatimeProjectName, setHackatimeProjectName] = useState(initial.hackatimeProjectName);
-  const [hackatimeStartedAt, setHackatimeStartedAt] = useState<string | null>(initial.hackatimeStartedAt);
-  const [hackatimeStoppedAt, setHackatimeStoppedAt] = useState<string | null>(initial.hackatimeStoppedAt);
+  const [hackatimeStartedAt, setHackatimeStartedAt] = useState<string | null>(
+    initial.hackatimeStartedAt,
+  );
+  const [hackatimeStoppedAt, setHackatimeStoppedAt] = useState<string | null>(
+    initial.hackatimeStoppedAt,
+  );
   const [hackatimeTotalSeconds, setHackatimeTotalSeconds] = useState<number | null>(
     initial.hackatimeTotalSeconds,
   );
   const [videoUrl, setVideoUrl] = useState(initial.videoUrl);
   const [playableDemoUrl, setPlayableDemoUrl] = useState(initial.playableDemoUrl);
   const [codeUrl, setCodeUrl] = useState(initial.codeUrl);
-  const [previewImage, setPreviewImage] = useState(initial.previewImage ?? "");
+  const [previewImage, setPreviewImage] = useState(initial.previewImage);
   const [previewDragOver, setPreviewDragOver] = useState(false);
   const [previewUploading, setPreviewUploading] = useState(false);
   const previewInputRef = useRef<HTMLInputElement | null>(null);
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>(
-    (initial.screenshots?.length ?? 0) > 0 ? initial.screenshots : [""],
+    initial.screenshots.length > 0 ? initial.screenshots : [""],
   );
   const [status, setStatus] = useState<ProjectStatus>(initial.status);
   const [approvedHours, setApprovedHours] = useState<number | null>(initial.approvedHours);
@@ -200,8 +204,12 @@ export default function ManageProjectClient({
     initial.creatorOriginalityRationale,
   );
   const reviews = initial.reviews;
-  const [bountyProjectId, setBountyProjectId] = useState<string | null>(initial.bountyProjectId ?? null);
-  const [availableBounties, setAvailableBounties] = useState<Array<{ id: string; name: string; prizeUsd: number }>>([]);
+  const [bountyProjectId, setBountyProjectId] = useState<string | null>(
+    initial.bountyProjectId ?? null,
+  );
+  const [availableBounties, setAvailableBounties] = useState<
+    Array<{ id: string; name: string; prizeUsd: number }>
+  >([]);
 
   useEffect(() => {
     fetch("/api/bounties")
@@ -244,48 +252,55 @@ export default function ManageProjectClient({
     return () => window.removeEventListener("focus", recheck);
   }, [identityBlocked, router]);
 
-  const uploadPreviewImage = useCallback(async (file: File) => {
-    // PNG/JPG only — mirrors the server-side presign allowlist
-    // (src/lib/review/config.ts).
-    const contentType = (file.type || "").toLowerCase();
-    if (!["image/png", "image/jpeg", "image/jpg"].includes(contentType)) {
-      toast.error("Please choose a PNG or JPG image (no GIF, WebP, or SVG).");
-      return;
-    }
-    setPreviewUploading(true);
-    const toastId = toast.loading("Uploading preview...");
-    try {
-      const presignRes = await fetch("/api/uploads/presign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "project_screenshot", contentType, projectId: initial.id }),
-      });
-      const presignData = await presignRes.json().catch(() => null);
-      if (!presignRes.ok) {
-        toast.error(presignData?.error ?? "Failed to start upload.", { id: toastId });
-        setPreviewUploading(false);
+  const uploadPreviewImage = useCallback(
+    async (file: File) => {
+      // PNG/JPG only — mirrors the server-side presign allowlist
+      // (src/lib/review/config.ts).
+      const contentType = (file.type || "").toLowerCase();
+      if (!["image/png", "image/jpeg", "image/jpg"].includes(contentType)) {
+        toast.error("Please choose a PNG or JPG image (no GIF, WebP, or SVG).");
         return;
       }
-      const { uploadUrl, publicUrl } = presignData ?? {};
-      if (!uploadUrl || !publicUrl) {
-        toast.error("Upload response missing URLs.", { id: toastId });
+      setPreviewUploading(true);
+      const toastId = toast.loading("Uploading preview...");
+      try {
+        const presignRes = await fetch("/api/uploads/presign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kind: "project_screenshot", contentType, projectId: initial.id }),
+        });
+        const presignData = await presignRes.json().catch(() => null);
+        if (!presignRes.ok) {
+          toast.error(presignData?.error ?? "Failed to start upload.", { id: toastId });
+          setPreviewUploading(false);
+          return;
+        }
+        const { uploadUrl, publicUrl } = presignData ?? {};
+        if (!uploadUrl || !publicUrl) {
+          toast.error("Upload response missing URLs.", { id: toastId });
+          setPreviewUploading(false);
+          return;
+        }
+        const putRes = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": contentType },
+          body: file,
+        });
+        if (!putRes.ok) {
+          toast.error(`Upload failed (${putRes.status})`, { id: toastId });
+          setPreviewUploading(false);
+          return;
+        }
+        setPreviewImage(publicUrl);
+        toast.success("Preview image uploaded.", { id: toastId });
+      } catch {
+        toast.error("Upload failed.", { id: toastId });
+      } finally {
         setPreviewUploading(false);
-        return;
       }
-      const putRes = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": contentType }, body: file });
-      if (!putRes.ok) {
-        toast.error(`Upload failed (${putRes.status})`, { id: toastId });
-        setPreviewUploading(false);
-        return;
-      }
-      setPreviewImage(publicUrl);
-      toast.success("Preview image uploaded.", { id: toastId });
-    } catch {
-      toast.error("Upload failed.", { id: toastId });
-    } finally {
-      setPreviewUploading(false);
-    }
-  }, [initial.id]);
+    },
+    [initial.id],
+  );
 
   const isGranted = status === "granted";
 
@@ -307,8 +322,7 @@ export default function ManageProjectClient({
     return reviews.find((r) => r.decision === "rejected") ?? null;
   }, [reviews]);
 
-  const isReReview =
-    !isGranted && !isInReview && !isShipped && status === "work-in-progress" && !!latestRejectedReview;
+  const isReReview = !isGranted && !isInReview && !isShipped && !!latestRejectedReview;
 
   const screenshots = useMemo(() => cleanList(screenshotUrls), [screenshotUrls]);
   const submitConsideredRange = useMemo(
@@ -340,33 +354,39 @@ export default function ManageProjectClient({
       bounds.start.getTime() === selectedStart.getTime() &&
       bounds.end.getTime() === selectedEnd.getTime()
       ? {
-        hackatimeStartedAt: selectedHackatimeProject.startedAt,
-        hackatimeStoppedAt: selectedHackatimeProject.stoppedAt,
-        hackatimeTotalSeconds: selectedHackatimeProject.totalSeconds,
-        hackatimeHours: null,
-      }
+          hackatimeStartedAt: selectedHackatimeProject.startedAt,
+          hackatimeStoppedAt: selectedHackatimeProject.stoppedAt,
+          hackatimeTotalSeconds: selectedHackatimeProject.totalSeconds,
+          hackatimeHours: null,
+        }
       : null;
   }, [hackatimeProjectName, selectedHackatimeProject, submitConsideredRange]);
-  const { preview: hackatimePreview, loading: hackatimePreviewLoading, error: hackatimePreviewError } =
-    useHackatimeRangePreview({
-      enabled: !!hackatimeProjectName.trim(),
-      endpoint: "/api/hackatime/projects/preview",
-      body:
-        hackatimeProjectName.trim() && submitConsideredRange.ok
-          ? {
+  const {
+    preview: hackatimePreview,
+    loading: hackatimePreviewLoading,
+    error: hackatimePreviewError,
+  } = useHackatimeRangePreview({
+    enabled: !!hackatimeProjectName.trim(),
+    endpoint: "/api/hackatime/projects/preview",
+    body:
+      hackatimeProjectName.trim() && submitConsideredRange.ok
+        ? {
             hackatimeProjectName,
             consideredHackatimeRange: submitConsideredRange.value,
           }
-          : null,
-      rangeError:
-        hackatimeProjectName.trim() && !submitConsideredRange.ok && (submitRangeStartDate || submitRangeEndDate)
-          ? submitConsideredRange.error
-          : null,
-      localPreview: selectedHackatimePreview,
-    });
+        : null,
+    rangeError:
+      hackatimeProjectName.trim() &&
+      !submitConsideredRange.ok &&
+      (submitRangeStartDate || submitRangeEndDate)
+        ? submitConsideredRange.error
+        : null,
+    localPreview: selectedHackatimePreview,
+  });
   const effectiveHackatimeStartedAt = hackatimePreview?.hackatimeStartedAt ?? hackatimeStartedAt;
   const effectiveHackatimeStoppedAt = hackatimePreview?.hackatimeStoppedAt ?? hackatimeStoppedAt;
-  const effectiveHackatimeTotalSeconds = hackatimePreview?.hackatimeTotalSeconds ?? hackatimeTotalSeconds;
+  const effectiveHackatimeTotalSeconds =
+    hackatimePreview?.hackatimeTotalSeconds ?? hackatimeTotalSeconds;
   const currentConsideredRange = useMemo(
     () =>
       getProjectConsideredHackatimeRange({
@@ -403,7 +423,17 @@ export default function ManageProjectClient({
         checklist: null, // declarations checked separately below
         r2PublicBaseUrl: null,
       }).filter((f) => f.code !== "declarations"),
-    [codeUrl, description, editor, editorOther, name, playableDemoUrl, projectType, videoUrl, screenshots],
+    [
+      codeUrl,
+      description,
+      editor,
+      editorOther,
+      name,
+      playableDemoUrl,
+      projectType,
+      videoUrl,
+      screenshots,
+    ],
   );
 
   const submitRequirements = useMemo(() => {
@@ -471,16 +501,19 @@ export default function ManageProjectClient({
   );
   const setChecklistValue = useCallback(
     (key: keyof ProjectSubmissionChecklist, checked: boolean) => {
-      if (key === "readmeInstructions") setCheckReadme(checked);
-      else if (key === "readmeDescribesProject") setCheckReadmeDescribes(checked);
-      else if (key === "testedWorking") setCheckTested(checked);
-      else if (key === "usedAi") setAiUsage(checked);
-      else if (key === "githubPublic") setCheckGithubPublic(checked);
-      else if (key === "descriptionClear") setCheckDescriptionClear(checked);
-      else if (key === "screenshotsWorking") setCheckScreenshotsWorking(checked);
-      else if (key === "worksOnDeclaredPlatform") setCheckWorksOnPlatform(checked);
-      else if (key === "didNotManipulateHackatimeData") setCheckDidNotManipulateHackatimeData(checked);
-      else if (key === "didNotCopyCodeWithoutAttribution") setCheckDidNotCopyCodeWithoutAttribution(checked);
+      const setters: Record<keyof ProjectSubmissionChecklist, (value: boolean) => void> = {
+        readmeInstructions: setCheckReadme,
+        readmeDescribesProject: setCheckReadmeDescribes,
+        testedWorking: setCheckTested,
+        usedAi: setAiUsage,
+        githubPublic: setCheckGithubPublic,
+        descriptionClear: setCheckDescriptionClear,
+        screenshotsWorking: setCheckScreenshotsWorking,
+        worksOnDeclaredPlatform: setCheckWorksOnPlatform,
+        didNotManipulateHackatimeData: setCheckDidNotManipulateHackatimeData,
+        didNotCopyCodeWithoutAttribution: setCheckDidNotCopyCodeWithoutAttribution,
+      };
+      setters[key](checked);
     },
     [],
   );
@@ -490,13 +523,16 @@ export default function ManageProjectClient({
     setHackatimeError(null);
     try {
       const returnTo = `${window.location.pathname}${window.location.search}`;
-      const res = await fetch(
-        `/api/hackatime/projects?returnTo=${encodeURIComponent(returnTo)}`,
-        { method: "GET" },
-      );
-      const data = (await res.json().catch(() => null)) as
-        | { projects?: unknown; error?: unknown; code?: unknown; reason?: unknown; connectUrl?: unknown }
-        | null;
+      const res = await fetch(`/api/hackatime/projects?returnTo=${encodeURIComponent(returnTo)}`, {
+        method: "GET",
+      });
+      const data = (await res.json().catch(() => null)) as {
+        projects?: unknown;
+        error?: unknown;
+        code?: unknown;
+        reason?: unknown;
+        connectUrl?: unknown;
+      } | null;
 
       if (!res.ok) {
         const code = typeof data?.code === "string" ? data.code : "";
@@ -505,12 +541,11 @@ export default function ManageProjectClient({
           typeof data?.connectUrl === "string" && data.connectUrl.trim() ? data.connectUrl : null;
         if (code === "oauth_required") {
           setHackatimeConnectUrl(
-            connectUrl ??
-              `/api/hackatime/oauth/start?returnTo=${encodeURIComponent(returnTo)}`,
+            connectUrl ?? `/api/hackatime/oauth/start?returnTo=${encodeURIComponent(returnTo)}`,
           );
           setHackatimeNeedsReconnect(reason === "revoked");
         }
-        const message = typeof data?.error === "string" ? data.error : "Failed to load.";
+        const message = extractApiError(data, "Failed to load.");
         setHackatimeError(message);
         setHackatimeProjects(null);
         setHackatimeLoading(false);
@@ -554,26 +589,63 @@ export default function ManageProjectClient({
 
   useEffect(() => {
     if (hackatimeProjects === null && !hackatimeLoading) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      refreshHackatimeProjects();
+      void refreshHackatimeProjects();
     }
   }, [hackatimeLoading, hackatimeProjects, refreshHackatimeProjects]);
 
-  const addScreenshotField = useCallback(() => {
-    setScreenshotUrls((prev) => [...prev, ""]);
-  }, []);
+  /** The editable fields, as the PATCH endpoint expects them. Shared by save and submit. */
+  const buildProjectFields = () => ({
+    name: name.trim(),
+    description: description.trim(),
+    category: category.trim(),
+    tags: tagsInput,
+    projectType,
+    editor,
+    editorOther: editor === "other" ? editorOther.trim() : "",
+    hackatimeProjectName: hackatimeProjectName.trim(),
+    hackatimeStartedAt: effectiveHackatimeStartedAt,
+    hackatimeStoppedAt: effectiveHackatimeStoppedAt,
+    hackatimeTotalSeconds: effectiveHackatimeTotalSeconds,
+    videoUrl: videoUrl.trim(),
+    playableDemoUrl: playableDemoUrl.trim(),
+    codeUrl: codeUrl.trim(),
+    previewImage: previewImage.trim(),
+    screenshots: cleanList(screenshotUrls),
+    bountyProjectId: bountyProjectId || null,
+    creatorDeclaredOriginality,
+    creatorDuplicateExplanation: creatorDuplicateExplanation?.trim() ?? "",
+    creatorOriginalityRationale: creatorOriginalityRationale?.trim() ?? "",
+  });
 
-  const updateScreenshotField = useCallback((idx: number, value: string) => {
-    setScreenshotUrls((prev) => prev.map((v, i) => (i === idx ? value : v)));
-  }, []);
-
-  const removeScreenshotField = useCallback((idx: number) => {
-    setScreenshotUrls((prev) => {
-      if (prev.length <= 1) return [""];
-      const next = prev.filter((_, i) => i !== idx);
-      return next.length === 0 ? [""] : next;
-    });
-  }, []);
+  /** Sync local form state with the project the server just returned. */
+  const applyServerProject = (p: ApiProject) => {
+    setName(p.name);
+    setDescription(p.description);
+    setCategory(p.category ?? "");
+    setTagsInput(p.tags.join(", "));
+    setProjectType(p.projectType);
+    setEditor(p.editor);
+    setEditorOther(p.editorOther);
+    setHackatimeProjectName(p.hackatimeProjectName);
+    setHackatimeStartedAt(p.hackatimeStartedAt ?? null);
+    setHackatimeStoppedAt(p.hackatimeStoppedAt ?? null);
+    setHackatimeTotalSeconds(
+      typeof p.hackatimeTotalSeconds === "number" ? p.hackatimeTotalSeconds : null,
+    );
+    setVideoUrl(p.videoUrl);
+    setPlayableDemoUrl(p.playableDemoUrl);
+    setCodeUrl(p.codeUrl);
+    setPreviewImage(p.previewImage);
+    setScreenshotUrls(p.screenshots.length > 0 ? p.screenshots : [""]);
+    setSavedSubmissionChecklist(p.submissionChecklist ?? null);
+    setCreatorDeclaredOriginality(p.creatorDeclaredOriginality);
+    setCreatorDuplicateExplanation(p.creatorDuplicateExplanation ?? null);
+    setCreatorOriginalityRationale(p.creatorOriginalityRationale ?? null);
+    setStatus(p.status);
+    setApprovedHours(p.approvedHours ?? null);
+    setSubmitRangeStartDate(p.hackatimeStartedAt ?? "");
+    setSubmitRangeEndDate(p.hackatimeStoppedAt ?? "");
+  };
 
   const onSave = async () => {
     if (isGranted) {
@@ -589,29 +661,12 @@ export default function ManageProjectClient({
     setError(null);
     setSavedAt(null);
 
-    const payload: Record<string, unknown> = {
-      name: name.trim(),
-      description: description.trim(),
-      category: category.trim(),
-      tags: tagsInput,
-      projectType,
-      editor,
-      editorOther: editor === "other" ? editorOther.trim() : "",
-      hackatimeProjectName: hackatimeProjectName.trim(),
-      hackatimeStartedAt: effectiveHackatimeStartedAt,
-      hackatimeStoppedAt: effectiveHackatimeStoppedAt,
-      hackatimeTotalSeconds: effectiveHackatimeTotalSeconds,
-      videoUrl: videoUrl.trim(),
-      playableDemoUrl: playableDemoUrl.trim(),
-      codeUrl: codeUrl.trim(),
-      previewImage: previewImage.trim(),
-      screenshots: cleanList(screenshotUrls),
-      bountyProjectId: bountyProjectId || null,
-      creatorDeclaredOriginality,
-      creatorDuplicateExplanation: creatorDuplicateExplanation?.trim() ?? "",
-      creatorOriginalityRationale: creatorOriginalityRationale?.trim() ?? "",
+    const payload = {
+      ...buildProjectFields(),
       consideredHackatimeRange:
-        hackatimeProjectName.trim() && submitConsideredRange.ok ? submitConsideredRange.value : undefined,
+        hackatimeProjectName.trim() && submitConsideredRange.ok
+          ? submitConsideredRange.value
+          : undefined,
     };
 
     const toastId = toast.loading("Saving…");
@@ -621,48 +676,21 @@ export default function ManageProjectClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = (await res.json().catch(() => null)) as
-        | { project?: ApiProject; notice?: unknown; error?: unknown }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        project?: ApiProject;
+        notice?: unknown;
+        error?: unknown;
+      } | null;
 
       if (!res.ok) {
-        const message =
-          typeof data?.error === "string" ? data.error : "Failed to save changes.";
+        const message = extractApiError(data, "Failed to save changes.");
         setError(message);
         toast.error(message, { id: toastId });
         setSaving(false);
         return;
       }
 
-      const p = data?.project;
-      if (p) {
-        setName(p.name);
-        setDescription(p.description);
-        setCategory(p.category ?? "");
-        setTagsInput((p.tags ?? []).join(", "));
-        setProjectType(p.projectType ?? "extension-plugin");
-        setEditor(p.editor);
-        setEditorOther(p.editorOther ?? "");
-        setHackatimeProjectName(p.hackatimeProjectName);
-        setHackatimeStartedAt(p.hackatimeStartedAt ?? null);
-        setHackatimeStoppedAt(p.hackatimeStoppedAt ?? null);
-        setHackatimeTotalSeconds(
-          typeof p.hackatimeTotalSeconds === "number" ? p.hackatimeTotalSeconds : null,
-        );
-        setVideoUrl(p.videoUrl);
-        setPlayableDemoUrl(p.playableDemoUrl);
-        setCodeUrl(p.codeUrl);
-        setPreviewImage(p.previewImage ?? "");
-        setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
-        setSavedSubmissionChecklist(p.submissionChecklist ?? null);
-        setCreatorDeclaredOriginality(p.creatorDeclaredOriginality);
-        setCreatorDuplicateExplanation(p.creatorDuplicateExplanation ?? null);
-        setCreatorOriginalityRationale(p.creatorOriginalityRationale ?? null);
-        setStatus(p.status);
-        setApprovedHours(p.approvedHours ?? null);
-        setSubmitRangeStartDate(p.hackatimeStartedAt ?? "");
-        setSubmitRangeEndDate(p.hackatimeStoppedAt ?? "");
-      }
+      if (data?.project) applyServerProject(data.project);
 
       setSavedAt(Date.now());
       const notice = typeof data?.notice === "string" ? data.notice : null;
@@ -747,31 +775,12 @@ export default function ManageProjectClient({
     }
     setSubmitting(true);
 
-    const payload: Record<string, unknown> = {
-      name: name.trim(),
-      description: description.trim(),
-      category: category.trim(),
-      tags: tagsInput,
-      projectType,
-      editor,
-      editorOther: editor === "other" ? editorOther.trim() : "",
-      hackatimeProjectName: hackatimeProjectName.trim(),
-      hackatimeStartedAt: effectiveHackatimeStartedAt,
-      hackatimeStoppedAt: effectiveHackatimeStoppedAt,
-      hackatimeTotalSeconds: effectiveHackatimeTotalSeconds,
-      videoUrl: videoUrl.trim(),
-      playableDemoUrl: playableDemoUrl.trim(),
-      codeUrl: codeUrl.trim(),
-      previewImage: previewImage.trim(),
-      screenshots: cleanList(screenshotUrls),
-      bountyProjectId: bountyProjectId || null,
+    const payload = {
+      ...buildProjectFields(),
       status: "in-review",
       consideredHackatimeRange: submitConsideredRange.value,
-      creatorDeclaredOriginality,
-      creatorDuplicateExplanation: creatorDuplicateExplanation?.trim() ?? "",
-      creatorOriginalityRationale: creatorOriginalityRationale?.trim() ?? "",
+      submissionChecklist,
     };
-    payload.submissionChecklist = submissionChecklist;
 
     const toastId = toast.loading("Submitting for review…");
     try {
@@ -780,13 +789,16 @@ export default function ManageProjectClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = (await res.json().catch(() => null)) as
-        | { project?: ApiProject; notice?: unknown; error?: unknown; code?: unknown; missing?: unknown }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        project?: ApiProject;
+        notice?: unknown;
+        error?: unknown;
+        code?: unknown;
+        missing?: unknown;
+      } | null;
 
       if (!res.ok) {
-        const message =
-          typeof data?.error === "string" ? data.error : "Failed to submit for review.";
+        const message = extractApiError(data, "Failed to submit for review.");
         const code = typeof data?.code === "string" ? data.code : null;
         if (code === "missing_profile_address") {
           toast.custom(
@@ -824,35 +836,7 @@ export default function ManageProjectClient({
         return;
       }
 
-      const p = data?.project;
-      if (p) {
-        setName(p.name);
-        setDescription(p.description);
-        setCategory(p.category ?? "");
-        setTagsInput((p.tags ?? []).join(", "));
-        setProjectType(p.projectType ?? "extension-plugin");
-        setEditor(p.editor);
-        setEditorOther(p.editorOther ?? "");
-        setHackatimeProjectName(p.hackatimeProjectName);
-        setHackatimeStartedAt(p.hackatimeStartedAt ?? null);
-        setHackatimeStoppedAt(p.hackatimeStoppedAt ?? null);
-        setHackatimeTotalSeconds(
-          typeof p.hackatimeTotalSeconds === "number" ? p.hackatimeTotalSeconds : null,
-        );
-        setVideoUrl(p.videoUrl);
-        setPlayableDemoUrl(p.playableDemoUrl);
-        setCodeUrl(p.codeUrl);
-        setPreviewImage(p.previewImage ?? "");
-        setScreenshotUrls((p.screenshots?.length ?? 0) > 0 ? p.screenshots : [""]);
-        setSavedSubmissionChecklist(p.submissionChecklist ?? null);
-        setCreatorDeclaredOriginality(p.creatorDeclaredOriginality);
-        setCreatorDuplicateExplanation(p.creatorDuplicateExplanation ?? null);
-        setCreatorOriginalityRationale(p.creatorOriginalityRationale ?? null);
-        setStatus(p.status);
-        setApprovedHours(p.approvedHours ?? null);
-        setSubmitRangeStartDate(p.hackatimeStartedAt ?? "");
-        setSubmitRangeEndDate(p.hackatimeStoppedAt ?? "");
-      }
+      if (data?.project) applyServerProject(data.project);
 
       const notice = typeof data?.notice === "string" ? data.notice : null;
       toast.success(notice ?? "Submitted for review.", { id: toastId });
@@ -874,7 +858,7 @@ export default function ManageProjectClient({
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        const message = typeof data?.error === "string" ? data.error : "Failed to delete project.";
+        const message = extractApiError(data, "Failed to delete project.");
         toast.error(message, { id: toastId });
         setDeleting(false);
         return;
@@ -895,10 +879,13 @@ export default function ManageProjectClient({
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="text-foreground font-bold text-2xl truncate">{name || "Project"}</div>
-            <div className="text-muted-foreground mt-1">Manage your project details and status.</div>
-            {approvedHours !== null && approvedHours !== undefined ? (
+            <div className="text-muted-foreground mt-1">
+              Manage your project details and status.
+            </div>
+            {approvedHours != null ? (
               <div className="text-sm text-muted-foreground mt-2">
-                Approved hours: <span className="text-foreground font-semibold">{approvedHours}h</span>
+                Approved hours:{" "}
+                <span className="text-foreground font-semibold">{approvedHours}h</span>
               </div>
             ) : null}
             {bountyProjectId ? (
@@ -917,7 +904,9 @@ export default function ManageProjectClient({
       <div className="platform-surface-card p-6 space-y-4">
         <div className="text-foreground font-semibold text-lg">Status</div>
         {isGranted ? (
-          <div className="text-sm text-muted-foreground">This project has been granted. Editing is locked.</div>
+          <div className="text-sm text-muted-foreground">
+            This project has been granted. Editing is locked.
+          </div>
         ) : isInReview ? (
           <div className="text-sm text-muted-foreground">
             Submitted for review. You’ll see reviewer comments below.
@@ -964,7 +953,8 @@ export default function ManageProjectClient({
             ) : null}
             <div className="flex items-center justify-between gap-4">
               <div className="text-sm text-muted-foreground">
-                When you’re ready, submit for review. You’ll need to fill all required project fields; checklist answers are shared with reviewers for context.
+                When you’re ready, submit for review. You’ll need to fill all required project
+                fields; checklist answers are shared with reviewers for context.
               </div>
               <button
                 type="button"
@@ -994,7 +984,9 @@ export default function ManageProjectClient({
                   className="mt-1"
                 />
                 <div>
-                  <div className="text-foreground font-semibold">I believe this project is unique</div>
+                  <div className="text-foreground font-semibold">
+                    I believe this project is unique
+                  </div>
                   <div className="text-sm text-muted-foreground">
                     This answer is informational and will not block submission.
                   </div>
@@ -1009,7 +1001,9 @@ export default function ManageProjectClient({
                   className="mt-1"
                 />
                 <div>
-                  <div className="text-foreground font-semibold">This may overlap with existing work</div>
+                  <div className="text-foreground font-semibold">
+                    This may overlap with existing work
+                  </div>
                   <div className="text-sm text-muted-foreground">
                     You can explain the overlap, but it will not block submission.
                   </div>
@@ -1055,7 +1049,10 @@ export default function ManageProjectClient({
         ) : (
           <div className="space-y-3">
             {reviews.map((r) => (
-              <div key={r.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
+              <div
+                key={r.id}
+                className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4"
+              >
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-foreground font-semibold truncate">
@@ -1118,13 +1115,22 @@ export default function ManageProjectClient({
             type="button"
             onClick={() => previewInputRef.current?.click()}
             disabled={saving || isGranted}
-            onDragOver={(e) => { e.preventDefault(); setPreviewDragOver(true); }}
-            onDragEnter={(e) => { e.preventDefault(); setPreviewDragOver(true); }}
-            onDragLeave={(e) => { e.preventDefault(); setPreviewDragOver(false); }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setPreviewDragOver(true);
+            }}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              setPreviewDragOver(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setPreviewDragOver(false);
+            }}
             onDrop={async (e) => {
               e.preventDefault();
               setPreviewDragOver(false);
-              const file = e.dataTransfer.files?.[0];
+              const file = e.dataTransfer.files[0];
               if (file) await uploadPreviewImage(file);
             }}
             className={[
@@ -1132,7 +1138,7 @@ export default function ManageProjectClient({
               previewDragOver
                 ? "bg-carnival-blue/10 border-b border-carnival-blue/30"
                 : "bg-muted/30 border-b border-border hover:bg-muted/50",
-              (saving || isGranted) ? "opacity-50 cursor-not-allowed" : "",
+              saving || isGranted ? "opacity-50 cursor-not-allowed" : "",
             ].join(" ")}
           >
             <span className="text-3xl text-muted-foreground/50">🖼</span>
@@ -1162,300 +1168,336 @@ export default function ManageProjectClient({
         <div className="text-foreground font-semibold text-lg">Project details</div>
 
         <fieldset disabled={saving || isGranted} className={isGranted ? "opacity-60" : ""}>
-        <label className="block">
-          <div className="text-sm text-muted-foreground font-medium mb-2">
-            Platform it extends
-          </div>
-          <Select value={editor} onValueChange={(v) => { if (v) setEditor(v as ProjectEditor); }}>
-            <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
-              <SelectValue placeholder="Select editor" />
-            </SelectTrigger>
-            <SelectContent>
-              {EDITOR_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </label>
-
-        {editor === "other" ? (
           <label className="block">
             <div className="text-sm text-muted-foreground font-medium mb-2">
-              Other editor name
+              Platform it extends
             </div>
-            <input
-              value={editorOther}
-              onChange={(e) => setEditorOther(e.target.value)}
-              required
-              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-              placeholder="e.g. JetBrains, Sublime, ..."
-            />
-          </label>
-        ) : null}
-
-        <label className="block">
-          <div className="text-sm text-muted-foreground font-medium mb-2">Project name</div>
-          {/* Linked to Hackatime → the name follows the Hackatime project (enforced server-side too). */}
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            readOnly={Boolean(hackatimeProjectName)}
-            maxLength={120}
-            className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40 read-only:cursor-not-allowed read-only:bg-muted read-only:text-muted-foreground"
-            placeholder="My awesome extension"
-          />
-          {hackatimeProjectName ? (
-            <div className="text-xs text-muted-foreground mt-1.5">
-              Named after your Hackatime project. Clear the Hackatime project below to rename it.
-            </div>
-          ) : null}
-        </label>
-
-        <label className="block">
-          <div className="text-sm text-muted-foreground font-medium mb-2">Hackatime project name</div>
-          <div className="space-y-2">
             <Select
-              value={hackatimeProjectName || "__none__"}
+              value={editor}
               onValueChange={(v) => {
-                const next = !v || v === "__none__" ? "" : v;
-                setHackatimeProjectName(next);
-                if (next) setName(next);
-                const selected = (hackatimeProjects ?? []).find((p) => p.name === next) ?? null;
-                setHackatimeStartedAt(selected?.startedAt ?? null);
-                setHackatimeStoppedAt(selected?.stoppedAt ?? null);
-                setHackatimeTotalSeconds(selected?.totalSeconds ?? null);
-                setSubmitRangeStartDate(selected?.startedAt ?? "");
-                setSubmitRangeEndDate(selected?.stoppedAt ?? "");
+                if (v) setEditor(v);
               }}
-              disabled={hackatimeLoading || (hackatimeProjects?.length ?? 0) === 0}
             >
               <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
-                <SelectValue placeholder="Select a Hackatime project" />
+                <SelectValue placeholder="Select editor" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Select a Hackatime project</SelectItem>
-                {hackatimeProjects?.map((p) => (
-                  <SelectItem key={p.name} value={p.name}>
-                    {p.name}
+                {EDITOR_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-              <div>Fetched from your Hackatime account.</div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setHackatimeProjectName("");
-                    setHackatimeStartedAt(null);
-                    setHackatimeStoppedAt(null);
-                    setHackatimeTotalSeconds(null);
-                    setSubmitRangeStartDate("");
-                    setSubmitRangeEndDate("");
-                  }}
-                  className="font-semibold hover:text-foreground hover:underline disabled:opacity-60"
-                  disabled={!hackatimeProjectName}
-                >
-                  Clear
-                </button>
-                <button
-                  type="button"
-                  onClick={refreshHackatimeProjects}
-                  disabled={hackatimeLoading}
-                  className="font-semibold text-carnival-blue hover:underline disabled:opacity-60 disabled:hover:no-underline"
-                >
-                  {hackatimeLoading ? "Loading…" : "Refresh"}
-                </button>
-              </div>
-            </div>
-            {hackatimeProjectName ? (
-              <div className="rounded-[var(--radius-xl)]  border border-border bg-muted px-3 py-3 space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="block">
-                    <div className="text-xs text-muted-foreground mb-1">Considered start</div>
-                    <DateTimePicker value={submitRangeStartDate} onChange={(v) => setSubmitRangeStartDate(v)} disabled={saving || isGranted} />
-                  </label>
-                  <label className="block">
-                    <div className="text-xs text-muted-foreground mb-1">Considered end</div>
-                    <DateTimePicker value={submitRangeEndDate} onChange={(v) => setSubmitRangeEndDate(v)} disabled={saving || isGranted} />
-                  </label>
-                </div>
-                {!submitConsideredRange.ok ? (
-                  <div className="text-xs text-red-200">{submitConsideredRange.error}</div>
-                ) : null}
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <span>
-                    Considered Hackatime range:{" "}
-                    <span className="text-foreground font-semibold">{currentConsideredRangeLabel}</span>
-                  </span>
-                  <span>
-                    Considered Hackatime hours:{" "}
-                    <span className="text-foreground font-semibold">{currentHackatimeHoursLabel}</span>
-                  </span>
-                </div>
-                {hackatimePreviewLoading ? (
-                  <div className="text-xs text-muted-foreground">Refreshing Hackatime hours…</div>
-                ) : null}
-                {hackatimePreviewError ? (
-                  <div className="text-xs text-red-200">{hackatimePreviewError}</div>
-                ) : null}
-              </div>
-            ) : null}
-            {hackatimeConnectUrl ? (
-              <a
-                href={hackatimeConnectUrl}
-                className="inline-flex items-center justify-center bg-carnival-blue hover:bg-carnival-blue/80 text-white px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors"
-              >
-                {hackatimeNeedsReconnect ? "Reconnect Hackatime" : "Connect Hackatime"}
-              </a>
-            ) : null}
-            {hackatimeError ? (
-              <div className="text-sm text-red-200">Couldn’t load projects: {hackatimeError}</div>
-            ) : null}
-            {!hackatimeLoading && (hackatimeProjects?.length ?? 0) === 0 ? (
-              <div className="text-sm text-muted-foreground">
-                No projects found. If you just started tracking, Hackatime may need a little time to sync.
-              </div>
-            ) : null}
-          </div>
-        </label>
+          </label>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {editor === "other" ? (
+            <label className="block">
+              <div className="text-sm text-muted-foreground font-medium mb-2">
+                Other editor name
+              </div>
+              <input
+                value={editorOther}
+                onChange={(e) => setEditorOther(e.target.value)}
+                required
+                className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                placeholder="e.g. JetBrains, Sublime, ..."
+              />
+            </label>
+          ) : null}
+
           <label className="block">
-            <div className="text-sm text-muted-foreground font-medium mb-2">Category</div>
+            <div className="text-sm text-muted-foreground font-medium mb-2">Project name</div>
+            {/* Linked to Hackatime → the name follows the Hackatime project (enforced server-side too). */}
             <input
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              list="manage-project-category-suggestions"
-              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-              placeholder="e.g. Productivity, Game Dev"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              readOnly={Boolean(hackatimeProjectName)}
+              maxLength={120}
+              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40 read-only:cursor-not-allowed read-only:bg-muted read-only:text-muted-foreground"
+              placeholder="My awesome extension"
             />
-            <datalist id="manage-project-category-suggestions">
-              {categorySuggestions.map((value) => (
-                <option key={value} value={value} />
-              ))}
-            </datalist>
-            <div className="mt-2 text-xs text-muted-foreground">
-              Pick an existing category or create a new one.
-            </div>
+            {hackatimeProjectName ? (
+              <div className="text-xs text-muted-foreground mt-1.5">
+                Named after your Hackatime project. Clear the Hackatime project below to rename it.
+              </div>
+            ) : null}
           </label>
 
           <label className="block">
             <div className="text-sm text-muted-foreground font-medium mb-2">
-              Tags <span className="font-normal">(comma-separated)</span>
+              Hackatime project name
             </div>
-            <input
-              value={tagsInput}
-              onChange={(e) => setTagsInput(e.target.value)}
-              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-              placeholder="e.g. ai, web, multiplayer"
-            />
-            {tagSuggestions.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {tagSuggestions.slice(0, 8).map((tag) => (
+            <div className="space-y-2">
+              <Select
+                value={hackatimeProjectName || "__none__"}
+                onValueChange={(v) => {
+                  const next = !v || v === "__none__" ? "" : v;
+                  setHackatimeProjectName(next);
+                  if (next) setName(next);
+                  const selected = (hackatimeProjects ?? []).find((p) => p.name === next) ?? null;
+                  setHackatimeStartedAt(selected?.startedAt ?? null);
+                  setHackatimeStoppedAt(selected?.stoppedAt ?? null);
+                  setHackatimeTotalSeconds(selected?.totalSeconds ?? null);
+                  setSubmitRangeStartDate(selected?.startedAt ?? "");
+                  setSubmitRangeEndDate(selected?.stoppedAt ?? "");
+                }}
+                disabled={hackatimeLoading || (hackatimeProjects?.length ?? 0) === 0}
+              >
+                <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
+                  <SelectValue placeholder="Select a Hackatime project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Select a Hackatime project</SelectItem>
+                  {hackatimeProjects?.map((p) => (
+                    <SelectItem key={p.name} value={p.name}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                <div>Fetched from your Hackatime account.</div>
+                <div className="flex items-center gap-2">
                   <button
-                    key={tag}
                     type="button"
-                    onClick={() => setTagsInput((prev) => appendCsvToken(prev, tag))}
-                    className="rounded-[var(--carnival-squircle-radius)] border border-border bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-muted/70 transition-colors"
+                    onClick={() => {
+                      setHackatimeProjectName("");
+                      setHackatimeStartedAt(null);
+                      setHackatimeStoppedAt(null);
+                      setHackatimeTotalSeconds(null);
+                      setSubmitRangeStartDate("");
+                      setSubmitRangeEndDate("");
+                    }}
+                    className="font-semibold hover:text-foreground hover:underline disabled:opacity-60"
+                    disabled={!hackatimeProjectName}
                   >
-                    {tag}
+                    Clear
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={refreshHackatimeProjects}
+                    disabled={hackatimeLoading}
+                    className="font-semibold text-carnival-blue hover:underline disabled:opacity-60 disabled:hover:no-underline"
+                  >
+                    {hackatimeLoading ? "Loading…" : "Refresh"}
+                  </button>
+                </div>
               </div>
-            ) : null}
+              {hackatimeProjectName ? (
+                <div className="rounded-[var(--radius-xl)]  border border-border bg-muted px-3 py-3 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="block">
+                      <div className="text-xs text-muted-foreground mb-1">Considered start</div>
+                      <DateTimePicker
+                        value={submitRangeStartDate}
+                        onChange={(v) => setSubmitRangeStartDate(v)}
+                        disabled={saving || isGranted}
+                      />
+                    </label>
+                    <label className="block">
+                      <div className="text-xs text-muted-foreground mb-1">Considered end</div>
+                      <DateTimePicker
+                        value={submitRangeEndDate}
+                        onChange={(v) => setSubmitRangeEndDate(v)}
+                        disabled={saving || isGranted}
+                      />
+                    </label>
+                  </div>
+                  {!submitConsideredRange.ok ? (
+                    <div className="text-xs text-red-200">{submitConsideredRange.error}</div>
+                  ) : null}
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span>
+                      Considered Hackatime range:{" "}
+                      <span className="text-foreground font-semibold">
+                        {currentConsideredRangeLabel}
+                      </span>
+                    </span>
+                    <span>
+                      Considered Hackatime hours:{" "}
+                      <span className="text-foreground font-semibold">
+                        {currentHackatimeHoursLabel}
+                      </span>
+                    </span>
+                  </div>
+                  {hackatimePreviewLoading ? (
+                    <div className="text-xs text-muted-foreground">Refreshing Hackatime hours…</div>
+                  ) : null}
+                  {hackatimePreviewError ? (
+                    <div className="text-xs text-red-200">{hackatimePreviewError}</div>
+                  ) : null}
+                </div>
+              ) : null}
+              {hackatimeConnectUrl ? (
+                <a
+                  href={hackatimeConnectUrl}
+                  className="inline-flex items-center justify-center bg-carnival-blue hover:bg-carnival-blue/80 text-white px-4 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors"
+                >
+                  {hackatimeNeedsReconnect ? "Reconnect Hackatime" : "Connect Hackatime"}
+                </a>
+              ) : null}
+              {hackatimeError ? (
+                <div className="text-sm text-red-200">Couldn’t load projects: {hackatimeError}</div>
+              ) : null}
+              {!hackatimeLoading && (hackatimeProjects?.length ?? 0) === 0 ? (
+                <div className="text-sm text-muted-foreground">
+                  No projects found. If you just started tracking, Hackatime may need a little time
+                  to sync.
+                </div>
+              ) : null}
+            </div>
           </label>
-        </div>
 
-        <label className="block">
-          <div className="text-sm text-muted-foreground font-medium mb-2">Description</div>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={5}
-            className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-            placeholder="What are you building?"
-          />
-        </label>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {(
-            [
-              { kind: "code", value: codeUrl, set: setCodeUrl, placeholder: "https://github.com/me/my-extension" },
-              { kind: "demo", value: playableDemoUrl, set: setPlayableDemoUrl, placeholder: "Marketplace, store or install page" },
-              { kind: "video", value: videoUrl, set: setVideoUrl, placeholder: "https://youtu.be/..." },
-            ] as const
-          ).map((field) => (
-            <label key={field.kind} className="block">
-              <div className="flex items-center gap-2 text-sm text-foreground font-semibold mb-1">
-                <ProjectLinkIcon kind={field.kind} />
-                {PROJECT_LINK_META[field.kind].label}
-              </div>
-              <div className="text-xs text-muted-foreground mb-2">{PROJECT_LINK_META[field.kind].hint}</div>
-              <div className="relative">
-                <ProjectLinkIcon
-                  kind={field.kind}
-                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-                <input
-                  type="url"
-                  inputMode="url"
-                  value={field.value}
-                  onChange={(e) => field.set(e.target.value)}
-                  maxLength={2048}
-                  className="w-full bg-background border border-border rounded-[var(--radius-2xl)] pl-10 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
-                  placeholder={field.placeholder}
-                />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className="block">
+              <div className="text-sm text-muted-foreground font-medium mb-2">Category</div>
+              <input
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                list="manage-project-category-suggestions"
+                className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                placeholder="e.g. Productivity, Game Dev"
+              />
+              <datalist id="manage-project-category-suggestions">
+                {categorySuggestions.map((value) => (
+                  <option key={value} value={value} />
+                ))}
+              </datalist>
+              <div className="mt-2 text-xs text-muted-foreground">
+                Pick an existing category or create a new one.
               </div>
             </label>
-          ))}
-        </div>
 
-        {availableBounties.length > 0 ? (
-          <div className="block">
-            <div className="text-sm text-muted-foreground font-medium mb-2">
-              Linked bounty <span className="font-normal">(optional)</span>
+            <label className="block">
+              <div className="text-sm text-muted-foreground font-medium mb-2">
+                Tags <span className="font-normal">(comma-separated)</span>
+              </div>
+              <input
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                placeholder="e.g. ai, web, multiplayer"
+              />
+              {tagSuggestions.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {tagSuggestions.slice(0, 8).map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setTagsInput((prev) => appendCsvToken(prev, tag))}
+                      className="rounded-[var(--carnival-squircle-radius)] border border-border bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-muted/70 transition-colors"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </label>
+          </div>
+
+          <label className="block">
+            <div className="text-sm text-muted-foreground font-medium mb-2">Description</div>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={5}
+              className="w-full bg-background border border-border rounded-[var(--radius-2xl)] px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+              placeholder="What are you building?"
+            />
+          </label>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {(
+              [
+                {
+                  kind: "code",
+                  value: codeUrl,
+                  set: setCodeUrl,
+                  placeholder: "https://github.com/me/my-extension",
+                },
+                {
+                  kind: "demo",
+                  value: playableDemoUrl,
+                  set: setPlayableDemoUrl,
+                  placeholder: "Marketplace, store or install page",
+                },
+                {
+                  kind: "video",
+                  value: videoUrl,
+                  set: setVideoUrl,
+                  placeholder: "https://youtu.be/...",
+                },
+              ] as const
+            ).map((field) => (
+              <label key={field.kind} className="block">
+                <div className="flex items-center gap-2 text-sm text-foreground font-semibold mb-1">
+                  <ProjectLinkIcon kind={field.kind} />
+                  {PROJECT_LINK_META[field.kind].label}
+                </div>
+                <div className="text-xs text-muted-foreground mb-2">
+                  {PROJECT_LINK_META[field.kind].hint}
+                </div>
+                <div className="relative">
+                  <ProjectLinkIcon
+                    kind={field.kind}
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <input
+                    type="url"
+                    inputMode="url"
+                    value={field.value}
+                    onChange={(e) => field.set(e.target.value)}
+                    maxLength={2048}
+                    className="w-full bg-background border border-border rounded-[var(--radius-2xl)] pl-10 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
+                    placeholder={field.placeholder}
+                  />
+                </div>
+              </label>
+            ))}
+          </div>
+
+          {availableBounties.length > 0 ? (
+            <div className="block">
+              <div className="text-sm text-muted-foreground font-medium mb-2">
+                Linked bounty <span className="font-normal">(optional)</span>
+              </div>
+              <Select
+                value={bountyProjectId || "__none__"}
+                onValueChange={(v) => setBountyProjectId(v === "__none__" ? null : v)}
+                disabled={saving || isGranted}
+              >
+                <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None</SelectItem>
+                  {availableBounties.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name} (${b.prizeUsd})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="mt-2 text-xs text-muted-foreground">
+                Attach a bounty to claim when this project gets granted.
+              </div>
             </div>
-            <Select
-              value={bountyProjectId || "__none__"}
-              onValueChange={(v) => setBountyProjectId(v === "__none__" ? null : v)}
+          ) : null}
+
+          <div>
+            <div className="text-sm text-muted-foreground font-medium mb-2">Screenshots</div>
+            <ScreenshotGrid
+              urls={screenshotUrls}
+              onChange={setScreenshotUrls}
+              projectId={initial.id}
               disabled={saving || isGranted}
-            >
-              <SelectTrigger className="w-full h-11 rounded-[var(--radius-2xl)] border-border bg-background px-4 text-foreground">
-                <SelectValue placeholder="None" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
-                {availableBounties.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>
-                    {b.name} (${b.prizeUsd})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
             <div className="mt-2 text-xs text-muted-foreground">
-              Attach a bounty to claim when this project gets granted.
+              Include screenshots of your project working (not your code). Required before
+              submission.
             </div>
           </div>
-        ) : null}
-
-        <div>
-          <div className="text-sm text-muted-foreground font-medium mb-2">
-            Screenshots
-          </div>
-          <ScreenshotGrid
-            urls={screenshotUrls}
-            onChange={setScreenshotUrls}
-            projectId={initial.id}
-            disabled={saving || isGranted}
-          />
-          <div className="mt-2 text-xs text-muted-foreground">
-            Include screenshots of your project working (not your code). Required before submission.
-          </div>
-        </div>
         </fieldset>
 
         {error ? (
@@ -1465,9 +1507,7 @@ export default function ManageProjectClient({
         ) : null}
 
         <div className="flex items-center justify-between gap-4 pt-2">
-          <div className="text-sm text-muted-foreground">
-            {savedAt ? `Saved just now` : null}
-          </div>
+          <div className="text-sm text-muted-foreground">{savedAt ? `Saved just now` : null}</div>
           <button
             type="button"
             onClick={onSave}
@@ -1486,7 +1526,8 @@ export default function ManageProjectClient({
           <div className="space-y-2">
             <div className="text-foreground font-semibold text-lg">Delete project</div>
             <div className="text-sm text-muted-foreground">
-              Remove this project and its review history. This is only available while the project is work-in-progress.
+              Remove this project and its review history. This is only available while the project
+              is work-in-progress.
             </div>
             {!canDelete ? (
               <div className="text-xs text-muted-foreground">
@@ -1509,7 +1550,13 @@ export default function ManageProjectClient({
         open={submitOpen}
         onClose={closeSubmit}
         title={
-          submitStep === 0 ? (isReReview ? "Submit for re-review" : "Submit for review") : isReReview ? "Confirm changes addressed" : "Final checklist"
+          submitStep === 0
+            ? isReReview
+              ? "Submit for re-review"
+              : "Submit for review"
+            : isReReview
+              ? "Confirm changes addressed"
+              : "Final checklist"
         }
         description={
           submitStep === 0
@@ -1523,25 +1570,43 @@ export default function ManageProjectClient({
         {submitStep === 0 ? (
           <div className="space-y-4">
             <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
-              Complete all project requirements before submitting: source code on a known forge, video link, a valid playable link for your project type, Hackatime project, considered range, and at least 3 PNG/JPG screenshots.
+              Complete all project requirements before submitting: source code on a known forge,
+              video link, a valid playable link for your project type, Hackatime project, considered
+              range, and at least 3 PNG/JPG screenshots.
             </div>
 
             <div className="space-y-1.5 text-sm">
               {[
-                { ok: submitRequirements.githubOk, label: "Source code URL (GitHub, GitLab, Bitbucket, Codeberg, SourceHut, ...)" },
+                {
+                  ok: submitRequirements.githubOk,
+                  label: "Source code URL (GitHub, GitLab, Bitbucket, Codeberg, SourceHut, ...)",
+                },
                 { ok: submitRequirements.demoOk, label: "Video link" },
-                { ok: submitRequirements.playableOk, label: "Playable link (valid for your project type)" },
+                {
+                  ok: submitRequirements.playableOk,
+                  label: "Playable link (valid for your project type)",
+                },
                 { ok: submitRequirements.hackatimeOk, label: "Hackatime project name" },
                 { ok: submitConsideredRange.ok, label: "Considered Hackatime range" },
-                { ok: submitRequirements.screenshotsOk, label: submitRequirements.screenshotsOk ? `Screenshots (${screenshots.length} uploaded)` : `Screenshots (${screenshots.length}/3 PNG or JPG needed)` },
+                {
+                  ok: submitRequirements.screenshotsOk,
+                  label: submitRequirements.screenshotsOk
+                    ? `Screenshots (${screenshots.length} uploaded)`
+                    : `Screenshots (${screenshots.length}/3 PNG or JPG needed)`,
+                },
               ].map((item) => (
-                <div key={item.label} className="flex items-center gap-2.5 border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2">
+                <div
+                  key={item.label}
+                  className="flex items-center gap-2.5 border border-border bg-background rounded-[var(--radius-xl)] px-3 py-2"
+                >
                   {item.ok ? (
                     <CheckCircle2 className="h-4.5 w-4.5 shrink-0 text-emerald-400" />
                   ) : (
                     <XCircle className="h-4.5 w-4.5 shrink-0 text-rose-400" />
                   )}
-                  <span className={item.ok ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
+                  <span className={item.ok ? "text-foreground" : "text-muted-foreground"}>
+                    {item.label}
+                  </span>
                 </div>
               ))}
               {gateFailures.length > 0 ? (
@@ -1560,7 +1625,13 @@ export default function ManageProjectClient({
                   ) : (
                     <XCircle className="h-4.5 w-4.5 shrink-0 text-rose-400" />
                   )}
-                  <span className={editorOther.trim().length > 0 ? "text-foreground" : "text-muted-foreground"}>Other editor name</span>
+                  <span
+                    className={
+                      editorOther.trim().length > 0 ? "text-foreground" : "text-muted-foreground"
+                    }
+                  >
+                    Other editor name
+                  </span>
                 </div>
               ) : null}
             </div>
@@ -1575,11 +1646,17 @@ export default function ManageProjectClient({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="block">
                   <div className="text-xs text-muted-foreground mb-1">Start</div>
-                  <DateTimePicker value={submitRangeStartDate} onChange={(v) => setSubmitRangeStartDate(v)} />
+                  <DateTimePicker
+                    value={submitRangeStartDate}
+                    onChange={(v) => setSubmitRangeStartDate(v)}
+                  />
                 </label>
                 <label className="block">
                   <div className="text-xs text-muted-foreground mb-1">End</div>
-                  <DateTimePicker value={submitRangeEndDate} onChange={(v) => setSubmitRangeEndDate(v)} />
+                  <DateTimePicker
+                    value={submitRangeEndDate}
+                    onChange={(v) => setSubmitRangeEndDate(v)}
+                  />
                 </label>
               </div>
               {!submitConsideredRange.ok ? (
@@ -1606,122 +1683,122 @@ export default function ManageProjectClient({
               </button>
             </div>
           </div>
-        ) : (
-          isReReview ? (
-            <div className="space-y-4">
-              <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
-                <div className="text-sm text-foreground font-semibold">Most recent rejection feedback</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {latestRejectedReview
-                    ? `${latestRejectedReview.reviewerName} • ${new Date(latestRejectedReview.createdAt).toLocaleString()}`
-                    : "No rejection feedback found."}
+        ) : isReReview ? (
+          <div className="space-y-4">
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
+              <div className="text-sm text-foreground font-semibold">
+                Most recent rejection feedback
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {`${latestRejectedReview.reviewerName} • ${new Date(latestRejectedReview.createdAt).toLocaleString()}`}
+              </div>
+              <div className="text-sm text-foreground mt-3 whitespace-pre-wrap">
+                {latestRejectedReview.reviewComment}
+              </div>
+            </div>
+
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={checkAddressedRejection}
+                onChange={(e) => setCheckAddressedRejection(e.target.checked)}
+                className="mt-1"
+              />
+              <div>
+                <div className="text-foreground font-semibold">
+                  I have addressed the changes requested in the rejection feedback above
                 </div>
-                <div className="text-sm text-foreground mt-3 whitespace-pre-wrap">
-                  {latestRejectedReview?.reviewComment ?? "—"}
+                <div className="text-sm text-muted-foreground">
+                  If you haven’t, close this and iterate until it’s ready.
                 </div>
               </div>
+            </label>
 
-              <label className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={checkAddressedRejection}
-                  onChange={(e) => setCheckAddressedRejection(e.target.checked)}
-                  className="mt-1"
-                />
-                <div>
-                  <div className="text-foreground font-semibold">
-                    I have addressed the changes requested in the rejection feedback above
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    If you haven’t, close this and iterate until it’s ready.
-                  </div>
-                </div>
-              </label>
-
-              {/* Re-submissions must re-confirm the same blocking declarations
+            {/* Re-submissions must re-confirm the same blocking declarations
                   as first submissions — the server gate requires them. */}
-              <div className="space-y-3 border-t border-border pt-4">
-                {PROJECT_SUBMISSION_CHECKLIST_ITEMS.map((item) => (
-                  <label key={item.key} className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={submissionChecklist[item.key]}
-                      onChange={(e) => setChecklistValue(item.key, e.target.checked)}
-                      className="mt-1"
-                    />
-                    <div>
-                      <div className="text-foreground font-semibold">
-                        {item.label}
-                      </div>
-                      <div className="text-sm text-muted-foreground">{item.helper}</div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-
-              <div className="flex items-center justify-between gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setSubmitStep(0)}
-                  className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
-                  disabled={submitting}
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={onSubmitForReview}
-                  className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
-                  disabled={!submitRequirements.allOk || !declarationsOk || !checkAddressedRejection || submitting}
-                >
-                  {submitting ? "Submitting…" : "Submit for re-review"}
-                </button>
-              </div>
+            <div className="space-y-3 border-t border-border pt-4">
+              {PROJECT_SUBMISSION_CHECKLIST_ITEMS.map((item) => (
+                <label key={item.key} className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={submissionChecklist[item.key]}
+                    onChange={(e) => setChecklistValue(item.key, e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <div className="text-foreground font-semibold">{item.label}</div>
+                    <div className="text-sm text-muted-foreground">{item.helper}</div>
+                  </div>
+                </label>
+              ))}
             </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
-                Every declaration below (except the AI disclosure) is required to submit. Reviewers verify them — an unclear README or untrue declaration is an automatic rejection.
-              </div>
-              <div className="space-y-3">
-                {PROJECT_SUBMISSION_CHECKLIST_ITEMS.map((item) => (
-                  <label key={item.key} className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={submissionChecklist[item.key]}
-                      onChange={(e) => setChecklistValue(item.key, e.target.checked)}
-                      className="mt-1"
-                    />
-                    <div>
-                      <div className="text-foreground font-semibold">
-                        {item.label}
-                      </div>
-                      <div className="text-sm text-muted-foreground">{item.helper}</div>
-                    </div>
-                  </label>
-                ))}
-              </div>
 
-              <div className="flex items-center justify-between gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setSubmitStep(0)}
-                  className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
-                  disabled={submitting}
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={onSubmitForReview}
-                  className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
-                  disabled={!submitRequirements.allOk || !declarationsOk || submitting}
-                >
-                  {submitting ? "Submitting…" : "Submit for review"}
-                </button>
-              </div>
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setSubmitStep(0)}
+                className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
+                disabled={submitting}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={onSubmitForReview}
+                className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
+                disabled={
+                  !submitRequirements.allOk ||
+                  !declarationsOk ||
+                  !checkAddressedRejection ||
+                  submitting
+                }
+              >
+                {submitting ? "Submitting…" : "Submit for re-review"}
+              </button>
             </div>
-          )
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
+              Every declaration below (except the AI disclosure) is required to submit. Reviewers
+              verify them — an unclear README or untrue declaration is an automatic rejection.
+            </div>
+            <div className="space-y-3">
+              {PROJECT_SUBMISSION_CHECKLIST_ITEMS.map((item) => (
+                <label key={item.key} className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={submissionChecklist[item.key]}
+                    onChange={(e) => setChecklistValue(item.key, e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <div className="text-foreground font-semibold">{item.label}</div>
+                    <div className="text-sm text-muted-foreground">{item.helper}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setSubmitStep(0)}
+                className="inline-flex items-center justify-center bg-muted hover:bg-muted/70 text-foreground px-5 py-2.5 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
+                disabled={submitting}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={onSubmitForReview}
+                className="inline-flex items-center justify-center bg-carnival-red hover:bg-carnival-red/80 disabled:bg-carnival-red/50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-[var(--radius-xl)] font-bold transition-colors"
+                disabled={!submitRequirements.allOk || !declarationsOk || submitting}
+              >
+                {submitting ? "Submitting…" : "Submit for review"}
+              </button>
+            </div>
+          </div>
         )}
       </Modal>
 
@@ -1734,7 +1811,8 @@ export default function ManageProjectClient({
       >
         <div className="space-y-4">
           <div className="rounded-[var(--radius-2xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
-            Deleting will permanently remove this project and any review comments. You can only delete while work-in-progress.
+            Deleting will permanently remove this project and any review comments. You can only
+            delete while work-in-progress.
           </div>
           <div className="flex items-center justify-end gap-3">
             <button

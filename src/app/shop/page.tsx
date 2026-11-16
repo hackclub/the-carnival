@@ -2,7 +2,11 @@ import { redirect } from "next/navigation";
 import { unstable_noStore as noStore } from "next/cache";
 import { desc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
-import ShopClient, { type ShopItemDTO, type ShopLedgerDTO, type ShopOrderDTO } from "@/components/ShopClient";
+import ShopClient, {
+  type ShopItemDTO,
+  type ShopLedgerDTO,
+  type ShopOrderDTO,
+} from "@/components/ShopClient";
 import { db } from "@/db";
 import { shopItem, shopItemSuggestion, shopOrder } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
@@ -76,9 +80,9 @@ export default async function ShopPage() {
     name: i.name,
     description: i.description ?? null,
     imageUrl: i.imageUrl,
-    orderNoteRequired: i.orderNoteRequired ?? false,
-    approvedHoursNeeded: i.approvedHoursNeeded ?? 0,
-    tokenCost: i.tokenCost ?? 0,
+    orderNoteRequired: i.orderNoteRequired,
+    approvedHoursNeeded: i.approvedHoursNeeded,
+    tokenCost: i.tokenCost,
   }));
 
   const initialOrders: ShopOrderDTO[] = orders.map((o) => ({
@@ -88,9 +92,9 @@ export default async function ShopPage() {
     itemName: o.itemName,
     itemImageUrl: o.itemImageUrl,
     orderNote: o.orderNote ?? null,
-    quantity: o.quantity ?? 1,
-    unitTokenCost: o.unitTokenCost ?? o.tokenCost ?? 0,
-    tokenCost: o.tokenCost ?? 0,
+    quantity: o.quantity,
+    unitTokenCost: o.unitTokenCost,
+    tokenCost: o.tokenCost,
     fulfillmentLink: o.fulfillmentLink ?? null,
     fulfilledAt: o.fulfilledAt ? o.fulfilledAt.toISOString() : null,
     cancellationReason: o.cancellationReason ?? null,

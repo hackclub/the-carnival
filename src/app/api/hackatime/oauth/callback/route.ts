@@ -6,6 +6,7 @@ import { user } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
 import { safeReturnTo } from "@/lib/safe-return-to";
 import { fetchHackatimeIdentityFromToken } from "@/lib/hackatime";
+import { getAppOrigin } from "@/lib/app-origin";
 
 const OAUTH_STATE_COOKIE = "hackatime_oauth_state";
 const OAUTH_RETURN_COOKIE = "hackatime_oauth_return_to";
@@ -20,19 +21,6 @@ type TokenResponse = {
 function withStatusParam(returnTo: string, status: string) {
   const sep = returnTo.includes("?") ? "&" : "?";
   return `${returnTo}${sep}hackatime=${encodeURIComponent(status)}`;
-}
-
-function getAppOrigin(request: Request) {
-  const configured = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "";
-  if (configured) {
-    try {
-      const u = new URL(configured);
-      if (u.protocol === "http:" || u.protocol === "https:") return u.origin;
-    } catch {
-      // Fallback to request origin.
-    }
-  }
-  return new URL(request.url).origin;
 }
 
 export async function GET(request: Request) {
@@ -94,7 +82,8 @@ export async function GET(request: Request) {
   });
 
   const tokenData = (await tokenRes.json().catch(() => ({}))) as TokenResponse;
-  const accessToken = typeof tokenData.access_token === "string" ? tokenData.access_token.trim() : "";
+  const accessToken =
+    typeof tokenData.access_token === "string" ? tokenData.access_token.trim() : "";
   if (!tokenRes.ok || !accessToken) {
     return NextResponse.redirect(
       new URL(withStatusParam(returnTo, "token_exchange_failed"), appOrigin),

@@ -11,16 +11,11 @@ import { project } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";
 import { fetchHackatimeProjectHoursByName } from "@/lib/hackatime";
 import { buildApprovedProjectAwardSummary } from "@/lib/project-awards";
-
-function formatHoursMinutes(hours: number, minutes: number) {
-  const h = Number.isFinite(hours) ? Math.max(0, Math.floor(hours)) : 0;
-  const m = Number.isFinite(minutes) ? Math.max(0, Math.floor(minutes)) : 0;
-  return `${h}h${String(m).padStart(2, "0")}m`;
-}
+import { formatHoursMinutes } from "@/lib/project-form-utils";
 
 export default async function ProjectsPage() {
   const session = await getServerSession({ disableCookieCache: true });
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect("/login?callbackUrl=/projects");
   }
 
@@ -64,10 +59,8 @@ export default async function ProjectsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {myProjects.map((p) => {
-            const hm =
-              hoursByName[p.hackatimeProjectName] ??
-              hoursByName[p.name] ??
-              { hours: 0, minutes: 0 };
+            const hm = hoursByName[p.hackatimeProjectName] ??
+              hoursByName[p.name] ?? { hours: 0, minutes: 0 };
             const awardSummary = buildApprovedProjectAwardSummary({
               status: p.status,
               approvedHours: p.approvedHours,
@@ -99,9 +92,7 @@ export default async function ProjectsPage() {
                 <div className="p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="text-foreground font-bold text-lg truncate">
-                        {p.name}
-                      </div>
+                      <div className="text-foreground font-bold text-lg truncate">{p.name}</div>
                       <div className="text-muted-foreground text-sm mt-1 line-clamp-2">
                         {p.description}
                       </div>

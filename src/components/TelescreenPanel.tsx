@@ -106,7 +106,8 @@ export default function TelescreenPanel({
           method,
           cache: "no-store",
         });
-        const json = (await res.json().catch(() => null)) as (TelescreenResponse & { error?: string }) | null;
+        const json = (await res.json().catch(() => null)) as
+          (TelescreenResponse & { error?: string }) | null;
         if (!res.ok || !json) {
           setError(json?.error ?? "Couldn't load the Telescreen fraud review.");
           onGateChange?.(null);
@@ -137,8 +138,8 @@ export default function TelescreenPanel({
           Telescreen fraud review
         </h2>
         <div className="text-sm text-muted-foreground">
-          Telescreen isn&apos;t configured on this deployment (ROBERT_API_KEY), so nothing is sent for fraud
-          review and grants aren&apos;t gated on it.
+          Telescreen isn&apos;t configured on this deployment (ROBERT_API_KEY), so nothing is sent
+          for fraud review and grants aren&apos;t gated on it.
         </div>
       </section>
     );
@@ -154,7 +155,9 @@ export default function TelescreenPanel({
     <section className={["platform-surface-card p-6 space-y-4", style?.border ?? ""].join(" ")}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-foreground font-semibold text-lg">
-          {style?.icon ?? <ShieldQuestion className="h-5 w-5 text-muted-foreground" aria-hidden="true" />}
+          {style?.icon ?? (
+            <ShieldQuestion className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+          )}
           Telescreen fraud review
         </h2>
         <div className="flex items-center gap-2">
@@ -166,7 +169,10 @@ export default function TelescreenPanel({
             className="inline-flex items-center gap-1 rounded-[var(--radius-xl)] border border-border bg-muted px-3 py-1 text-xs font-semibold text-foreground hover:bg-muted/70 disabled:opacity-50"
             title="Read the latest state from Telescreen"
           >
-            <RefreshCw className={["h-3.5 w-3.5", loading ? "animate-spin" : ""].join(" ")} aria-hidden="true" />
+            <RefreshCw
+              className={["h-3.5 w-3.5", loading ? "animate-spin" : ""].join(" ")}
+              aria-hidden="true"
+            />
             Refresh
           </button>
         </div>
@@ -174,12 +180,14 @@ export default function TelescreenPanel({
 
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
 
-      {!data && loading ? <div className="text-sm text-muted-foreground">Checking Telescreen…</div> : null}
+      {!data && loading ? (
+        <div className="text-sm text-muted-foreground">Checking Telescreen…</div>
+      ) : null}
 
       {data && !s ? (
         <div className="text-sm text-muted-foreground">
-          This submission hasn&apos;t been sent to Telescreen. It can&apos;t be granted until a fraud reviewer
-          scores it.
+          This submission hasn&apos;t been sent to Telescreen. It can&apos;t be granted until a
+          fraud reviewer scores it.
         </div>
       ) : null}
 
@@ -187,25 +195,28 @@ export default function TelescreenPanel({
         <div className="space-y-3 text-sm">
           {s.state === "awaiting_review" ? (
             <div className="text-muted-foreground">
-              Sent {formatWhen(s.sentAt) ?? ""}. A fraud reviewer scores it in Telescreen; scores of 4 or below
-              reject and dismiss the project automatically.
+              Sent {formatWhen(s.sentAt) ?? ""}. A fraud reviewer scores it in Telescreen; scores of
+              4 or below reject and dismiss the project automatically.
             </div>
           ) : null}
           {s.state === "rejected_fraud" ? (
             <div className="text-foreground font-semibold">
-              Rejected as fraud. Carnival dismissed the project and the creator can&apos;t resubmit it.
+              Rejected as fraud. Carnival dismissed the project and the creator can&apos;t resubmit
+              it.
             </div>
           ) : null}
           {band === "doubtful" && s.state !== "rejected_fraud" ? (
             <div className="text-foreground">
-              Doubtful usually means a deduction (for example copied or AI-written code). The granting admin
-              must confirm they&apos;ve accounted for it.
+              Doubtful usually means a deduction (for example copied or AI-written code). The
+              granting admin must confirm they&apos;ve accounted for it.
             </div>
           ) : null}
 
           {s.reviewNote ? (
             <div>
-              <div className="text-muted-foreground">Fraud reviewer&apos;s note (internal, never shown to the creator)</div>
+              <div className="text-muted-foreground">
+                Fraud reviewer&apos;s note (internal, never shown to the creator)
+              </div>
               <div className="text-foreground whitespace-pre-wrap">{s.reviewNote}</div>
             </div>
           ) : null}
@@ -267,7 +278,9 @@ export default function TelescreenPanel({
                 {e.reviewNote ? (
                   <div className="text-foreground whitespace-pre-wrap">{e.reviewNote}</div>
                 ) : (
-                  <div className="text-xs text-muted-foreground">No note from the fraud reviewer.</div>
+                  <div className="text-xs text-muted-foreground">
+                    No note from the fraud reviewer.
+                  </div>
                 )}
               </li>
             ))}

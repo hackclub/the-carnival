@@ -5,9 +5,7 @@ export const ANNOUNCEMENT_VARIANTS = ["carnival", "info", "success", "warning"] 
 export type AnnouncementVariantKey = (typeof ANNOUNCEMENT_VARIANTS)[number];
 
 export function isAnnouncementVariant(value: unknown): value is AnnouncementVariantKey {
-  return (
-    typeof value === "string" && (ANNOUNCEMENT_VARIANTS as readonly string[]).includes(value)
-  );
+  return typeof value === "string" && (ANNOUNCEMENT_VARIANTS as readonly string[]).includes(value);
 }
 
 export const ANNOUNCEMENT_VARIANT_LABELS: Record<AnnouncementVariantKey, string> = {

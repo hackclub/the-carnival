@@ -68,7 +68,12 @@ function formatDateTime(iso: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function reasonLabel(reason: string | null): string {
@@ -76,11 +81,19 @@ function reasonLabel(reason: string | null): string {
   return OUTREACH_REASON_LABELS[reason] ?? reason;
 }
 
-function recipientLabel(r: { name: string | null; slackId: string | null; email?: string | null }): string {
+function recipientLabel(r: {
+  name: string | null;
+  slackId: string | null;
+  email?: string | null;
+}): string {
   return r.name ?? r.slackId ?? r.email ?? "Unknown";
 }
 
-async function postJson<T>(url: string, body: unknown, method = "POST"): Promise<{ ok: boolean; data: T & { error?: string } }> {
+async function postJson<T>(
+  url: string,
+  body: unknown,
+  method = "POST",
+): Promise<{ ok: boolean; data: T & { error?: string } }> {
   const res = await fetch(url, {
     method,
     headers: { "Content-Type": "application/json" },
@@ -129,7 +142,12 @@ export default function AdminMessagesClient({ initial }: { initial: MessagesPage
         sends={sends}
         exclusionsVersion={exclusionsVersion}
       />
-      <ExclusionsPanel initial={initial.exclusions} users={initial.users} usersBySlack={usersBySlack} onChanged={onExclusionsChanged} />
+      <ExclusionsPanel
+        initial={initial.exclusions}
+        users={initial.users}
+        usersBySlack={usersBySlack}
+        onChanged={onExclusionsChanged}
+      />
       <HistoryPanel sends={sends} onRefresh={refreshSends} />
     </div>
   );
@@ -139,7 +157,13 @@ export default function AdminMessagesClient({ initial }: { initial: MessagesPage
 // 1. Run the automated nudges now
 // ---------------------------------------------------------------------------
 
-function RunNowPanel({ onStarted, slackEnabled }: { onStarted: () => Promise<void>; slackEnabled: boolean }) {
+function RunNowPanel({
+  onStarted,
+  slackEnabled,
+}: {
+  onStarted: () => Promise<void>;
+  slackEnabled: boolean;
+}) {
   const [maxSends, setMaxSends] = useState("");
   const [allowlist, setAllowlist] = useState("");
   const [confirming, setConfirming] = useState(false);
@@ -170,9 +194,9 @@ function RunNowPanel({ onStarted, slackEnabled }: { onStarted: () => Promise<voi
     <div className={card}>
       <h2 className="text-lg font-bold text-foreground">Send today&apos;s automated run now</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Runs exactly what the daily scheduled task runs: same cooldowns, opt-outs, exclusions and deadline stop.
-        It can&apos;t overlap the scheduled run. Without <code>NUDGES_ENABLED=true</code> on the server it only
-        records a dry run.
+        Runs exactly what the daily scheduled task runs: same cooldowns, opt-outs, exclusions and
+        deadline stop. It can&apos;t overlap the scheduled run. Without{" "}
+        <code>NUDGES_ENABLED=true</code> on the server it only records a dry run.
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-[10rem_1fr_auto] sm:items-end">
         <label className="text-sm">
@@ -186,7 +210,9 @@ function RunNowPanel({ onStarted, slackEnabled }: { onStarted: () => Promise<voi
           />
         </label>
         <label className="text-sm">
-          <span className="mb-1 block font-semibold text-foreground">Only these Slack IDs (optional, for testing)</span>
+          <span className="mb-1 block font-semibold text-foreground">
+            Only these Slack IDs (optional, for testing)
+          </span>
           <input
             className={inputClass}
             placeholder="U0123ABCD, U0456EFGH"
@@ -194,11 +220,18 @@ function RunNowPanel({ onStarted, slackEnabled }: { onStarted: () => Promise<voi
             onChange={(e) => setAllowlist(e.target.value)}
           />
         </label>
-        <button type="button" className={dangerButton} onClick={start} disabled={busy || !slackEnabled}>
+        <button
+          type="button"
+          className={dangerButton}
+          onClick={start}
+          disabled={busy || !slackEnabled}
+        >
           {busy ? "Starting…" : confirming ? "Really start the run?" : "Run now"}
         </button>
       </div>
-      {!slackEnabled ? <p className="mt-2 text-xs text-muted-foreground">Slack is not configured.</p> : null}
+      {!slackEnabled ? (
+        <p className="mt-2 text-xs text-muted-foreground">Slack is not configured.</p>
+      ) : null}
     </div>
   );
 }
@@ -240,7 +273,8 @@ function ComposePanel({
   const [polled, setProgress] = useState<OutreachSendSummary | null>(null);
   // While polling, the polled copy is freshest; otherwise follow History, which
   // also sees batches released or cancelled from there.
-  const progress = polled && !activeSend ? (sends.find((s) => s.id === polled.id) ?? polled) : polled;
+  const progress =
+    polled && !activeSend ? (sends.find((s) => s.id === polled.id) ?? polled) : polled;
 
   // Recipients handed over from /admin/users or /admin/insights.
   useEffect(() => {
@@ -255,8 +289,12 @@ function ComposePanel({
       if (!raw) return;
       try {
         const parsed = JSON.parse(raw) as { userIds?: unknown };
-        const ids = Array.isArray(parsed.userIds) ? parsed.userIds.filter((v): v is string => typeof v === "string") : [];
-        const handed = ids.map((id) => usersById.get(id)).filter((u): u is NonNullable<typeof u> => Boolean(u));
+        const ids = Array.isArray(parsed.userIds)
+          ? parsed.userIds.filter((v): v is string => typeof v === "string")
+          : [];
+        const handed = ids
+          .map((id) => usersById.get(id))
+          .filter((u): u is NonNullable<typeof u> => Boolean(u));
         if (handed.length) {
           setDrafts((prev) => mergeRecipients(prev, handed.map(toDraft)));
           toast.success(`Added ${handed.length} recipient(s) from your selection.`);
@@ -270,22 +308,26 @@ function ComposePanel({
 
   // Re-check recipients (names, exclusions, frozen, recently nudged) whenever the list changes.
   useEffect(() => {
-    const timer = window.setTimeout(async () => {
+    const run = async () => {
       if (drafts.length === 0) {
         setResolved(null);
         return;
       }
       setResolving(true);
-      const { ok, data } = await postJson<{ recipients?: ResolvedRecipient[] }>("/api/admin/messages/resolve", {
-        channel,
-        userIds: drafts.filter((d) => d.userId).map((d) => d.userId),
-        slackIds: drafts.filter((d) => !d.userId).map((d) => d.slackId),
-        recentWindow,
-      });
+      const { ok, data } = await postJson<{ recipients?: ResolvedRecipient[] }>(
+        "/api/admin/messages/resolve",
+        {
+          channel,
+          userIds: drafts.filter((d) => d.userId).map((d) => d.userId),
+          slackIds: drafts.filter((d) => !d.userId).map((d) => d.slackId),
+          recentWindow,
+        },
+      );
       setResolving(false);
       if (ok && data.recipients) setResolved(data.recipients);
       else if (!ok) toast.error(data.error ?? "Couldn't check recipients.");
-    }, 400);
+    };
+    const timer = window.setTimeout(() => void run(), 400);
     return () => window.clearTimeout(timer);
   }, [channel, drafts, recentWindow, exclusionsVersion]);
 
@@ -294,7 +336,9 @@ function ComposePanel({
     if (!activeSend) return;
     let cancelled = false;
     const tick = async () => {
-      const res = await fetch(`/api/admin/messages/${encodeURIComponent(activeSend)}`, { cache: "no-store" });
+      const res = await fetch(`/api/admin/messages/${encodeURIComponent(activeSend)}`, {
+        cache: "no-store",
+      });
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as { send: OutreachSendSummary };
       setProgress(data.send);
@@ -320,7 +364,11 @@ function ComposePanel({
   const addPasted = useCallback(() => {
     const parsed = parseSlackIdList(pasteText);
     if (parsed.ids.length === 0) {
-      toast.error(parsed.invalid.length ? `Not Slack user IDs: ${parsed.invalid.slice(0, 5).join(", ")}` : "Paste at least one Slack ID.");
+      toast.error(
+        parsed.invalid.length
+          ? `Not Slack user IDs: ${parsed.invalid.slice(0, 5).join(", ")}`
+          : "Paste at least one Slack ID.",
+      );
       return;
     }
     const additions = parsed.ids.map((id) => {
@@ -374,7 +422,9 @@ function ComposePanel({
   );
 
   const removeDraft = useCallback((d: DraftRecipient) => {
-    setDrafts((prev) => prev.filter((p) => (d.userId ? p.userId !== d.userId : p.userId || p.slackId !== d.slackId)));
+    setDrafts((prev) =>
+      prev.filter((p) => (d.userId ? p.userId !== d.userId : p.userId || p.slackId !== d.slackId)),
+    );
     setConfirming(false);
   }, []);
 
@@ -393,17 +443,22 @@ function ComposePanel({
     }
     return [...counts.entries()].map(([reason, n]) => `${n} ${reasonLabel(reason)}`).join(" · ");
   }, [resolved]);
-  const willReceive = resolved ? resolved.filter((r) => r.status === "pending").length : drafts.length;
-  const previewRecipient = (resolved ?? []).find((r) => r.status === "pending") ?? drafts[0] ?? { name: "Ada Lovelace" };
+  const willReceive = resolved
+    ? resolved.filter((r) => r.status === "pending").length
+    : drafts.length;
+  const previewRecipient = (resolved ?? []).find((r) => r.status === "pending") ??
+    drafts[0] ?? { name: "Ada Lovelace", slackId: null };
 
   const batchSize = Number(batchSizeText);
-  const batchSizeValid = Number.isInteger(batchSize) && batchSize >= 1 && batchSize <= OUTREACH_MAX_BATCH_SIZE;
+  const batchSizeValid =
+    Number.isInteger(batchSize) && batchSize >= 1 && batchSize <= OUTREACH_MAX_BATCH_SIZE;
   const batches = batchSizeValid ? batchCount(willReceive, batchSize) : 0;
   const firstBatch = batchSizeValid ? Math.min(batchSize, willReceive) : 0;
 
   const send = useCallback(async () => {
     if (drafts.length === 0) return toast.error("Add at least one recipient.");
-    if (message.trim().length < 10) return toast.error("Write a message of at least 10 characters.");
+    if (message.trim().length < 10)
+      return toast.error("Write a message of at least 10 characters.");
     if (!batchSizeValid) return toast.error(`Batch size must be 1 to ${OUTREACH_MAX_BATCH_SIZE}.`);
     if (!confirming) {
       setConfirming(true);
@@ -433,7 +488,17 @@ function ComposePanel({
     setActiveSend(data.id);
     setDrafts([]);
     await onSent();
-  }, [batchSize, batchSizeValid, batches, channel, confirming, drafts, message, onSent, recentWindow]);
+  }, [
+    batchSize,
+    batchSizeValid,
+    batches,
+    channel,
+    confirming,
+    drafts,
+    message,
+    onSent,
+    recentWindow,
+  ]);
 
   const releaseNext = useCallback(
     async (id: string) => {
@@ -451,9 +516,9 @@ function ComposePanel({
     <div className={card}>
       <h2 className="text-lg font-bold text-foreground">Write a message</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Pick recipients from any mix of the sources below. People on the exclusion list, anyone who turned off
-        Carnival messages in their account, frozen accounts and anyone nudged inside the window you pick are left
-        out. Messages go out in the background at about one per second.
+        Pick recipients from any mix of the sources below. People on the exclusion list, anyone who
+        turned off Carnival messages in their account, frozen accounts and anyone nudged inside the
+        window you pick are left out. Messages go out in the background at about one per second.
       </p>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -478,7 +543,10 @@ function ComposePanel({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-semibold text-foreground" htmlFor="user-search">
+            <label
+              className="mb-1 block text-sm font-semibold text-foreground"
+              htmlFor="user-search"
+            >
               Add a user
             </label>
             <input
@@ -501,7 +569,9 @@ function ComposePanel({
                         <span className="font-semibold text-foreground">{u.name}</span>{" "}
                         <span className="text-xs text-muted-foreground">{u.email}</span>
                       </span>
-                      <span className="text-xs text-muted-foreground">{u.slackId ?? "no Slack ID"}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {u.slackId ?? "no Slack ID"}
+                      </span>
                     </button>
                   </li>
                 ))}
@@ -514,10 +584,16 @@ function ComposePanel({
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-foreground">
               Recipients ({resolved ? willReceive : drafts.length})
-              {resolving ? <span className="ml-2 font-normal text-muted-foreground">checking…</span> : null}
+              {resolving ? (
+                <span className="ml-2 font-normal text-muted-foreground">checking…</span>
+              ) : null}
             </span>
             {drafts.length ? (
-              <button type="button" className="text-xs font-semibold text-muted-foreground hover:text-foreground" onClick={() => setDrafts([])}>
+              <button
+                type="button"
+                className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+                onClick={() => setDrafts([])}
+              >
                 Clear all
               </button>
             ) : null}
@@ -541,11 +617,15 @@ function ComposePanel({
           </label>
           <div className="max-h-96 overflow-y-auto rounded-[var(--radius-xl)] border border-border">
             {drafts.length === 0 ? (
-              <p className="px-3 py-8 text-center text-sm text-muted-foreground">No recipients yet.</p>
+              <p className="px-3 py-8 text-center text-sm text-muted-foreground">
+                No recipients yet.
+              </p>
             ) : (
               <ul className="divide-y divide-border">
                 {visibleDrafts.length === 0 ? (
-                  <li className="px-3 py-6 text-center text-sm text-muted-foreground">Everyone added is left out.</li>
+                  <li className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    Everyone added is left out.
+                  </li>
                 ) : (
                   visibleDrafts.map((d) => (
                     <RecipientRow key={draftKey(d)} draft={d} onRemove={removeDraft} />
@@ -562,7 +642,8 @@ function ComposePanel({
                 onClick={() => setShowHidden((v) => !v)}
               >
                 <span>
-                  <span className="font-semibold">{hiddenDrafts.length} left out</span> · {hiddenReasons}
+                  <span className="font-semibold">{hiddenDrafts.length} left out</span> ·{" "}
+                  {hiddenReasons}
                 </span>
                 <span className="text-xs font-semibold">{showHidden ? "Hide" : "Show why"}</span>
               </button>
@@ -585,8 +666,14 @@ function ComposePanel({
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-semibold text-foreground" htmlFor="outreach-message">
-            Message <span className="font-normal text-muted-foreground">— {"{firstName}"} is replaced per person</span>
+          <label
+            className="mb-1 block text-sm font-semibold text-foreground"
+            htmlFor="outreach-message"
+          >
+            Message{" "}
+            <span className="font-normal text-muted-foreground">
+              — {"{firstName}"} is replaced per person
+            </span>
           </label>
           <textarea
             id="outreach-message"
@@ -600,17 +687,23 @@ function ComposePanel({
             }}
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            An opt-out line pointing at Account settings is added to the end of every message automatically.
+            An opt-out line pointing at Account settings is added to the end of every message
+            automatically.
           </p>
         </div>
         <div>
           <span className="mb-1 block text-sm font-semibold text-foreground">
-            Preview <span className="font-normal text-muted-foreground">for {recipientLabel(previewRecipient as DraftRecipient)}</span>
+            Preview{" "}
+            <span className="font-normal text-muted-foreground">
+              for {recipientLabel(previewRecipient)}
+            </span>
           </span>
           <pre className="min-h-[10rem] whitespace-pre-wrap rounded-[var(--radius-xl)] border border-border bg-background/60 p-3 font-sans text-sm text-foreground">
-            {renderOutreachMessage(message.trim(), { name: (previewRecipient as DraftRecipient).name ?? null })}
+            {renderOutreachMessage(message.trim(), { name: previewRecipient.name ?? null })}
             {"\n\n"}
-            <span className="text-muted-foreground">{buildOutreachFooter({ ...initial.footer, channel })}</span>
+            <span className="text-muted-foreground">
+              {buildOutreachFooter({ ...initial.footer, channel })}
+            </span>
           </pre>
         </div>
       </div>
@@ -678,8 +771,8 @@ function ComposePanel({
           </span>
           <span className="text-muted-foreground">
             {progress.counts.sent} sent · {progress.counts.pending} pending
-            {progress.counts.queued ? ` · ${progress.counts.queued} in later batches` : ""} · {progress.counts.skipped}{" "}
-            skipped · {progress.counts.failed} failed
+            {progress.counts.queued ? ` · ${progress.counts.queued} in later batches` : ""} ·{" "}
+            {progress.counts.skipped} skipped · {progress.counts.failed} failed
           </span>
           {progress.status === "waiting" ? (
             <BatchActions send={progress} onNext={releaseNext} onChanged={onSent} />
@@ -702,20 +795,31 @@ function RecipientRow({
   return (
     <li className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
       <span className="min-w-0">
-        <span className={`font-semibold ${reason ? "text-muted-foreground" : "text-foreground"}`}>{recipientLabel(draft)}</span>{" "}
+        <span className={`font-semibold ${reason ? "text-muted-foreground" : "text-foreground"}`}>
+          {recipientLabel(draft)}
+        </span>{" "}
         {!draft.userId ? <span className="text-xs text-amber-600">no Carnival account</span> : null}
         {reason ? (
-          <span className="ml-1 rounded-full bg-carnival-red/10 px-1.5 py-0.5 text-[11px] font-semibold text-carnival-red">{reason}</span>
+          <span className="ml-1 rounded-full bg-carnival-red/10 px-1.5 py-0.5 text-[11px] font-semibold text-carnival-red">
+            {reason}
+          </span>
         ) : null}
       </span>
-      <button type="button" className="text-xs text-muted-foreground hover:text-carnival-red" onClick={() => onRemove(draft)}>
+      <button
+        type="button"
+        className="text-xs text-muted-foreground hover:text-carnival-red"
+        onClick={() => onRemove(draft)}
+      >
         Remove
       </button>
     </li>
   );
 }
 
-async function postSendAction(id: string, action: "next_batch" | "cancel" | "resume"): Promise<boolean> {
+async function postSendAction(
+  id: string,
+  action: "next_batch" | "cancel" | "resume",
+): Promise<boolean> {
   const { ok, data } = await postJson<{ pending?: number; skipped?: number; batch?: number }>(
     `/api/admin/messages/${encodeURIComponent(id)}`,
     { action },
@@ -755,7 +859,12 @@ function BatchActions({
         className="text-xs font-semibold text-carnival-blue hover:underline disabled:opacity-50"
         disabled={busy}
         onClick={async () => {
-          if (!window.confirm(`Send batch ${next} of ${send.batches.total} to ${send.batches.nextBatchSize} people now?`)) return;
+          if (
+            !window.confirm(
+              `Send batch ${next} of ${send.batches.total} to ${send.batches.nextBatchSize} people now?`,
+            )
+          )
+            return;
           setBusy(true);
           await onNext(send.id);
           setBusy(false);
@@ -768,7 +877,12 @@ function BatchActions({
         className="text-xs font-semibold text-muted-foreground hover:text-carnival-red disabled:opacity-50"
         disabled={busy}
         onClick={async () => {
-          if (!window.confirm(`Cancel the remaining ${send.counts.queued} people? They won't get this message.`)) return;
+          if (
+            !window.confirm(
+              `Cancel the remaining ${send.counts.queued} people? They won't get this message.`,
+            )
+          )
+            return;
           setBusy(true);
           await postSendAction(send.id, "cancel");
           await onChanged();
@@ -790,9 +904,11 @@ function AudienceBuilder({ onAdd }: { onAdd: (userIds: string[], label: string) 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(async () => {
+    const run = async () => {
       setLoading(true);
-      const { ok, data } = await postJson<{ userIds?: string[] }>("/api/admin/messages/audience", { filters });
+      const { ok, data } = await postJson<{ userIds?: string[] }>("/api/admin/messages/audience", {
+        filters,
+      });
       setLoading(false);
       if (ok && data.userIds) {
         setMatches(data.userIds);
@@ -801,7 +917,8 @@ function AudienceBuilder({ onAdd }: { onAdd: (userIds: string[], label: string) 
         setMatches(null);
         setError(data.error ?? "Couldn't run the filters.");
       }
-    }, 350);
+    };
+    const timer = window.setTimeout(() => void run(), 350);
     return () => window.clearTimeout(timer);
   }, [filters]);
 
@@ -823,7 +940,9 @@ function AudienceBuilder({ onAdd }: { onAdd: (userIds: string[], label: string) 
   return (
     <div className="rounded-[var(--radius-xl)] border border-border p-3">
       <span className="block text-sm font-semibold text-foreground">Find people with filters</span>
-      <p className="text-xs text-muted-foreground">Everyone matching all the filters. Presets fill them in for you.</p>
+      <p className="text-xs text-muted-foreground">
+        Everyone matching all the filters. Presets fill them in for you.
+      </p>
       <div className="mt-2 flex flex-wrap gap-2">
         {AUDIENCE_PRESETS.map((p) => (
           <button
@@ -856,7 +975,11 @@ function AudienceBuilder({ onAdd }: { onAdd: (userIds: string[], label: string) 
               ))}
             </select>
             <FilterControls filter={f} onChange={(next) => update(i, next)} />
-            <button type="button" className="text-xs text-muted-foreground hover:text-carnival-red" onClick={() => remove(i)}>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-carnival-red"
+              onClick={() => remove(i)}
+            >
               Remove
             </button>
           </li>
@@ -893,7 +1016,15 @@ function AudienceBuilder({ onAdd }: { onAdd: (userIds: string[], label: string) 
           </button>
         ) : null}
         <span className="ml-auto text-sm text-muted-foreground">
-          {loading ? "Counting…" : error ? <span className="text-carnival-red">{error}</span> : matches ? `${matches.length} match` : ""}
+          {loading ? (
+            "Counting…"
+          ) : error ? (
+            <span className="text-carnival-red">{error}</span>
+          ) : matches ? (
+            `${matches.length} match`
+          ) : (
+            ""
+          )}
         </span>
         <button
           type="button"
@@ -901,20 +1032,32 @@ function AudienceBuilder({ onAdd }: { onAdd: (userIds: string[], label: string) 
           disabled={!matches || matches.length === 0 || loading}
           onClick={() => matches && onAdd(matches, label)}
         >
-          {filters.length ? `Add ${matches?.length ?? 0}` : `Add everyone (${matches?.length ?? 0})`}
+          {filters.length
+            ? `Add ${matches?.length ?? 0}`
+            : `Add everyone (${matches?.length ?? 0})`}
         </button>
       </div>
     </div>
   );
 }
 
-function FilterControls({ filter, onChange }: { filter: AudienceFilter; onChange: (f: AudienceFilter) => void }) {
+function FilterControls({
+  filter,
+  onChange,
+}: {
+  filter: AudienceFilter;
+  onChange: (f: AudienceFilter) => void;
+}) {
   if ("op" in filter && "value" in filter) {
     const def = AUDIENCE_FILTERS[filter.key];
-    const hours = def.kind === "number" && def.unit === "hours";
+    const hours = def.unit === "hours";
     return (
       <>
-        <select className={compactClass} value={filter.op} onChange={(e) => onChange({ ...filter, op: e.target.value as NumberOp })}>
+        <select
+          className={compactClass}
+          value={filter.op}
+          onChange={(e) => onChange({ ...filter, op: e.target.value as NumberOp })}
+        >
           {NUMBER_OPS.map((op) => (
             <option key={op} value={op}>
               {NUMBER_OP_LABELS[op]}
@@ -927,7 +1070,12 @@ function FilterControls({ filter, onChange }: { filter: AudienceFilter; onChange
           min={0}
           step={hours ? 0.5 : 1}
           value={filter.value}
-          onChange={(e) => onChange({ ...filter, value: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+          onChange={(e) =>
+            onChange({
+              ...filter,
+              value: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)),
+            })
+          }
         />
         {hours ? <span className="text-xs text-muted-foreground">hours</span> : null}
       </>
@@ -935,7 +1083,11 @@ function FilterControls({ filter, onChange }: { filter: AudienceFilter; onChange
   }
   if ("value" in filter) {
     return (
-      <select className={compactClass} value={filter.value ? "yes" : "no"} onChange={(e) => onChange({ ...filter, value: e.target.value === "yes" })}>
+      <select
+        className={compactClass}
+        value={filter.value ? "yes" : "no"}
+        onChange={(e) => onChange({ ...filter, value: e.target.value === "yes" })}
+      >
         <option value="yes">Yes</option>
         <option value="no">No</option>
       </select>
@@ -951,7 +1103,9 @@ function FilterControls({ filter, onChange }: { filter: AudienceFilter; onChange
               className="h-3.5 w-3.5"
               checked={filter.values.includes(v)}
               onChange={(e) => {
-                const values = e.target.checked ? [...filter.values, v] : filter.values.filter((x) => x !== v);
+                const values = e.target.checked
+                  ? [...filter.values, v]
+                  : filter.values.filter((x) => x !== v);
                 if (values.length) onChange({ ...filter, values });
               }}
             />
@@ -963,7 +1117,11 @@ function FilterControls({ filter, onChange }: { filter: AudienceFilter; onChange
   }
   return (
     <>
-      <select className={compactClass} value={filter.op} onChange={(e) => onChange({ ...filter, op: e.target.value as "before" | "after" })}>
+      <select
+        className={compactClass}
+        value={filter.op}
+        onChange={(e) => onChange({ ...filter, op: e.target.value as "before" | "after" })}
+      >
         <option value="before">before</option>
         <option value="after">on or after</option>
       </select>
@@ -1001,7 +1159,10 @@ function ExclusionsPanel({
   const [busy, setBusy] = useState(false);
 
   const preview = useMemo(() => parseSlackIdList(ids), [ids]);
-  const excludedSlackIds = useMemo(() => new Set(data.excluded.map((x) => x.slackId)), [data.excluded]);
+  const excludedSlackIds = useMemo(
+    () => new Set(data.excluded.map((x) => x.slackId)),
+    [data.excluded],
+  );
 
   // Name, email, Slack ID or Carnival user ID; people already picked or on the list are left out.
   const matches = useMemo(() => {
@@ -1031,7 +1192,9 @@ function ExclusionsPanel({
   const add = useCallback(async () => {
     if (preview.ids.length === 0 && picked.length === 0) {
       toast.error(
-        preview.invalid.length ? `Not Slack user IDs: ${preview.invalid.slice(0, 5).join(", ")}` : "Pick a person or enter a Slack ID.",
+        preview.invalid.length
+          ? `Not Slack user IDs: ${preview.invalid.slice(0, 5).join(", ")}`
+          : "Pick a person or enter a Slack ID.",
       );
       return;
     }
@@ -1058,27 +1221,40 @@ function ExclusionsPanel({
     );
   }, [note, onChanged, picked, preview]);
 
-  const remove = useCallback(async (slackId: string) => {
-    if (!window.confirm(`Remove ${slackId} from the exclusion list? They can receive messages again.`)) return;
-    const res = await fetch(`/api/admin/messages/exclusions?slackId=${encodeURIComponent(slackId)}`, { method: "DELETE" });
-    const body = (await res.json().catch(() => ({}))) as MessagesPageData["exclusions"] & { error?: string };
-    if (!res.ok) {
-      toast.error(body.error ?? "Failed to remove.");
-      return;
-    }
-    setData({ excluded: body.excluded, selfOptedOut: body.selfOptedOut });
-    onChanged();
-    toast.success(`${slackId} can receive messages again.`);
-  }, [onChanged]);
+  const remove = useCallback(
+    async (slackId: string) => {
+      if (
+        !window.confirm(
+          `Remove ${slackId} from the exclusion list? They can receive messages again.`,
+        )
+      )
+        return;
+      const res = await fetch(
+        `/api/admin/messages/exclusions?slackId=${encodeURIComponent(slackId)}`,
+        { method: "DELETE" },
+      );
+      const body = (await res.json().catch(() => ({}))) as MessagesPageData["exclusions"] & {
+        error?: string;
+      };
+      if (!res.ok) {
+        toast.error(body.error ?? "Failed to remove.");
+        return;
+      }
+      setData({ excluded: body.excluded, selfOptedOut: body.selfOptedOut });
+      onChanged();
+      toast.success(`${slackId} can receive messages again.`);
+    },
+    [onChanged],
+  );
 
   return (
     <div className={card}>
       <h2 className="text-lg font-bold text-foreground">Excluded people</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        People here get no outreach from the Carnival bot: not the automated reminders, not &quot;run now&quot;, and
-        not messages written on this page. Review, grant and shop updates still reach them. Add anyone who asks you
-        to stop. Pick them by name or paste Slack IDs; the list is keyed by Slack ID, so it also covers people without
-        a Carnival account.
+        People here get no outreach from the Carnival bot: not the automated reminders, not
+        &quot;run now&quot;, and not messages written on this page. Review, grant and shop updates
+        still reach them. Add anyone who asks you to stop. Pick them by name or paste Slack IDs; the
+        list is keyed by Slack ID, so it also covers people without a Carnival account.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -1102,13 +1278,19 @@ function ExclusionsPanel({
                     className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-background/60 disabled:cursor-not-allowed disabled:opacity-50"
                     onClick={() => pick(u)}
                     disabled={!u.slackId}
-                    title={u.slackId ? undefined : "No Slack ID on file, so the bot can't message them anyway"}
+                    title={
+                      u.slackId
+                        ? undefined
+                        : "No Slack ID on file, so the bot can't message them anyway"
+                    }
                   >
                     <span>
                       <span className="font-semibold text-foreground">{u.name}</span>{" "}
                       <span className="text-xs text-muted-foreground">{u.email}</span>
                     </span>
-                    <span className="text-xs text-muted-foreground">{u.slackId ?? "no Slack ID"}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {u.slackId ?? "no Slack ID"}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -1117,7 +1299,12 @@ function ExclusionsPanel({
         </div>
         <label className="text-sm">
           <span className="mb-1 block font-semibold text-foreground">Or paste Slack IDs</span>
-          <input className={inputClass} placeholder="U0123ABCD, <@U0456EFGH>" value={ids} onChange={(e) => setIds(e.target.value)} />
+          <input
+            className={inputClass}
+            placeholder="U0123ABCD, <@U0456EFGH>"
+            value={ids}
+            onChange={(e) => setIds(e.target.value)}
+          />
         </label>
       </div>
       {pendingCount ? (
@@ -1137,7 +1324,10 @@ function ExclusionsPanel({
           {preview.ids.map((id) => {
             const u = usersBySlack.get(id);
             return (
-              <span key={id} className="rounded-full border border-dashed border-border px-2.5 py-1 text-muted-foreground">
+              <span
+                key={id}
+                className="rounded-full border border-dashed border-border px-2.5 py-1 text-muted-foreground"
+              >
                 {u ? `${u.name} · ${id}` : `${id} · no Carnival account`}
               </span>
             );
@@ -1147,7 +1337,12 @@ function ExclusionsPanel({
       <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
         <label className="text-sm">
           <span className="mb-1 block font-semibold text-foreground">Note (optional)</span>
-          <input className={inputClass} placeholder="Asked to stop on Oct 20" value={note} onChange={(e) => setNote(e.target.value)} />
+          <input
+            className={inputClass}
+            placeholder="Asked to stop on Oct 20"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
         </label>
         <button type="button" className={smallButton} onClick={add} disabled={busy}>
           {busy ? "Adding…" : pendingCount ? `Exclude ${pendingCount}` : "Exclude"}
@@ -1176,7 +1371,9 @@ function ExclusionsPanel({
               data.excluded.map((x) => (
                 <tr key={x.slackId} className="border-t border-border">
                   <td className="px-3 py-2 font-semibold text-foreground">
-                    {x.userName ?? <span className="font-normal text-amber-600">no Carnival account</span>}
+                    {x.userName ?? (
+                      <span className="font-normal text-amber-600">no Carnival account</span>
+                    )}
                   </td>
                   <td className="px-3 py-2 font-mono text-xs">{x.slackId}</td>
                   <td className="px-3 py-2 text-muted-foreground">{x.note ?? "—"}</td>
@@ -1185,7 +1382,11 @@ function ExclusionsPanel({
                     {x.addedByName ? ` · ${x.addedByName}` : ""}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    <button type="button" className="text-xs font-semibold text-muted-foreground hover:text-carnival-red" onClick={() => void remove(x.slackId)}>
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-muted-foreground hover:text-carnival-red"
+                      onClick={() => void remove(x.slackId)}
+                    >
                       Remove
                     </button>
                   </td>
@@ -1202,14 +1403,16 @@ function ExclusionsPanel({
             Opted out themselves ({data.selfOptedOut.length})
           </summary>
           <p className="mt-1 text-xs text-muted-foreground">
-            These people turned off Carnival messages on their Account page, so they are left out of the automated
-            reminders and of messages written here. Review, grant and shop updates still reach them. They can turn
-            messages back on themselves; the list above is yours alone.
+            These people turned off Carnival messages on their Account page, so they are left out of
+            the automated reminders and of messages written here. Review, grant and shop updates
+            still reach them. They can turn messages back on themselves; the list above is yours
+            alone.
           </p>
           <ul className="mt-2 text-sm text-muted-foreground">
             {data.selfOptedOut.map((u) => (
               <li key={u.userId}>
-                <span className="text-foreground">{u.name}</span> · {u.slackId ?? "no Slack ID"} · {u.email}
+                <span className="text-foreground">{u.name}</span> · {u.slackId ?? "no Slack ID"} ·{" "}
+                {u.email}
               </li>
             ))}
           </ul>
@@ -1223,9 +1426,18 @@ function ExclusionsPanel({
 // 4. History
 // ---------------------------------------------------------------------------
 
-function HistoryPanel({ sends, onRefresh }: { sends: OutreachSendSummary[]; onRefresh: () => Promise<void> }) {
+function HistoryPanel({
+  sends,
+  onRefresh,
+}: {
+  sends: OutreachSendSummary[];
+  onRefresh: () => Promise<void>;
+}) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<{ send: OutreachSendSummary & { message: string | null }; recipients: OutreachRecipientRow[] } | null>(null);
+  const [detail, setDetail] = useState<{
+    send: OutreachSendSummary & { message: string | null };
+    recipients: OutreachRecipientRow[];
+  } | null>(null);
   const anyRunning = sends.some((s) => s.status === "running");
 
   // Keep counts fresh while anything is still sending.
@@ -1235,25 +1447,36 @@ function HistoryPanel({ sends, onRefresh }: { sends: OutreachSendSummary[]; onRe
     return () => window.clearInterval(interval);
   }, [anyRunning, onRefresh]);
 
-  const open = useCallback(async (id: string) => {
-    if (openId === id) {
-      setOpenId(null);
+  const open = useCallback(
+    async (id: string) => {
+      if (openId === id) {
+        setOpenId(null);
+        setDetail(null);
+        return;
+      }
+      setOpenId(id);
       setDetail(null);
-      return;
-    }
-    setOpenId(id);
-    setDetail(null);
-    const res = await fetch(`/api/admin/messages/${encodeURIComponent(id)}`, { cache: "no-store" });
-    if (res.ok) setDetail(await res.json());
-  }, [openId]);
+      const res = await fetch(`/api/admin/messages/${encodeURIComponent(id)}`, {
+        cache: "no-store",
+      });
+      if (res.ok) setDetail(await res.json());
+    },
+    [openId],
+  );
 
-  const resume = useCallback(async (id: string) => {
-    if (await postSendAction(id, "resume")) await onRefresh();
-  }, [onRefresh]);
-  const releaseNext = useCallback(async (id: string) => {
-    await postSendAction(id, "next_batch");
-    await onRefresh();
-  }, [onRefresh]);
+  const resume = useCallback(
+    async (id: string) => {
+      if (await postSendAction(id, "resume")) await onRefresh();
+    },
+    [onRefresh],
+  );
+  const releaseNext = useCallback(
+    async (id: string) => {
+      await postSendAction(id, "next_batch");
+      await onRefresh();
+    },
+    [onRefresh],
+  );
 
   return (
     <div className={card}>
@@ -1315,7 +1538,10 @@ function HistoryRow({
 }: {
   send: OutreachSendSummary;
   open: boolean;
-  detail: { send: OutreachSendSummary & { message: string | null }; recipients: OutreachRecipientRow[] } | null;
+  detail: {
+    send: OutreachSendSummary & { message: string | null };
+    recipients: OutreachRecipientRow[];
+  } | null;
   onToggle: (id: string) => void;
   onResume: (id: string) => void;
   onNext: (id: string) => Promise<void>;
@@ -1333,13 +1559,22 @@ function HistoryRow({
         </td>
         <td className="px-3 py-2">
           <div className="font-semibold text-foreground">
-            {send.kind === "automated" ? "Automated run (manual)" : `Message · ${send.channel === "email" ? "email" : "Slack"}`}
-            {dryRun ? <span className="ml-1 text-xs font-normal text-muted-foreground">dry run, sending disabled</span> : null}
+            {send.kind === "automated"
+              ? "Automated run (manual)"
+              : `Message · ${send.channel === "email" ? "email" : "Slack"}`}
+            {dryRun ? (
+              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                dry run, sending disabled
+              </span>
+            ) : null}
           </div>
-          {send.messagePreview ? <div className="line-clamp-2 text-xs text-muted-foreground">{send.messagePreview}</div> : null}
+          {send.messagePreview ? (
+            <div className="line-clamp-2 text-xs text-muted-foreground">{send.messagePreview}</div>
+          ) : null}
           {multiBatch ? (
             <div className="text-xs text-muted-foreground">
-              Batches of {send.batches.size} · {Math.min(send.batches.current, send.batches.total)} of {send.batches.total} released
+              Batches of {send.batches.size} · {Math.min(send.batches.current, send.batches.total)}{" "}
+              of {send.batches.total} released
               {send.counts.queued ? ` · ${send.counts.queued} waiting` : ""}
             </div>
           ) : null}
@@ -1363,7 +1598,9 @@ function HistoryRow({
             }`}
           >
             {send.status === "waiting" ? "waiting for next batch" : send.status}
-            {send.status === "running" && send.counts.pending ? ` · ${send.counts.pending} left` : ""}
+            {send.status === "running" && send.counts.pending
+              ? ` · ${send.counts.pending} left`
+              : ""}
           </span>
         </td>
         <td className="px-3 py-2 text-right tabular-nums">{send.counts.sent}</td>
@@ -1371,11 +1608,19 @@ function HistoryRow({
         <td className="px-3 py-2 text-right tabular-nums">{send.counts.failed}</td>
         <td className="px-3 py-2 whitespace-nowrap text-right">
           {send.status === "interrupted" && send.kind === "custom" ? (
-            <button type="button" className="mr-3 text-xs font-semibold text-carnival-blue hover:underline" onClick={() => onResume(send.id)}>
+            <button
+              type="button"
+              className="mr-3 text-xs font-semibold text-carnival-blue hover:underline"
+              onClick={() => onResume(send.id)}
+            >
               Resume
             </button>
           ) : null}
-          <button type="button" className="text-xs font-semibold text-muted-foreground hover:text-foreground" onClick={() => onToggle(send.id)}>
+          <button
+            type="button"
+            className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+            onClick={() => onToggle(send.id)}
+          >
             {open ? "Hide" : "Details"}
           </button>
         </td>
@@ -1397,17 +1642,30 @@ function HistoryRow({
                 ) : (
                   <ul className="max-h-72 overflow-y-auto text-sm">
                     {detail.recipients.map((r) => (
-                      <li key={r.id} className="flex flex-wrap items-baseline gap-x-2 border-b border-border py-1 last:border-0">
+                      <li
+                        key={r.id}
+                        className="flex flex-wrap items-baseline gap-x-2 border-b border-border py-1 last:border-0"
+                      >
                         <span className="font-semibold text-foreground">{recipientLabel(r)}</span>
-                        <span className="font-mono text-xs text-muted-foreground">{r.slackId ?? r.email ?? ""}</span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {r.slackId ?? r.email ?? ""}
+                        </span>
                         <span
                           className={`text-xs font-semibold ${
-                            r.status === "sent" ? "text-emerald-700" : r.status === "pending" ? "text-carnival-blue" : "text-carnival-red"
+                            r.status === "sent"
+                              ? "text-emerald-700"
+                              : r.status === "pending"
+                                ? "text-carnival-blue"
+                                : "text-carnival-red"
                           }`}
                         >
                           {r.status}
                         </span>
-                        {r.reason ? <span className="text-xs text-muted-foreground">{reasonLabel(r.reason)}</span> : null}
+                        {r.reason ? (
+                          <span className="text-xs text-muted-foreground">
+                            {reasonLabel(r.reason)}
+                          </span>
+                        ) : null}
                         {multiBatch && r.status !== "skipped" ? (
                           <span className="text-xs text-muted-foreground">batch {r.batch}</span>
                         ) : null}

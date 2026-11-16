@@ -6,8 +6,15 @@ import AdminMessagesClient, { type MessagesPageData } from "@/components/AdminMe
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { getAppBaseUrl, isNudgeEmailEnabled } from "@/lib/loops";
-import { nudgeContactSlackIdFromEnv, runNudges, type NudgeRunResult } from "@/lib/notifications/nudges/run";
-import { loadAutomatedNudgeStats, type AutomatedNudgeStats } from "@/lib/notifications/nudges/select";
+import {
+  nudgeContactSlackIdFromEnv,
+  runNudges,
+  type NudgeRunResult,
+} from "@/lib/notifications/nudges/run";
+import {
+  loadAutomatedNudgeStats,
+  type AutomatedNudgeStats,
+} from "@/lib/notifications/nudges/select";
 import { listExclusions, listSends } from "@/lib/notifications/outreach";
 import { isSlackConfigured } from "@/lib/notifications/slack-client";
 import { getSiteSettingIso } from "@/lib/site-settings";
@@ -24,7 +31,13 @@ export default async function AdminMessagesPage() {
 
   const [users, automated, exclusions, sends] = await Promise.all([
     db
-      .select({ id: user.id, name: user.name, email: user.email, slackId: user.slackId, isFrozen: user.isFrozen })
+      .select({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        slackId: user.slackId,
+        isFrozen: user.isFrozen,
+      })
       .from(user)
       .orderBy(asc(user.name)),
     loadAutomatedNudgePreview(),
@@ -50,7 +63,11 @@ export default async function AdminMessagesPage() {
   return (
     <AppShell title="Messages">
       <div className="space-y-6">
-        <AdminAutomatedNudgesCard preview={automated.preview} stats={automated.stats} error={automated.error} />
+        <AdminAutomatedNudgesCard
+          preview={automated.preview}
+          stats={automated.stats}
+          error={automated.error}
+        />
         <AdminMessagesClient initial={data} />
       </div>
     </AppShell>

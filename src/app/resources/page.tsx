@@ -7,7 +7,7 @@ import ResourcesClient, { type EditorWithResources } from "@/components/Resource
 
 export default async function ResourcesPage() {
   const session = await getServerSession();
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect("/login?callbackUrl=/resources");
   }
 
@@ -60,4 +60,3 @@ export default async function ResourcesPage() {
     </AppShell>
   );
 }
-

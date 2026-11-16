@@ -7,7 +7,6 @@ import {
   projectReviewerAssignment,
   user,
   type ProjectStatus,
-  type UserRole,
 } from "@/db/schema";
 import {
   buildCategorySuggestions,
@@ -18,18 +17,11 @@ import {
 import { getServerSession } from "@/lib/server-session";
 import { runAfterResponse } from "@/lib/notifications/after-response";
 import { syncTelescreen } from "@/lib/telescreen/sync";
-
-function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
-  return role === "reviewer" || role === "admin";
-}
+import { canReview } from "@/lib/roles";
 
 type FilterKey = "pending" | "approved" | "rejected";
 type SortKey =
-  | "queue-age-desc"
-  | "submitted-desc"
-  | "submitted-asc"
-  | "last-review-desc"
-  | "name-asc";
+  "queue-age-desc" | "submitted-desc" | "submitted-asc" | "last-review-desc" | "name-asc";
 type AssignmentFilter = "all" | "mine" | "assigned" | "unassigned";
 
 const FILTERS: Array<{ value: FilterKey; statuses: ProjectStatus[] }> = [
@@ -61,7 +53,7 @@ function escapeLikePattern(value: string) {
 
 export async function GET(req: Request) {
   const session = await getServerSession({ disableCookieCache: true });
-  const viewerId = session?.user?.id;
+  const viewerId = session?.user.id;
   if (!viewerId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -110,9 +102,7 @@ export async function GET(req: Request) {
 
   const statusConditions = activeStatuses.map((status) => eq(project.status, status));
   const statusWhere = (
-    statusConditions.length === 1
-      ? statusConditions[0]
-      : or(...statusConditions)
+    statusConditions.length === 1 ? statusConditions[0] : or(...statusConditions)
   ) as SQL;
 
   const baseFilterWhere = (
@@ -134,7 +124,11 @@ export async function GET(req: Request) {
   if (query) {
     const pattern = `%${escapeLikePattern(query)}%`;
     whereParts.push(
-      or(ilike(project.name, pattern), ilike(project.description, pattern), ilike(user.name, pattern)) as SQL,
+      or(
+        ilike(project.name, pattern),
+        ilike(project.description, pattern),
+        ilike(user.name, pattern),
+      ) as SQL,
     );
   }
 
@@ -164,7 +158,7 @@ export async function GET(req: Request) {
     })
     .from(project)
     .leftJoin(user, eq(project.creatorId, user.id))
-    .where(whereParts.length === 1 ? whereParts[0]! : and(...whereParts))
+    .where(whereParts.length === 1 ? whereParts[0] : and(...whereParts))
     .orderBy(desc(project.submittedAt), desc(project.createdAt));
 
   const projectIds = rows.map((row) => row.id);
@@ -253,11 +247,11 @@ export async function GET(req: Request) {
       name: row.name,
       description: row.description,
       category: row.category,
-      tags: row.tags ?? [],
+      tags: row.tags,
       editor: row.editor,
       editorOther: row.editorOther,
-      previewImage: row.previewImage ?? "",
-      screenshots: row.screenshots ?? [],
+      previewImage: row.previewImage,
+      screenshots: row.screenshots,
       status: row.status,
       createdAt: row.createdAt.toISOString(),
       submittedAt: row.submittedAt ? row.submittedAt.toISOString() : null,

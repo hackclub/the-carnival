@@ -18,7 +18,8 @@ export type NudgeCommandArgs = {
   allowlist?: string[];
 };
 
-export type ParsedNudgeCommandArgs = { ok: true; args: NudgeCommandArgs } | { ok: false; error: string };
+export type ParsedNudgeCommandArgs =
+  { ok: true; args: NudgeCommandArgs } | { ok: false; error: string };
 
 /**
  * Parse the command's flags. Malformed `--max` / `--allow` operands are
@@ -48,8 +49,12 @@ export function parseNudgeCommandArgs(argv: string[]): ParsedNudgeCommandArgs {
   const allow = operand("--allow");
   let allowlist: string[] | undefined;
   if (allow.present) {
-    if (allow.value === null) return { ok: false, error: "--allow needs Slack IDs, e.g. --allow U0123ABCD,U0456EFGH" };
-    allowlist = allow.value.split(",").map((s) => s.trim()).filter(Boolean);
+    if (allow.value === null)
+      return { ok: false, error: "--allow needs Slack IDs, e.g. --allow U0123ABCD,U0456EFGH" };
+    allowlist = allow.value
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (allowlist.length === 0) return { ok: false, error: "--allow needs at least one Slack ID" };
   }
 
@@ -71,7 +76,12 @@ export type NudgeCommandDeps = {
 export function nudgeCommandExitCode(result: NudgeRunResult): number {
   if (result.recordFailed) return 1;
   // Something was due but nothing went out (e.g. Slack down or token revoked).
-  if (!result.dryRun && result.planned.length > 0 && result.sent.length === 0 && result.failed.length > 0) {
+  if (
+    !result.dryRun &&
+    result.planned.length > 0 &&
+    result.sent.length === 0 &&
+    result.failed.length > 0
+  ) {
     return 1;
   }
   return 0;
@@ -97,7 +107,10 @@ export function summarizeNudgeRun(result: NudgeRunResult) {
   };
 }
 
-export async function runNudgeCommand(args: NudgeCommandArgs, deps: NudgeCommandDeps): Promise<number> {
+export async function runNudgeCommand(
+  args: NudgeCommandArgs,
+  deps: NudgeCommandDeps,
+): Promise<number> {
   let locked = false;
   try {
     locked = await deps.tryLock();
@@ -118,10 +131,12 @@ export async function runNudgeCommand(args: NudgeCommandArgs, deps: NudgeCommand
       deps.log(
         `${result.dryRun ? "DRY RUN" : "LIVE RUN"} · sending ${result.sendingEnabled ? "enabled" : "disabled"} · ` +
           `Slack ${result.slackConfigured ? "configured" : "NOT configured"} · ` +
-          `deadline ${result.deadlineIso ?? "unknown"} (${result.daysLeft ?? "?"} days left) · cap ${result.maxSends}` +
-          (result.allowlist ? ` · allowlist ${result.allowlist.join(",")}` : ""),
+          `deadline ${result.deadlineIso ?? "unknown"} (${result.daysLeft ?? "?"} days left) · cap ${result.maxSends}${
+            result.allowlist ? ` · allowlist ${result.allowlist.join(",")}` : ""
+          }`,
       );
-      if (result.daysLeft !== null && result.daysLeft < 0) deps.log("Deadline passed: nothing is sent.");
+      if (result.daysLeft !== null && result.daysLeft < 0)
+        deps.log("Deadline passed: nothing is sent.");
       if (!result.dryRun) deps.log(`sent ${result.sent.length} · failed ${result.failed.length}`);
       for (const sample of result.samples) {
         deps.log(`--- ${sample.kind} / ${sample.variant} ---\n${sample.text}`);
@@ -136,7 +151,9 @@ export async function runNudgeCommand(args: NudgeCommandArgs, deps: NudgeCommand
     }
     return nudgeCommandExitCode(result);
   } catch (err) {
-    deps.error(`Nudge run failed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`);
+    deps.error(
+      `Nudge run failed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
+    );
     return 1;
   } finally {
     if (locked) {

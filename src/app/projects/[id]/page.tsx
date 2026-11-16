@@ -3,11 +3,9 @@ import { notFound, redirect } from "next/navigation";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import ManageProjectClient from "@/components/ManageProjectClient";
-import ProjectDevlogsSummary, {
-  type DevlogSummary,
-} from "@/components/ProjectDevlogsSummary";
+import ProjectDevlogsSummary, { type DevlogSummary } from "@/components/ProjectDevlogsSummary";
 import { db } from "@/db";
-import { devlog, peerReview, project, user, type ReviewDecision } from "@/db/schema";
+import { devlog, peerReview, project, user } from "@/db/schema";
 import { hydrateReviewJustification } from "@/lib/review-justification";
 import { buildCategorySuggestions, buildTagSuggestions } from "@/lib/project-taxonomy";
 import { getIdentityVerificationStatus } from "@/lib/identity-verification";
@@ -15,7 +13,7 @@ import { getServerSession } from "@/lib/server-session";
 
 export default async function ManageProjectPage(props: { params: Promise<{ id: string }> }) {
   const session = await getServerSession({ disableCookieCache: true });
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect(`/login?callbackUrl=/projects`);
   }
 
@@ -120,17 +118,17 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
   const devlogTotalCount = devlogCountRows[0]?.count ?? 0;
 
   const devlogSummaries: DevlogSummary[] = recentDevlogs.map((row) => {
-    const text = row.content ?? "";
+    const text = row.content;
     const excerpt = text.length > 240 ? `${text.slice(0, 240).trimEnd()}…` : text;
     return {
       id: row.id,
       title: row.title,
-      category: (row.category ?? "coding") as "learning" | "design" | "coding",
+      category: row.category,
       createdAt: row.createdAt.toISOString(),
       startedAt: row.startedAt.toISOString(),
       endedAt: row.endedAt.toISOString(),
       durationSeconds: row.durationSeconds,
-      attachments: row.attachments ?? [],
+      attachments: row.attachments,
       usedAi: row.usedAi,
       authorName: row.authorName || "Unknown",
       excerpt,
@@ -147,7 +145,7 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
         : p.status === "granted"
           ? "This project has been granted and is immutable."
           : "Devlogs can only be posted while a project is work-in-progress.";
-  const totalHoursSeconds = p.hoursSpentSeconds ?? 0;
+  const totalHoursSeconds = p.hoursSpentSeconds;
 
   return (
     <AppShell title="Manage project">
@@ -174,8 +172,6 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
           totalCount={devlogTotalCount}
           canWrite={canWriteDevlog}
           writeBlockedReason={writeBlockedReason}
-          projectStartedAtIso={(p.startedOnCarnivalAt ?? p.createdAt).toISOString()}
-          submittedAtIso={p.submittedAt ? p.submittedAt.toISOString() : null}
           totalHoursSeconds={totalHoursSeconds}
         />
       </div>
@@ -187,7 +183,7 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
           name: p.name,
           description: p.description,
           category: p.category,
-          tags: p.tags ?? [],
+          tags: p.tags,
           projectType: p.projectType,
           editor: p.editor,
           editorOther: p.editorOther ?? "",
@@ -198,7 +194,7 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
           videoUrl: p.videoUrl,
           playableDemoUrl: p.playableDemoUrl,
           codeUrl: p.codeUrl,
-          previewImage: p.previewImage ?? "",
+          previewImage: p.previewImage,
           screenshots: p.screenshots,
           submissionChecklist: p.submissionChecklist ?? null,
           creatorDeclaredOriginality: p.creatorDeclaredOriginality,
@@ -214,7 +210,7 @@ export default async function ManageProjectPage(props: { params: Promise<{ id: s
             decision: r.decision,
             reviewComment: r.reviewComment,
             reviewJustification: hydrateReviewJustification({
-              decision: r.decision as ReviewDecision,
+              decision: r.decision,
               fallbackHackatimeProjectName: p.hackatimeProjectName,
               reviewEvidenceChecklist: r.reviewEvidenceChecklist,
               reviewedHackatimeRangeStart: r.reviewedHackatimeRangeStart,

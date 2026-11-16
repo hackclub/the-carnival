@@ -13,7 +13,6 @@ import {
   type DevlogHackatimeProjectAdjustment,
   type ProjectStatus,
   type ReviewDecision,
-  type UserRole,
 } from "@/db/schema";
 import {
   assessmentDeflatesHours,
@@ -52,11 +51,9 @@ import { describeCreatorHackatimeAuthError, isHackatimeAuthError } from "@/lib/h
 import { notifyReviewDM, notifyStaffReviewThread } from "@/lib/slack";
 import { runAfterResponse } from "@/lib/notifications/after-response";
 import { setCarnivalOutcome } from "@/lib/telescreen/submissions";
-import {
-  AI_SLOP_REJECTION_MESSAGE,
-  UNCLEAR_README_REJECTION_MESSAGE,
-} from "@/lib/review/config";
+import { AI_SLOP_REJECTION_MESSAGE, UNCLEAR_README_REJECTION_MESSAGE } from "@/lib/review/config";
 import { cleanUntrustedString } from "@/lib/sanitize";
+import { canReview } from "@/lib/roles";
 
 type ReviewBody = {
   decision?: unknown;
@@ -108,9 +105,11 @@ const VALID_DEFLATION_REASON_KEYS = new Set<string>(
 );
 
 /** undefined => invalid payload; null => none provided. */
-function parseReviewedWindow(value: unknown): { startedAt: Date; endedAt: Date } | null | undefined {
+function parseReviewedWindow(
+  value: unknown,
+): { startedAt: Date; endedAt: Date } | null | undefined {
   if (value === undefined || value === null) return null;
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  if (typeof value !== "object" || Array.isArray(value)) return undefined;
   const { startedAt, endedAt } = value as Record<string, unknown>;
   if (typeof startedAt !== "string" || typeof endedAt !== "string") return undefined;
   const start = new Date(startedAt);
@@ -132,10 +131,16 @@ function parseAssessmentDeflationReasons(value: unknown): string[] | undefined {
   return Array.from(unique);
 }
 
-function parseHackatimeAdjustments(value: unknown): DevlogHackatimeProjectAdjustment[] | null | undefined {
+function parseHackatimeAdjustments(
+  value: unknown,
+): DevlogHackatimeProjectAdjustment[] | null | undefined {
   // undefined => invalid payload; null => not provided
   if (value === undefined || value === null) return null;
-  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_HACKATIME_ADJUSTMENT_ENTRIES) {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.length > MAX_HACKATIME_ADJUSTMENT_ENTRIES
+  ) {
     return undefined;
   }
   const seen = new Set<string>();
@@ -223,16 +228,8 @@ function parseDevlogAssessments(value: unknown): ParsedAssessmentInput[] | null 
 
 const DISMISS_REASON_MAX_LENGTH = 2000;
 
-function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
-  return role === "reviewer" || role === "admin";
-}
-
 function isDecision(value: unknown): value is ReviewDecision {
   return value === "approved" || value === "rejected" || value === "comment";
-}
-
-function toCleanString(value: unknown) {
-  return cleanUntrustedString(value);
 }
 
 function nextStatusForDecision(decision: ReviewDecision): ProjectStatus | null {
@@ -321,7 +318,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     );
   }
 
-  const rejectionCategoryRaw = toCleanString(body.rejectionCategory);
+  const rejectionCategoryRaw = cleanUntrustedString(body.rejectionCategory);
   let rejectionCategory: string | null = null;
   if (rejectionCategoryRaw) {
     if (decision !== "rejected") {
@@ -338,22 +335,20 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   // One-click category rejections fall back to the program's canned,
   // creator-friendly message when the reviewer doesn't add their own words.
-  let comment = toCleanString(body.comment);
+  let comment = cleanUntrustedString(body.comment);
   if (!comment && rejectionCategory) {
-    comment = REJECTION_CATEGORY_MESSAGES[rejectionCategory];
+    comment = REJECTION_CATEGORY_MESSAGES[rejectionCategory] ?? "";
   }
   if (!comment) {
     return NextResponse.json({ error: "Comment is required" }, { status: 400 });
   }
 
-  const specificTechnicalFeatures = toCleanString(body.specificTechnicalFeatures).slice(0, 4000) || null;
+  const specificTechnicalFeatures =
+    cleanUntrustedString(body.specificTechnicalFeatures).slice(0, 4000) || null;
 
   const parsedAssessments = parseDevlogAssessments(body.devlogAssessments);
   if (body.devlogAssessments !== undefined && parsedAssessments === null) {
-    return NextResponse.json(
-      { error: "Invalid devlogAssessments payload." },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Invalid devlogAssessments payload." }, { status: 400 });
   }
 
   const approvedHoursRaw = body.approvedHours;
@@ -400,7 +395,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (dismiss) {
     if (decision !== "rejected") {
       return NextResponse.json(
-        { error: "Dismiss is only available when rejecting a project.", code: "dismiss_requires_rejection" },
+        {
+          error: "Dismiss is only available when rejecting a project.",
+          code: "dismiss_requires_rejection",
+        },
         { status: 400 },
       );
     }
@@ -410,7 +408,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         { status: 403 },
       );
     }
-    const rawReason = toCleanString(body.dismissReason);
+    const rawReason = cleanUntrustedString(body.dismissReason);
     if (!rawReason) {
       return NextResponse.json(
         {
@@ -625,7 +623,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         throw new ReviewSubmitError("stale", "Project is no longer in review", 409);
       }
 
-      let hackatimeSnapshotSeconds = normalizeSnapshotSeconds(current.hackatimeTotalSeconds ?? null);
+      let hackatimeSnapshotSeconds = normalizeSnapshotSeconds(
+        current.hackatimeTotalSeconds ?? null,
+      );
       const projectRangeUpdate: Partial<{
         hackatimeStartedAt: Date | null;
         hackatimeStoppedAt: Date | null;
@@ -852,7 +852,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           if (seenAssessmentIds.size !== projectDevlogs.length) {
             const missing = projectDevlogs
               .filter((d) => !seenAssessmentIds.has(d.id))
-              .map((d) => `"${d.title}" (${formatUtcInstant(d.startedAt)} → ${formatUtcInstant(d.endedAt)})`);
+              .map(
+                (d) =>
+                  `"${d.title}" (${formatUtcInstant(d.startedAt)} → ${formatUtcInstant(d.endedAt)})`,
+              );
             throw new ReviewSubmitError(
               "validation",
               `Every devlog must be assessed (accepted, rejected, or adjusted) before approval. Unassessed: ${missing.join(", ")}.`,
@@ -873,7 +876,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
               durationSeconds: durationLookup.get(a.devlogId) ?? 0,
               hackatimeBreakdownTotalSeconds: windowInfo
                 ? windowInfo.windowSeconds
-                : breakdownByDevlogId.get(a.devlogId)?.totalSeconds ?? null,
+                : (breakdownByDevlogId.get(a.devlogId)?.totalSeconds ?? null),
             },
             { decision: a.decision, adjustedSeconds: a.adjustedSeconds ?? null },
           );
@@ -893,7 +896,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             approvedHours = derivedHours;
           }
         }
-
       }
 
       // Assessed totals may exceed the devlog-duration sum when adjusted devlogs
@@ -924,24 +926,26 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       const normalizedReviewJustification =
         decision === "comment"
           ? null
-          : decision === "rejected" && (body.reviewJustification === null || body.reviewJustification === undefined)
+          : decision === "rejected" &&
+              (body.reviewJustification === null || body.reviewJustification === undefined)
             ? null
             : (() => {
-              const validated = validateRequiredReviewJustification({
-                value: body.reviewJustification,
-                decision,
-                expectedHackatimeProjectName: current.hackatimeProjectName,
-                approvedHours: decision === "approved" ? (approvedHours as number) : null,
-                loggedHackatimeHours: approvedHoursCapSeconds / 3600,
-              });
-              if (!validated.ok) {
-                throw new ReviewSubmitError("validation", validated.error, 400);
-              }
-              return validated.value;
-            })();
+                const validated = validateRequiredReviewJustification({
+                  value: body.reviewJustification,
+                  decision,
+                  expectedHackatimeProjectName: current.hackatimeProjectName,
+                  approvedHours: decision === "approved" ? (approvedHours as number) : null,
+                  loggedHackatimeHours: approvedHoursCapSeconds / 3600,
+                });
+                if (!validated.ok) {
+                  throw new ReviewSubmitError("validation", validated.error, 400);
+                }
+                return validated.value;
+              })();
 
-      const structuredReviewColumns =
-        mapReviewJustificationToStructuredColumns(normalizedReviewJustification);
+      const structuredReviewColumns = mapReviewJustificationToStructuredColumns(
+        normalizedReviewJustification,
+      );
 
       const reviewInsertValues: typeof peerReview.$inferInsert = {
         id: reviewId,
@@ -961,17 +965,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         rejectionCategory,
       };
 
-      const inserted = (await tx
-        .insert(peerReview)
-        .values(reviewInsertValues)
-        .returning({
-          id: peerReview.id,
-          decision: peerReview.decision,
-          reviewComment: peerReview.reviewComment,
-          approvedHours: peerReview.approvedHours,
-          hackatimeSnapshotSeconds: peerReview.hackatimeSnapshotSeconds,
-          createdAt: peerReview.createdAt,
-        })) as Array<{
+      const inserted = (await tx.insert(peerReview).values(reviewInsertValues).returning({
+        id: peerReview.id,
+        decision: peerReview.decision,
+        reviewComment: peerReview.reviewComment,
+        approvedHours: peerReview.approvedHours,
+        hackatimeSnapshotSeconds: peerReview.hackatimeSnapshotSeconds,
+        createdAt: peerReview.createdAt,
+      })) as Array<{
         id: string;
         decision: ReviewDecision;
         reviewComment: string;
@@ -995,7 +996,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
               reviewId,
               devlogId: a.devlogId,
               decision: a.decision,
-              adjustedSeconds: a.decision === "adjusted" ? a.adjustedSeconds ?? null : null,
+              adjustedSeconds: a.decision === "adjusted" ? (a.adjustedSeconds ?? null) : null,
               hackatimeProjectAdjustments:
                 a.decision === "adjusted" && a.hackatimeAdjustments ? a.hackatimeAdjustments : [],
               deflationReasons: a.deflationReasons,
@@ -1064,7 +1065,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       }
 
       if (statusUpdate) {
-        await tx.delete(projectReviewerAssignment).where(eq(projectReviewerAssignment.projectId, projectId));
+        await tx
+          .delete(projectReviewerAssignment)
+          .where(eq(projectReviewerAssignment.projectId, projectId));
       }
 
       await appendReviewAudit(
@@ -1090,8 +1093,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       );
 
       return {
-        project: updated[0]!,
-        review: inserted[0]!,
+        project: updated[0],
+        review: inserted[0],
         reviewJustification: normalizedReviewJustification,
       };
     })
@@ -1103,7 +1106,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     });
 
   if ("handledError" in txResult) {
-    return NextResponse.json({ error: txResult.handledError.message }, { status: txResult.handledError.status });
+    return NextResponse.json(
+      { error: txResult.handledError.message },
+      { status: txResult.handledError.status },
+    );
+  }
+
+  const { project: updatedProject, review: insertedReview } = txResult;
+  if (!updatedProject || !insertedReview) {
+    throw new Error("Review transaction committed without returning the project and review rows.");
   }
 
   // Best-effort: notify the project creator about the review outcome.
@@ -1116,17 +1127,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   // tokens granted" email is sent by the grant flow. Rejections and plain
   // comments still notify immediately.
   try {
-    if (decision !== "approved" && txResult.project.creatorId) {
+    if (decision !== "approved" && updatedProject.creatorId) {
       const creatorRows = await db
         .select({ email: user.email, slackId: user.slackId })
         .from(user)
-        .where(eq(user.id, txResult.project.creatorId))
+        .where(eq(user.id, updatedProject.creatorId))
         .limit(1);
 
       const creatorEmail = creatorRows[0]?.email;
       const creatorSlackId = creatorRows[0]?.slackId;
       if (creatorEmail) {
-        const reviewerName = (session?.user as { name?: string | null } | undefined)?.name ?? "Reviewer";
+        const reviewerName =
+          (session?.user as { name?: string | null } | undefined)?.name ?? "Reviewer";
 
         const decisionPrefix =
           decision === "comment" ? "" : dismiss ? "Rejected and dismissed: " : "Rejected: ";
@@ -1170,14 +1182,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             : comment;
           await notifyReviewDM({
             slackId: creatorSlackId,
-            projectName: txResult.project.name,
+            projectName: updatedProject.name,
             status: statusLabel,
             comment: slackComment,
             projectUrl: project_link,
             reviewerSlackId,
-            reviewerName: reviewerName,
+            reviewerName,
             reviewerId: userId,
-            creatorSlackId: creatorSlackId,
+            creatorSlackId,
           });
         }
       }
@@ -1221,25 +1233,26 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   return NextResponse.json({
     project: {
-      status: txResult.project.status,
-      approvedHours: txResult.project.approvedHours ?? null,
-      hackatimeStartedAt: txResult.project.hackatimeStartedAt
-        ? txResult.project.hackatimeStartedAt.toISOString()
+      status: updatedProject.status,
+      approvedHours: updatedProject.approvedHours ?? null,
+      hackatimeStartedAt: updatedProject.hackatimeStartedAt
+        ? updatedProject.hackatimeStartedAt.toISOString()
         : null,
-      hackatimeStoppedAt: txResult.project.hackatimeStoppedAt
-        ? txResult.project.hackatimeStoppedAt.toISOString()
+      hackatimeStoppedAt: updatedProject.hackatimeStoppedAt
+        ? updatedProject.hackatimeStoppedAt.toISOString()
         : null,
-      hackatimeTotalSeconds: txResult.project.hackatimeTotalSeconds ?? null,
+      hackatimeTotalSeconds: updatedProject.hackatimeTotalSeconds ?? null,
     },
     review: {
-      id: txResult.review.id ?? reviewId,
-      decision: txResult.review.decision ?? decision,
-      reviewComment: txResult.review.reviewComment ?? comment,
+      id: insertedReview.id,
+      decision: insertedReview.decision,
+      reviewComment: insertedReview.reviewComment,
       approvedHours:
-        txResult.review.approvedHours ?? (decision === "approved" ? (approvedHours as number) : null),
-      hackatimeSnapshotSeconds: txResult.review.hackatimeSnapshotSeconds,
+        insertedReview.approvedHours ??
+        (decision === "approved" ? (approvedHours as number) : null),
+      hackatimeSnapshotSeconds: insertedReview.hackatimeSnapshotSeconds,
       reviewJustification: txResult.reviewJustification ?? null,
-      createdAt: (txResult.review.createdAt ?? now).toISOString(),
+      createdAt: insertedReview.createdAt.toISOString(),
       reviewerName: (session?.user as { name?: string | null } | undefined)?.name ?? "Reviewer",
       reviewerEmail: (session?.user as { email?: string | null } | undefined)?.email ?? "",
     },

@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { project, type UserRole } from "@/db/schema";
+import { project } from "@/db/schema";
 import { coerceDate } from "@/lib/devlog-shared";
 import { listProjectHackatimeProjects } from "@/lib/devlogs";
 import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
 import { getServerSession } from "@/lib/server-session";
+import { canReview } from "@/lib/roles";
 
 /**
  * Reviewer tool: how much Hackatime time did the creator log for this
@@ -20,10 +21,6 @@ import { getServerSession } from "@/lib/server-session";
  * use to capture their hours is used here, so the numbers always line up.
  */
 
-function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin"> {
-  return role === "reviewer" || role === "admin";
-}
-
 const MAX_WINDOW_MS = 366 * 24 * 60 * 60 * 1000;
 const MAX_PROJECTS_QUERIED = 10;
 
@@ -36,9 +33,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const { id: projectId } = await ctx.params;
 
-  const body = (await req.json().catch(() => null)) as
-    | { startedAt?: unknown; endedAt?: unknown; hackatimeProjectName?: unknown }
-    | null;
+  const body = (await req.json().catch(() => null)) as {
+    startedAt?: unknown;
+    endedAt?: unknown;
+    hackatimeProjectName?: unknown;
+  } | null;
   const startedAt = coerceDate(body?.startedAt);
   const endedAt = coerceDate(body?.endedAt);
   if (!startedAt || !endedAt) {

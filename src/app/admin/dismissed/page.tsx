@@ -14,7 +14,7 @@ export const fetchCache = "force-no-store";
 export default async function AdminDismissedProjectsPage() {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
-  if (!session?.user?.id) redirect("/login?callbackUrl=/admin/dismissed");
+  if (!session?.user.id) redirect("/login?callbackUrl=/admin/dismissed");
   if (role !== "admin") redirect("/projects");
 
   const rows = await db
@@ -83,9 +83,7 @@ export default async function AdminDismissedProjectsPage() {
 
                 <div className="mt-auto pt-4 text-xs text-muted-foreground">
                   Dismissed:{" "}
-                  {p.resubmissionBlockedAt
-                    ? p.resubmissionBlockedAt.toLocaleString()
-                    : "—"}
+                  {p.resubmissionBlockedAt ? p.resubmissionBlockedAt.toLocaleString() : "—"}
                 </div>
               </div>
             </Link>

@@ -14,7 +14,7 @@ export default async function AdminWalletPage() {
   const session = await getServerSession({ disableCookieCache: true });
   const role = (session?.user as { role?: unknown } | undefined)?.role;
 
-  if (!session?.user?.id) redirect("/login?callbackUrl=/admin/wallet");
+  if (!session?.user.id) redirect("/login?callbackUrl=/admin/wallet");
   if (role !== "admin") redirect("/projects");
 
   const rows = await db

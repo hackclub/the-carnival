@@ -31,8 +31,7 @@ const bonuses = [
   {
     amount: "+$25",
     title: "Goes viral",
-    description:
-      "Make something people love — think 100+ GitHub stars or 250+ social likes.",
+    description: "Make something people love — think 100+ GitHub stars or 250+ social likes.",
     hue: -45,
     tilt: "rotate-2 translate-y-3",
   },
@@ -49,30 +48,15 @@ const bonuses = [
 const prizeBooth = [
   {
     title: "Creative tools",
-    items: [
-      "Procreate license",
-      "JetBrains IDE license",
-      "Design tools",
-      "Cursor Pro",
-    ],
+    items: ["Procreate license", "JetBrains IDE license", "Design tools", "Cursor Pro"],
   },
   {
     title: "Hardware & setup",
-    items: [
-      "Peripherals",
-      "Computer upgrades",
-      "Development hardware",
-      "Specialty devices",
-    ],
+    items: ["Peripherals", "Computer upgrades", "Development hardware", "Specialty devices"],
   },
   {
     title: "Infrastructure",
-    items: [
-      "Domain credits",
-      "Cloud hosting",
-      "API access",
-      "Development services",
-    ],
+    items: ["Domain credits", "Cloud hosting", "API access", "Development services"],
   },
 ];
 
@@ -97,13 +81,7 @@ function BrickRoad({ flip = false }: { flip?: boolean }) {
       aria-hidden="true"
       className={`relative mx-auto my-4 w-[min(480px,72%)] ${flip ? "-scale-x-100" : ""}`}
     >
-      <Image
-        src="/stair-2.png"
-        alt=""
-        width={950}
-        height={400}
-        className="h-auto w-full"
-      />
+      <Image src="/stair-2.png" alt="" width={950} height={400} className="h-auto w-full" />
       <Image
         src="/stair-path-2.png"
         alt=""
@@ -115,15 +93,7 @@ function BrickRoad({ flip = false }: { flip?: boolean }) {
   );
 }
 
-function PrizeBalloon({
-  amount,
-  hue,
-  tilt,
-}: {
-  amount: string;
-  hue: number;
-  tilt: string;
-}) {
+function PrizeBalloon({ amount, hue, tilt }: { amount: string; hue: number; tilt: string }) {
   return (
     <div className={`relative w-28 sm:w-32 ${tilt}`}>
       <Image
@@ -137,11 +107,7 @@ function PrizeBalloon({
       <span className="absolute inset-x-0 top-[38%] -translate-y-1/2 text-center text-2xl font-black text-[#fff7dc] sm:text-[1.7rem]">
         {amount}
       </span>
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 40 70"
-        className="mx-auto -mt-2 h-14 w-6 text-[#74210a]"
-      >
+      <svg aria-hidden="true" viewBox="0 0 40 70" className="mx-auto -mt-2 h-14 w-6 text-[#74210a]">
         <path
           d="M20 2 C 10 18, 30 32, 20 48 C 14 58, 25 63, 21 69"
           fill="none"
@@ -215,10 +181,9 @@ export default async function Home() {
             Make <Scribble>projects,</Scribble> not excuses.
           </p>
           <p className="mt-5 max-w-2xl text-base leading-7 text-[#6d3510] [text-wrap:pretty] sm:text-lg sm:leading-8">
-            Carnival is Hack Club&apos;s fair for builders of little things —
-            extensions, plugins, and widgets for the tools you already live in.
-            Ship one open source, and every honest hour you track becomes{" "}
-            <strong>$5</strong> toward your dream setup.
+            Carnival is Hack Club&apos;s fair for builders of little things — extensions, plugins,
+            and widgets for the tools you already live in. Ship one open source, and every honest
+            hour you track becomes <strong>$5</strong> toward your dream setup.
           </p>
 
           <div className="mt-6 max-w-2xl text-base font-semibold text-[#8f4a18] sm:text-lg">
@@ -296,9 +261,8 @@ export default async function Home() {
           <div className="max-w-md">
             <h3 className="text-2xl font-bold">Find an itch</h3>
             <p className="mt-2 leading-7 text-[#6d3510] [text-wrap:pretty]">
-              Start with a real annoyance, a workflow gap, or a playful idea
-              people will actually want to keep around. Quality-of-life
-              upgrades win; thin wrappers usually don&apos;t.
+              Start with a real annoyance, a workflow gap, or a playful idea people will actually
+              want to keep around. Quality-of-life upgrades win; thin wrappers usually don&apos;t.
             </p>
           </div>
         </div>
@@ -315,9 +279,8 @@ export default async function Home() {
           <div className="max-w-md">
             <h3 className="text-2xl font-bold">Build it in the open</h3>
             <p className="mt-2 leading-7 text-[#6d3510] [text-wrap:pretty]">
-              Publish clear code, a usable release, a README with screenshots —
-              enough that a stranger can install it and get it. Then go find
-              real people to try it.
+              Publish clear code, a usable release, a README with screenshots — enough that a
+              stranger can install it and get it. Then go find real people to try it.
             </p>
           </div>
         </div>
@@ -334,22 +297,18 @@ export default async function Home() {
           <div className="max-w-md">
             <h3 className="text-2xl font-bold">Cash in your tickets</h3>
             <p className="mt-2 leading-7 text-[#6d3510] [text-wrap:pretty]">
-              Track honest time with Hackatime, submit what you built, and the
-              hours turn into grant money for your setup — plus bonuses for
-              standout work.
+              Track honest time with Hackatime, submit what you built, and the hours turn into grant
+              money for your setup — plus bonuses for standout work.
             </p>
             <p className="mt-4 max-w-md text-sm font-semibold leading-6 text-[#a51d2d]">
-              One serious thing: don&apos;t cheat Hackatime. No bots, no fake
-              key presses, no UI tricks — that&apos;s a ban from Hackatime and
-              future Hack Club events.
+              One serious thing: don&apos;t cheat Hackatime. No bots, no fake key presses, no UI
+              tricks — that&apos;s a ban from Hackatime and future Hack Club events.
             </p>
           </div>
         </div>
 
         <div className="mx-auto mt-16 max-w-xl">
-          <h3 className="text-xl font-bold">
-            The fine print, written big
-          </h3>
+          <h3 className="text-xl font-bold">The fine print, written big</h3>
           <ul className="mt-4 space-y-2 text-left text-base leading-7 text-[#6d3510]">
             {finePrint.map((rule) => (
               <li key={rule} className="flex gap-3">
@@ -375,11 +334,7 @@ export default async function Home() {
         <div className="mt-12 flex flex-wrap items-start justify-center gap-x-10 gap-y-12 sm:gap-x-16">
           {bonuses.map((bonus) => (
             <div key={bonus.title} className="flex w-60 flex-col items-center">
-              <PrizeBalloon
-                amount={bonus.amount}
-                hue={bonus.hue}
-                tilt={bonus.tilt}
-              />
+              <PrizeBalloon amount={bonus.amount} hue={bonus.hue} tilt={bonus.tilt} />
               <h3 className="mt-3 text-lg font-bold">{bonus.title}</h3>
               <p className="mt-1 text-sm leading-6 text-[#6d3510] [text-wrap:pretty]">
                 {bonus.description}
@@ -398,8 +353,7 @@ export default async function Home() {
           <Scribble>The prize booth</Scribble>
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-[#6d3510] [text-wrap:pretty]">
-          Grants are for making your workflow better, faster, or weirder in the
-          best possible way.
+          Grants are for making your workflow better, faster, or weirder in the best possible way.
         </p>
 
         <div className="mt-12 grid gap-10 sm:grid-cols-3 sm:gap-6">
@@ -424,9 +378,9 @@ export default async function Home() {
           <Scribble>Come say hi</Scribble>
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-[#6d3510] [text-wrap:pretty]">
-          The fastest way to get unstuck is to show people the messy version.
-          The #carnival channel is full of people doing exactly that — and when
-          you&apos;re ready, start a project and let the hours count.
+          The fastest way to get unstuck is to show people the messy version. The #carnival channel
+          is full of people doing exactly that — and when you&apos;re ready, start a project and let
+          the hours count.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
@@ -447,10 +401,7 @@ export default async function Home() {
       </section>
 
       {/* FAQ */}
-      <section
-        id="faq"
-        className="mx-auto mt-24 max-w-2xl scroll-mt-8 px-4 sm:px-6"
-      >
+      <section id="faq" className="mx-auto mt-24 max-w-2xl scroll-mt-8 px-4 sm:px-6">
         <h2 className="text-center text-[clamp(1.9rem,4vw,2.8rem)] font-bold">
           <Scribble>Honest questions</Scribble>
         </h2>
@@ -477,13 +428,7 @@ export default async function Home() {
       </section>
 
       <footer className="mt-24 px-4 pb-14 text-center">
-        <Image
-          src="/tent.png"
-          alt=""
-          width={674}
-          height={440}
-          className="mx-auto h-auto w-28"
-        />
+        <Image src="/tent.png" alt="" width={674} height={440} className="mx-auto h-auto w-28" />
         <p className="mt-4 text-lg font-bold">See you on the midway.</p>
         <p className="mt-2 text-sm text-[#6d3510]">
           <Link
@@ -510,8 +455,7 @@ export default async function Home() {
           </Link>
         </p>
         <p className="mt-6 text-xs font-semibold text-[#8f4a18]">
-          © 2026 The Carnival, a Hack Club thing — drawn with markers, built
-          with love.
+          © 2026 The Carnival, a Hack Club thing — drawn with markers, built with love.
         </p>
       </footer>
     </main>

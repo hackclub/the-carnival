@@ -5,31 +5,6 @@ import { devlog, project, projectHackatimeProject } from "@/db/schema";
 import { isValidDate } from "@/lib/devlog-shared";
 
 /**
- * Returns the latest devlog.endedAt for a project (excluding `excludeDevlogId` when editing).
- * Falls back to project.startedOnCarnivalAt (or createdAt) if no prior devlog exists.
- */
-export async function getDevlogWindowFloor(
-  projectId: string,
-  fallbackStart: Date,
-  excludeDevlogId?: string,
-): Promise<Date> {
-  const whereClause = excludeDevlogId
-    ? and(eq(devlog.projectId, projectId), ne(devlog.id, excludeDevlogId))
-    : eq(devlog.projectId, projectId);
-
-  const rows = await db
-    .select({ endedAt: devlog.endedAt })
-    .from(devlog)
-    .where(whereClause)
-    .orderBy(desc(devlog.endedAt))
-    .limit(1);
-
-  const prior = rows[0]?.endedAt;
-  if (isValidDate(prior) && prior > fallbackStart) return prior;
-  return fallbackStart;
-}
-
-/**
  * Devlog windows may touch (one ends exactly when the next starts) but must
  * never overlap. Returns the first conflicting devlog, or null.
  */
@@ -80,7 +55,8 @@ export async function listDevlogsOutsideRange(
     .where(eq(devlog.projectId, projectId))
     .orderBy(asc(devlog.startedAt));
   return rows.filter(
-    (d) => d.startedAt.getTime() < range.start.getTime() || d.endedAt.getTime() > range.end.getTime(),
+    (d) =>
+      d.startedAt.getTime() < range.start.getTime() || d.endedAt.getTime() > range.end.getTime(),
   );
 }
 
@@ -95,11 +71,7 @@ export async function recomputeProjectHoursSpentSeconds(
     .where(eq(devlog.projectId, projectId));
   const raw = rows[0]?.total ?? 0;
   const total =
-    typeof raw === "number"
-      ? raw
-      : typeof raw === "string"
-        ? Number.parseInt(raw, 10) || 0
-        : 0;
+    typeof raw === "number" ? raw : typeof raw === "string" ? Number.parseInt(raw, 10) || 0 : 0;
   const safe = Math.max(0, Math.floor(total));
   await runner
     .update(project)
@@ -237,12 +209,4 @@ export async function upsertProjectHackatimeProject(
       .set({ hackatimeProjectName: name, updatedAt: now })
       .where(eq(project.id, input.projectId));
   }
-}
-
-/**
- * Raw SQL expression for the "legacy hours fallback": use project.hoursSpentSeconds when > 0,
- * otherwise fall back to project.hackatimeTotalSeconds (which drove hours pre-devlogs-v2).
- */
-export function displayHoursSecondsSql() {
-  return sql<number>`COALESCE(NULLIF(${project.hoursSpentSeconds}, 0), COALESCE(${project.hackatimeTotalSeconds}, 0))`;
 }

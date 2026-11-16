@@ -28,7 +28,7 @@ function renderInline(text: string) {
         parts.push(
           <Link
             key={`${match.index}-link`}
-            href={linkMatch[2]}
+            href={linkMatch[2] ?? ""}
             target="_blank"
             rel="noreferrer"
             className="text-carnival-blue underline-offset-2 hover:underline"
@@ -88,13 +88,13 @@ export function RichTextContent({ value, className = "", clamp = false }: RichTe
     const bullet = line.match(/^\s*[-*]\s+(.+)$/);
     if (bullet) {
       flushOrderedList();
-      listItems.push(bullet[1]);
+      listItems.push(bullet[1] ?? "");
       continue;
     }
     const numbered = line.match(/^\s*\d+\.\s+(.+)$/);
     if (numbered) {
       flushList();
-      orderedListItems.push(numbered[1]);
+      orderedListItems.push(numbered[1] ?? "");
       continue;
     }
 

@@ -1,0 +1,14 @@
+#!/bin/sh
+# Runs the same checks as CI (.github/workflows/ci.yml) before anything is pushed for review.
+# Installed by `bun install` (see the "prepare" script). Skip once with `git push --no-verify`.
+set -e
+
+echo "pre-push: lint"
+bun run lint
+
+echo "pre-push: typecheck"
+bun run typecheck
+
+echo "pre-push: format"
+# Tracked files only, so untracked scratch files can't block a push.
+git ls-files -z | xargs -0 bunx prettier --check --ignore-unknown

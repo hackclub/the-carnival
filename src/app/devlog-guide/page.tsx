@@ -8,19 +8,11 @@ export const metadata = {
 };
 
 function H2({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="mt-8 text-lg font-semibold text-foreground first:mt-0">
-      {children}
-    </h2>
-  );
+  return <h2 className="mt-8 text-lg font-semibold text-foreground first:mt-0">{children}</h2>;
 }
 
 function H3({ children }: { children: React.ReactNode }) {
-  return (
-    <h3 className="mt-6 text-base font-semibold text-foreground">
-      {children}
-    </h3>
-  );
+  return <h3 className="mt-6 text-base font-semibold text-foreground">{children}</h3>;
 }
 
 function P({ children }: { children: React.ReactNode }) {
@@ -67,7 +59,7 @@ AI use:
 
 export default async function DevlogGuidePage() {
   const session = await getServerSession();
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect("/login?callbackUrl=/devlog-guide");
   }
 
@@ -81,15 +73,16 @@ export default async function DevlogGuidePage() {
                 How to write a good Carnival devlog
               </h1>
               <P>
-                A devlog is just you writing down what you did. That&apos;s it. It&apos;s how reviewers
-                figure out what you built, check that your hours add up, and sort out your grant.
-                It&apos;s also kind of a nice thing to look back on once your project is done.
+                A devlog is just you writing down what you did. That&apos;s it. It&apos;s how
+                reviewers figure out what you built, check that your hours add up, and sort out your
+                grant. It&apos;s also kind of a nice thing to look back on once your project is
+                done.
               </P>
               <P>
                 Each devlog usually covers about a day of work. The whole point is this: if someone
-                who&apos;s never seen your project reads your devlog, they should be able to tell what
-                you did, what was annoying about it, and where your time went. If they can do that,
-                you&apos;re good.
+                who&apos;s never seen your project reads your devlog, they should be able to tell
+                what you did, what was annoying about it, and where your time went. If they can do
+                that, you&apos;re good.
               </P>
             </header>
 
@@ -104,16 +97,16 @@ export default async function DevlogGuidePage() {
                 </li>
                 <li>
                   <Strong>Your hours.</Strong> These get pulled from Hackatime automatically. You
-                  don&apos;t have to add them up yourself, but do double-check the number looks right
-                  before you submit, since that&apos;s what your grant is based on.
+                  don&apos;t have to add them up yourself, but do double-check the number looks
+                  right before you submit, since that&apos;s what your grant is based on.
                 </li>
                 <li>
                   <Strong>What you actually worked on.</Strong> In detail. This is the main thing
                   and the part people rush. More on it below.
                 </li>
                 <li>
-                  <Strong>What gave you trouble.</Strong> Stuff that broke, stuff that confused
-                  you, and how you got past it.
+                  <Strong>What gave you trouble.</Strong> Stuff that broke, stuff that confused you,
+                  and how you got past it.
                 </li>
                 <li>
                   <Strong>Whether you used AI.</Strong> One honest line at the end.
@@ -132,12 +125,14 @@ export default async function DevlogGuidePage() {
                 to get flagged, so just say what you did.
               </P>
               <P>
-                The easiest way to do this well is to get technical. Talk about how the thing
-                works. That&apos;s what shows you actually built it and understand it.
+                The easiest way to do this well is to get technical. Talk about how the thing works.
+                That&apos;s what shows you actually built it and understand it.
               </P>
 
               <H3>Too vague (don&apos;t do this):</H3>
-              <Quote>Worked on my extension. Added some features and fixed bugs. Made it look better.</Quote>
+              <Quote>
+                Worked on my extension. Added some features and fixed bugs. Made it look better.
+              </Quote>
               <P>
                 Nobody reading that can tell what you built or whether you get how your own code
                 works.
@@ -151,9 +146,9 @@ export default async function DevlogGuidePage() {
                 <div className="mt-3">
                   Today I got the decay system actually working. Every tab now remembers the last
                   time you looked at it, and a background script checks every few minutes how long
-                  it&apos;s been ignored. I turned that idle time into three &ldquo;rot&rdquo; stages: faded after a
-                  day, grainy after three days, cracked after a week. Each stage is a different CSS
-                  filter stacked on the tab.
+                  it&apos;s been ignored. I turned that idle time into three &ldquo;rot&rdquo;
+                  stages: faded after a day, grainy after three days, cracked after a week. Each
+                  stage is a different CSS filter stacked on the tab.
                 </div>
                 <div className="mt-3">
                   Most of today went into the cracked look. Chrome won&apos;t let you just restyle a
@@ -164,9 +159,9 @@ export default async function DevlogGuidePage() {
               </Quote>
 
               <P>
-                See the difference? The second one tells you the timing logic, the three stages,
-                and the canvas trick. A reviewer reads it and instantly believes the hours and
-                gets how it works.
+                See the difference? The second one tells you the timing logic, the three stages, and
+                the canvas trick. A reviewer reads it and instantly believes the hours and gets how
+                it works.
               </P>
 
               <P>If you&apos;re not sure you&apos;ve got enough, just ask yourself:</P>
@@ -191,9 +186,9 @@ export default async function DevlogGuidePage() {
                 it was tricky, and what you did about it.
               </P>
               <Quote>
-                The Wayback Machine API kept giving me snapshots that broke when I loaded them in
-                an iframe. Took me forever to figure out it was because the archive was trying to
-                load its own toolbar on top of the page. Once I added the right flag to the URL it
+                The Wayback Machine API kept giving me snapshots that broke when I loaded them in an
+                iframe. Took me forever to figure out it was because the archive was trying to load
+                its own toolbar on top of the page. Once I added the right flag to the URL it
                 stopped doing that.
               </Quote>
               <P>That&apos;s perfect. Honest, clear, and you can tell they actually solved it.</P>
@@ -209,12 +204,12 @@ export default async function DevlogGuidePage() {
                   something and the devlog basically writes itself.
                 </li>
                 <li>
-                  Screenshots and little clips go a long way. A 5-second gif of your feature
-                  working says more than a paragraph.
+                  Screenshots and little clips go a long way. A 5-second gif of your feature working
+                  says more than a paragraph.
                 </li>
                 <li>
-                  Bad days are fine to log. &ldquo;Spent 3 hours fighting one CSS bug and got nowhere&rdquo;
-                  is a real devlog. Building stuff isn&apos;t always pretty.
+                  Bad days are fine to log. &ldquo;Spent 3 hours fighting one CSS bug and got
+                  nowhere&rdquo; is a real devlog. Building stuff isn&apos;t always pretty.
                 </li>
               </UL>
             </section>
@@ -226,9 +221,7 @@ export default async function DevlogGuidePage() {
               <P>Two separate things here, don&apos;t mix them up:</P>
 
               <H3>Using AI to build your project</H3>
-              <P>
-                Allowed, you just have to say so honestly. End your devlog with a line like:
-              </P>
+              <P>Allowed, you just have to say so honestly. End your devlog with a line like:</P>
               <Quote>
                 <em>AI use:</em> used Claude to help debug my background script, wrote the rest
                 myself. / <em>AI use:</em> didn&apos;t use any.
@@ -236,7 +229,9 @@ export default async function DevlogGuidePage() {
               <P>Specific and honest is exactly what we want.</P>
 
               <H3>Using AI to write the devlog itself</H3>
-              <P>Please don&apos;t. Write it in your own words. Here&apos;s why it actually matters:</P>
+              <P>
+                Please don&apos;t. Write it in your own words. Here&apos;s why it actually matters:
+              </P>
               <UL>
                 <li>
                   The devlog is how we know <em>you</em> did the work and get it. AI-written ones
@@ -262,7 +257,7 @@ export default async function DevlogGuidePage() {
             <section>
               <H2>Copy-paste template</H2>
               <pre className="mt-3 overflow-x-auto rounded-lg border border-border bg-muted/40 p-4 text-xs leading-relaxed text-foreground">
-{TEMPLATE}
+                {TEMPLATE}
               </pre>
             </section>
 

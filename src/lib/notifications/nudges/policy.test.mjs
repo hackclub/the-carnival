@@ -108,10 +108,30 @@ describe("planNudgeRun", () => {
 
   test("one nudge per user, ordered by kind priority then oldest account, capped", () => {
     const candidates = [
-      candidate({ userId: "late", slackId: "UL", kind: "never_connected", createdAtIso: "2026-10-01T00:00:00.000Z" }),
-      candidate({ userId: "early", slackId: "UE", kind: "never_connected", createdAtIso: "2026-06-01T00:00:00.000Z" }),
-      candidate({ userId: "builder", slackId: "UB", kind: "hours_unsubmitted", createdAtIso: "2026-09-01T00:00:00.000Z" }),
-      candidate({ userId: "builder", slackId: "UB", kind: "project_no_hours_7d", createdAtIso: "2026-09-01T00:00:00.000Z" }),
+      candidate({
+        userId: "late",
+        slackId: "UL",
+        kind: "never_connected",
+        createdAtIso: "2026-10-01T00:00:00.000Z",
+      }),
+      candidate({
+        userId: "early",
+        slackId: "UE",
+        kind: "never_connected",
+        createdAtIso: "2026-06-01T00:00:00.000Z",
+      }),
+      candidate({
+        userId: "builder",
+        slackId: "UB",
+        kind: "hours_unsubmitted",
+        createdAtIso: "2026-09-01T00:00:00.000Z",
+      }),
+      candidate({
+        userId: "builder",
+        slackId: "UB",
+        kind: "project_no_hours_7d",
+        createdAtIso: "2026-09-01T00:00:00.000Z",
+      }),
     ];
     const plan = planNudgeRun({
       candidates,
@@ -124,7 +144,9 @@ describe("planNudgeRun", () => {
       "builder:hours_unsubmitted",
       "early:never_connected",
     ]);
-    expect(plan.skipped).toEqual([{ userId: "late", kind: "never_connected", reason: "over_run_cap" }]);
+    expect(plan.skipped).toEqual([
+      { userId: "late", kind: "never_connected", reason: "over_run_cap" },
+    ]);
   });
 
   test("allowlist restricts sends to listed Slack IDs", () => {
@@ -137,13 +159,17 @@ describe("planNudgeRun", () => {
       allowlist: new Set(["U2"]),
     });
     expect(plan.planned.map((p) => p.slackId)).toEqual(["U2"]);
-    expect(plan.skipped).toEqual([{ userId: "u1", kind: "never_connected", reason: "not_in_allowlist" }]);
+    expect(plan.skipped).toEqual([
+      { userId: "u1", kind: "never_connected", reason: "not_in_allowlist" },
+    ]);
   });
 
   test("history skips are reported per user", () => {
     const plan = planNudgeRun({
       candidates: [candidate()],
-      historyByUser: new Map([["u1", [{ kind: "auto_never_connected", createdAtIso: "2026-10-12T00:00:00.000Z" }]]]),
+      historyByUser: new Map([
+        ["u1", [{ kind: "auto_never_connected", createdAtIso: "2026-10-12T00:00:00.000Z" }]],
+      ]),
       now,
       deadlineIso: null,
       maxSends: 10,

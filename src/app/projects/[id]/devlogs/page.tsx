@@ -5,25 +5,13 @@ import AppShell from "@/components/AppShell";
 import { Badge, Button, Card, CardContent } from "@/components/ui";
 import { db } from "@/db";
 import { devlog, project, user } from "@/db/schema";
-import { formatDurationHM } from "@/lib/devlog-shared";
+import { formatDurationHM, formatDateTime } from "@/lib/devlog-shared";
 import { listProjectHackatimeProjects, reviewableDevlogWhere } from "@/lib/devlogs";
 import { getServerSession } from "@/lib/server-session";
 
 function canView(role: unknown, isCreator: boolean) {
   if (isCreator) return true;
   return role === "reviewer" || role === "admin";
-}
-
-function formatDateTime(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 }
 
 function formatDateOnly(date: Date | null) {
@@ -44,11 +32,9 @@ type BreakdownRow = {
   devlogCount: number;
 };
 
-export default async function ProjectDevlogListPage(props: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function ProjectDevlogListPage(props: { params: Promise<{ id: string }> }) {
   const session = await getServerSession({ disableCookieCache: true });
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect(`/login?callbackUrl=/projects`);
   }
 
@@ -129,7 +115,7 @@ export default async function ProjectDevlogListPage(props: {
   }
 
   for (const row of inRangeDevlogs) {
-    const rawName = (row.hackatimeProjectNameSnapshot ?? "").trim();
+    const rawName = row.hackatimeProjectNameSnapshot.trim();
     const displayName = rawName || "Unspecified";
     const lookupKey = rawName ? rawName.toLowerCase() : "__unspecified__";
     const seconds = Math.max(0, Math.floor(row.durationSeconds || 0));
@@ -168,7 +154,7 @@ export default async function ProjectDevlogListPage(props: {
     : "All time (no review range set)";
 
   const canWrite = isCreator && p.status === "work-in-progress";
-  const totalHours = formatDurationHM(p.hoursSpentSeconds ?? 0);
+  const totalHours = formatDurationHM(p.hoursSpentSeconds);
   const inRangeLabel = formatDurationHM(breakdownTotalSeconds);
 
   return (
@@ -292,9 +278,7 @@ export default async function ProjectDevlogListPage(props: {
           {devlogRows.map((row) => {
             const duration = formatDurationHM(row.durationSeconds);
             const excerpt =
-              (row.content ?? "").length > 400
-                ? `${row.content.slice(0, 400).trimEnd()}…`
-                : row.content;
+              row.content.length > 400 ? `${row.content.slice(0, 400).trimEnd()}…` : row.content;
             return (
               <li key={row.id}>
                 <Link
@@ -326,7 +310,7 @@ export default async function ProjectDevlogListPage(props: {
                         <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{excerpt}</p>
                       ) : null}
                     </div>
-                    {row.attachments && row.attachments.length > 0 ? (
+                    {row.attachments.length > 0 ? (
                       <div className="flex -space-x-2 shrink-0">
                         {row.attachments.slice(0, 4).map((url, i) => (
                           // eslint-disable-next-line @next/next/no-img-element

@@ -23,10 +23,6 @@ export function parseHttpUrl(value: string | null | undefined): URL | null {
   }
 }
 
-export function isValidHttpUrlString(value: string | null | undefined): boolean {
-  return parseHttpUrl(value) !== null;
-}
-
 /**
  * True when `hostname` is `domain` or a subdomain of it.
  * hostMatchesDomain("git.sr.ht", "sr.ht") === true

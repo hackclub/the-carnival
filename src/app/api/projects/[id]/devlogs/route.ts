@@ -21,11 +21,12 @@ import {
   resolveDevlogHackatimeProjectName,
   upsertProjectHackatimeProject,
 } from "@/lib/devlogs";
-import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
+import { frozenAccountResponse } from "@/lib/frozen-account-response";
 import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
 import { validatePlatformImageUrls } from "@/lib/review/uploads";
 import { getServerSession } from "@/lib/server-session";
 import { cleanUntrustedString } from "@/lib/sanitize";
+import { canReadProject } from "@/lib/roles";
 
 type CreateDevlogBody = {
   title?: unknown;
@@ -38,15 +39,6 @@ type CreateDevlogBody = {
   usedAi?: unknown;
   aiUsageDescription?: unknown;
 };
-
-function toCleanString(value: unknown) {
-  return cleanUntrustedString(value);
-}
-
-function canViewProjectDevlogs(role: unknown, isCreator: boolean) {
-  if (isCreator) return true;
-  return role === "reviewer" || role === "admin";
-}
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
@@ -70,7 +62,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   const role = (session?.user as { role?: unknown } | undefined)?.role;
   const isCreator = p.creatorId === userId;
-  if (!canViewProjectDevlogs(role, isCreator)) {
+  if (!canReadProject(role, isCreator)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -105,14 +97,14 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       userId: r.userId,
       title: r.title,
       content: r.content,
-      category: r.category ?? "coding",
+      category: r.category,
       startedAt: r.startedAt.toISOString(),
       endedAt: r.endedAt.toISOString(),
       durationSeconds: r.durationSeconds,
-      attachments: r.attachments ?? [],
+      attachments: r.attachments,
       usedAi: r.usedAi,
       aiUsageDescription: r.aiUsageDescription ?? null,
-      hackatimeProjectNameSnapshot: r.hackatimeProjectNameSnapshot ?? "",
+      hackatimeProjectNameSnapshot: r.hackatimeProjectNameSnapshot,
       authorName: r.authorName || "Unknown",
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
@@ -127,16 +119,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const freezeState = await getFrozenAccountState(userId);
-  if (freezeState.isFrozen) {
-    return NextResponse.json(
-      {
-        error: getFrozenAccountMessage(freezeState.frozenReason),
-        code: "account_frozen",
-      },
-      { status: 403 },
-    );
-  }
+  const frozen = await frozenAccountResponse(userId);
+  if (frozen) return frozen;
 
   const { id: projectId } = await ctx.params;
 
@@ -180,8 +164,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const title = toCleanString(body.title);
-  const content = toCleanString(body.content);
+  const title = cleanUntrustedString(body.title);
+  const content = cleanUntrustedString(body.content);
   const VALID_DEVLOG_CATEGORIES: DevlogCategory[] = ["learning", "design", "coding"];
   const categoryRaw = typeof body.category === "string" ? body.category.trim() : "coding";
   const category: DevlogCategory = VALID_DEVLOG_CATEGORIES.includes(categoryRaw as DevlogCategory)

@@ -28,7 +28,7 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
       disableRedirect: true,
     });
 
-    if (error || !data?.url) {
+    if (error || !data.url) {
       setAuthLoading(false);
       window.location.href = "/login?callbackUrl=/explore";
       return;
@@ -47,9 +47,7 @@ export default function Header({ showSectionLinks = true }: HeaderProps) {
     >
       <div
         className={
-          isLandingHeader
-            ? "flex items-center gap-2 self-start py-2"
-            : "flex items-center gap-2"
+          isLandingHeader ? "flex items-center gap-2 self-start py-2" : "flex items-center gap-2"
         }
       >
         <span className="text-2xl">🎪</span>

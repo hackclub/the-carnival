@@ -10,11 +10,9 @@ import { computeDevlogWindowCeiling } from "@/lib/devlog-shared";
 import { listProjectHackatimeProjects } from "@/lib/devlogs";
 import { getServerSession } from "@/lib/server-session";
 
-export default async function NewDevlogPage(props: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function NewDevlogPage(props: { params: Promise<{ id: string }> }) {
   const session = await getServerSession({ disableCookieCache: true });
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     redirect(`/login?callbackUrl=/projects`);
   }
 
@@ -36,7 +34,7 @@ export default async function NewDevlogPage(props: {
   const p = rows[0];
   if (!p) notFound();
 
-  const hackatimeProjectName = (p.hackatimeProjectName ?? "").trim();
+  const hackatimeProjectName = p.hackatimeProjectName.trim();
 
   if (p.status !== "work-in-progress") {
     return (
