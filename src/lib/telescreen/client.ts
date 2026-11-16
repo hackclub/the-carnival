@@ -80,7 +80,9 @@ async function robertFetch<T>(path: string, init: { method: string; body?: unkno
   if (!res.ok) {
     // Every Robert error is JSON with a human `message`.
     const message =
-      data && typeof data === "object" && typeof (data as { message?: unknown }).message === "string"
+      data &&
+      typeof data === "object" &&
+      typeof (data as { message?: unknown }).message === "string"
         ? (data as { message: string }).message
         : `HTTP ${res.status}`;
     throw new RobertApiError(`Telescreen ${init.method} ${path} failed: ${message}`, res.status);
@@ -90,16 +92,22 @@ async function robertFetch<T>(path: string, init: { method: string; body?: unkno
 
 /** Submit (or idempotently resubmit, by externalId) a Hackatime project. */
 export function submitRobertProject(input: RobertSubmitInput) {
-  return robertFetch<{ id: string; state: RobertState; created: boolean }>("/api/v1/ysws/projects", {
-    method: "POST",
-    body: { kind: "hackatime", ...input },
-  });
+  return robertFetch<{ id: string; state: RobertState; created: boolean }>(
+    "/api/v1/ysws/projects",
+    {
+      method: "POST",
+      body: { kind: "hackatime", ...input },
+    },
+  );
 }
 
 export function getRobertProject(robertProjectId: string) {
-  return robertFetch<RobertProject>(`/api/v1/ysws/projects/${encodeURIComponent(robertProjectId)}`, {
-    method: "GET",
-  });
+  return robertFetch<RobertProject>(
+    `/api/v1/ysws/projects/${encodeURIComponent(robertProjectId)}`,
+    {
+      method: "GET",
+    },
+  );
 }
 
 /** One page of the event's projects in `state`, newest submission first. */
@@ -109,9 +117,12 @@ export function listRobertProjects(input: { state: RobertState; limit?: number; 
     limit: String(input.limit ?? 100),
     offset: String(input.offset ?? 0),
   });
-  return robertFetch<{ total: number; projects: RobertProject[] }>(`/api/v1/ysws/projects?${params}`, {
-    method: "GET",
-  });
+  return robertFetch<{ total: number; projects: RobertProject[] }>(
+    `/api/v1/ysws/projects?${params}`,
+    {
+      method: "GET",
+    },
+  );
 }
 
 /** Carnival's final decision. Only valid while the project is awaiting_outcome. */

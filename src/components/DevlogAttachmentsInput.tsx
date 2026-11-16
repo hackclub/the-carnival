@@ -44,7 +44,8 @@ export function DevlogAttachmentsInput({
       // PNG/JPG only — mirrors the server-side presign allowlist
       // (src/lib/review/config.ts).
       const invalid = trimmedFiles.find(
-        (file) => !["image/png", "image/jpeg", "image/jpg"].includes((file.type || "").toLowerCase()),
+        (file) =>
+          !["image/png", "image/jpeg", "image/jpg"].includes((file.type || "").toLowerCase()),
       );
       if (invalid) {
         setLocalError("Attachments must be PNG or JPG images (no GIF, WebP, or SVG).");
@@ -53,9 +54,7 @@ export function DevlogAttachmentsInput({
 
       setUploading(true);
       const toastId = toast.loading(
-        trimmedFiles.length > 1
-          ? `Uploading ${trimmedFiles.length} images…`
-          : "Uploading image…",
+        trimmedFiles.length > 1 ? `Uploading ${trimmedFiles.length} images…` : "Uploading image…",
       );
 
       const newUrls: string[] = [];
@@ -74,13 +73,13 @@ export function DevlogAttachmentsInput({
           const presignData = (await presignRes.json().catch(() => null)) as PresignResponse | null;
           if (!presignRes.ok) {
             const msg =
-              typeof presignData?.error === "string" ? presignData.error : "Failed to start upload.";
+              typeof presignData?.error === "string"
+                ? presignData.error
+                : "Failed to start upload.";
             throw new Error(msg);
           }
-          const uploadUrl =
-            typeof presignData?.uploadUrl === "string" ? presignData.uploadUrl : "";
-          const publicUrl =
-            typeof presignData?.publicUrl === "string" ? presignData.publicUrl : "";
+          const uploadUrl = typeof presignData?.uploadUrl === "string" ? presignData.uploadUrl : "";
+          const publicUrl = typeof presignData?.publicUrl === "string" ? presignData.publicUrl : "";
           if (!uploadUrl || !publicUrl) {
             throw new Error("Upload response missing URLs.");
           }
@@ -98,10 +97,9 @@ export function DevlogAttachmentsInput({
         }
 
         onChange([...value, ...newUrls]);
-        toast.success(
-          newUrls.length > 1 ? `Uploaded ${newUrls.length} images.` : "Uploaded.",
-          { id: toastId },
-        );
+        toast.success(newUrls.length > 1 ? `Uploaded ${newUrls.length} images.` : "Uploaded.", {
+          id: toastId,
+        });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Upload failed.";
         setLocalError(msg);

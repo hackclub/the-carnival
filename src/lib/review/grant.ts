@@ -113,7 +113,10 @@ export function parseIdentityGrantProfile(payload: unknown): IdentityGrantProfil
   const legalFirstName = toNullableString(identity.legal_first_name ?? identity.legalFirstName);
   const legalLastName = toNullableString(identity.legal_last_name ?? identity.legalLastName);
 
-  const joined = [firstName, lastName].filter((p): p is string => !!p).join(" ").trim();
+  const joined = [firstName, lastName]
+    .filter((p): p is string => !!p)
+    .join(" ")
+    .trim();
   const legalJoined = [legalFirstName, legalLastName]
     .filter((p): p is string => !!p)
     .join(" ")
@@ -529,7 +532,9 @@ export function previewGrantPayload(context: GrantContext) {
  * ever drift, the push is refused — nothing unverifiable enters the Unified
  * Database.
  */
-export function assertGrantHoursInvariant(context: GrantContext): { ok: true } | { ok: false; error: string } {
+export function assertGrantHoursInvariant(
+  context: GrantContext,
+): { ok: true } | { ok: false; error: string } {
   const payloadHours = context.input.project.approvedHours;
   const storedHours = context.projectRow.approvedHours;
   if (

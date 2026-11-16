@@ -13,9 +13,9 @@ function normalizeOptionalText(value: string | null | undefined) {
   return cleaned.length > 0 ? cleaned : null;
 }
 
-export function validateCreatorOriginalityDeclaration(value: CreatorOriginalityDeclaration):
-  | { ok: true; value: CreatorOriginalityDeclaration }
-  | { ok: false; error: string } {
+export function validateCreatorOriginalityDeclaration(
+  value: CreatorOriginalityDeclaration,
+): { ok: true; value: CreatorOriginalityDeclaration } | { ok: false; error: string } {
   // Overlap details only make sense when the creator says it may overlap;
   // drop stale text left over from before they switched to "unique".
   const creatorDuplicateExplanation = value.creatorDeclaredOriginality

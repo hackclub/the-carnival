@@ -160,7 +160,8 @@ function validateScreenshots(input: SubmissionGateInput, failures: SubmissionGat
     if (offPlatform) {
       failures.push({
         code: "screenshots_hosting",
-        message: "Screenshots must be uploaded here directly — external image links aren't accepted.",
+        message:
+          "Screenshots must be uploaded here directly — external image links aren't accepted.",
       });
     }
   }

@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-const {
-  devlogWindowOverlapsRange,
-  resolveDevlogHackatimeProjectName,
-} = await import("./devlogs.ts");
+const { devlogWindowOverlapsRange, resolveDevlogHackatimeProjectName } =
+  await import("./devlogs.ts");
 
 const {
   DEVLOG_AI_DESCRIPTION_MAX_LENGTH,
@@ -122,10 +120,9 @@ describe("parseAttachmentUrls", () => {
     expect(r.ok).toBe(false);
   });
   test("accepts https URLs and trims", () => {
-    const r = parseAttachmentUrls(
-      ["https://example.com/a.png", "  https://example.com/b.jpg  "],
-      { projectId: "p1" },
-    );
+    const r = parseAttachmentUrls(["https://example.com/a.png", "  https://example.com/b.jpg  "], {
+      projectId: "p1",
+    });
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.value).toEqual(["https://example.com/a.png", "https://example.com/b.jpg"]);

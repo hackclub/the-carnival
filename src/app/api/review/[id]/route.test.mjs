@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { devlog, peerReview, peerReviewDevlogAssessment, project, reviewAuditLog } from "@/db/schema";
+import {
+  devlog,
+  peerReview,
+  peerReviewDevlogAssessment,
+  project,
+  reviewAuditLog,
+} from "@/db/schema";
 
 const state = {
   session: {
@@ -204,8 +210,7 @@ const db = {
         return {
           where() {
             return {
-              limit: async () =>
-                table === project && state.projectRow ? [state.projectRow] : [],
+              limit: async () => (table === project && state.projectRow ? [state.projectRow] : []),
             };
           },
         };

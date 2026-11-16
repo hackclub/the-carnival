@@ -15,7 +15,13 @@ export const NUMBER_OP_LABELS: Record<NumberOp, string> = {
   lt: "fewer than",
 };
 
-export const VERIFICATION_VALUES = ["verified", "pending", "needs_submission", "ineligible", "none"] as const;
+export const VERIFICATION_VALUES = [
+  "verified",
+  "pending",
+  "needs_submission",
+  "ineligible",
+  "none",
+] as const;
 export type VerificationValue = (typeof VERIFICATION_VALUES)[number];
 
 export const VERIFICATION_LABELS: Record<VerificationValue, string> = {
@@ -72,7 +78,10 @@ export const AUDIENCE_FILTERS = {
   hackatime_connected: { kind: "boolean", label: "Hackatime connected", yes: "Yes", no: "No" },
   verification: { kind: "verification", label: "Identity verification" },
   signed_up: { kind: "date", label: "Signed up" },
-} as const satisfies Record<string, NumberFilterDef | BooleanFilterDef | EnumFilterDef | DateFilterDef>;
+} as const satisfies Record<
+  string,
+  NumberFilterDef | BooleanFilterDef | EnumFilterDef | DateFilterDef
+>;
 
 export type AudienceFilterKey = keyof typeof AUDIENCE_FILTERS;
 export const AUDIENCE_FILTER_KEYS = Object.keys(AUDIENCE_FILTERS) as AudienceFilterKey[];
@@ -113,7 +122,8 @@ export function parseAudienceFilter(raw: unknown): AudienceFilter | null {
   const def = AUDIENCE_FILTERS[f.key];
   if (def.kind === "number") {
     const value = typeof f.value === "number" ? f.value : Number(f.value);
-    if (!(NUMBER_OPS as readonly unknown[]).includes(f.op) || !Number.isFinite(value) || value < 0) return null;
+    if (!(NUMBER_OPS as readonly unknown[]).includes(f.op) || !Number.isFinite(value) || value < 0)
+      return null;
     if (def.unit === "count" && (!Number.isInteger(value) || value > 1_000_000)) return null;
     if (def.unit === "hours" && value > 1_000_000) return null;
     return { key: f.key as NumberFilterKey, op: f.op as NumberOp, value };
@@ -124,11 +134,22 @@ export function parseAudienceFilter(raw: unknown): AudienceFilter | null {
   }
   if (def.kind === "verification") {
     const values = Array.isArray(f.values)
-      ? [...new Set(f.values.filter((v): v is VerificationValue => (VERIFICATION_VALUES as readonly unknown[]).includes(v)))]
+      ? [
+          ...new Set(
+            f.values.filter((v): v is VerificationValue =>
+              (VERIFICATION_VALUES as readonly unknown[]).includes(v),
+            ),
+          ),
+        ]
       : [];
     return values.length ? { key: "verification", values } : null;
   }
-  if ((f.op !== "before" && f.op !== "after") || typeof f.date !== "string" || !DATE_RE.test(f.date)) return null;
+  if (
+    (f.op !== "before" && f.op !== "after") ||
+    typeof f.date !== "string" ||
+    !DATE_RE.test(f.date)
+  )
+    return null;
   if (!Number.isFinite(Date.parse(`${f.date}T00:00:00Z`))) return null;
   return { key: "signed_up", op: f.op, date: f.date };
 }
@@ -142,7 +163,8 @@ export function parseAudienceFilters(
   const filters: AudienceFilter[] = [];
   for (const item of raw) {
     const parsed = parseAudienceFilter(item);
-    if (!parsed) return { ok: false, error: `Invalid filter: ${JSON.stringify(item).slice(0, 120)}` };
+    if (!parsed)
+      return { ok: false, error: `Invalid filter: ${JSON.stringify(item).slice(0, 120)}` };
     filters.push(parsed);
   }
   return { ok: true, filters };
@@ -156,12 +178,18 @@ export function describeFilter(f: AudienceFilter): string {
     return `${def.label} ${NUMBER_OP_LABELS[f.op]} ${f.value}${unit}`;
   }
   if ("value" in f) return `${def.label}: ${f.value ? "yes" : "no"}`;
-  if ("values" in f) return `${def.label}: ${f.values.map((v) => VERIFICATION_LABELS[v]).join(" or ")}`;
+  if ("values" in f)
+    return `${def.label}: ${f.values.map((v) => VERIFICATION_LABELS[v]).join(" or ")}`;
   return `${def.label} ${f.op === "before" ? "before" : "on or after"} ${f.date}`;
 }
 
 /** Ready-made filter sets; the first four match the insights activation segments. */
-export const AUDIENCE_PRESETS: { key: string; label: string; description: string; filters: AudienceFilter[] }[] = [
+export const AUDIENCE_PRESETS: {
+  key: string;
+  label: string;
+  description: string;
+  filters: AudienceFilter[];
+}[] = [
   {
     key: "never_activated",
     label: "Never activated",

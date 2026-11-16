@@ -44,9 +44,7 @@ type BreakdownRow = {
   devlogCount: number;
 };
 
-export default async function ProjectDevlogListPage(props: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function ProjectDevlogListPage(props: { params: Promise<{ id: string }> }) {
   const session = await getServerSession({ disableCookieCache: true });
   if (!session?.user?.id) {
     redirect(`/login?callbackUrl=/projects`);

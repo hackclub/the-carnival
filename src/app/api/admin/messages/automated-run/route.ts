@@ -15,10 +15,18 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
 
   const maxRaw = body?.maxSends;
-  const max = typeof maxRaw === "number" ? maxRaw : typeof maxRaw === "string" && maxRaw.trim() ? Number(maxRaw) : NaN;
+  const max =
+    typeof maxRaw === "number"
+      ? maxRaw
+      : typeof maxRaw === "string" && maxRaw.trim()
+        ? Number(maxRaw)
+        : NaN;
   const allow = parseSlackIdsInput(body?.allowlist);
   if (allow.invalid.length) {
-    return NextResponse.json({ error: `Not Slack user IDs: ${allow.invalid.slice(0, 5).join(", ")}` }, { status: 400 });
+    return NextResponse.json(
+      { error: `Not Slack user IDs: ${allow.invalid.slice(0, 5).join(", ")}` },
+      { status: 400 },
+    );
   }
 
   const { id } = await startAutomatedRun({

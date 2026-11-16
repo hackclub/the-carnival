@@ -49,8 +49,7 @@ function toOptionalTrimmedString(value: unknown): string | null {
 
 function isProjectEditor(value: unknown): value is ProjectEditor {
   return (
-    typeof value === "string" &&
-    (projectEditor.enumValues as readonly string[]).includes(value)
+    typeof value === "string" && (projectEditor.enumValues as readonly string[]).includes(value)
   );
 }
 
@@ -126,16 +125,15 @@ export async function POST(req: Request) {
   }
 
   const editor =
-    editorRaw === undefined || editorRaw === null || editorRaw === "" ? ("vscode" as const) : editorRaw;
+    editorRaw === undefined || editorRaw === null || editorRaw === ""
+      ? ("vscode" as const)
+      : editorRaw;
 
   if (!isProjectEditor(editor)) {
     return NextResponse.json({ error: "Invalid editor" }, { status: 400 });
   }
   if (editor === "other" && !editorOther) {
-    return NextResponse.json(
-      { error: "Please enter the editor name (Other)" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Please enter the editor name (Other)" }, { status: 400 });
   }
   if (editor !== "other" && editorOther) {
     return NextResponse.json(
@@ -168,9 +166,7 @@ export async function POST(req: Request) {
 
   // Originality declaration is optional at creation; defaults if not provided
   const creatorDeclaredOriginality =
-    typeof body.creatorDeclaredOriginality === "boolean"
-      ? body.creatorDeclaredOriginality
-      : false;
+    typeof body.creatorDeclaredOriginality === "boolean" ? body.creatorDeclaredOriginality : false;
 
   let originalityValues = {
     creatorDeclaredOriginality: false,

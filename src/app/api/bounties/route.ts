@@ -115,7 +115,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Preview image must be http(s)" }, { status: 400 });
   }
   if (!helpfulLinks) {
-    return NextResponse.json({ error: "Helpful links must be valid label + URL pairs" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Helpful links must be valid label + URL pairs" },
+      { status: 400 },
+    );
   }
 
   const id = generateId();

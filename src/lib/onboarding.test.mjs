@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-const { buildOnboardingSteps, countDoneSteps, isOnboardingComplete } = await import(
-  "./onboarding-shared.ts"
-);
+const { buildOnboardingSteps, countDoneSteps, isOnboardingComplete } =
+  await import("./onboarding-shared.ts");
 
 function progress(overrides = {}) {
   return {

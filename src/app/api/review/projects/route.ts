@@ -25,11 +25,7 @@ function canReview(role: unknown): role is Extract<UserRole, "reviewer" | "admin
 
 type FilterKey = "pending" | "approved" | "rejected";
 type SortKey =
-  | "queue-age-desc"
-  | "submitted-desc"
-  | "submitted-asc"
-  | "last-review-desc"
-  | "name-asc";
+  "queue-age-desc" | "submitted-desc" | "submitted-asc" | "last-review-desc" | "name-asc";
 type AssignmentFilter = "all" | "mine" | "assigned" | "unassigned";
 
 const FILTERS: Array<{ value: FilterKey; statuses: ProjectStatus[] }> = [
@@ -110,9 +106,7 @@ export async function GET(req: Request) {
 
   const statusConditions = activeStatuses.map((status) => eq(project.status, status));
   const statusWhere = (
-    statusConditions.length === 1
-      ? statusConditions[0]
-      : or(...statusConditions)
+    statusConditions.length === 1 ? statusConditions[0] : or(...statusConditions)
   ) as SQL;
 
   const baseFilterWhere = (
@@ -134,7 +128,11 @@ export async function GET(req: Request) {
   if (query) {
     const pattern = `%${escapeLikePattern(query)}%`;
     whereParts.push(
-      or(ilike(project.name, pattern), ilike(project.description, pattern), ilike(user.name, pattern)) as SQL,
+      or(
+        ilike(project.name, pattern),
+        ilike(project.description, pattern),
+        ilike(user.name, pattern),
+      ) as SQL,
     );
   }
 

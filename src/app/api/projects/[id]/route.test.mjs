@@ -121,7 +121,9 @@ function buildDb() {
           if (query.sourceTable === project) {
             state.projectSelectCalls += 1;
             return state.projectSelectCalls === 1
-              ? (state.currentProjectRow ? [state.currentProjectRow] : [])
+              ? state.currentProjectRow
+                ? [state.currentProjectRow]
+                : []
               : state.priorSubmittedRows;
           }
           if (query.sourceTable === user) {

@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-const {
-  buildHackatimeDevlogReviewUrls,
-} = await import("./constants.ts");
+const { buildHackatimeDevlogReviewUrls } = await import("./constants.ts");
 
 describe("Hackatime review URL builders", () => {
   test("builds Billy and Joe.fraud links with the exact devlog timestamp range", () => {

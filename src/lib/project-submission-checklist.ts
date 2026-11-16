@@ -96,9 +96,7 @@ export function normalizeProjectSubmissionChecklist(
   };
 }
 
-export function parseProjectSubmissionChecklist(
-  value: unknown,
-): ProjectSubmissionChecklist | null {
+export function parseProjectSubmissionChecklist(value: unknown): ProjectSubmissionChecklist | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
   const knownKeysAreBooleans = PROJECT_SUBMISSION_CHECKLIST_ITEMS.every(

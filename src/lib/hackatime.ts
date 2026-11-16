@@ -14,7 +14,8 @@ type HackatimeProjectsResponse = {
     total_seconds?: number | string;
     seconds?: number | string;
     totalSeconds?: number | string;
-    most_recent_heartbeat?: string | { time?: string; created_at?: string; timestamp?: string } | null;
+    most_recent_heartbeat?:
+      string | { time?: string; created_at?: string; timestamp?: string } | null;
     most_recent_heartbeat_at?: string;
     last_heartbeat_at?: string;
     last_heartbeat?: string;
@@ -298,7 +299,9 @@ export async function fetchHackatimeStatsProjectTotalSeconds(input: {
   const projectName = input.projectName.trim();
   if (!hackatimeUid || !projectName) return 0;
 
-  const url = new URL(`https://hackatime.hackclub.com/api/v1/users/${encodeURIComponent(hackatimeUid)}/stats`);
+  const url = new URL(
+    `https://hackatime.hackclub.com/api/v1/users/${encodeURIComponent(hackatimeUid)}/stats`,
+  );
   url.searchParams.set("features", "projects");
   url.searchParams.set("start_date", input.start);
   url.searchParams.set("end_date", input.end);
@@ -320,11 +323,15 @@ export async function fetchHackatimeStatsProjectTotalSeconds(input: {
 
   const projects = Array.isArray(raw.data?.projects) ? raw.data!.projects! : [];
   const wanted = projectName.toLowerCase();
-  const matched = projects.find((p) => typeof p.name === "string" && p.name.trim().toLowerCase() === wanted);
+  const matched = projects.find(
+    (p) => typeof p.name === "string" && p.name.trim().toLowerCase() === wanted,
+  );
   return toSafeSeconds(matched?.total_seconds);
 }
 
-export async function fetchHackatimeIdentityFromToken(accessToken: string): Promise<{ userId: string | null }> {
+export async function fetchHackatimeIdentityFromToken(
+  accessToken: string,
+): Promise<{ userId: string | null }> {
   const response = await makeHackatimeAuthedRequest(
     "https://hackatime.hackclub.com/api/v1/authenticated/me",
     accessToken,
@@ -333,11 +340,7 @@ export async function fetchHackatimeIdentityFromToken(accessToken: string): Prom
 
   const raw = (await response.json().catch(() => ({}))) as HackatimeMeResponse;
   const id =
-    typeof raw.id === "number"
-      ? String(raw.id)
-      : typeof raw.id === "string"
-        ? raw.id.trim()
-        : "";
+    typeof raw.id === "number" ? String(raw.id) : typeof raw.id === "string" ? raw.id.trim() : "";
   return { userId: id || null };
 }
 
@@ -421,7 +424,9 @@ export async function fetchHackatimeProjectsForConnectedUser(
 }
 
 /** Lenient variant for read-only displays: any failure reads as "no projects". */
-export async function fetchHackatimeProjectsForUser(userId: string): Promise<HackatimeProjectSummary[]> {
+export async function fetchHackatimeProjectsForUser(
+  userId: string,
+): Promise<HackatimeProjectSummary[]> {
   try {
     return await fetchHackatimeProjectsForConnectedUser(userId);
   } catch {
@@ -621,16 +626,12 @@ function toUtcDateOnly(value: Date) {
 
 function datesCoveredByRange(startedAt: Date, endedAt: Date) {
   const dates: string[] = [];
-  const cursor = new Date(Date.UTC(
-    startedAt.getUTCFullYear(),
-    startedAt.getUTCMonth(),
-    startedAt.getUTCDate(),
-  ));
-  const end = new Date(Date.UTC(
-    endedAt.getUTCFullYear(),
-    endedAt.getUTCMonth(),
-    endedAt.getUTCDate(),
-  ));
+  const cursor = new Date(
+    Date.UTC(startedAt.getUTCFullYear(), startedAt.getUTCMonth(), startedAt.getUTCDate()),
+  );
+  const end = new Date(
+    Date.UTC(endedAt.getUTCFullYear(), endedAt.getUTCMonth(), endedAt.getUTCDate()),
+  );
 
   while (cursor.getTime() <= end.getTime()) {
     dates.push(toUtcDateOnly(cursor));
@@ -884,10 +885,7 @@ export async function fetchHackatimeAdminTimeline(input: {
         startTime: typeof s.start_time === "number" ? s.start_time : 0,
         endTime: typeof s.end_time === "number" ? s.end_time : 0,
         duration: typeof s.duration === "number" ? s.duration : 0,
-        projectsEdited: (Array.isArray(s.projects_edited_details)
-          ? s.projects_edited_details
-          : []
-        )
+        projectsEdited: (Array.isArray(s.projects_edited_details) ? s.projects_edited_details : [])
           .map((p) => ({
             name: typeof p.name === "string" ? p.name.trim() : "",
             repoUrl: typeof p.repo_url === "string" ? p.repo_url : null,

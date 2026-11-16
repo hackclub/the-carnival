@@ -9,5 +9,3 @@ export default async function AdminHome() {
 
   redirect("/admin/grants");
 }
-
-

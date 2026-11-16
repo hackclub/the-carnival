@@ -6,4 +6,3 @@ export function tokensForApprovedHours(approvedHours: number) {
   // to absorb float noise (1.1 * 10 = 11.000000000000002).
   return Math.max(0, Math.round(hours * TOKENS_PER_APPROVED_HOUR));
 }
-

@@ -7,10 +7,7 @@ import { useCallback, useMemo, useState } from "react";
 
 export default function LoginClient() {
   const searchParams = useSearchParams();
-  const callbackURL = useMemo(
-    () => searchParams.get("callbackUrl") ?? "/",
-    [searchParams],
-  );
+  const callbackURL = useMemo(() => searchParams.get("callbackUrl") ?? "/", [searchParams]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -43,9 +40,7 @@ export default function LoginClient() {
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-carnival-red/10 via-transparent to-transparent" />
-      <div className="absolute top-10 left-10 text-6xl float-animation select-none">
-        🎪
-      </div>
+      <div className="absolute top-10 left-10 text-6xl float-animation select-none">🎪</div>
       <div
         className="absolute top-24 right-16 text-4xl float-animation select-none"
         style={{ animationDelay: "0.5s" }}
@@ -68,9 +63,7 @@ export default function LoginClient() {
               🎪
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-foreground leading-tight">
-                Sign in
-              </h1>
+              <h1 className="text-3xl font-bold text-foreground leading-tight">Sign in</h1>
               <p className="text-muted-foreground">
                 Authenticate with Hack Club Identity to continue.
               </p>
@@ -100,4 +93,3 @@ export default function LoginClient() {
     </div>
   );
 }
-

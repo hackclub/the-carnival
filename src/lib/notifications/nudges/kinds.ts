@@ -48,11 +48,13 @@ export type NudgeVariant =
 export const NUDGE_KIND_META: Record<NudgeKind, { label: string; description: string }> = {
   hours_unsubmitted: {
     label: "Hours logged, not submitted",
-    description: "Devlog hours on a work-in-progress project, no devlog in 5 days, never submitted.",
+    description:
+      "Devlog hours on a work-in-progress project, no devlog in 5 days, never submitted.",
   },
   project_no_hours_7d: {
     label: "Project, no hours (7+ days)",
-    description: "Created a project at least a week ago with zero devlog hours; never shipped anything.",
+    description:
+      "Created a project at least a week ago with zero devlog hours; never shipped anything.",
   },
   connected_no_project: {
     label: "Hackatime connected, no project",

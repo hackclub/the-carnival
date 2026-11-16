@@ -90,12 +90,14 @@ export default function AdminReviewCommentsClient() {
         if (cancelled) return;
 
         if (activeMode === "grouped") {
-          const reviewers = data && "reviewers" in data && Array.isArray(data.reviewers) ? data.reviewers : [];
+          const reviewers =
+            data && "reviewers" in data && Array.isArray(data.reviewers) ? data.reviewers : [];
           setGroupedReviewers(reviewers);
           return;
         }
 
-        const comments = data && "comments" in data && Array.isArray(data.comments) ? data.comments : [];
+        const comments =
+          data && "comments" in data && Array.isArray(data.comments) ? data.comments : [];
         setFlatComments(comments);
       })
       .catch((err: unknown) => {
@@ -141,22 +143,29 @@ export default function AdminReviewCommentsClient() {
         </div>
       ) : error ? (
         <div className="platform-surface-card p-8">
-          <div className="text-foreground font-semibold text-lg">Could not load reviewer comments</div>
+          <div className="text-foreground font-semibold text-lg">
+            Could not load reviewer comments
+          </div>
           <div className="text-muted-foreground mt-1">{error}</div>
         </div>
       ) : activeMode === "flat" ? (
         flatComments && flatComments.length > 0 ? (
           <>
             <div className="text-sm text-muted-foreground">
-              Showing latest reviewer comments <span className="text-foreground font-semibold">({flatComments.length})</span>
+              Showing latest reviewer comments{" "}
+              <span className="text-foreground font-semibold">({flatComments.length})</span>
             </div>
             <div className="space-y-3">
               {flatComments.map((comment) => (
                 <div key={comment.id} className="platform-surface-card px-5 py-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                      <div className="text-foreground font-semibold truncate">{comment.reviewerName}</div>
-                      <div className="text-sm text-muted-foreground truncate">{comment.projectName}</div>
+                      <div className="text-foreground font-semibold truncate">
+                        {comment.reviewerName}
+                      </div>
+                      <div className="text-sm text-muted-foreground truncate">
+                        {comment.projectName}
+                      </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {new Date(comment.createdAt).toLocaleString()}
                       </div>
@@ -165,7 +174,9 @@ export default function AdminReviewCommentsClient() {
                       {formatDecision(comment.decision)}
                     </span>
                   </div>
-                  <div className="text-foreground mt-3 whitespace-pre-wrap">{comment.reviewComment}</div>
+                  <div className="text-foreground mt-3 whitespace-pre-wrap">
+                    {comment.reviewComment}
+                  </div>
                   {comment.reviewJustification ? (
                     <ReviewJustificationSummary justification={comment.reviewJustification} />
                   ) : null}
@@ -205,7 +216,9 @@ export default function AdminReviewCommentsClient() {
             {groupedReviewers.map((reviewer) => (
               <div key={reviewer.reviewerId} className="platform-surface-card p-6">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="text-foreground font-bold text-xl truncate">{reviewer.reviewerName}</div>
+                  <div className="text-foreground font-bold text-xl truncate">
+                    {reviewer.reviewerName}
+                  </div>
                   <div className="text-xs text-muted-foreground shrink-0">
                     {reviewer.projects.length} project{reviewer.projects.length === 1 ? "" : "s"}
                   </div>
@@ -220,7 +233,9 @@ export default function AdminReviewCommentsClient() {
                         key={project.projectId}
                         className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3"
                       >
-                        <div className="text-foreground font-semibold truncate">{project.projectName}</div>
+                        <div className="text-foreground font-semibold truncate">
+                          {project.projectName}
+                        </div>
                         <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
                           <Link
                             href={`/review/${project.projectId}`}

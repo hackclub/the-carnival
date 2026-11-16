@@ -87,9 +87,9 @@ export type AnnouncementInput = {
   endsAt: Date | null;
 };
 
-export function parseAnnouncementInput(body: unknown):
-  | { ok: true; value: AnnouncementInput }
-  | { ok: false; error: string } {
+export function parseAnnouncementInput(
+  body: unknown,
+): { ok: true; value: AnnouncementInput } | { ok: false; error: string } {
   if (!body || typeof body !== "object") return { ok: false, error: "Invalid JSON body" };
   const raw = body as Record<string, unknown>;
 
@@ -111,7 +111,10 @@ export function parseAnnouncementInput(body: unknown):
       isHttp = false;
     }
     if (!isInternal && !isHttp) {
-      return { ok: false, error: "Link must be an http(s) URL or an internal path starting with /" };
+      return {
+        ok: false,
+        error: "Link must be an http(s) URL or an internal path starting with /",
+      };
     }
     href = candidate;
   }

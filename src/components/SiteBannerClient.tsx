@@ -31,11 +31,7 @@ function readDismissed(): string[] {
   }
 }
 
-export default function SiteBannerClient({
-  announcements,
-}: {
-  announcements: AnnouncementDto[];
-}) {
+export default function SiteBannerClient({ announcements }: { announcements: AnnouncementDto[] }) {
   // Start hidden and reveal after reading localStorage, so users who already
   // dismissed a banner never see it flash back in.
   const [dismissed, setDismissed] = useState<string[] | null>(null);

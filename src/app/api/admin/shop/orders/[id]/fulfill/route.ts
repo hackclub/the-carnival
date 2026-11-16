@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { shopOrder, tokenLedger, user } from "@/db/schema";
-import { getAuthUser, parseJsonBody, toCleanString, toPositiveInt, generateId } from "@/lib/api-utils";
+import {
+  getAuthUser,
+  parseJsonBody,
+  toCleanString,
+  toPositiveInt,
+  generateId,
+} from "@/lib/api-utils";
 import { getAppBaseUrl, sendShopOrderFulfilledParticipantEmail } from "@/lib/loops";
 import { getTokenBalance } from "@/lib/wallet";
 
@@ -43,9 +49,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
   const body = await parseJsonBody<FulfillBody>(req);
   const fulfillmentLink = toCleanString(body?.fulfillmentLink);
-  if (!fulfillmentLink) return NextResponse.json({ error: "fulfillmentLink is required" }, { status: 400 });
+  if (!fulfillmentLink)
+    return NextResponse.json({ error: "fulfillmentLink is required" }, { status: 400 });
   const rawOverride =
-    typeof body?.deductTokensOverride === "string" ? body.deductTokensOverride.trim() : body?.deductTokensOverride;
+    typeof body?.deductTokensOverride === "string"
+      ? body.deductTokensOverride.trim()
+      : body?.deductTokensOverride;
   const overrideNote = toCleanString(body?.deductTokensOverrideNote);
   const hasOverride = rawOverride !== undefined && rawOverride !== null && rawOverride !== "";
   let deductTokensOverride: number | null = null;

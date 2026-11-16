@@ -88,7 +88,10 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
       ? Math.max(0, Math.floor(p.hackatimeTotalSeconds))
       : 0;
   const totalSeconds = devlogSeconds > 0 ? devlogSeconds : legacySeconds;
-  const hackatimeHours = { hours: Math.floor(totalSeconds / 3600), minutes: Math.floor(totalSeconds / 60) % 60 };
+  const hackatimeHours = {
+    hours: Math.floor(totalSeconds / 3600),
+    minutes: Math.floor(totalSeconds / 60) % 60,
+  };
   const reviewJustificationColumn = (
     peerReview as unknown as { reviewJustification?: typeof peerReview.id }
   ).reviewJustification;
@@ -199,7 +202,10 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
         <Link href="/review" className="text-sm text-muted-foreground hover:text-foreground">
           ← Back to review queue
         </Link>
-        <Link href={`/projects/${p.id}`} className="text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href={`/projects/${p.id}`}
+          className="text-sm text-muted-foreground hover:text-foreground"
+        >
           View in projects
         </Link>
       </div>
@@ -230,7 +236,9 @@ export default async function ReviewProjectPage(props: { params: Promise<{ id: s
             creatorEmail: p.creatorEmail || "",
             hackatimeUserId:
               typeof p.creatorHackatimeUserId === "string" ? p.creatorHackatimeUserId : null,
-            hackatimeHours: hackatimeHours ? { hours: hackatimeHours.hours, minutes: hackatimeHours.minutes } : null,
+            hackatimeHours: hackatimeHours
+              ? { hours: hackatimeHours.hours, minutes: hackatimeHours.minutes }
+              : null,
             hackatimeStartedAt: p.hackatimeStartedAt ? p.hackatimeStartedAt.toISOString() : null,
             hackatimeStoppedAt: p.hackatimeStoppedAt ? p.hackatimeStoppedAt.toISOString() : null,
             createdAt: p.createdAt.toISOString(),

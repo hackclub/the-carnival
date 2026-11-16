@@ -103,7 +103,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (body.approvedHoursNeeded !== undefined) {
     const v = toPositiveInt(body.approvedHoursNeeded);
     if (!Number.isFinite(v) || v < 0) {
-      return NextResponse.json({ error: "approvedHoursNeeded must be a non-negative integer" }, { status: 400 });
+      return NextResponse.json(
+        { error: "approvedHoursNeeded must be a non-negative integer" },
+        { status: 400 },
+      );
     }
     set.approvedHoursNeeded = v;
   }
@@ -111,25 +114,24 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (body.tokenCost !== undefined) {
     const v = toPositiveInt(body.tokenCost);
     if (!Number.isFinite(v) || v < 0) {
-      return NextResponse.json({ error: "tokenCost must be a non-negative integer" }, { status: 400 });
+      return NextResponse.json(
+        { error: "tokenCost must be a non-negative integer" },
+        { status: 400 },
+      );
     }
     set.tokenCost = v;
   }
 
-  const updated = await db
-    .update(shopItem)
-    .set(set)
-    .where(eq(shopItem.id, id))
-    .returning({
-      id: shopItem.id,
-      name: shopItem.name,
-      description: shopItem.description,
-      imageUrl: shopItem.imageUrl,
-      orderNoteRequired: shopItem.orderNoteRequired,
-      approvedHoursNeeded: shopItem.approvedHoursNeeded,
-      tokenCost: shopItem.tokenCost,
-      updatedAt: shopItem.updatedAt,
-    });
+  const updated = await db.update(shopItem).set(set).where(eq(shopItem.id, id)).returning({
+    id: shopItem.id,
+    name: shopItem.name,
+    description: shopItem.description,
+    imageUrl: shopItem.imageUrl,
+    orderNoteRequired: shopItem.orderNoteRequired,
+    approvedHoursNeeded: shopItem.approvedHoursNeeded,
+    tokenCost: shopItem.tokenCost,
+    updatedAt: shopItem.updatedAt,
+  });
 
   const item = updated[0];
   if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -148,7 +150,10 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
   if (!user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await ctx.params;
-  const deleted = await db.delete(shopItem).where(eq(shopItem.id, id)).returning({ id: shopItem.id });
+  const deleted = await db
+    .delete(shopItem)
+    .where(eq(shopItem.id, id))
+    .returning({ id: shopItem.id });
   if (deleted.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   return NextResponse.json({ ok: true });

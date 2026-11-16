@@ -128,8 +128,7 @@ export default function AdminInsightsClient({
     const q = search.trim().toLowerCase();
     if (!q) return activeUsers;
     return activeUsers.filter(
-      (u) =>
-        (u.name ?? "").toLowerCase().includes(q) || u.email.toLowerCase().includes(q),
+      (u) => (u.name ?? "").toLowerCase().includes(q) || u.email.toLowerCase().includes(q),
     );
   }, [activeUsers, search]);
 
@@ -173,7 +172,10 @@ export default function AdminInsightsClient({
       return;
     }
     try {
-      window.sessionStorage.setItem(OUTREACH_HANDOFF_STORAGE_KEY, JSON.stringify({ userIds: [...selectedIds] }));
+      window.sessionStorage.setItem(
+        OUTREACH_HANDOFF_STORAGE_KEY,
+        JSON.stringify({ userIds: [...selectedIds] }),
+      );
     } catch {
       toast.error("Couldn't hand the selection over (browser storage is blocked).");
       return;
@@ -227,7 +229,9 @@ export default function AdminInsightsClient({
             onClick={toggleAllVisible}
             className="shrink-0 rounded-[var(--radius-xl)] border border-border bg-background/60 px-3 py-2 text-sm font-semibold text-foreground hover:bg-background"
           >
-            {allVisibleSelected ? "Deselect visible" : `Select visible (${reachableVisible.length})`}
+            {allVisibleSelected
+              ? "Deselect visible"
+              : `Select visible (${reachableVisible.length})`}
           </button>
         </div>
 
@@ -305,9 +309,7 @@ export default function AdminInsightsClient({
                           ) : null}
                         </td>
                       ) : (
-                        <td className="px-3 py-2 text-muted-foreground">
-                          {u.projectCount ?? 0}
-                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">{u.projectCount ?? 0}</td>
                       )}
                     </tr>
                   );

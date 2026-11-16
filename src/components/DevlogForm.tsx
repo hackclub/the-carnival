@@ -114,8 +114,7 @@ export default function DevlogForm({
               Devlog entry
               <span className="text-muted-foreground font-normal">
                 {" "}
-                — describe what you built, decisions you made, and how long it
-                took.
+                — describe what you built, decisions you made, and how long it took.
               </span>
             </FormLabel>
             <Textarea

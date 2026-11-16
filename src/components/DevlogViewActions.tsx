@@ -22,10 +22,9 @@ export default function DevlogViewActions({ projectId, devlogId, canEdit, canDel
     setError(null);
     setDeleting(true);
     try {
-      const response = await fetch(
-        `/api/projects/${projectId}/devlogs/${devlogId}`,
-        { method: "DELETE" },
-      );
+      const response = await fetch(`/api/projects/${projectId}/devlogs/${devlogId}`, {
+        method: "DELETE",
+      });
       if (!response.ok) {
         const data = (await response.json().catch(() => ({}))) as { error?: string };
         setError(data.error ?? `Failed (${response.status})`);
@@ -48,12 +47,7 @@ export default function DevlogViewActions({ projectId, devlogId, canEdit, canDel
         </Link>
       ) : null}
       {canDelete ? (
-        <Button
-          variant="outline"
-          onClick={handleDelete}
-          loading={deleting}
-          loadingText="Deleting…"
-        >
+        <Button variant="outline" onClick={handleDelete} loading={deleting} loadingText="Deleting…">
           Delete
         </Button>
       ) : null}

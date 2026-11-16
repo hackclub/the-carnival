@@ -67,7 +67,9 @@ export default function ResourcesClient({
           const editorId = String(ed.id ?? "");
           const resRes = await fetch(`/api/resources?editorId=${encodeURIComponent(editorId)}`);
           const resData = (await resRes.json().catch(() => null)) as { resources?: unknown } | null;
-          const rawResources = Array.isArray(resData?.resources) ? (resData!.resources as unknown[]) : [];
+          const rawResources = Array.isArray(resData?.resources)
+            ? (resData!.resources as unknown[])
+            : [];
 
           return {
             id: editorId,
@@ -87,7 +89,7 @@ export default function ResourcesClient({
               };
             }),
           };
-        })
+        }),
       );
 
       setEditors(editorsWithResources);
@@ -117,7 +119,9 @@ export default function ResourcesClient({
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to create editor.", { id: toastId });
+          toast.error(typeof data?.error === "string" ? data.error : "Failed to create editor.", {
+            id: toastId,
+          });
           setAddingEditor(false);
           return;
         }
@@ -132,7 +136,7 @@ export default function ResourcesClient({
         setAddingEditor(false);
       }
     },
-    [newEditorIconUrl, refresh]
+    [newEditorIconUrl, refresh],
   );
 
   const updateSelectedEditorIcon = useCallback(
@@ -149,14 +153,16 @@ export default function ResourcesClient({
         });
         const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
         if (!res.ok) {
-          toast.error(typeof data?.error === "string" ? data.error : "Failed to save.", { id: toastId });
+          toast.error(typeof data?.error === "string" ? data.error : "Failed to save.", {
+            id: toastId,
+          });
           return;
         }
 
         // Update local state optimistically.
         const updatedIconUrl = nextUrl.trim() || null;
         setEditors((prev) =>
-          prev.map((e) => (e.id === selectedEditor.id ? { ...e, iconUrl: updatedIconUrl } : e))
+          prev.map((e) => (e.id === selectedEditor.id ? { ...e, iconUrl: updatedIconUrl } : e)),
         );
         setSelectedEditor((prev) => (prev ? { ...prev, iconUrl: updatedIconUrl } : prev));
         toast.success("Saved.", { id: toastId });
@@ -164,7 +170,7 @@ export default function ResourcesClient({
         toast.error("Failed to save.", { id: toastId });
       }
     },
-    [isAdmin, selectedEditor]
+    [isAdmin, selectedEditor],
   );
 
   const onCreateResources = useCallback(
@@ -202,7 +208,7 @@ export default function ResourcesClient({
           successCount === validResources.length
             ? `Added ${successCount} resource(s)!`
             : `Added ${successCount}/${validResources.length} resources`,
-          { id: toastId }
+          { id: toastId },
         );
 
         setNewResources([{ title: "", url: "", description: "", type: "documentation" }]);
@@ -214,14 +220,21 @@ export default function ResourcesClient({
         setAddingResource(false);
       }
     },
-    [selectedEditor, newResources, refresh]
+    [selectedEditor, newResources, refresh],
   );
 
   const addResourceField = () => {
-    setNewResources([...newResources, { title: "", url: "", description: "", type: "documentation" }]);
+    setNewResources([
+      ...newResources,
+      { title: "", url: "", description: "", type: "documentation" },
+    ]);
   };
 
-  const updateResourceField = (index: number, field: keyof (typeof newResources)[0], value: string) => {
+  const updateResourceField = (
+    index: number,
+    field: keyof (typeof newResources)[0],
+    value: string,
+  ) => {
     const updated = [...newResources];
     updated[index] = { ...updated[index], [field]: value };
     setNewResources(updated);
@@ -237,7 +250,9 @@ export default function ResourcesClient({
     async (resourceId: string) => {
       const toastId = toast.loading("Deleting resource…");
       try {
-        const res = await fetch(`/api/resources/${encodeURIComponent(resourceId)}`, { method: "DELETE" });
+        const res = await fetch(`/api/resources/${encodeURIComponent(resourceId)}`, {
+          method: "DELETE",
+        });
         if (!res.ok) {
           toast.error("Failed to delete resource", { id: toastId });
           return;
@@ -248,14 +263,16 @@ export default function ResourcesClient({
         toast.error("Failed to delete resource", { id: toastId });
       }
     },
-    [refresh]
+    [refresh],
   );
 
   const deleteEditor = useCallback(
     async (editorId: string) => {
       const toastId = toast.loading("Deleting editor…");
       try {
-        const res = await fetch(`/api/editors/${encodeURIComponent(editorId)}`, { method: "DELETE" });
+        const res = await fetch(`/api/editors/${encodeURIComponent(editorId)}`, {
+          method: "DELETE",
+        });
         if (!res.ok) {
           toast.error("Failed to delete editor", { id: toastId });
           return;
@@ -267,11 +284,15 @@ export default function ResourcesClient({
         toast.error("Failed to delete editor", { id: toastId });
       }
     },
-    [refresh]
+    [refresh],
   );
 
   const groupResourcesByType = (resources: ResourceItem[]) => {
-    const grouped: Record<ResourceType, ResourceItem[]> = { video: [], documentation: [], article: [] };
+    const grouped: Record<ResourceType, ResourceItem[]> = {
+      video: [],
+      documentation: [],
+      article: [],
+    };
     for (const r of resources) grouped[r.type].push(r);
     return grouped;
   };
@@ -296,18 +317,26 @@ export default function ResourcesClient({
               <div className="flex items-center gap-3">
                 {ed.iconUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={ed.iconUrl} alt="" className="h-10 w-10 rounded-[var(--radius-xl)]  border border-border bg-muted object-cover" />
+                  <img
+                    src={ed.iconUrl}
+                    alt=""
+                    className="h-10 w-10 rounded-[var(--radius-xl)]  border border-border bg-muted object-cover"
+                  />
                 ) : (
                   <div className="h-10 w-10 rounded-[var(--radius-xl)]  border border-border bg-muted" />
                 )}
                 <div className="text-foreground font-bold text-xl truncate">{ed.name}</div>
               </div>
               {ed.description && (
-                <div className="text-muted-foreground mt-2 text-sm line-clamp-2">{ed.description}</div>
+                <div className="text-muted-foreground mt-2 text-sm line-clamp-2">
+                  {ed.description}
+                </div>
               )}
               <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
                 <BookOpen size={16} />
-                <span>{ed.resources.length} resource{ed.resources.length !== 1 ? "s" : ""}</span>
+                <span>
+                  {ed.resources.length} resource{ed.resources.length !== 1 ? "s" : ""}
+                </span>
               </div>
             </Card>
           ))}
@@ -360,7 +389,10 @@ export default function ResourcesClient({
                       </h3>
                       <div className="space-y-2">
                         {items.map((r) => (
-                          <div key={r.id} className="flex items-start justify-between gap-4 bg-muted/50 rounded-[var(--radius-xl)] p-4">
+                          <div
+                            key={r.id}
+                            className="flex items-start justify-between gap-4 bg-muted/50 rounded-[var(--radius-xl)] p-4"
+                          >
                             <div className="min-w-0 flex-1">
                               <a
                                 href={r.url}
@@ -371,7 +403,11 @@ export default function ResourcesClient({
                                 {r.title}
                                 <ExternalLink size={14} className="shrink-0" />
                               </a>
-                              {r.description && <p className="text-muted-foreground text-sm mt-1">{r.description}</p>}
+                              {r.description && (
+                                <p className="text-muted-foreground text-sm mt-1">
+                                  {r.description}
+                                </p>
+                              )}
                             </div>
                             <Badge variant={variant}>{type}</Badge>
                             {isAdmin && (
@@ -403,7 +439,11 @@ export default function ResourcesClient({
               <div className="pt-4 border-t border-border">
                 <button
                   onClick={() => {
-                    if (confirm(`Are you sure you want to delete "${selectedEditor.name}"? This will also delete all its resources.`)) {
+                    if (
+                      confirm(
+                        `Are you sure you want to delete "${selectedEditor.name}"? This will also delete all its resources.`,
+                      )
+                    ) {
                       deleteEditor(selectedEditor.id);
                     }
                   }}
@@ -420,8 +460,19 @@ export default function ResourcesClient({
       {/* Add Editor Modal */}
       <Modal open={showAddEditor} onClose={() => setShowAddEditor(false)} title="Add New Editor">
         <form onSubmit={onCreateEditor} className="space-y-4">
-          <Input name="name" label="Name" required placeholder="e.g., VS Code, Neovim, Blender" disabled={addingEditor} />
-          <Input name="description" label="Description (optional)" placeholder="Brief description of the editor/program" disabled={addingEditor} />
+          <Input
+            name="name"
+            label="Name"
+            required
+            placeholder="e.g., VS Code, Neovim, Blender"
+            disabled={addingEditor}
+          />
+          <Input
+            name="description"
+            label="Description (optional)"
+            placeholder="Brief description of the editor/program"
+            disabled={addingEditor}
+          />
           <R2ImageUpload
             label="Icon (optional)"
             value={newEditorIconUrl}
@@ -431,7 +482,12 @@ export default function ResourcesClient({
             helperText="Optional icon shown on the resources grid."
           />
           <div className="flex items-center justify-end gap-3 pt-2">
-            <Button variant="ghost" type="button" onClick={() => setShowAddEditor(false)} disabled={addingEditor}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setShowAddEditor(false)}
+              disabled={addingEditor}
+            >
               Cancel
             </Button>
             <Button type="submit" loading={addingEditor} loadingText="Creating…">
@@ -457,9 +513,15 @@ export default function ResourcesClient({
             {newResources.map((resource, index) => (
               <div key={index} className="bg-muted/30 rounded-[var(--radius-xl)] p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">Resource {index + 1}</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Resource {index + 1}
+                  </span>
                   {newResources.length > 1 && (
-                    <button type="button" onClick={() => removeResourceField(index)} className="text-red-500 hover:text-red-600 p-1">
+                    <button
+                      type="button"
+                      onClick={() => removeResourceField(index)}
+                      className="text-red-500 hover:text-red-600 p-1"
+                    >
                       <X size={16} />
                     </button>
                   )}
@@ -478,7 +540,9 @@ export default function ResourcesClient({
                     size="small"
                     label="Type"
                     value={resource.type}
-                    onChange={(e) => updateResourceField(index, "type", e.target.value as ResourceType)}
+                    onChange={(e) =>
+                      updateResourceField(index, "type", e.target.value as ResourceType)
+                    }
                     disabled={addingResource}
                   >
                     <option value="video">Video</option>
@@ -538,7 +602,12 @@ export default function ResourcesClient({
       )}
 
       {/* FAB */}
-      <Button variant="fab" onClick={() => setShowAddEditor(true)} aria-label="Add new editor" title="Add new editor">
+      <Button
+        variant="fab"
+        onClick={() => setShowAddEditor(true)}
+        aria-label="Add new editor"
+        title="Add new editor"
+      >
         <Plus size={24} />
       </Button>
     </div>

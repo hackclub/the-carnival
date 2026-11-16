@@ -69,7 +69,8 @@ export function R2ImageUpload({
 
         const presignData = (await presignRes.json().catch(() => null)) as PresignResponse | null;
         if (!presignRes.ok) {
-          const msg = typeof presignData?.error === "string" ? presignData.error : "Failed to start upload.";
+          const msg =
+            typeof presignData?.error === "string" ? presignData.error : "Failed to start upload.";
           setLocalError(msg);
           toast.error(msg, { id: toastId });
           setUploading(false);
@@ -114,7 +115,7 @@ export function R2ImageUpload({
         setUploading(false);
       }
     },
-    [kind, onChange, projectId]
+    [kind, onChange, projectId],
   );
 
   const onDrop = useCallback(
@@ -126,7 +127,7 @@ export function R2ImageUpload({
       const file = e.dataTransfer.files?.[0];
       if (file) await uploadFile(file);
     },
-    [disabled, uploadFile, uploading]
+    [disabled, uploadFile, uploading],
   );
 
   return (
@@ -171,7 +172,13 @@ export function R2ImageUpload({
               Drag & drop an image here, or pick a file.
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={pickFile} disabled={disabled} loading={uploading} loadingText="Uploading…">
+              <Button
+                variant="outline"
+                onClick={pickFile}
+                disabled={disabled}
+                loading={uploading}
+                loadingText="Uploading…"
+              >
                 Choose file
               </Button>
               {hasValue ? (
@@ -214,4 +221,3 @@ export function R2ImageUpload({
     </div>
   );
 }
-

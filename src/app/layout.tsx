@@ -19,7 +19,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Carnival YSWS",
-  description: "Carnival YSWS - Build an extension or plugin, get a grant to upgrade your dev setup!",
+  description:
+    "Carnival YSWS - Build an extension or plugin, get a grant to upgrade your dev setup!",
   openGraph: {
     type: "website",
     title: "Carnival YSWS",
@@ -39,9 +40,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${shortStack.variable} ${geistMono.variable} antialiased sparkles`}
-      >
+      <body className={`${shortStack.variable} ${geistMono.variable} antialiased sparkles`}>
         <ToasterProvider />
         <SiteBanner />
         <TooltipProvider>

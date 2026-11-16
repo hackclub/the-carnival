@@ -29,7 +29,10 @@ export function isNudgeSendingEnabled(): boolean {
 export function nudgeAllowlistFromEnv(): string[] | null {
   const raw = process.env.NUDGES_TEST_SLACK_IDS?.trim();
   if (!raw) return null;
-  const ids = raw.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
+  const ids = raw
+    .split(/[,\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
   return ids.length ? ids : null;
 }
 

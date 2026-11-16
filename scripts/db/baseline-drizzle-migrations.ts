@@ -22,7 +22,13 @@ if (!fs.existsSync(JOURNAL_PATH)) {
 }
 
 type Journal = {
-  entries: Array<{ idx: number; when: number; tag: string; breakpoints: boolean; version?: string }>;
+  entries: Array<{
+    idx: number;
+    when: number;
+    tag: string;
+    breakpoints: boolean;
+    version?: string;
+  }>;
 };
 
 const journal = JSON.parse(fs.readFileSync(JOURNAL_PATH, "utf8")) as Journal;
@@ -102,13 +108,13 @@ try {
   const countRows = await sql.unsafe(
     'select count(*)::int as c from "drizzle"."__drizzle_migrations"',
   );
-  const count = Number(((countRows as unknown) as Array<{ c: number }>)[0]?.c ?? 0);
+  const count = Number((countRows as unknown as Array<{ c: number }>)[0]?.c ?? 0);
 
   if (count > 0 && !force) {
     console.log(`__drizzle_migrations already has ${count} row(s). Nothing to do.`);
     console.log("");
     console.log(
-      "If `bun run db:migrate` fails replaying 0000 with \"already exists\", the table may be",
+      'If `bun run db:migrate` fails replaying 0000 with "already exists", the table may be',
     );
     console.log("out of sync. Truncate and stamp the correct tag, then migrate:");
     console.log("");

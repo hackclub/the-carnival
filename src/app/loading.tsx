@@ -1,11 +1,7 @@
 export default function Loading() {
   return (
     <>
-      <div
-        className="navigation-progress"
-        role="status"
-        aria-label="Loading"
-      >
+      <div className="navigation-progress" role="status" aria-label="Loading">
         <div className="navigation-progress__bar" />
       </div>
 

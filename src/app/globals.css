@@ -215,7 +215,12 @@ body {
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, var(--carnival-red), var(--carnival-orange), var(--carnival-yellow));
+  background: linear-gradient(
+    135deg,
+    var(--carnival-red),
+    var(--carnival-orange),
+    var(--carnival-yellow)
+  );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -231,8 +236,13 @@ body {
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .float-animation {
@@ -240,13 +250,22 @@ body {
 }
 
 @keyframes carnival-balloon-float {
-  0% { transform: translate3d(0, 120vh, 0); }
-  100% { transform: translate3d(0, -40vh, 0); }
+  0% {
+    transform: translate3d(0, 120vh, 0);
+  }
+  100% {
+    transform: translate3d(0, -40vh, 0);
+  }
 }
 
 @keyframes carnival-balloon-sway {
-  0%, 100% { transform: translate3d(0, 0, 0) rotate(-2deg); }
-  50% { transform: translate3d(0, 0, 0) rotate(2deg); }
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-2deg);
+  }
+  50% {
+    transform: translate3d(0, 0, 0) rotate(2deg);
+  }
 }
 
 .carnival-balloon-float {
@@ -260,8 +279,13 @@ body {
 }
 
 @keyframes carnival-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-9px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
 }
 
 .carnival-bob {
@@ -278,10 +302,19 @@ body {
 }
 
 @keyframes snack-jiggle {
-  0%, 100% { transform: translateY(0) rotate(var(--snack-rot, 0deg)); }
-  20%      { transform: translateY(-6px) rotate(calc(var(--snack-rot, 0deg) + 4deg)); }
-  45%      { transform: translateY(-2px) rotate(calc(var(--snack-rot, 0deg) - 3deg)); }
-  70%      { transform: translateY(-8px) rotate(calc(var(--snack-rot, 0deg) + 2deg)); }
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--snack-rot, 0deg));
+  }
+  20% {
+    transform: translateY(-6px) rotate(calc(var(--snack-rot, 0deg) + 4deg));
+  }
+  45% {
+    transform: translateY(-2px) rotate(calc(var(--snack-rot, 0deg) - 3deg));
+  }
+  70% {
+    transform: translateY(-8px) rotate(calc(var(--snack-rot, 0deg) + 2deg));
+  }
 }
 
 .snack-jiggle {
@@ -290,10 +323,22 @@ body {
   transform-origin: 50% 60%;
 }
 
-.snack-jiggle-delay-1 { animation-delay: -0.8s; animation-duration: 4.8s; }
-.snack-jiggle-delay-2 { animation-delay: -1.6s; animation-duration: 5.4s; }
-.snack-jiggle-delay-3 { animation-delay: -2.4s; animation-duration: 3.9s; }
-.snack-jiggle-delay-4 { animation-delay: -3.0s; animation-duration: 4.5s; }
+.snack-jiggle-delay-1 {
+  animation-delay: -0.8s;
+  animation-duration: 4.8s;
+}
+.snack-jiggle-delay-2 {
+  animation-delay: -1.6s;
+  animation-duration: 5.4s;
+}
+.snack-jiggle-delay-3 {
+  animation-delay: -2.4s;
+  animation-duration: 3.9s;
+}
+.snack-jiggle-delay-4 {
+  animation-delay: -3s;
+  animation-duration: 4.5s;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .float-animation,
@@ -306,8 +351,13 @@ body {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .pulse-glow {
@@ -391,7 +441,12 @@ body {
     radial-gradient(1200px 520px at -5% -12%, rgba(245, 232, 200, 0.4) 0%, transparent 63%),
     radial-gradient(1000px 500px at 110% -8%, rgba(240, 210, 150, 0.15) 0%, transparent 62%),
     radial-gradient(700px 360px at 45% 105%, rgba(230, 150, 15, 0.08) 0%, transparent 64%),
-    linear-gradient(180deg, var(--platform-shell-bg-alt) 0%, var(--platform-shell-bg) 28%, #fefaf2 100%);
+    linear-gradient(
+      180deg,
+      var(--platform-shell-bg-alt) 0%,
+      var(--platform-shell-bg) 28%,
+      #fefaf2 100%
+    );
   color: var(--platform-ink);
 }
 
@@ -445,7 +500,10 @@ body {
   font-weight: 600;
   color: var(--platform-ink-muted);
   letter-spacing: 0.01em;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .platform-nav-link:hover {

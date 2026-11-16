@@ -107,8 +107,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   if (!slackId) {
     return NextResponse.json(
       {
-        error:
-          "The project creator has no Slack ID on file; cannot fetch their Hackatime stats.",
+        error: "The project creator has no Slack ID on file; cannot fetch their Hackatime stats.",
       },
       { status: 400 },
     );
@@ -155,10 +154,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     raw = (await response.json()) as HackatimeStatsResponse;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json(
-      { error: `Failed to reach Hackatime: ${message}` },
-      { status: 502 },
-    );
+    return NextResponse.json({ error: `Failed to reach Hackatime: ${message}` }, { status: 502 });
   }
 
   const rawProjects = Array.isArray(raw.data?.projects) ? raw.data!.projects! : [];
@@ -166,8 +162,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     .map((entry) => ({
       name: typeof entry.name === "string" ? entry.name : "",
       totalSeconds: toSafeSeconds(entry.total_seconds),
-      humanReadable:
-        typeof entry.human_readable === "string" ? entry.human_readable : null,
+      humanReadable: typeof entry.human_readable === "string" ? entry.human_readable : null,
       percent:
         typeof entry.percent === "number"
           ? entry.percent
@@ -187,22 +182,14 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     endDate,
     totalSeconds: toSafeSeconds(raw.data?.total_seconds),
     humanReadableTotal:
-      typeof raw.data?.human_readable_total === "string"
-        ? raw.data.human_readable_total
-        : null,
+      typeof raw.data?.human_readable_total === "string" ? raw.data.human_readable_total : null,
     humanReadableRange:
-      typeof raw.data?.human_readable_range === "string"
-        ? raw.data.human_readable_range
-        : null,
+      typeof raw.data?.human_readable_range === "string" ? raw.data.human_readable_range : null,
     trustFactor: {
       trustLevel:
-        typeof raw.trust_factor?.trust_level === "string"
-          ? raw.trust_factor.trust_level
-          : null,
+        typeof raw.trust_factor?.trust_level === "string" ? raw.trust_factor.trust_level : null,
       trustValue:
-        typeof raw.trust_factor?.trust_value === "number"
-          ? raw.trust_factor.trust_value
-          : null,
+        typeof raw.trust_factor?.trust_value === "number" ? raw.trust_factor.trust_value : null,
     },
     matchedProject: matched,
     projects,

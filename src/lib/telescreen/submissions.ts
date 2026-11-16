@@ -100,7 +100,9 @@ export async function getCurrentTelescreenSubmission(
 }
 
 /** Every Telescreen entry for the project, newest first (the first is the current one). */
-export async function listTelescreenSubmissions(projectId: string): Promise<TelescreenSubmissionRow[]> {
+export async function listTelescreenSubmissions(
+  projectId: string,
+): Promise<TelescreenSubmissionRow[]> {
   return db
     .select()
     .from(telescreenSubmission)
@@ -137,7 +139,14 @@ export async function createTelescreenSubmission(
   const externalId = telescreenExternalId(projectId, submittedAt);
   await db
     .insert(telescreenSubmission)
-    .values({ id: generateId(), projectId, externalId, state: "pending", createdAt: now, updatedAt: now })
+    .values({
+      id: generateId(),
+      projectId,
+      externalId,
+      state: "pending",
+      createdAt: now,
+      updatedAt: now,
+    })
     .onConflictDoNothing({ target: telescreenSubmission.externalId });
   const rows = await db
     .select()
@@ -166,7 +175,9 @@ async function buildSubmitPayload(projectId: string, externalId: string) {
   if (!p) throw new Error("Project not found");
 
   const linked = await listProjectHackatimeProjects(projectId);
-  const names = [...new Set([p.hackatimeProjectName, ...linked.map((l) => l.name)].map((n) => n.trim()))]
+  const names = [
+    ...new Set([p.hackatimeProjectName, ...linked.map((l) => l.name)].map((n) => n.trim())),
+  ]
     .filter(Boolean)
     .slice(0, MAX_HACKATIME_PROJECTS);
   if (names.length === 0) throw new Error("Project has no Hackatime project names");
@@ -180,7 +191,9 @@ async function buildSubmitPayload(projectId: string, externalId: string) {
     throw new Error("Creator has neither a Slack ID nor a Hackatime ID");
   }
 
-  const demoUrl = [p.playableDemoUrl, p.videoUrl].map((u) => u?.trim()).find((u) => u && /^https?:\/\//i.test(u));
+  const demoUrl = [p.playableDemoUrl, p.videoUrl]
+    .map((u) => u?.trim())
+    .find((u) => u && /^https?:\/\//i.test(u));
 
   return {
     name: p.name,
@@ -223,7 +236,11 @@ export async function sendTelescreenSubmission(
 }
 
 async function getRowById(id: string): Promise<TelescreenSubmissionRow | null> {
-  const rows = await db.select().from(telescreenSubmission).where(eq(telescreenSubmission.id, id)).limit(1);
+  const rows = await db
+    .select()
+    .from(telescreenSubmission)
+    .where(eq(telescreenSubmission.id, id))
+    .limit(1);
   return rows[0] ?? null;
 }
 
@@ -317,7 +334,9 @@ export async function applyRobertProject(
       outcomeStatus: robert.outcome?.status ?? null,
       outcomeReason: robert.outcome?.reason ?? null,
       outcomeAt: robert.outcome?.at ? new Date(robert.outcome.at) : null,
-      ...(robert.outcome && row.carnivalOutcome === robert.outcome.status && !row.carnivalOutcomeSentAt
+      ...(robert.outcome &&
+      row.carnivalOutcome === robert.outcome.status &&
+      !row.carnivalOutcomeSentAt
         ? { carnivalOutcomeSentAt: new Date() }
         : {}),
       lastSyncedAt: new Date(),
@@ -331,11 +350,21 @@ export async function applyRobertProject(
   } else if (firstScore && trustScore !== null && band) {
     await notifyStaffReviewThread({
       projectId: updated.projectId,
-      event: { kind: "telescreen_scored", trustScore, note: updated.reviewNote, band, action: null },
+      event: {
+        kind: "telescreen_scored",
+        trustScore,
+        note: updated.reviewNote,
+        band,
+        action: null,
+      },
     });
   }
 
-  if (robert.state === "awaiting_outcome" && updated.carnivalOutcome && !updated.carnivalOutcomeSentAt) {
+  if (
+    robert.state === "awaiting_outcome" &&
+    updated.carnivalOutcome &&
+    !updated.carnivalOutcomeSentAt
+  ) {
     return pushCarnivalOutcome(updated);
   }
   return updated;
@@ -389,7 +418,9 @@ async function applyFraudRejection(row: TelescreenSubmissionRow) {
         updatedAt: now,
       })
       .where(eq(project.id, row.projectId));
-    await tx.delete(projectReviewerAssignment).where(eq(projectReviewerAssignment.projectId, row.projectId));
+    await tx
+      .delete(projectReviewerAssignment)
+      .where(eq(projectReviewerAssignment.projectId, row.projectId));
     return { action: "dismissed" as const, project: p };
   });
   if (!result) return;
@@ -422,7 +453,11 @@ async function applyFraudRejection(row: TelescreenSubmissionRow) {
   await notifyCreatorOfFraudRejection(row.projectId, result.project.name, result.project.creatorId);
 }
 
-async function notifyCreatorOfFraudRejection(projectId: string, projectName: string, creatorId: string | null) {
+async function notifyCreatorOfFraudRejection(
+  projectId: string,
+  projectName: string,
+  creatorId: string | null,
+) {
   if (!creatorId) return;
   try {
     const rows = await db
@@ -471,7 +506,8 @@ export async function setCarnivalOutcome(
   if (!row || row.state === "rejected_fraud" || row.state === "decided") return;
   // Robert requires a reason to reject.
   const reason =
-    outcome.reason?.trim() || (outcome.status === "rejected" ? "Rejected by Carnival reviewers." : null);
+    outcome.reason?.trim() ||
+    (outcome.status === "rejected" ? "Rejected by Carnival reviewers." : null);
   const updated = await updateRow(row.id, {
     carnivalOutcome: outcome.status,
     carnivalOutcomeReason: reason,
@@ -525,12 +561,18 @@ export async function getTelescreenGrantGate(
  * Make sure a project that is in the review pipeline has a Telescreen entry,
  * creating one for projects submitted before this integration existed.
  */
-export async function ensureTelescreenSubmission(projectId: string): Promise<TelescreenSubmissionRow | null> {
+export async function ensureTelescreenSubmission(
+  projectId: string,
+): Promise<TelescreenSubmissionRow | null> {
   if (!isTelescreenEnabled()) return null;
   const existing = await getCurrentTelescreenSubmission(projectId);
   if (existing) return refreshTelescreenSubmission(existing);
   const rows = await db
-    .select({ status: project.status, submittedAt: project.submittedAt, createdAt: project.createdAt })
+    .select({
+      status: project.status,
+      submittedAt: project.submittedAt,
+      createdAt: project.createdAt,
+    })
     .from(project)
     .where(eq(project.id, projectId))
     .limit(1);
@@ -539,4 +581,8 @@ export async function ensureTelescreenSubmission(projectId: string): Promise<Tel
   return submitProjectToTelescreen(projectId, p.submittedAt ?? p.createdAt);
 }
 
-export const TELESCREEN_OPEN_STATES: TelescreenState[] = ["pending", "awaiting_review", "awaiting_outcome"];
+export const TELESCREEN_OPEN_STATES: TelescreenState[] = [
+  "pending",
+  "awaiting_review",
+  "awaiting_outcome",
+];

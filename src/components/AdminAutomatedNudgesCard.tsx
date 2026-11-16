@@ -27,7 +27,9 @@ function Chip({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span
       className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
-        ok ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700" : "border-border bg-background/60 text-muted-foreground"
+        ok
+          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700"
+          : "border-border bg-background/60 text-muted-foreground"
       }`}
     >
       {label}
@@ -58,15 +60,23 @@ export default function AdminAutomatedNudgesCard({
         <div>
           <h2 className="text-lg font-bold text-foreground">Automated Slack nudges</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            What the daily Coolify scheduled task would send right now. One reminder per
-            person per day, at most two per kind, none within 7 days of any other nudge, and nothing after
-            the Carnival deadline.
+            What the daily Coolify scheduled task would send right now. One reminder per person per
+            day, at most two per kind, none within 7 days of any other nudge, and nothing after the
+            Carnival deadline.
           </p>
         </div>
         {preview ? (
           <div className="flex flex-wrap gap-1.5">
-            <Chip ok={preview.sendingEnabled} label={preview.sendingEnabled ? "Sending enabled" : "Dry-run only (NUDGES_ENABLED unset)"} />
-            <Chip ok={preview.slackConfigured} label={preview.slackConfigured ? "Slack configured" : "Slack not configured"} />
+            <Chip
+              ok={preview.sendingEnabled}
+              label={
+                preview.sendingEnabled ? "Sending enabled" : "Dry-run only (NUDGES_ENABLED unset)"
+              }
+            />
+            <Chip
+              ok={preview.slackConfigured}
+              label={preview.slackConfigured ? "Slack configured" : "Slack not configured"}
+            />
             <Chip
               ok={preview.daysLeft !== null && preview.daysLeft > 0}
               label={
@@ -78,7 +88,9 @@ export default function AdminAutomatedNudgesCard({
               }
             />
             <Chip ok label={`Cap ${preview.maxSends}/run`} />
-            {preview.allowlist ? <Chip ok={false} label={`Test allowlist: ${preview.allowlist.join(", ")}`} /> : null}
+            {preview.allowlist ? (
+              <Chip ok={false} label={`Test allowlist: ${preview.allowlist.join(", ")}`} />
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -106,13 +118,23 @@ export default function AdminAutomatedNudgesCard({
               return (
                 <tr key={kind} className="border-t border-border">
                   <td className="py-2 pr-3">
-                    <div className="font-semibold text-foreground">{NUDGE_KIND_META[kind].label}</div>
-                    <div className="text-xs text-muted-foreground">{NUDGE_KIND_META[kind].description}</div>
+                    <div className="font-semibold text-foreground">
+                      {NUDGE_KIND_META[kind].label}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {NUDGE_KIND_META[kind].description}
+                    </div>
                   </td>
-                  <td className="py-2 pr-3 text-right tabular-nums">{preview ? preview.candidatesByKind[kind] : "—"}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums font-semibold">{preview ? preview.plannedByKind[kind] : "—"}</td>
+                  <td className="py-2 pr-3 text-right tabular-nums">
+                    {preview ? preview.candidatesByKind[kind] : "—"}
+                  </td>
+                  <td className="py-2 pr-3 text-right tabular-nums font-semibold">
+                    {preview ? preview.plannedByKind[kind] : "—"}
+                  </td>
                   <td className="py-2 pr-3 text-right tabular-nums">{s?.sent ?? 0}</td>
-                  <td className="py-2 text-muted-foreground">{formatDateTime(s?.lastSentAtIso ?? null)}</td>
+                  <td className="py-2 text-muted-foreground">
+                    {formatDateTime(s?.lastSentAtIso ?? null)}
+                  </td>
                 </tr>
               );
             })}
@@ -130,15 +152,21 @@ export default function AdminAutomatedNudgesCard({
       {preview && preview.samples.length > 0 ? (
         <details className="mt-4">
           <summary className="cursor-pointer text-sm font-semibold text-foreground">
-            Preview copy ({preview.samples.length} variant{preview.samples.length === 1 ? "" : "s"} in today&apos;s plan)
+            Preview copy ({preview.samples.length} variant{preview.samples.length === 1 ? "" : "s"}{" "}
+            in today&apos;s plan)
           </summary>
           <div className="mt-2 grid gap-3 md:grid-cols-2">
             {preview.samples.map((sample) => (
-              <div key={`${sample.kind}:${sample.variant}`} className="rounded-[var(--radius-xl)] border border-border bg-background/60 p-3">
+              <div
+                key={`${sample.kind}:${sample.variant}`}
+                className="rounded-[var(--radius-xl)] border border-border bg-background/60 p-3"
+              >
                 <div className="text-xs font-semibold text-muted-foreground">
                   {NUDGE_KIND_META[sample.kind].label} · {sample.variant}
                 </div>
-                <pre className="mt-2 whitespace-pre-wrap font-sans text-xs text-foreground">{sample.text}</pre>
+                <pre className="mt-2 whitespace-pre-wrap font-sans text-xs text-foreground">
+                  {sample.text}
+                </pre>
               </div>
             ))}
           </div>

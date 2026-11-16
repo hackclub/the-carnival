@@ -80,7 +80,8 @@ export async function listDevlogsOutsideRange(
     .where(eq(devlog.projectId, projectId))
     .orderBy(asc(devlog.startedAt));
   return rows.filter(
-    (d) => d.startedAt.getTime() < range.start.getTime() || d.endedAt.getTime() > range.end.getTime(),
+    (d) =>
+      d.startedAt.getTime() < range.start.getTime() || d.endedAt.getTime() > range.end.getTime(),
   );
 }
 
@@ -95,11 +96,7 @@ export async function recomputeProjectHoursSpentSeconds(
     .where(eq(devlog.projectId, projectId));
   const raw = rows[0]?.total ?? 0;
   const total =
-    typeof raw === "number"
-      ? raw
-      : typeof raw === "string"
-        ? Number.parseInt(raw, 10) || 0
-        : 0;
+    typeof raw === "number" ? raw : typeof raw === "string" ? Number.parseInt(raw, 10) || 0 : 0;
   const safe = Math.max(0, Math.floor(total));
   await runner
     .update(project)

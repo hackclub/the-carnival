@@ -90,7 +90,10 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
       ? Math.max(0, Math.floor(p.hackatimeTotalSeconds))
       : 0;
   const totalSeconds = devlogSeconds > 0 ? devlogSeconds : legacySeconds;
-  const hackatimeHours = { hours: Math.floor(totalSeconds / 3600), minutes: Math.floor(totalSeconds / 60) % 60 };
+  const hackatimeHours = {
+    hours: Math.floor(totalSeconds / 3600),
+    minutes: Math.floor(totalSeconds / 60) % 60,
+  };
 
   return (
     <AppShell title="Grant project">
@@ -120,7 +123,9 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
             submittedAt: p.submittedAt ? p.submittedAt.toISOString() : null,
             hackatimeUserId:
               typeof p.creatorHackatimeUserId === "string" ? p.creatorHackatimeUserId : null,
-            hackatimeHours: hackatimeHours ? { hours: hackatimeHours.hours, minutes: hackatimeHours.minutes } : null,
+            hackatimeHours: hackatimeHours
+              ? { hours: hackatimeHours.hours, minutes: hackatimeHours.minutes }
+              : null,
             hackatimeStartedAt: p.hackatimeStartedAt ? p.hackatimeStartedAt.toISOString() : null,
             hackatimeStoppedAt: p.hackatimeStoppedAt ? p.hackatimeStoppedAt.toISOString() : null,
             airtableRecordId: p.airtableRecordId ?? null,

@@ -102,9 +102,7 @@ export function assessmentDeflatesHours(
   if (assessment.decision === "accepted") return false;
   const logged = maxAdjustableSeconds(devlog);
   if (logged <= 0) return false;
-  return (
-    effectiveSecondsForAssessment(devlog, assessment) < logged - DEFLATION_TOLERANCE_SECONDS
-  );
+  return effectiveSecondsForAssessment(devlog, assessment) < logged - DEFLATION_TOLERANCE_SECONDS;
 }
 
 /**

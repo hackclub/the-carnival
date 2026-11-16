@@ -60,4 +60,3 @@ export default async function ResourcesPage() {
     </AppShell>
   );
 }
-

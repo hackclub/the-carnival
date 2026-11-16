@@ -104,7 +104,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const balanceBefore = await getTokenBalance(tx, targetUserId);
 
     if (parsed.value.kind === "deduct" && balanceBefore < parsed.value.amount) {
-      return { kind: "error" as const, status: 409 as const, error: "Insufficient tokens for deduction" };
+      return {
+        kind: "error" as const,
+        status: 409 as const,
+        error: "Insufficient tokens for deduction",
+      };
     }
 
     const entryId = randomUUID();

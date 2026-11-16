@@ -27,10 +27,7 @@ import {
 } from "@/lib/hackatime-range";
 import { coerceDate } from "@/lib/devlog-shared";
 import { useHackatimeRangePreview } from "@/hooks/useHackatimeRangePreview";
-import {
-  formatHoursMinutes,
-  type HackatimeRangePreview,
-} from "@/lib/project-form-utils";
+import { formatHoursMinutes, type HackatimeRangePreview } from "@/lib/project-form-utils";
 import toast from "react-hot-toast";
 
 type GrantProject = {
@@ -86,7 +83,8 @@ type GrantReviewItem = {
 function trustLevelColor(level: string | null): string {
   if (!level) return "bg-gray-500/15 text-gray-300 border-gray-500/30";
   const n = level.toLowerCase();
-  if (n === "high" || n === "verified") return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
+  if (n === "high" || n === "verified")
+    return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
   if (n === "medium" || n === "normal") return "bg-amber-500/15 text-amber-300 border-amber-500/30";
   if (n === "low" || n === "suspicious") return "bg-rose-500/15 text-rose-300 border-rose-500/30";
   return "bg-gray-500/15 text-gray-300 border-gray-500/30";
@@ -177,7 +175,9 @@ export default function AdminGrantClient({
       });
       const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
       if (!res.ok) {
-        toast.error(typeof data?.error === "string" ? data.error : "Failed to save.", { id: toastId });
+        toast.error(typeof data?.error === "string" ? data.error : "Failed to save.", {
+          id: toastId,
+        });
         setJustificationSaving(false);
         return;
       }
@@ -190,12 +190,17 @@ export default function AdminGrantClient({
     }
   }, [project.id, technicalJustification]);
 
-  const [trustLevel, setTrustLevel] = useState<{ level: string | null; value: number | null } | null>(null);
+  const [trustLevel, setTrustLevel] = useState<{
+    level: string | null;
+    value: number | null;
+  } | null>(null);
   useEffect(() => {
     fetch(`/api/projects/${project.id}/hackatime-stats`, { cache: "no-store" })
       .then(async (res) => {
         if (!res.ok) return;
-        const data = (await res.json()) as { trustFactor?: { trustLevel?: string | null; trustValue?: number | null } };
+        const data = (await res.json()) as {
+          trustFactor?: { trustLevel?: string | null; trustValue?: number | null };
+        };
         setTrustLevel({
           level: data.trustFactor?.trustLevel ?? null,
           value: data.trustFactor?.trustValue ?? null,
@@ -215,7 +220,12 @@ export default function AdminGrantClient({
         submittedAt: project.submittedAt,
         createdAt: project.createdAt,
       }),
-    [project.createdAt, project.hackatimeStartedAt, project.hackatimeStoppedAt, project.submittedAt],
+    [
+      project.createdAt,
+      project.hackatimeStartedAt,
+      project.hackatimeStoppedAt,
+      project.submittedAt,
+    ],
   );
   const canonicalProjectRangeLabel = useMemo(
     () => formatConsideredHackatimeRangeLabel(canonicalProjectRange),
@@ -255,33 +265,50 @@ export default function AdminGrantClient({
       return null;
     }
     return {
-        hackatimeTotalSeconds: project.hackatimeHours
-          ? project.hackatimeHours.hours * 3600 + project.hackatimeHours.minutes * 60
-          : null,
-        hackatimeHours: project.hackatimeHours,
+      hackatimeTotalSeconds: project.hackatimeHours
+        ? project.hackatimeHours.hours * 3600 + project.hackatimeHours.minutes * 60
+        : null,
+      hackatimeHours: project.hackatimeHours,
     };
-  }, [editableRange, project.hackatimeHours, project.hackatimeStartedAt, project.hackatimeStoppedAt]);
+  }, [
+    editableRange,
+    project.hackatimeHours,
+    project.hackatimeStartedAt,
+    project.hackatimeStoppedAt,
+  ]);
 
-  const { preview: rangePreview, loading: rangePreviewLoading, error: rangePreviewError } =
-    useHackatimeRangePreview({
-      enabled: project.status !== "granted" && !!project.hackatimeProjectName.trim(),
-      endpoint: `/api/admin/projects/${encodeURIComponent(project.id)}/hackatime-preview`,
-      body: editableRange.ok ? { consideredHackatimeRange: editableRange.value } : null,
-      rangeError: !editableRange.ok && (rangeStartDate || rangeEndDate) ? editableRange.error : null,
-      localPreview: localRangePreview,
-    });
+  const {
+    preview: rangePreview,
+    loading: rangePreviewLoading,
+    error: rangePreviewError,
+  } = useHackatimeRangePreview({
+    enabled: project.status !== "granted" && !!project.hackatimeProjectName.trim(),
+    endpoint: `/api/admin/projects/${encodeURIComponent(project.id)}/hackatime-preview`,
+    body: editableRange.ok ? { consideredHackatimeRange: editableRange.value } : null,
+    rangeError: !editableRange.ok && (rangeStartDate || rangeEndDate) ? editableRange.error : null,
+    localPreview: localRangePreview,
+  });
 
   const previewHoursLabel = useMemo(() => {
     if (rangePreview?.hackatimeHours) {
-      return formatHoursMinutes(rangePreview.hackatimeHours.hours, rangePreview.hackatimeHours.minutes);
+      return formatHoursMinutes(
+        rangePreview.hackatimeHours.hours,
+        rangePreview.hackatimeHours.minutes,
+      );
     }
-    return project.hackatimeHours ? formatHoursMinutes(project.hackatimeHours.hours, project.hackatimeHours.minutes) : "—";
+    return project.hackatimeHours
+      ? formatHoursMinutes(project.hackatimeHours.hours, project.hackatimeHours.minutes)
+      : "—";
   }, [project.hackatimeHours, rangePreview]);
 
   const joeFraudLink = useMemo(() => {
     const hackatimeId = project.hackatimeUserId?.trim();
     if (!hackatimeId || !canonicalProjectRange) return null;
-    return buildJoeFraudUrl(hackatimeId, canonicalProjectRange.startDate, canonicalProjectRange.endDate);
+    return buildJoeFraudUrl(
+      hackatimeId,
+      canonicalProjectRange.startDate,
+      canonicalProjectRange.endDate,
+    );
   }, [canonicalProjectRange, project.hackatimeUserId]);
 
   const screenshots = project.screenshots ?? [];
@@ -305,22 +332,21 @@ export default function AdminGrantClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ consideredHackatimeRange: editableRange.value }),
       });
-      const data = (await res.json().catch(() => null)) as
-        | {
-            project?: {
-              status?: ProjectStatus;
-              approvedHours?: number | null;
-              hackatimeStartedAt?: string | null;
-              hackatimeStoppedAt?: string | null;
-              hackatimeTotalSeconds?: number | null;
-              submittedAt?: string | null;
-            };
-            notice?: unknown;
-            error?: unknown;
-          }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        project?: {
+          status?: ProjectStatus;
+          approvedHours?: number | null;
+          hackatimeStartedAt?: string | null;
+          hackatimeStoppedAt?: string | null;
+          hackatimeTotalSeconds?: number | null;
+          submittedAt?: string | null;
+        };
+        notice?: unknown;
+        error?: unknown;
+      } | null;
       if (!res.ok) {
-        const message = typeof data?.error === "string" ? data.error : "Failed to save considered range.";
+        const message =
+          typeof data?.error === "string" ? data.error : "Failed to save considered range.";
         toast.error(message, { id: toastId });
         setRangeSaving(false);
         return;
@@ -330,7 +356,9 @@ export default function AdminGrantClient({
         ...prev,
         status: (data?.project?.status ?? prev.status) as ProjectStatus,
         approvedHours:
-          data?.project?.approvedHours !== undefined ? data.project.approvedHours ?? null : prev.approvedHours,
+          data?.project?.approvedHours !== undefined
+            ? (data.project.approvedHours ?? null)
+            : prev.approvedHours,
         hackatimeStartedAt:
           data?.project?.hackatimeStartedAt !== undefined
             ? data.project.hackatimeStartedAt
@@ -347,7 +375,9 @@ export default function AdminGrantClient({
               }
             : prev.hackatimeHours,
         submittedAt:
-          data?.project?.submittedAt !== undefined ? data.project.submittedAt ?? null : prev.submittedAt,
+          data?.project?.submittedAt !== undefined
+            ? (data.project.submittedAt ?? null)
+            : prev.submittedAt,
       }));
       setRangeStartDate(data?.project?.hackatimeStartedAt ?? "");
       setRangeEndDate(data?.project?.hackatimeStoppedAt ?? "");
@@ -364,7 +394,11 @@ export default function AdminGrantClient({
     async (status: Extract<ProjectStatus, "shipped" | "granted" | "in-review">) => {
       setBusy(true);
       const toastId = toast.loading(
-        status === "granted" ? "Granting…" : status === "in-review" ? "Sending back to review…" : "Reverting…",
+        status === "granted"
+          ? "Granting…"
+          : status === "in-review"
+            ? "Sending back to review…"
+            : "Reverting…",
       );
       try {
         const res = await fetch(`/api/admin/projects/${encodeURIComponent(project.id)}`, {
@@ -382,24 +416,21 @@ export default function AdminGrantClient({
               : {}),
           }),
         });
-        const data = (await res.json().catch(() => null)) as
-          | {
-              project?: { status?: ProjectStatus };
-              error?: unknown;
-              details?: unknown;
-              hints?: unknown;
-              statusCode?: unknown;
-              airtableError?: unknown;
-            }
-          | null;
+        const data = (await res.json().catch(() => null)) as {
+          project?: { status?: ProjectStatus };
+          error?: unknown;
+          details?: unknown;
+          hints?: unknown;
+          statusCode?: unknown;
+          airtableError?: unknown;
+        } | null;
         if (!res.ok) {
           const message = typeof data?.error === "string" ? data.error : "Failed to update status.";
           const details = typeof data?.details === "string" ? data.details : null;
           const hints = Array.isArray(data?.hints)
             ? data?.hints.filter((h): h is string => typeof h === "string")
             : [];
-          const statusCode =
-            typeof data?.statusCode === "number" ? data.statusCode : undefined;
+          const statusCode = typeof data?.statusCode === "number" ? data.statusCode : undefined;
           const airtableError =
             typeof data?.airtableError === "string" ? data.airtableError : undefined;
 
@@ -492,124 +523,130 @@ export default function AdminGrantClient({
     }
   }, [project.id]);
 
-  const onPushToAirtable = useCallback(async (opts?: { createNew?: boolean; preview?: boolean }) => {
-    const createNew = opts?.createNew === true;
-    const preview = opts?.preview === true;
-    // Default push UPDATES the linked Airtable record (idempotent). Creating
-    // an additional record is an explicit, warned escape hatch. Preview
-    // pushes a [PREVIEW]-marked record before granting; the grant later
-    // promotes it in place.
-    const confirmed = preview
-      ? confirm(
-          "Push a [PREVIEW] record to Airtable? It is clearly marked (Review Status: \"[PREVIEW] Do not process\") so you can inspect the justification in Airtable before granting. Granting will overwrite it with the real record; sending the project back to review deletes it.",
-        )
-      : createNew
+  const onPushToAirtable = useCallback(
+    async (opts?: { createNew?: boolean; preview?: boolean }) => {
+      const createNew = opts?.createNew === true;
+      const preview = opts?.preview === true;
+      // Default push UPDATES the linked Airtable record (idempotent). Creating
+      // an additional record is an explicit, warned escape hatch. Preview
+      // pushes a [PREVIEW]-marked record before granting; the grant later
+      // promotes it in place.
+      const confirmed = preview
         ? confirm(
-            "Create an ADDITIONAL Airtable record for this project? This is only for when the existing record must be kept and a second submission row is genuinely needed. It WILL result in two records.",
+            'Push a [PREVIEW] record to Airtable? It is clearly marked (Review Status: "[PREVIEW] Do not process") so you can inspect the justification in Airtable before granting. Granting will overwrite it with the real record; sending the project back to review deletes it.',
           )
-        : project.airtableRecordId
+        : createNew
           ? confirm(
-              `Push to Airtable? This updates the existing record (${project.airtableRecordId}) with the current data — no duplicate is created.`,
+              "Create an ADDITIONAL Airtable record for this project? This is only for when the existing record must be kept and a second submission row is genuinely needed. It WILL result in two records.",
             )
-          : confirm("Push this project to Airtable? A new record will be created and linked.");
-    if (!confirmed) return;
-    setBusy(true);
-    const toastId = toast.loading(preview ? "Pushing preview to Airtable…" : "Pushing to Airtable…");
-    try {
-      const res = await fetch(`/api/admin/projects/${encodeURIComponent(project.id)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          preview
-            ? { preview: true, technicalJustification }
-            : { createNew },
-        ),
-      });
-      const data = (await res.json().catch(() => null)) as
-        | {
-            airtableRecordId?: unknown;
-            error?: unknown;
-            details?: unknown;
-            hints?: unknown;
-            statusCode?: unknown;
-            airtableError?: unknown;
-          }
-        | null;
-      if (!res.ok) {
-        const message = typeof data?.error === "string" ? data.error : "Failed to push to Airtable.";
-        const details = typeof data?.details === "string" ? data.details : null;
-        const hints = Array.isArray(data?.hints)
-          ? data?.hints.filter((h): h is string => typeof h === "string")
-          : [];
-        const statusCode = typeof data?.statusCode === "number" ? data.statusCode : undefined;
-        const airtableError = typeof data?.airtableError === "string" ? data.airtableError : undefined;
-
-        if (details || hints.length) {
-          toast.custom(
-            (t) => (
-              <div className="platform-surface-card px-4 py-3 shadow-xl max-w-[720px]">
-                <div className="text-foreground font-semibold">{message}</div>
-                {statusCode || airtableError ? (
-                  <div className="text-muted-foreground text-xs mt-1">
-                    {statusCode ? `Airtable status: ${statusCode}` : null}
-                    {statusCode && airtableError ? " • " : null}
-                    {airtableError ? `Airtable error: ${airtableError}` : null}
-                  </div>
-                ) : null}
-                {details ? (
-                  <pre className="mt-3 text-xs text-muted-foreground whitespace-pre-wrap break-words bg-muted border border-border rounded-[var(--radius-xl)] p-3">
-                    {details}
-                  </pre>
-                ) : null}
-                {hints.length ? (
-                  <div className="mt-3 text-sm">
-                    <div className="text-foreground font-semibold">What may be wrong</div>
-                    <ul className="mt-2 space-y-1 text-muted-foreground list-disc pl-5">
-                      {hints.map((h) => (
-                        <li key={h}>{h}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-                <div className="mt-3 flex items-center justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => toast.dismiss(t.id)}
-                    className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            ),
-            { id: toastId, duration: 20000 },
-          );
-        } else {
-          toast.error(message, { id: toastId });
-        }
-        setBusy(false);
-        return;
-      }
-
-      const recordId = typeof data?.airtableRecordId === "string" ? data.airtableRecordId : null;
-      const mode = (data as { mode?: unknown } | null)?.mode === "updated" ? "updated" : "created";
-      if (recordId) {
-        setProject((p) => ({ ...p, airtableRecordId: recordId, airtableRecordIsPreview: preview }));
-      }
-      toast.success(
-        recordId
-          ? preview
-            ? `Preview record ${mode} in Airtable (${recordId}) — open the table to inspect the justification.`
-            : `Airtable record ${mode} (${recordId}).`
-          : "Pushed to Airtable.",
-        { id: toastId },
+          : project.airtableRecordId
+            ? confirm(
+                `Push to Airtable? This updates the existing record (${project.airtableRecordId}) with the current data — no duplicate is created.`,
+              )
+            : confirm("Push this project to Airtable? A new record will be created and linked.");
+      if (!confirmed) return;
+      setBusy(true);
+      const toastId = toast.loading(
+        preview ? "Pushing preview to Airtable…" : "Pushing to Airtable…",
       );
-      setBusy(false);
-    } catch {
-      toast.error("Failed to push to Airtable.", { id: toastId });
-      setBusy(false);
-    }
-  }, [project.id, project.airtableRecordId, technicalJustification]);
+      try {
+        const res = await fetch(`/api/admin/projects/${encodeURIComponent(project.id)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(preview ? { preview: true, technicalJustification } : { createNew }),
+        });
+        const data = (await res.json().catch(() => null)) as {
+          airtableRecordId?: unknown;
+          error?: unknown;
+          details?: unknown;
+          hints?: unknown;
+          statusCode?: unknown;
+          airtableError?: unknown;
+        } | null;
+        if (!res.ok) {
+          const message =
+            typeof data?.error === "string" ? data.error : "Failed to push to Airtable.";
+          const details = typeof data?.details === "string" ? data.details : null;
+          const hints = Array.isArray(data?.hints)
+            ? data?.hints.filter((h): h is string => typeof h === "string")
+            : [];
+          const statusCode = typeof data?.statusCode === "number" ? data.statusCode : undefined;
+          const airtableError =
+            typeof data?.airtableError === "string" ? data.airtableError : undefined;
+
+          if (details || hints.length) {
+            toast.custom(
+              (t) => (
+                <div className="platform-surface-card px-4 py-3 shadow-xl max-w-[720px]">
+                  <div className="text-foreground font-semibold">{message}</div>
+                  {statusCode || airtableError ? (
+                    <div className="text-muted-foreground text-xs mt-1">
+                      {statusCode ? `Airtable status: ${statusCode}` : null}
+                      {statusCode && airtableError ? " • " : null}
+                      {airtableError ? `Airtable error: ${airtableError}` : null}
+                    </div>
+                  ) : null}
+                  {details ? (
+                    <pre className="mt-3 text-xs text-muted-foreground whitespace-pre-wrap break-words bg-muted border border-border rounded-[var(--radius-xl)] p-3">
+                      {details}
+                    </pre>
+                  ) : null}
+                  {hints.length ? (
+                    <div className="mt-3 text-sm">
+                      <div className="text-foreground font-semibold">What may be wrong</div>
+                      <ul className="mt-2 space-y-1 text-muted-foreground list-disc pl-5">
+                        {hints.map((h) => (
+                          <li key={h}>{h}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  <div className="mt-3 flex items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => toast.dismiss(t.id)}
+                      className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              ),
+              { id: toastId, duration: 20000 },
+            );
+          } else {
+            toast.error(message, { id: toastId });
+          }
+          setBusy(false);
+          return;
+        }
+
+        const recordId = typeof data?.airtableRecordId === "string" ? data.airtableRecordId : null;
+        const mode =
+          (data as { mode?: unknown } | null)?.mode === "updated" ? "updated" : "created";
+        if (recordId) {
+          setProject((p) => ({
+            ...p,
+            airtableRecordId: recordId,
+            airtableRecordIsPreview: preview,
+          }));
+        }
+        toast.success(
+          recordId
+            ? preview
+              ? `Preview record ${mode} in Airtable (${recordId}) — open the table to inspect the justification.`
+              : `Airtable record ${mode} (${recordId}).`
+            : "Pushed to Airtable.",
+          { id: toastId },
+        );
+        setBusy(false);
+      } catch {
+        toast.error("Failed to push to Airtable.", { id: toastId });
+        setBusy(false);
+      }
+    },
+    [project.id, project.airtableRecordId, technicalJustification],
+  );
 
   return (
     <div className="space-y-6">
@@ -652,21 +689,28 @@ export default function AdminGrantClient({
             <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
               <div className="text-sm text-muted-foreground">Hours logged (Hackatime)</div>
               <div className="text-foreground font-semibold">
-                {project.hackatimeHours ? formatHoursMinutes(project.hackatimeHours.hours, project.hackatimeHours.minutes) : "—"}
+                {project.hackatimeHours
+                  ? formatHoursMinutes(project.hackatimeHours.hours, project.hackatimeHours.minutes)
+                  : "—"}
               </div>
             </div>
             <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
               <div className="text-sm text-muted-foreground">Approved hours</div>
               <div className="text-foreground font-semibold">
-                {project.approvedHours !== null && project.approvedHours !== undefined ? `${project.approvedHours}h` : "—"}
+                {project.approvedHours !== null && project.approvedHours !== undefined
+                  ? `${project.approvedHours}h`
+                  : "—"}
               </div>
             </div>
             <div className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-3">
               <div className="text-sm text-muted-foreground">Trust level</div>
               <div className="mt-1">
                 {trustLevel ? (
-                  <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${trustLevelColor(trustLevel.level)}`}>
-                    {trustLevel.level ?? "unknown"}{trustLevel.value !== null ? ` (${trustLevel.value})` : ""}
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${trustLevelColor(trustLevel.level)}`}
+                  >
+                    {trustLevel.level ?? "unknown"}
+                    {trustLevel.value !== null ? ` (${trustLevel.value})` : ""}
                   </span>
                 ) : (
                   <span className="text-xs text-muted-foreground">Loading…</span>
@@ -689,11 +733,19 @@ export default function AdminGrantClient({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="block">
                 <div className="text-xs text-muted-foreground mb-1">Start date</div>
-                <DateTimePicker value={rangeStartDate} onChange={(v) => setRangeStartDate(v)} disabled={rangeSaving || project.status === "granted"} />
+                <DateTimePicker
+                  value={rangeStartDate}
+                  onChange={(v) => setRangeStartDate(v)}
+                  disabled={rangeSaving || project.status === "granted"}
+                />
               </label>
               <label className="block">
                 <div className="text-xs text-muted-foreground mb-1">End date</div>
-                <DateTimePicker value={rangeEndDate} onChange={(v) => setRangeEndDate(v)} disabled={rangeSaving || project.status === "granted"} />
+                <DateTimePicker
+                  value={rangeEndDate}
+                  onChange={(v) => setRangeEndDate(v)}
+                  disabled={rangeSaving || project.status === "granted"}
+                />
               </label>
             </div>
             {!editableRange.ok ? (
@@ -707,7 +759,8 @@ export default function AdminGrantClient({
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
               <div className="text-muted-foreground">
-                Previewed Hackatime hours: <span className="text-foreground font-semibold">{previewHoursLabel}</span>
+                Previewed Hackatime hours:{" "}
+                <span className="text-foreground font-semibold">{previewHoursLabel}</span>
               </div>
               <button
                 type="button"
@@ -756,15 +809,17 @@ export default function AdminGrantClient({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {project.playableDemoUrl ? <LinkChip label="Demo" url={project.playableDemoUrl} /> : null}
+            {project.playableDemoUrl ? (
+              <LinkChip label="Demo" url={project.playableDemoUrl} />
+            ) : null}
             {project.videoUrl ? <LinkChip label="Video" url={project.videoUrl} /> : null}
             {project.codeUrl ? <LinkChip label="GitHub" url={project.codeUrl} /> : null}
           </div>
 
           <div className="text-xs text-muted-foreground">
             Created: {new Date(project.createdAt).toLocaleString()} • Submitted:{" "}
-            {project.submittedAt ? new Date(project.submittedAt).toLocaleString() : "—"} • Considered range:{" "}
-            {canonicalProjectRangeLabel}
+            {project.submittedAt ? new Date(project.submittedAt).toLocaleString() : "—"} •
+            Considered range: {canonicalProjectRangeLabel}
           </div>
 
           {project.screenshots?.length ? (
@@ -821,7 +876,9 @@ export default function AdminGrantClient({
             </div>
             <div className="mt-1">
               <span className="text-muted-foreground">Verification:</span>{" "}
-              <span className="text-foreground font-mono">{initial.creator.verificationStatus || "—"}</span>
+              <span className="text-foreground font-mono">
+                {initial.creator.verificationStatus || "—"}
+              </span>
             </div>
           </div>
         </div>
@@ -846,9 +903,9 @@ export default function AdminGrantClient({
             Specific technical features (hours justification)
           </div>
           <div className="text-sm text-muted-foreground mt-1">
-            Human-written, required to grant. Name the technical qualities that justify the
-            approved hours — specific features, not just languages. Goes to the Unified
-            Database; never shown to the creator.
+            Human-written, required to grant. Name the technical qualities that justify the approved
+            hours — specific features, not just languages. Goes to the Unified Database; never shown
+            to the creator.
           </div>
         </div>
         {passOneDraft && passOneDraft !== technicalJustification ? (
@@ -926,8 +983,8 @@ export default function AdminGrantClient({
                 disabled={busy}
               />
               <span>
-                Telescreen scored this Doubtful. I&apos;ve read the fraud reviewer&apos;s note and accounted
-                for it in the approved hours.
+                Telescreen scored this Doubtful. I&apos;ve read the fraud reviewer&apos;s note and
+                accounted for it in the approved hours.
               </span>
             </label>
           ) : null}
@@ -944,7 +1001,9 @@ export default function AdminGrantClient({
               !canGrant ||
               !technicalJustification.trim() ||
               (telescreenGate !== null && !telescreenGate.ok) ||
-              (telescreenGate?.ok === true && telescreenGate.needsDoubtfulAck && !telescreenDoubtfulAck)
+              (telescreenGate?.ok === true &&
+                telescreenGate.needsDoubtfulAck &&
+                !telescreenDoubtfulAck)
             }
             title={
               !technicalJustification.trim()
@@ -1070,8 +1129,8 @@ export default function AdminGrantClient({
               </div>
             ) : (
               <div className="rounded-[var(--radius-2xl)] border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-                Hours check passed: Override Hours Spent matches the approved hours derived from
-                the review.
+                Hours check passed: Override Hours Spent matches the approved hours derived from the
+                review.
               </div>
             )}
 

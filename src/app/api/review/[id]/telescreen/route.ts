@@ -48,7 +48,10 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   if (denied) return denied;
   const { id } = await ctx.params;
   if (!isTelescreenEnabled()) {
-    return NextResponse.json({ error: "Telescreen is not configured (ROBERT_API_KEY)." }, { status: 503 });
+    return NextResponse.json(
+      { error: "Telescreen is not configured (ROBERT_API_KEY)." },
+      { status: 503 },
+    );
   }
   await ensureTelescreenSubmission(id);
   return respond(id);

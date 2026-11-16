@@ -96,7 +96,12 @@ export default function NewDevlogForm({
     hackatimeProjectName.trim(),
   );
   const [hackatimeProjects, setHackatimeProjects] = useState<
-    Array<{ name: string; totalSeconds: number; startedAt: string | null; stoppedAt: string | null }>
+    Array<{
+      name: string;
+      totalSeconds: number;
+      startedAt: string | null;
+      stoppedAt: string | null;
+    }>
   >([]);
   const [hackatimeLoading, setHackatimeLoading] = useState(false);
   const [hackatimeError, setHackatimeError] = useState<string | null>(null);
@@ -104,16 +109,15 @@ export default function NewDevlogForm({
   const [hackatimeNeedsReconnect, setHackatimeNeedsReconnect] = useState(false);
   const [attachments, setAttachments] = useState<string[]>(initial?.attachments ?? []);
   const [devlogCategory, setDevlogCategory] = useState<"learning" | "design" | "coding">(
-    (initial as { category?: string } | undefined)?.category as "learning" | "design" | "coding" ?? "coding",
+    ((initial as { category?: string } | undefined)?.category as
+      "learning" | "design" | "coding") ?? "coding",
   );
   const [usedAi, setUsedAi] = useState(initial?.usedAi ?? false);
   const [aiDesc, setAiDesc] = useState(initial?.aiUsageDescription ?? "");
   const [startedAt, setStartedAt] = useState(
     toDatetimeLocalValue(initial?.startedAtIso ?? defaultStartedAtIso(ceilingIso)),
   );
-  const [endedAt, setEndedAt] = useState(
-    toDatetimeLocalValue(initial?.endedAtIso ?? ceilingIso),
-  );
+  const [endedAt, setEndedAt] = useState(toDatetimeLocalValue(initial?.endedAtIso ?? ceilingIso));
 
   // Timeline state
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -171,13 +175,16 @@ export default function NewDevlogForm({
     setHackatimeError(null);
     try {
       const returnTo = `${window.location.pathname}${window.location.search}`;
-      const res = await fetch(
-        `/api/hackatime/projects?returnTo=${encodeURIComponent(returnTo)}`,
-        { method: "GET" },
-      );
-      const data = (await res.json().catch(() => null)) as
-        | { projects?: unknown; error?: unknown; code?: unknown; reason?: unknown; connectUrl?: unknown }
-        | null;
+      const res = await fetch(`/api/hackatime/projects?returnTo=${encodeURIComponent(returnTo)}`, {
+        method: "GET",
+      });
+      const data = (await res.json().catch(() => null)) as {
+        projects?: unknown;
+        error?: unknown;
+        code?: unknown;
+        reason?: unknown;
+        connectUrl?: unknown;
+      } | null;
       if (!res.ok) {
         const code = typeof data?.code === "string" ? data.code : "";
         const reason = typeof data?.reason === "string" ? data.reason : "";
@@ -218,7 +225,16 @@ export default function NewDevlogForm({
             stoppedAt: typeof row.stoppedAt === "string" ? row.stoppedAt : null,
           };
         })
-        .filter((p): p is { name: string; totalSeconds: number; startedAt: string | null; stoppedAt: string | null } => !!p);
+        .filter(
+          (
+            p,
+          ): p is {
+            name: string;
+            totalSeconds: number;
+            startedAt: string | null;
+            stoppedAt: string | null;
+          } => !!p,
+        );
       setHackatimeProjects(projects);
       setHackatimeConnectUrl(null);
       setHackatimeLoading(false);
@@ -278,8 +294,7 @@ export default function NewDevlogForm({
           linkedProjectNames: Array.isArray(data?.linkedProjectNames)
             ? (data.linkedProjectNames as string[])
             : [],
-          totalCodedTime:
-            typeof data?.totalCodedTime === "number" ? data.totalCodedTime : 0,
+          totalCodedTime: typeof data?.totalCodedTime === "number" ? data.totalCodedTime : 0,
         });
       } catch {
         if (cancelled) return;
@@ -287,7 +302,9 @@ export default function NewDevlogForm({
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [canEditWindow, isEdit, projectId, selectedDate, timelineEnabled]);
 
   const windowError = useMemo(() => {
@@ -327,9 +344,10 @@ export default function NewDevlogForm({
         url.searchParams.set("endedAt", endedIso);
         url.searchParams.set("hackatimeProjectName", selectedHackatimeProjectName);
         const res = await fetch(url.toString());
-        const data = (await res.json().catch(() => null)) as
-          | { durationSeconds?: number | null; error?: unknown }
-          | null;
+        const data = (await res.json().catch(() => null)) as {
+          durationSeconds?: number | null;
+          error?: unknown;
+        } | null;
         if (cancelled) return;
         if (!res.ok) {
           const msg = typeof data?.error === "string" ? data.error : "Failed to preview hours.";
@@ -353,7 +371,14 @@ export default function NewDevlogForm({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [canEditWindow, effectiveStartedIso, endedIso, projectId, selectedHackatimeProjectName, windowError]);
+  }, [
+    canEditWindow,
+    effectiveStartedIso,
+    endedIso,
+    projectId,
+    selectedHackatimeProjectName,
+    windowError,
+  ]);
 
   const canSubmit = useMemo(() => {
     if (submitting) return false;
@@ -411,9 +436,10 @@ export default function NewDevlogForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = (await res.json().catch(() => null)) as
-        | { devlog?: { id?: string }; error?: unknown }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        devlog?: { id?: string };
+        error?: unknown;
+      } | null;
       if (!res.ok) {
         const msg =
           typeof data?.error === "string"
@@ -429,9 +455,7 @@ export default function NewDevlogForm({
       toast.success(isEdit ? "Devlog updated." : "Devlog posted.", { id: toastId });
       const resultId = data?.devlog?.id ?? devlogId;
       router.push(
-        resultId
-          ? `/projects/${projectId}/devlogs/${resultId}`
-          : `/projects/${projectId}/devlogs`,
+        resultId ? `/projects/${projectId}/devlogs/${resultId}` : `/projects/${projectId}/devlogs`,
       );
       router.refresh();
     } catch {
@@ -468,9 +492,8 @@ export default function NewDevlogForm({
     return `Hackatime time for this window: ${d.label}.`;
   }, [canEditWindow, previewError, previewLoading, previewSeconds, selectedHackatimeProjectName]);
 
-  const cancelHref = isEdit && devlogId
-    ? `/projects/${projectId}/devlogs/${devlogId}`
-    : `/projects/${projectId}`;
+  const cancelHref =
+    isEdit && devlogId ? `/projects/${projectId}/devlogs/${devlogId}` : `/projects/${projectId}`;
 
   const showTimeline = canEditWindow && !isEdit && timelineEnabled;
 
@@ -482,14 +505,17 @@ export default function NewDevlogForm({
           className="block rounded-[var(--radius-xl)] border border-carnival-blue/40 bg-carnival-blue/10 px-4 py-3 transition-colors hover:bg-carnival-blue/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-carnival-blue/60"
         >
           <div className="flex items-start gap-3">
-            <NotebookPen className="mt-0.5 h-5 w-5 shrink-0 text-carnival-blue" aria-hidden="true" />
+            <NotebookPen
+              className="mt-0.5 h-5 w-5 shrink-0 text-carnival-blue"
+              aria-hidden="true"
+            />
             <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold text-foreground">
                 New to devlogs? Read the devlog guide first.
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                A quick walkthrough on what to include so your hours and your description line up
-                at review time.
+                A quick walkthrough on what to include so your hours and your description line up at
+                review time.
               </p>
             </div>
             <span className="hidden text-xs font-semibold text-carnival-blue sm:inline">
@@ -506,8 +532,8 @@ export default function NewDevlogForm({
               {isEdit ? "Edit devlog" : "New devlog"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Record what you worked on. Hackatime seconds logged against the selected
-              Hackatime project within your chosen window are what count toward this devlog.
+              Record what you worked on. Hackatime seconds logged against the selected Hackatime
+              project within your chosen window are what count toward this devlog.
             </p>
           </div>
 
@@ -520,7 +546,9 @@ export default function NewDevlogForm({
                 setPreviewSeconds(null);
                 setPreviewError(null);
               }}
-              disabled={!canEditWindow || (hackatimeLoading && hackatimeProjectOptions.length === 0)}
+              disabled={
+                !canEditWindow || (hackatimeLoading && hackatimeProjectOptions.length === 0)
+              }
             >
               <SelectTrigger className="w-full h-11 rounded-[var(--radius-xl)] border-border bg-background px-4 text-foreground">
                 <SelectValue placeholder="Select a Hackatime project" />
@@ -558,7 +586,9 @@ export default function NewDevlogForm({
               </a>
             ) : null}
             {hackatimeError ? (
-              <div className="mt-2 text-sm text-red-200">Could not load projects: {hackatimeError}</div>
+              <div className="mt-2 text-sm text-red-200">
+                Could not load projects: {hackatimeError}
+              </div>
             ) : null}
           </div>
 
@@ -576,11 +606,13 @@ export default function NewDevlogForm({
             <div>
               <FormLabel>Category</FormLabel>
               <div className="flex gap-2 mt-1.5">
-                {([
-                  { value: "coding", label: "Coding", icon: "⌨️" },
-                  { value: "design", label: "Design / Art", icon: "🎨" },
-                  { value: "learning", label: "Learning", icon: "📚" },
-                ] as const).map((opt) => (
+                {(
+                  [
+                    { value: "coding", label: "Coding", icon: "⌨️" },
+                    { value: "design", label: "Design / Art", icon: "🎨" },
+                    { value: "learning", label: "Learning", icon: "📚" },
+                  ] as const
+                ).map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
@@ -616,8 +648,8 @@ export default function NewDevlogForm({
           <div>
             <div className="font-semibold text-foreground">Attachments</div>
             <p className="text-xs text-muted-foreground mt-1">
-              At least one image is required. Think screenshots, before/after shots, diagrams, or
-              a short GIF.
+              At least one image is required. Think screenshots, before/after shots, diagrams, or a
+              short GIF.
             </p>
           </div>
           <DevlogAttachmentsInput
@@ -686,9 +718,7 @@ export default function NewDevlogForm({
                 />
               ) : null}
 
-              <div className="text-xs text-muted-foreground">
-                Or set the window manually:
-              </div>
+              <div className="text-xs text-muted-foreground">Or set the window manually:</div>
             </div>
           ) : null}
 

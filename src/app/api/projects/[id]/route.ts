@@ -22,9 +22,7 @@ import {
   parseConsideredHackatimeRange,
   type ConsideredHackatimeRange,
 } from "@/lib/hackatime-range";
-import {
-  parseProjectSubmissionChecklist,
-} from "@/lib/project-submission-checklist";
+import { parseProjectSubmissionChecklist } from "@/lib/project-submission-checklist";
 import { validateCreatorOriginalityDeclaration } from "@/lib/project-originality";
 import { normalizeCategory, normalizeProjectTags } from "@/lib/project-taxonomy";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
@@ -71,7 +69,12 @@ function toCleanString(value: unknown) {
 
 function toOptionalNonNegativeInt(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
-  if (typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value >= 0) {
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    Number.isInteger(value) &&
+    value >= 0
+  ) {
     return value;
   }
   if (typeof value === "string") {
@@ -89,8 +92,7 @@ function toOptionalTrimmedString(value: unknown): string | null {
 
 function isProjectEditor(value: unknown): value is ProjectEditor {
   return (
-    typeof value === "string" &&
-    (projectEditor.enumValues as readonly string[]).includes(value)
+    typeof value === "string" && (projectEditor.enumValues as readonly string[]).includes(value)
   );
 }
 
@@ -326,7 +328,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       maxLength: TEXT_LIMITS.longText,
       multiline: true,
     });
-    if (!description) return NextResponse.json({ error: "Description is required" }, { status: 400 });
+    if (!description)
+      return NextResponse.json({ error: "Description is required" }, { status: 400 });
     set.description = description;
   }
 
@@ -377,7 +380,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     set.hackatimeTotalSeconds = toOptionalNonNegativeInt(body.hackatimeTotalSeconds);
   }
 
-  const nextHackatimeProjectName = (set.hackatimeProjectName ?? current.hackatimeProjectName).trim();
+  const nextHackatimeProjectName = (
+    set.hackatimeProjectName ?? current.hackatimeProjectName
+  ).trim();
 
   // A project tied to a Hackatime project carries that project's name.
   // Picking a (new) Hackatime project renames it; renaming it by hand is only
@@ -425,7 +430,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         { status: 400 },
       );
     }
-
   } else if (body.hackatimeProjectName !== undefined && !nextHackatimeProjectName) {
     set.hackatimeStartedAt = null;
     set.hackatimeStoppedAt = null;
@@ -449,7 +453,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       if (outside.length > 0) {
         const listed = outside
           .slice(0, 3)
-          .map((d) => `"${d.title}" (${formatUtcInstant(d.startedAt)} → ${formatUtcInstant(d.endedAt)})`)
+          .map(
+            (d) =>
+              `"${d.title}" (${formatUtcInstant(d.startedAt)} → ${formatUtcInstant(d.endedAt)})`,
+          )
           .join(", ");
         const suffix = outside.length > 3 ? ` and ${outside.length - 3} more` : "";
         return NextResponse.json(
@@ -481,7 +488,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   if (body.codeUrl !== undefined) {
     const codeUrl = sanitizeHttpUrl(body.codeUrl);
-    if (codeUrl === "") return NextResponse.json({ error: "Code URL is required" }, { status: 400 });
+    if (codeUrl === "")
+      return NextResponse.json({ error: "Code URL is required" }, { status: 400 });
     if (codeUrl === null) {
       return NextResponse.json({ error: "Code URL must be http(s)" }, { status: 400 });
     }
@@ -566,10 +574,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       body.creatorOriginalityRationale !== null &&
       typeof body.creatorOriginalityRationale !== "string"
     ) {
-      return NextResponse.json(
-        { error: "Originality rationale must be text." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Originality rationale must be text." }, { status: 400 });
     }
 
     const nextCreatorDeclaredOriginality =
@@ -619,10 +624,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const nextEditorOther =
     set.editorOther !== undefined ? set.editorOther : (current.editorOther ?? null);
   if (nextEditor === "other" && !nextEditorOther) {
-    return NextResponse.json(
-      { error: "Please enter the editor name (Other)" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Please enter the editor name (Other)" }, { status: 400 });
   }
   if (nextEditor !== "other" && nextEditorOther) {
     return NextResponse.json(
@@ -665,11 +667,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       videoUrl: set.videoUrl ?? current.videoUrl,
       playableDemoUrl: set.playableDemoUrl ?? current.playableDemoUrl,
       codeUrl: set.codeUrl ?? current.codeUrl,
-      screenshots: (set.screenshots ?? current.screenshots) ?? [],
-      checklist:
-        (set.submissionChecklist !== undefined
-          ? set.submissionChecklist
-          : current.submissionChecklist) as Record<string, boolean> | null,
+      screenshots: set.screenshots ?? current.screenshots ?? [],
+      checklist: (set.submissionChecklist !== undefined
+        ? set.submissionChecklist
+        : current.submissionChecklist) as Record<string, boolean> | null,
       r2PublicBaseUrl: getR2PublicBaseUrl(),
     });
     if (gateFailures.length > 0) {
@@ -953,10 +954,7 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
   }
 
   if (current.creatorId !== userId) {
-    return NextResponse.json(
-      { error: "Forbidden" },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const isDeletable = current.status === "work-in-progress";
   if (!isDeletable) {

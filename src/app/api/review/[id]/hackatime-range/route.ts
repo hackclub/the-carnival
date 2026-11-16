@@ -36,9 +36,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const { id: projectId } = await ctx.params;
 
-  const body = (await req.json().catch(() => null)) as
-    | { startedAt?: unknown; endedAt?: unknown; hackatimeProjectName?: unknown }
-    | null;
+  const body = (await req.json().catch(() => null)) as {
+    startedAt?: unknown;
+    endedAt?: unknown;
+    hackatimeProjectName?: unknown;
+  } | null;
   const startedAt = coerceDate(body?.startedAt);
   const endedAt = coerceDate(body?.endedAt);
   if (!startedAt || !endedAt) {

@@ -9,4 +9,3 @@ export default async function NewProjectPage() {
 
   redirect("/projects?new=1");
 }
-

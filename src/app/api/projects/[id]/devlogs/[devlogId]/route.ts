@@ -148,10 +148,7 @@ export async function PATCH(
   }
 
   if (row.userId !== userId) {
-    return NextResponse.json(
-      { error: "Only the author can edit this devlog." },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "Only the author can edit this devlog." }, { status: 403 });
   }
   if (row.projectStatus !== "work-in-progress") {
     return NextResponse.json(
@@ -234,7 +231,9 @@ export async function PATCH(
     );
     if (parsed === undefined) {
       return NextResponse.json(
-        { error: `AI usage description is too long (max ${DEVLOG_AI_DESCRIPTION_MAX_LENGTH} characters).` },
+        {
+          error: `AI usage description is too long (max ${DEVLOG_AI_DESCRIPTION_MAX_LENGTH} characters).`,
+        },
         { status: 400 },
       );
     }
@@ -284,7 +283,10 @@ export async function PATCH(
       projectRangeEnd: row.projectHackatimeStoppedAt,
     });
     if (rangeError) {
-      return NextResponse.json({ error: rangeError, code: "devlog_outside_range" }, { status: 400 });
+      return NextResponse.json(
+        { error: rangeError, code: "devlog_outside_range" },
+        { status: 400 },
+      );
     }
 
     const overlapping = await findOverlappingDevlog(

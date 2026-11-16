@@ -71,7 +71,11 @@ export async function POST(req: Request) {
   const body = await parseJsonBody<CreateOrderBody>(req);
   const itemId = toCleanString(body?.itemId);
   if (!itemId) return NextResponse.json({ error: "itemId is required" }, { status: 400 });
-  if (body?.orderNote !== undefined && body?.orderNote !== null && typeof body.orderNote !== "string") {
+  if (
+    body?.orderNote !== undefined &&
+    body?.orderNote !== null &&
+    typeof body.orderNote !== "string"
+  ) {
     return NextResponse.json({ error: "orderNote must be a string" }, { status: 400 });
   }
   const orderNote = toCleanString(body?.orderNote);
@@ -99,7 +103,10 @@ export async function POST(req: Request) {
   const item = rows[0];
   if (!item) return NextResponse.json({ error: "Item not found" }, { status: 404 });
   if (item.orderNoteRequired && !orderNote) {
-    return NextResponse.json({ error: "A request note is required for this item." }, { status: 400 });
+    return NextResponse.json(
+      { error: "A request note is required for this item." },
+      { status: 400 },
+    );
   }
 
   const balance = await getTokenBalance(db, authUser.id);

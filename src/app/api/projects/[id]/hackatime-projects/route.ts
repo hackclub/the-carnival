@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { devlog, projectHackatimeProject } from "@/db/schema";
-import {
-  listProjectHackatimeProjects,
-  upsertProjectHackatimeProject,
-} from "@/lib/devlogs";
+import { listProjectHackatimeProjects, upsertProjectHackatimeProject } from "@/lib/devlogs";
 import { canReadProject, resolveProjectAccess } from "@/lib/project-route";
 
 /**
@@ -129,9 +126,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
     }
   }
 
-  await db
-    .delete(projectHackatimeProject)
-    .where(eq(projectHackatimeProject.id, found.id));
+  await db.delete(projectHackatimeProject).where(eq(projectHackatimeProject.id, found.id));
 
   // If the deleted entry was the default, promote the alphabetically-first remaining entry
   if (found.isDefault) {

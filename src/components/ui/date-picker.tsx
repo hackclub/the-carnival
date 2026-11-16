@@ -159,11 +159,7 @@ export function DateTimePicker({
         )}
       >
         <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-        {selected ? (
-          format(selected, "PPP p")
-        ) : (
-          <span>{placeholder}</span>
-        )}
+        {selected ? format(selected, "PPP p") : <span>{placeholder}</span>}
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar

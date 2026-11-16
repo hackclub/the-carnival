@@ -76,7 +76,8 @@ function buildDb() {
         },
         orderBy: async () => (query.sourceTable === peerReview ? [] : []),
         limit: async () => {
-          if (query.sourceTable === project && state.currentProjectRow) return [state.currentProjectRow];
+          if (query.sourceTable === project && state.currentProjectRow)
+            return [state.currentProjectRow];
           if (query.sourceTable === tokenLedger) return [];
           if (query.sourceTable === bountyProject) return state.bountyRows;
           return [];
@@ -111,7 +112,8 @@ function buildDb() {
               return query;
             },
             limit: async () => {
-              if (query.sourceTable === project && state.currentProjectRow) return [state.currentProjectRow];
+              if (query.sourceTable === project && state.currentProjectRow)
+                return [state.currentProjectRow];
               if (query.sourceTable === tokenLedger) return [];
               if (query.sourceTable === bountyProject) return state.bountyRows;
               return [];
@@ -369,8 +371,12 @@ describe("PATCH /api/admin/projects/[id]", () => {
 
     expect(first.res.status).toBe(200);
     expect(second.res.status).toBe(200);
-    expect(state.tokenInserts.filter((row) => row.referenceType === "project_grant")).toHaveLength(1);
-    expect(state.tokenInserts.filter((row) => row.referenceType === "bounty_bonus")).toHaveLength(1);
+    expect(state.tokenInserts.filter((row) => row.referenceType === "project_grant")).toHaveLength(
+      1,
+    );
+    expect(state.tokenInserts.filter((row) => row.referenceType === "bounty_bonus")).toHaveLength(
+      1,
+    );
   });
 });
 

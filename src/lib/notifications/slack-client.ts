@@ -67,7 +67,11 @@ export async function postSlackMessage(input: {
     return { ok: true, ts: typeof response.ts === "string" ? response.ts : null };
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
-    console.error("[Slack] postMessage failed", { channel, threadTs: input.threadTs ?? null, error });
+    console.error("[Slack] postMessage failed", {
+      channel,
+      threadTs: input.threadTs ?? null,
+      error,
+    });
     return { ok: false, error };
   }
 }

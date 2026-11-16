@@ -77,7 +77,10 @@ export async function POST(req: Request) {
     });
   } catch (err: unknown) {
     if (isUniqueConstraintError(err)) {
-      return NextResponse.json({ error: "An editor with this name or slug already exists" }, { status: 409 });
+      return NextResponse.json(
+        { error: "An editor with this name or slug already exists" },
+        { status: 409 },
+      );
     }
     throw err;
   }

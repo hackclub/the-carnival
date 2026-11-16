@@ -39,9 +39,7 @@ function toCleanString(value: unknown): string {
 
 export function parseLedgerAdjustmentPayload(
   payload: unknown,
-):
-  | { ok: true; value: ParsedLedgerAdjustment }
-  | { ok: false; error: string } {
+): { ok: true; value: ParsedLedgerAdjustment } | { ok: false; error: string } {
   const body = payload as {
     type?: unknown;
     kind?: unknown;

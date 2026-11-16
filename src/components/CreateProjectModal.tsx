@@ -2,11 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  EDITOR_OPTIONS,
-  cleanString,
-  type EditorOptionValue,
-} from "@/lib/project-form-utils";
+import { EDITOR_OPTIONS, cleanString, type EditorOptionValue } from "@/lib/project-form-utils";
 
 type CreateProjectPayload = {
   name: string;
@@ -59,9 +55,7 @@ export default function CreateProjectModal() {
         fetch("/api/bounties")
           .then((r) => r.json())
           .then((data) => {
-            const projects = Array.isArray(data?.projects)
-              ? data.projects
-              : [];
+            const projects = Array.isArray(data?.projects) ? data.projects : [];
             setAvailableBounties(
               projects
                 .filter(
@@ -105,14 +99,11 @@ export default function CreateProjectModal() {
     return () => d.removeEventListener("close", onClose);
   }, [clearNewParam]);
 
-  const onBackdropClick = useCallback(
-    (e: React.MouseEvent<HTMLDialogElement>) => {
-      if (e.target === e.currentTarget) {
-        e.currentTarget.close();
-      }
-    },
-    [],
-  );
+  const onBackdropClick = useCallback((e: React.MouseEvent<HTMLDialogElement>) => {
+    if (e.target === e.currentTarget) {
+      e.currentTarget.close();
+    }
+  }, []);
 
   const onSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -150,9 +141,7 @@ export default function CreateProjectModal() {
           body: JSON.stringify(payload),
         });
 
-        const data = (await res.json().catch(() => null)) as
-          | { id?: string; error?: string }
-          | null;
+        const data = (await res.json().catch(() => null)) as { id?: string; error?: string } | null;
 
         if (!res.ok) {
           setError(data?.error || "Failed to create project.");
@@ -174,8 +163,7 @@ export default function CreateProjectModal() {
     [editor, editorOther, bountyProjectId, router],
   );
 
-  const editorLabel =
-    EDITOR_OPTIONS.find((o) => o.value === editor)?.label ?? "Select editor";
+  const editorLabel = EDITOR_OPTIONS.find((o) => o.value === editor)?.label ?? "Select editor";
 
   return (
     <dialog
@@ -204,10 +192,7 @@ export default function CreateProjectModal() {
           </div>
         </div>
 
-        <form
-          onSubmit={onSubmit}
-          className="flex-1 px-6 py-5 space-y-4 overflow-y-auto"
-        >
+        <form onSubmit={onSubmit} className="flex-1 px-6 py-5 space-y-4 overflow-y-auto">
           {error ? (
             <div className="rounded-[var(--radius-xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
               {error}
@@ -215,9 +200,7 @@ export default function CreateProjectModal() {
           ) : null}
 
           <label className="block">
-            <div className="text-sm text-muted-foreground font-medium mb-1.5">
-              Project name
-            </div>
+            <div className="text-sm text-muted-foreground font-medium mb-1.5">Project name</div>
             <input
               name="name"
               required
@@ -228,9 +211,7 @@ export default function CreateProjectModal() {
           </label>
 
           <label className="block">
-            <div className="text-sm text-muted-foreground font-medium mb-1.5">
-              Description
-            </div>
+            <div className="text-sm text-muted-foreground font-medium mb-1.5">Description</div>
             <textarea
               name="description"
               required
@@ -247,9 +228,7 @@ export default function CreateProjectModal() {
             {/* Native select to avoid portal-in-dialog issues */}
             <select
               value={editor}
-              onChange={(e) =>
-                setEditor(e.target.value as EditorOptionValue)
-              }
+              onChange={(e) => setEditor(e.target.value as EditorOptionValue)}
               className="w-full bg-background border border-border rounded-[var(--radius-xl)] px-4 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40 appearance-none"
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%237b240a' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
@@ -283,15 +262,10 @@ export default function CreateProjectModal() {
 
           <div>
             <div className="text-sm text-muted-foreground font-medium mb-1.5">
-              Bounty{" "}
-              <span className="font-normal text-muted-foreground/70">
-                (optional)
-              </span>
+              Bounty <span className="font-normal text-muted-foreground/70">(optional)</span>
             </div>
             {bountiesLoading ? (
-              <div className="text-sm text-muted-foreground py-2">
-                Loading bounties...
-              </div>
+              <div className="text-sm text-muted-foreground py-2">Loading bounties...</div>
             ) : (
               <select
                 value={bountyProjectId}

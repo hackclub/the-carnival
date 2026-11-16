@@ -59,8 +59,7 @@ export function parseOptionalTrimmedString(value: unknown, max: number) {
 }
 
 export type ParsedDevlogWindow =
-  | { ok: true; startedAt: Date; endedAt: Date }
-  | { ok: false; error: string };
+  { ok: true; startedAt: Date; endedAt: Date } | { ok: false; error: string };
 
 export function isValidDate(value: Date | null | undefined): value is Date {
   return value instanceof Date && !Number.isNaN(value.getTime());
@@ -143,5 +142,7 @@ export function computeDevlogWindowCeiling(input: {
   projectStatus: unknown;
   submittedAt: Date | null;
 }) {
-  return computeWindowCeiling(input.projectStatus === "work-in-progress" ? null : input.submittedAt);
+  return computeWindowCeiling(
+    input.projectStatus === "work-in-progress" ? null : input.submittedAt,
+  );
 }

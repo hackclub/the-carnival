@@ -59,9 +59,10 @@ export default function AdminSettingsClient({ initial }: { initial: SiteSettingR
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ key, value: iso }),
         });
-        const data = (await res.json().catch(() => null)) as
-          | { settings?: SiteSettingRow[]; error?: string }
-          | null;
+        const data = (await res.json().catch(() => null)) as {
+          settings?: SiteSettingRow[];
+          error?: string;
+        } | null;
 
         if (!res.ok || !data?.settings) {
           toast.error(data?.error || "Failed to save setting.", { id: toastId });
@@ -115,9 +116,7 @@ export default function AdminSettingsClient({ initial }: { initial: SiteSettingR
                   <input
                     type="datetime-local"
                     value={drafts[row.key] ?? ""}
-                    onChange={(e) =>
-                      setDrafts((prev) => ({ ...prev, [row.key]: e.target.value }))
-                    }
+                    onChange={(e) => setDrafts((prev) => ({ ...prev, [row.key]: e.target.value }))}
                     className="bg-background border border-border rounded-[var(--radius-xl)] px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-carnival-blue/40"
                   />
                   <span className="text-xs font-semibold text-muted-foreground">UTC</span>
@@ -129,9 +128,7 @@ export default function AdminSettingsClient({ initial }: { initial: SiteSettingR
                   >
                     {savingKey === row.key ? "Saving…" : "Save"}
                   </button>
-                  {dirty ? (
-                    <span className="text-xs text-amber-400">unsaved change</span>
-                  ) : null}
+                  {dirty ? <span className="text-xs text-amber-400">unsaved change</span> : null}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
                   Currently: <strong>{formatUtc(row.valueIso)} UTC</strong>

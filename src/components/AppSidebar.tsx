@@ -30,17 +30,8 @@ import {
   Users,
   Send,
 } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type AdminIndicatorCounts } from "@/lib/admin-indicators";
 import WalletConverterPopover from "@/components/WalletConverterPopover";
 
@@ -142,7 +133,10 @@ function withAdminIndicators(items: NavItem[], counts: AdminIndicatorCounts | nu
   });
 }
 
-function getNavSections(role: UserRole, adminIndicators: AdminIndicatorCounts | null): NavSection[] {
+function getNavSections(
+  role: UserRole,
+  adminIndicators: AdminIndicatorCounts | null,
+): NavSection[] {
   if (role === "admin") {
     const opsItems = withAdminIndicators([...REVIEW_NAV, ...ADMIN_NAV], adminIndicators);
     return [
@@ -209,7 +203,9 @@ function SidebarNav({ sections, pathname, collapsed, onNavigate }: SidebarNavPro
       {sections.map((section) => (
         <section key={section.id} className="space-y-1.5">
           {!collapsed && (sections.length > 1 || section.title !== "Workspace") && (
-            <div className="platform-nav-section-label sidebar-section-label mt-2 mb-1">{section.title}</div>
+            <div className="platform-nav-section-label sidebar-section-label mt-2 mb-1">
+              {section.title}
+            </div>
           )}
           {collapsed && sections.length > 1 && section.id !== sections[0]?.id && (
             <div className="mx-auto my-2 h-px w-6 bg-[var(--platform-border)]" />
@@ -218,7 +214,9 @@ function SidebarNav({ sections, pathname, collapsed, onNavigate }: SidebarNavPro
             {section.items.map((item) => {
               const Icon = item.icon;
               const active = isActivePath(pathname, item.href);
-              const badgeLabel = item.badgeCount ? item.badgeLabel ?? `${item.badgeCount} pending` : undefined;
+              const badgeLabel = item.badgeCount
+                ? (item.badgeLabel ?? `${item.badgeCount} pending`)
+                : undefined;
               const tooltipLabel = badgeLabel ? `${item.label}: ${item.badgeCount}` : item.label;
 
               const linkElement = (
@@ -230,7 +228,9 @@ function SidebarNav({ sections, pathname, collapsed, onNavigate }: SidebarNavPro
                   onClick={onNavigate}
                 >
                   <Icon size={17} className="shrink-0" />
-                  {!collapsed && <span className="sidebar-label min-w-0 flex-1 truncate">{item.label}</span>}
+                  {!collapsed && (
+                    <span className="sidebar-label min-w-0 flex-1 truncate">{item.label}</span>
+                  )}
                   <SidebarBadge count={item.badgeCount} label={badgeLabel} collapsed={collapsed} />
                 </Link>
               );
@@ -291,9 +291,10 @@ export default function AppSidebar({
     if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
     try {
       const res = await fetch("/api/wallet/balance", { method: "GET", cache: "no-store" });
-      const json = (await res.json().catch(() => null)) as
-        | { balance?: unknown; fetchedAt?: unknown }
-        | null;
+      const json = (await res.json().catch(() => null)) as {
+        balance?: unknown;
+        fetchedAt?: unknown;
+      } | null;
       if (!res.ok) return;
       const b = typeof json?.balance === "number" ? json.balance : Number(json?.balance);
       if (Number.isFinite(b)) setWalletBalance(b);
@@ -330,7 +331,9 @@ export default function AppSidebar({
   }, []);
 
   const sidebarContent = (isMobile: boolean) => (
-    <div className={`flex h-full flex-col ${isMobile ? "" : collapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}>
+    <div
+      className={`flex h-full flex-col ${isMobile ? "" : collapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}
+    >
       {/* Header / branding */}
       <div className="px-4 pt-5 pb-2">
         <div className="flex items-center gap-2">
@@ -363,13 +366,7 @@ export default function AppSidebar({
       {/* Art decoration */}
       {(!collapsed || isMobile) && (
         <div className="sidebar-art relative mx-auto my-1 h-12 w-28 opacity-50">
-          <Image
-            src="/ferris-wheel.png"
-            alt=""
-            fill
-            sizes="112px"
-            className="object-contain"
-          />
+          <Image src="/ferris-wheel.png" alt="" fill sizes="112px" className="object-contain" />
         </div>
       )}
 
@@ -391,7 +388,13 @@ export default function AppSidebar({
                 : "rounded-[var(--carnival-squircle-radius)] border border-border bg-[#fff0cf] p-2"
             }
           >
-            <div className={collapsed && !isMobile ? "flex flex-col items-center gap-2" : "flex items-center gap-2.5"}>
+            <div
+              className={
+                collapsed && !isMobile
+                  ? "flex flex-col items-center gap-2"
+                  : "flex items-center gap-2.5"
+              }
+            >
               <Tooltip>
                 <TooltipTrigger className="shrink-0">
                   {sessionUser?.image ? (
@@ -410,7 +413,9 @@ export default function AppSidebar({
                 </TooltipTrigger>
                 <TooltipContent side="right">
                   <div className="font-medium">{displayName}</div>
-                  {sessionUser?.email ? <div className="text-xs opacity-80">{sessionUser.email}</div> : null}
+                  {sessionUser?.email ? (
+                    <div className="text-xs opacity-80">{sessionUser.email}</div>
+                  ) : null}
                 </TooltipContent>
               </Tooltip>
 
@@ -431,32 +436,36 @@ export default function AppSidebar({
                 <TooltipTrigger
                   render={
                     <Link
-                    href="/account"
-                    onClick={isMobile ? () => setMobileOpen(false) : undefined}
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-transparent text-[var(--platform-ink-muted)] transition-colors hover:border-border hover:bg-[#fff7dc] hover:text-[var(--platform-ink)]"
-                    aria-label="Account settings"
-                  >
-                    <Settings size={17} />
-                  </Link>
+                      href="/account"
+                      onClick={isMobile ? () => setMobileOpen(false) : undefined}
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-transparent text-[var(--platform-ink-muted)] transition-colors hover:border-border hover:bg-[#fff7dc] hover:text-[var(--platform-ink)]"
+                      aria-label="Account settings"
+                    >
+                      <Settings size={17} />
+                    </Link>
                   }
                 />
-                <TooltipContent side={collapsed && !isMobile ? "right" : "top"}>Account settings</TooltipContent>
+                <TooltipContent side={collapsed && !isMobile ? "right" : "top"}>
+                  Account settings
+                </TooltipContent>
               </Tooltip>
 
               <Tooltip>
                 <TooltipTrigger
                   render={
                     <button
-                    type="button"
-                    onClick={onSignOut}
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-transparent text-[var(--platform-ink-muted)] transition-colors hover:border-[var(--carnival-danger)] hover:bg-[var(--carnival-danger-bg)] hover:text-[var(--carnival-danger)]"
-                    aria-label="Sign out"
-                  >
-                    <LogOut size={17} />
-                  </button>
+                      type="button"
+                      onClick={onSignOut}
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-transparent text-[var(--platform-ink-muted)] transition-colors hover:border-[var(--carnival-danger)] hover:bg-[var(--carnival-danger-bg)] hover:text-[var(--carnival-danger)]"
+                      aria-label="Sign out"
+                    >
+                      <LogOut size={17} />
+                    </button>
                   }
                 />
-                <TooltipContent side={collapsed && !isMobile ? "right" : "top"}>Sign out</TooltipContent>
+                <TooltipContent side={collapsed && !isMobile ? "right" : "top"}>
+                  Sign out
+                </TooltipContent>
               </Tooltip>
             </div>
 
@@ -465,11 +474,11 @@ export default function AppSidebar({
                 <TooltipTrigger
                   render={
                     <div>
-                    <WalletConverterPopover
-                      walletBalance={walletBalance}
-                      variant={collapsed && !isMobile ? "compact" : "chip"}
-                    />
-                  </div>
+                      <WalletConverterPopover
+                        walletBalance={walletBalance}
+                        variant={collapsed && !isMobile ? "compact" : "chip"}
+                      />
+                    </div>
                   }
                 />
                 <TooltipContent side={collapsed && !isMobile ? "right" : "top"}>
@@ -496,7 +505,11 @@ export default function AppSidebar({
 
       {/* Mobile sheet */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" showCloseButton={true} className="w-72 p-0 platform-sidebar-surface border-r">
+        <SheetContent
+          side="left"
+          showCloseButton={true}
+          className="w-72 p-0 platform-sidebar-surface border-r"
+        >
           <SheetHeader className="sr-only">
             <SheetTitle>Navigation</SheetTitle>
           </SheetHeader>

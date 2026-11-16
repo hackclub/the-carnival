@@ -79,8 +79,7 @@ const REVIEW_DEFLATION_REASON_SET = new Set<ReviewDeflationReason>(
 );
 
 type ValidationResult =
-  | { ok: true; value: ReviewJustificationPayload }
-  | { ok: false; error: string };
+  { ok: true; value: ReviewJustificationPayload } | { ok: false; error: string };
 
 export function isApprovedHourIncrement(value: number) {
   const scaled = value * APPROVED_HOUR_MULTIPLIER;
@@ -141,15 +140,24 @@ export function buildReviewJustificationRequest(
   };
 }
 
-export function calculateHoursReduction(loggedHackatimeHours: number | null, approvedHours: number | null) {
+export function calculateHoursReduction(
+  loggedHackatimeHours: number | null,
+  approvedHours: number | null,
+) {
   if (!Number.isFinite(loggedHackatimeHours) || !Number.isFinite(approvedHours)) return 0;
   const reduction = (loggedHackatimeHours as number) - (approvedHours as number);
   if (reduction <= HALF_HOUR_EPSILON) return 0;
   return Math.round(reduction * 1000) / 1000;
 }
 
-export function requiresDeflationReason(loggedHackatimeHours: number | null, approvedHours: number | null) {
-  return calculateHoursReduction(loggedHackatimeHours, approvedHours) + HALF_HOUR_EPSILON >= DEFLATION_REASON_THRESHOLD_HOURS;
+export function requiresDeflationReason(
+  loggedHackatimeHours: number | null,
+  approvedHours: number | null,
+) {
+  return (
+    calculateHoursReduction(loggedHackatimeHours, approvedHours) + HALF_HOUR_EPSILON >=
+    DEFLATION_REASON_THRESHOLD_HOURS
+  );
 }
 
 export function validateRequiredReviewJustification(input: {

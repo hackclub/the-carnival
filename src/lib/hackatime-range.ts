@@ -88,7 +88,9 @@ export function parseConsideredHackatimeRange(input: unknown) {
     };
   }
 
-  const startMs = new Date(isIsoDateOnly(startDate) ? `${startDate}T00:00:00` : startDate).getTime();
+  const startMs = new Date(
+    isIsoDateOnly(startDate) ? `${startDate}T00:00:00` : startDate,
+  ).getTime();
   const endMs = new Date(isIsoDateOnly(endDate) ? `${endDate}T23:59:59` : endDate).getTime();
   if (startMs > endMs) {
     return {

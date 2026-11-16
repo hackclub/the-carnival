@@ -60,7 +60,7 @@ export default function AdminOrdersClient({
     () => new Map(initial.orders.map((order) => [order.id, order])),
     [initial.orders],
   );
-  const selectedOrder = selectedOrderId ? ordersById.get(selectedOrderId) ?? null : null;
+  const selectedOrder = selectedOrderId ? (ordersById.get(selectedOrderId) ?? null) : null;
 
   const filteredOrders = useMemo(() => {
     if (activeFilter === "all") return initial.orders;
@@ -69,95 +69,101 @@ export default function AdminOrdersClient({
     return initial.orders.filter((o) => o.status === "cancelled");
   }, [activeFilter, initial.orders]);
 
-  const onFulfill = useCallback(async (orderId: string) => {
-    const order = ordersById.get(orderId);
-    if (!order) {
-      toast.error("Order not found.");
-      return;
-    }
-    const link = (fulfillmentLinks[orderId] ?? "").trim();
-    const override = (deductOverrides[orderId] ?? "").trim();
-    const overrideNote = (deductOverrideNotes[orderId] ?? "").trim();
-    if (!link) {
-      toast.error("Enter a fulfillment proof link first.");
-      return;
-    }
-    if (override !== "" && !overrideNote) {
-      toast.error("Add an override note when manually setting token deduction.");
-      return;
-    }
-    if (override !== "" && !/^\d+$/.test(override)) {
-      toast.error("Override token deduction must be a non-negative integer.");
-      return;
-    }
-    if (override !== "" && Number(override) > order.requesterTokenBalance) {
-      toast.error(`Cannot deduct more than ${order.requesterTokenBalance} available tokens.`);
-      return;
-    }
-    const shouldContinue = window.confirm(`Fulfill order for ${order.requesterName}?`);
-    if (!shouldContinue) return;
-
-    setBusyOrderId(orderId);
-    const toastId = toast.loading("Fulfilling…");
-    try {
-      const res = await fetch(`/api/admin/shop/orders/${encodeURIComponent(orderId)}/fulfill`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fulfillmentLink: link,
-          deductTokensOverride: override === "" ? undefined : override,
-          deductTokensOverrideNote: override === "" ? undefined : overrideNote,
-        }),
-      });
-      const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
-      if (!res.ok) {
-        const msg = typeof data?.error === "string" ? data.error : "Failed to fulfill order.";
-        toast.error(msg, { id: toastId });
-        setBusyOrderId(null);
+  const onFulfill = useCallback(
+    async (orderId: string) => {
+      const order = ordersById.get(orderId);
+      if (!order) {
+        toast.error("Order not found.");
         return;
       }
-      toast.success("Fulfilled.", { id: toastId });
-      window.location.reload();
-    } catch {
-      toast.error("Failed to fulfill order.", { id: toastId });
-      setBusyOrderId(null);
-    }
-  }, [deductOverrideNotes, deductOverrides, fulfillmentLinks, ordersById]);
-
-  const onDeny = useCallback(async (orderId: string) => {
-    const order = ordersById.get(orderId);
-    if (!order) {
-      toast.error("Order not found.");
-      return;
-    }
-    const reason = (denyReasons[orderId] ?? "").trim();
-    if (!reason) {
-      toast.error("Add a reason before denying this order.");
-      return;
-    }
-
-    setBusyOrderId(orderId);
-    const toastId = toast.loading("Denying…");
-    try {
-      const res = await fetch(`/api/admin/shop/orders/${encodeURIComponent(orderId)}/deny`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason }),
-      });
-      const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
-      if (!res.ok) {
-        const msg = typeof data?.error === "string" ? data.error : "Failed to deny order.";
-        toast.error(msg, { id: toastId });
-        setBusyOrderId(null);
+      const link = (fulfillmentLinks[orderId] ?? "").trim();
+      const override = (deductOverrides[orderId] ?? "").trim();
+      const overrideNote = (deductOverrideNotes[orderId] ?? "").trim();
+      if (!link) {
+        toast.error("Enter a fulfillment proof link first.");
         return;
       }
-      toast.success("Order denied.", { id: toastId });
-      window.location.reload();
-    } catch {
-      toast.error("Failed to deny order.", { id: toastId });
-      setBusyOrderId(null);
-    }
-  }, [denyReasons, ordersById]);
+      if (override !== "" && !overrideNote) {
+        toast.error("Add an override note when manually setting token deduction.");
+        return;
+      }
+      if (override !== "" && !/^\d+$/.test(override)) {
+        toast.error("Override token deduction must be a non-negative integer.");
+        return;
+      }
+      if (override !== "" && Number(override) > order.requesterTokenBalance) {
+        toast.error(`Cannot deduct more than ${order.requesterTokenBalance} available tokens.`);
+        return;
+      }
+      const shouldContinue = window.confirm(`Fulfill order for ${order.requesterName}?`);
+      if (!shouldContinue) return;
+
+      setBusyOrderId(orderId);
+      const toastId = toast.loading("Fulfilling…");
+      try {
+        const res = await fetch(`/api/admin/shop/orders/${encodeURIComponent(orderId)}/fulfill`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fulfillmentLink: link,
+            deductTokensOverride: override === "" ? undefined : override,
+            deductTokensOverrideNote: override === "" ? undefined : overrideNote,
+          }),
+        });
+        const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+        if (!res.ok) {
+          const msg = typeof data?.error === "string" ? data.error : "Failed to fulfill order.";
+          toast.error(msg, { id: toastId });
+          setBusyOrderId(null);
+          return;
+        }
+        toast.success("Fulfilled.", { id: toastId });
+        window.location.reload();
+      } catch {
+        toast.error("Failed to fulfill order.", { id: toastId });
+        setBusyOrderId(null);
+      }
+    },
+    [deductOverrideNotes, deductOverrides, fulfillmentLinks, ordersById],
+  );
+
+  const onDeny = useCallback(
+    async (orderId: string) => {
+      const order = ordersById.get(orderId);
+      if (!order) {
+        toast.error("Order not found.");
+        return;
+      }
+      const reason = (denyReasons[orderId] ?? "").trim();
+      if (!reason) {
+        toast.error("Add a reason before denying this order.");
+        return;
+      }
+
+      setBusyOrderId(orderId);
+      const toastId = toast.loading("Denying…");
+      try {
+        const res = await fetch(`/api/admin/shop/orders/${encodeURIComponent(orderId)}/deny`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason }),
+        });
+        const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+        if (!res.ok) {
+          const msg = typeof data?.error === "string" ? data.error : "Failed to deny order.";
+          toast.error(msg, { id: toastId });
+          setBusyOrderId(null);
+          return;
+        }
+        toast.success("Order denied.", { id: toastId });
+        window.location.reload();
+      } catch {
+        toast.error("Failed to deny order.", { id: toastId });
+        setBusyOrderId(null);
+      }
+    },
+    [denyReasons, ordersById],
+  );
 
   return (
     <div className="space-y-8">
@@ -211,13 +217,16 @@ export default function AdminOrdersClient({
               : activeFilter === "denied"
                 ? "No denied orders."
                 : activeFilter === "pending"
-                ? "No pending orders."
-                : "No orders."}
+                  ? "No pending orders."
+                  : "No orders."}
           </div>
         ) : (
           <div className="space-y-3 mt-4">
             {filteredOrders.map((o) => (
-              <div key={o.id} className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4">
+              <div
+                key={o.id}
+                className="rounded-[var(--radius-2xl)] border border-border bg-muted px-4 py-4"
+              >
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div className="min-w-0 flex items-start gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -228,14 +237,28 @@ export default function AdminOrdersClient({
                       referrerPolicy="no-referrer"
                     />
                     <div className="min-w-0">
-                      <div className="text-foreground font-semibold truncate">Requested item: {o.itemName}</div>
+                      <div className="text-foreground font-semibold truncate">
+                        Requested item: {o.itemName}
+                      </div>
                       {o.itemDescription ? (
-                        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{o.itemDescription}</div>
+                        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          {o.itemDescription}
+                        </div>
                       ) : null}
                       <div className="text-xs text-muted-foreground mt-1">
-                          {new Date(o.createdAt).toLocaleString()} • qty {o.quantity} • price {o.tokenCost} tokens • {o.requesterName}
-                          {o.requesterEmail ? <>{" ("}<CopyableText text={o.requesterEmail} className="inline text-xs" />{")"}</> : ""} • available {o.requesterTokenBalance} tokens •{" "}
-                          <ShopOrderStatusBadge status={o.status} />
+                        {new Date(o.createdAt).toLocaleString()} • qty {o.quantity} • price{" "}
+                        {o.tokenCost} tokens • {o.requesterName}
+                        {o.requesterEmail ? (
+                          <>
+                            {" ("}
+                            <CopyableText text={o.requesterEmail} className="inline text-xs" />
+                            {")"}
+                          </>
+                        ) : (
+                          ""
+                        )}{" "}
+                        • available {o.requesterTokenBalance} tokens •{" "}
+                        <ShopOrderStatusBadge status={o.status} />
                         {o.status === "fulfilled" && o.fulfilledAt
                           ? ` • fulfilled ${new Date(o.fulfilledAt).toLocaleString()}`
                           : ""}
@@ -244,7 +267,9 @@ export default function AdminOrdersClient({
                           : ""}
                       </div>
                       {o.status === "cancelled" && o.cancellationReason ? (
-                        <div className="text-xs text-carnival-red mt-1">Reason: {o.cancellationReason}</div>
+                        <div className="text-xs text-carnival-red mt-1">
+                          Reason: {o.cancellationReason}
+                        </div>
                       ) : null}
                       {o.orderNote ? (
                         <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
@@ -293,17 +318,24 @@ export default function AdminOrdersClient({
                 <div className="min-w-0">
                   <div className="text-foreground text-lg font-bold">{selectedOrder.itemName}</div>
                   {selectedOrder.itemDescription ? (
-                    <div className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">{selectedOrder.itemDescription}</div>
+                    <div className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
+                      {selectedOrder.itemDescription}
+                    </div>
                   ) : (
-                    <div className="text-sm text-muted-foreground mt-2">No item description provided.</div>
+                    <div className="text-sm text-muted-foreground mt-2">
+                      No item description provided.
+                    </div>
                   )}
                   <div className="text-sm text-muted-foreground mt-3">
                     Qty {selectedOrder.quantity} × {selectedOrder.unitTokenCost} tokens ={" "}
-                    <span className="text-foreground font-semibold">{selectedOrder.tokenCost}</span> tokens
+                    <span className="text-foreground font-semibold">{selectedOrder.tokenCost}</span>{" "}
+                    tokens
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
                     Available tokens now:{" "}
-                    <span className="text-foreground font-semibold">{selectedOrder.requesterTokenBalance}</span>
+                    <span className="text-foreground font-semibold">
+                      {selectedOrder.requesterTokenBalance}
+                    </span>
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
                     Placed: {new Date(selectedOrder.createdAt).toLocaleString()}

@@ -32,7 +32,11 @@ export async function approveShopItemSuggestion(input: {
       return { ok: false as const, error: "Suggestion has already been reviewed", status: 409 };
     }
     if (!suggestion.imageUrl?.trim()) {
-      return { ok: false as const, error: "Suggestion needs an image before approval", status: 400 };
+      return {
+        ok: false as const,
+        error: "Suggestion needs an image before approval",
+        status: 400,
+      };
     }
 
     await tx.insert(shopItem).values({

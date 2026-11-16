@@ -20,7 +20,8 @@ mock.module("@/db", () => ({
               return {
                 limit: async () => {
                   if (table?.[Symbol.for("drizzle:Name")] === "telescreen_webhook_delivery") {
-                    return state.currentDelivery && state.handledDeliveries.has(state.currentDelivery)
+                    return state.currentDelivery &&
+                      state.handledDeliveries.has(state.currentDelivery)
                       ? [{ deliveryId: state.currentDelivery }]
                       : [];
                   }
@@ -52,7 +53,10 @@ mock.module("@/lib/telescreen/submissions", () => ({
     return row;
   },
   setCarnivalOutcome: async () => undefined,
-  getTelescreenGrantGate: async () => ({ gate: { ok: true, needsDoubtfulAck: false }, submission: null }),
+  getTelescreenGrantGate: async () => ({
+    gate: { ok: true, needsDoubtfulAck: false },
+    submission: null,
+  }),
   createTelescreenSubmission: async () => null,
   sendTelescreenSubmission: async (row) => row,
   submitProjectToTelescreen: async () => null,
@@ -69,9 +73,13 @@ const { POST } = await import("./route.ts");
 
 const SECRET = "whsec_test";
 
-function signedRequest(payload, { secret = SECRET, timestamp = Math.floor(Date.now() / 1000) } = {}) {
+function signedRequest(
+  payload,
+  { secret = SECRET, timestamp = Math.floor(Date.now() / 1000) } = {},
+) {
   const body = JSON.stringify(payload);
-  const signature = "sha256=" + createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
+  const signature =
+    "sha256=" + createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
   state.currentDelivery = payload.deliveryId;
   return new Request("http://localhost/api/webhooks/telescreen", {
     method: "POST",
@@ -101,7 +109,12 @@ function outcomePayload(outcome, deliveryId = "delivery-1") {
 beforeEach(() => {
   process.env.ROBERT_WEBHOOK_SECRET = SECRET;
   state.handledDeliveries = new Set();
-  state.localRow = { id: "row-1", projectId: "project-1", robertProjectId: "robert-1", reviewNote: null };
+  state.localRow = {
+    id: "row-1",
+    projectId: "project-1",
+    robertProjectId: "robert-1",
+    reviewNote: null,
+  };
   state.applied = [];
   state.inserted = [];
 });
@@ -109,13 +122,17 @@ beforeEach(() => {
 describe("POST /api/webhooks/telescreen", () => {
   test("refuses when no webhook secret is configured", async () => {
     delete process.env.ROBERT_WEBHOOK_SECRET;
-    const res = await POST(signedRequest(outcomePayload({ status: "rejected", reason: "x", trustScore: 2 })));
+    const res = await POST(
+      signedRequest(outcomePayload({ status: "rejected", reason: "x", trustScore: 2 })),
+    );
     expect(res.status).toBe(503);
   });
 
   test("rejects a bad signature without touching anything", async () => {
     const res = await POST(
-      signedRequest(outcomePayload({ status: "rejected", reason: "x", trustScore: 2 }), { secret: "wrong" }),
+      signedRequest(outcomePayload({ status: "rejected", reason: "x", trustScore: 2 }), {
+        secret: "wrong",
+      }),
     );
     expect(res.status).toBe(401);
     expect(state.applied).toHaveLength(0);
@@ -123,7 +140,9 @@ describe("POST /api/webhooks/telescreen", () => {
 
   test("a score of 4 or below is applied as a fraud rejection with the note as review", async () => {
     const res = await POST(
-      signedRequest(outcomePayload({ status: "rejected", reason: "Bot heartbeats.", trustScore: 4 })),
+      signedRequest(
+        outcomePayload({ status: "rejected", reason: "Bot heartbeats.", trustScore: 4 }),
+      ),
     );
     expect(res.status).toBe(204);
     expect(state.applied).toHaveLength(1);
@@ -138,26 +157,39 @@ describe("POST /api/webhooks/telescreen", () => {
 
   test("an organizer decision is applied as decided", async () => {
     await POST(signedRequest(outcomePayload({ status: "approved", reason: null, trustScore: 8 })));
-    expect(state.applied[0].robert).toMatchObject({ state: "decided", trustScore: 8, review: null });
+    expect(state.applied[0].robert).toMatchObject({
+      state: "decided",
+      trustScore: 8,
+      review: null,
+    });
   });
 
   test("a repeated delivery is acknowledged without reprocessing", async () => {
     state.handledDeliveries.add("delivery-1");
-    const res = await POST(signedRequest(outcomePayload({ status: "rejected", reason: "x", trustScore: 1 })));
+    const res = await POST(
+      signedRequest(outcomePayload({ status: "rejected", reason: "x", trustScore: 1 })),
+    );
     expect(res.status).toBe(204);
     expect(state.applied).toHaveLength(0);
   });
 
   test("an outcome for a project Carnival doesn't know is acknowledged", async () => {
     state.localRow = null;
-    const res = await POST(signedRequest(outcomePayload({ status: "rejected", reason: "x", trustScore: 1 })));
+    const res = await POST(
+      signedRequest(outcomePayload({ status: "rejected", reason: "x", trustScore: 1 })),
+    );
     expect(res.status).toBe(204);
     expect(state.applied).toHaveLength(0);
   });
 
   test("a ping is acknowledged", async () => {
     const res = await POST(
-      signedRequest({ event: "ping", deliveryId: "ping-1", eventId: "carnival", sentAt: new Date().toISOString() }),
+      signedRequest({
+        event: "ping",
+        deliveryId: "ping-1",
+        eventId: "carnival",
+        sentAt: new Date().toISOString(),
+      }),
     );
     expect(res.status).toBe(204);
     expect(state.inserted[0]).toMatchObject({ deliveryId: "ping-1", event: "ping" });

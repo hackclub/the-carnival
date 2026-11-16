@@ -88,9 +88,15 @@ function baseCandidate(row: Row, kind: NudgeKind, variant: NudgeVariant): NudgeC
 }
 
 export async function loadNudgeCandidates(db: DbLike, now: Date): Promise<NudgeCandidate[]> {
-  const stalledBefore = new Date(now.getTime() - NUDGE_SELECTION_WINDOWS.stalledDevlogDays * 86_400_000);
-  const projectCreatedBefore = new Date(now.getTime() - NUDGE_SELECTION_WINDOWS.projectAgeDays * 86_400_000);
-  const accountCreatedBefore = new Date(now.getTime() - NUDGE_SELECTION_WINDOWS.accountAgeDays * 86_400_000);
+  const stalledBefore = new Date(
+    now.getTime() - NUDGE_SELECTION_WINDOWS.stalledDevlogDays * 86_400_000,
+  );
+  const projectCreatedBefore = new Date(
+    now.getTime() - NUDGE_SELECTION_WINDOWS.projectAgeDays * 86_400_000,
+  );
+  const accountCreatedBefore = new Date(
+    now.getTime() - NUDGE_SELECTION_WINDOWS.accountAgeDays * 86_400_000,
+  );
 
   const [hoursUnsubmitted, projectNoHours, connectedNoProject, neverConnected] = await Promise.all([
     // Kind 1: devlog hours on a stalled, never-submitted WIP project. Repeat
@@ -170,7 +176,11 @@ export async function loadNudgeCandidates(db: DbLike, now: Date): Promise<NudgeC
 
   for (const row of rows(hoursUnsubmitted)) {
     candidates.push(
-      baseCandidate(row, "hours_unsubmitted", toBool(row.has_shipped) ? "repeat_shipper" : "default"),
+      baseCandidate(
+        row,
+        "hours_unsubmitted",
+        toBool(row.has_shipped) ? "repeat_shipper" : "default",
+      ),
     );
   }
   for (const row of rows(projectNoHours)) {
@@ -186,7 +196,11 @@ export async function loadNudgeCandidates(db: DbLike, now: Date): Promise<NudgeC
   }
   for (const row of rows(neverConnected)) {
     candidates.push(
-      baseCandidate(row, "never_connected", row.hackatime_connected_at ? "needs_reconnect" : "default"),
+      baseCandidate(
+        row,
+        "never_connected",
+        row.hackatime_connected_at ? "needs_reconnect" : "default",
+      ),
     );
   }
   return candidates;

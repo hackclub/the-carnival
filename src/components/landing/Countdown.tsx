@@ -88,9 +88,7 @@ export default function Countdown({ deadlineIso }: { deadlineIso: string }) {
                   <div className="text-4xl font-black tabular-nums text-[#5b1f0a] sm:text-6xl">
                     {String(value).padStart(2, "0")}
                   </div>
-                  <div className="mt-1 text-xs font-semibold text-[#8f4a18]">
-                    {label}
-                  </div>
+                  <div className="mt-1 text-xs font-semibold text-[#8f4a18]">{label}</div>
                 </div>
               </div>
             ))}
@@ -98,8 +96,8 @@ export default function Countdown({ deadlineIso }: { deadlineIso: string }) {
         </>
       ) : (
         <p className="mx-auto max-w-xl text-lg font-semibold leading-8 text-[#6d3510] [text-wrap:balance] sm:text-xl">
-          The gates closed on {deadlineLabel}. If you shipped something, head
-          to the dashboard and claim your tickets.
+          The gates closed on {deadlineLabel}. If you shipped something, head to the dashboard and
+          claim your tickets.
         </p>
       )}
     </div>

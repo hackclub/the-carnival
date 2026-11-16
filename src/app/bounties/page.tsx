@@ -11,8 +11,14 @@ function toHelpfulLinks(value: unknown): BountyListItem["helpfulLinks"] {
   return value
     .map((item) => {
       if (!item || typeof item !== "object") return null;
-      const label = typeof (item as { label?: unknown }).label === "string" ? (item as { label: string }).label.trim() : "";
-      const url = typeof (item as { url?: unknown }).url === "string" ? (item as { url: string }).url.trim() : "";
+      const label =
+        typeof (item as { label?: unknown }).label === "string"
+          ? (item as { label: string }).label.trim()
+          : "";
+      const url =
+        typeof (item as { url?: unknown }).url === "string"
+          ? (item as { url: string }).url.trim()
+          : "";
       if (!label || !url) return null;
       return { label, url };
     })
@@ -49,7 +55,11 @@ export default async function BountiesPage() {
     })
     .from(bountyProject)
     .leftJoin(user, eq(bountyProject.createdById, user.id))
-    .where(isAdmin ? undefined : or(eq(bountyProject.status, "approved"), eq(bountyProject.createdById, session.user.id)))
+    .where(
+      isAdmin
+        ? undefined
+        : or(eq(bountyProject.status, "approved"), eq(bountyProject.createdById, session.user.id)),
+    )
     .orderBy(desc(bountyProject.createdAt));
 
   const claims = await db

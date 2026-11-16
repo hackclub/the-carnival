@@ -93,7 +93,8 @@ export function buildNudgeTemplates(appBaseUrl: string): Record<SegmentKey, Nudg
     zero_hours: {
       key: "zero_hours",
       label: "Project but no hours",
-      description: "Created a project but Hackatime has recorded zero time — likely a plugin setup issue.",
+      description:
+        "Created a project but Hackatime has recorded zero time — likely a plugin setup issue.",
       template: [
         "Hey {firstName}! 🎪 You created a project on Carnival, but Hackatime hasn't recorded any coding time on it yet.",
         "That usually means the editor plugin isn't set up (or the project name doesn't match).",
@@ -104,7 +105,8 @@ export function buildNudgeTemplates(appBaseUrl: string): Record<SegmentKey, Nudg
     stalled_with_hours: {
       key: "stalled_with_hours",
       label: "Hours logged, not submitted",
-      description: "Has real hours on a work-in-progress project but hasn't submitted it for review.",
+      description:
+        "Has real hours on a work-in-progress project but hasn't submitted it for review.",
       template: [
         "Hey {firstName}! 🎪 You've got real hours logged on your Carnival project — you're closer to a grant than you think.",
         "Post a devlog if you haven't, then hit submit so a reviewer can take a look.",
@@ -115,7 +117,8 @@ export function buildNudgeTemplates(appBaseUrl: string): Record<SegmentKey, Nudg
     verification_blocked: {
       key: "verification_blocked",
       label: "Verification incomplete",
-      description: "Building projects but identity verification is not finished — grants can't be paid out.",
+      description:
+        "Building projects but identity verification is not finished — grants can't be paid out.",
       template: [
         "Hey {firstName}! 🎪 Quick heads up: your Hack Club identity verification isn't finished, which means we can't pay out your Carnival grant when your project ships.",
         "It only takes a couple of minutes: https://identity.hackclub.com",

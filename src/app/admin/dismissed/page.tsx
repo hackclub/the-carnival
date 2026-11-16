@@ -83,9 +83,7 @@ export default async function AdminDismissedProjectsPage() {
 
                 <div className="mt-auto pt-4 text-xs text-muted-foreground">
                   Dismissed:{" "}
-                  {p.resubmissionBlockedAt
-                    ? p.resubmissionBlockedAt.toLocaleString()
-                    : "—"}
+                  {p.resubmissionBlockedAt ? p.resubmissionBlockedAt.toLocaleString() : "—"}
                 </div>
               </div>
             </Link>

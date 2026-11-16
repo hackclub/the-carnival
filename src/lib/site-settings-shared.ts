@@ -11,7 +11,7 @@ export function isSiteSettingKey(value: unknown): value is SiteSettingKey {
 export const SITE_SETTING_LABELS: Record<SiteSettingKey, { label: string; description: string }> = {
   carnival_deadline: {
     label: "Carnival deadline",
-    description: "Shown in the landing page countdown (\"the gates close on …\").",
+    description: 'Shown in the landing page countdown ("the gates close on …").',
   },
   snacks_deadline: {
     label: "Snacks deadline",
@@ -45,9 +45,11 @@ export function parseIsoDeadline(value: unknown): Date | null {
 export function formatDeadlineMonthDay(iso: string): string {
   const date = parseIsoDeadline(iso);
   if (!date) return "";
-  return new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", timeZone: "UTC" }).format(
-    date,
-  );
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(date);
 }
 
 /** "July 31, 2026" (UTC) */

@@ -2,12 +2,7 @@ import { NextResponse } from "next/server";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { shopItemSuggestion } from "@/db/schema";
-import {
-  generateId,
-  getAuthUser,
-  parseJsonBody,
-  toPositiveInt,
-} from "@/lib/api-utils";
+import { generateId, getAuthUser, parseJsonBody, toPositiveInt } from "@/lib/api-utils";
 import { getFrozenAccountMessage, getFrozenAccountState } from "@/lib/frozen-account";
 import { validatePlatformImageUrl } from "@/lib/review/uploads";
 import { sanitizeHttpUrl, sanitizeText, TEXT_LIMITS } from "@/lib/sanitize";
@@ -113,7 +108,10 @@ export async function POST(req: Request) {
     );
   }
   if (!Number.isFinite(tokenCost) || tokenCost < 0) {
-    return NextResponse.json({ error: "Token cost must be a non-negative integer." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Token cost must be a non-negative integer." },
+      { status: 400 },
+    );
   }
 
   const now = new Date();

@@ -15,13 +15,9 @@ export type WalletLedgerRow = {
 };
 
 type DbLike =
-  | PostgresJsDatabase<typeof schema>
-  | PostgresJsTransaction<typeof schema, TablesRelationalConfig>;
+  PostgresJsDatabase<typeof schema> | PostgresJsTransaction<typeof schema, TablesRelationalConfig>;
 
-export async function getTokenBalance(
-  db: DbLike,
-  userId: string,
-): Promise<number> {
+export async function getTokenBalance(db: DbLike, userId: string): Promise<number> {
   const rows = await db
     .select({
       balance: sql<number>`coalesce(sum(case when ${tokenLedger.kind} = 'issue' then ${tokenLedger.tokens} else -${tokenLedger.tokens} end), 0)`,
@@ -63,10 +59,7 @@ export async function getLedgerForUser(
   }));
 }
 
-export async function hasIssuedTokensForProjectGrant(
-  db: DbLike,
-  projectId: string,
-) {
+export async function hasIssuedTokensForProjectGrant(db: DbLike, projectId: string) {
   const rows = await db
     .select({ id: tokenLedger.id })
     .from(tokenLedger)
@@ -80,4 +73,3 @@ export async function hasIssuedTokensForProjectGrant(
     .limit(1);
   return !!rows[0];
 }
-

@@ -2,11 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { resource, ResourceType } from "@/db/schema";
-import {
-  getAuthUser,
-  parseJsonBody,
-  updatedTimestamp,
-} from "@/lib/api-utils";
+import { getAuthUser, parseJsonBody, updatedTimestamp } from "@/lib/api-utils";
 import { sanitizeHttpUrl, sanitizeText, TEXT_LIMITS } from "@/lib/sanitize";
 
 type UpdateResourceBody = {
@@ -22,10 +18,7 @@ function isValidType(value: unknown): value is ResourceType {
   return typeof value === "string" && VALID_TYPES.includes(value as ResourceType);
 }
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -49,10 +42,7 @@ export async function GET(
   return NextResponse.json({ resource: resourceRow });
 }
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -62,10 +52,7 @@ export async function PATCH(
   const body = await parseJsonBody<UpdateResourceBody>(req);
   if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
 
-  const [existing] = await db
-    .select({ id: resource.id })
-    .from(resource)
-    .where(eq(resource.id, id));
+  const [existing] = await db.select({ id: resource.id }).from(resource).where(eq(resource.id, id));
 
   if (!existing) return NextResponse.json({ error: "Resource not found" }, { status: 404 });
 
@@ -99,7 +86,10 @@ export async function PATCH(
 
   if (body.type !== undefined) {
     if (!isValidType(body.type)) {
-      return NextResponse.json({ error: "Type must be one of: video, documentation, article" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Type must be one of: video, documentation, article" },
+        { status: 400 },
+      );
     }
     updates.type = body.type;
   }
@@ -109,20 +99,14 @@ export async function PATCH(
   return NextResponse.json({ success: true });
 }
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
 
-  const [existing] = await db
-    .select({ id: resource.id })
-    .from(resource)
-    .where(eq(resource.id, id));
+  const [existing] = await db.select({ id: resource.id }).from(resource).where(eq(resource.id, id));
 
   if (!existing) return NextResponse.json({ error: "Resource not found" }, { status: 404 });
 

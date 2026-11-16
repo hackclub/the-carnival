@@ -55,7 +55,11 @@ describe("POST /api/editors", () => {
   });
 
   test("creates an editor without an icon", async () => {
-    const { res, json } = await postEditor({ name: "VS Code", description: "Editor", iconUrl: null });
+    const { res, json } = await postEditor({
+      name: "VS Code",
+      description: "Editor",
+      iconUrl: null,
+    });
 
     expect(res.status).toBe(201);
     expect(typeof json.id).toBe("string");
@@ -73,7 +77,10 @@ describe("POST /api/editors", () => {
   });
 
   test("rejects external image links", async () => {
-    const { res, json } = await postEditor({ name: "VS Code", iconUrl: "https://evil.example/pixel.png" });
+    const { res, json } = await postEditor({
+      name: "VS Code",
+      iconUrl: "https://evil.example/pixel.png",
+    });
 
     expect(res.status).toBe(400);
     expect(json.error).toContain("uploaded here directly");
@@ -81,7 +88,10 @@ describe("POST /api/editors", () => {
   });
 
   test("rejects disallowed image types even on the platform bucket", async () => {
-    const { res, json } = await postEditor({ name: "VS Code", iconUrl: `${R2_BASE}/editor_icon/abc.svg` });
+    const { res, json } = await postEditor({
+      name: "VS Code",
+      iconUrl: `${R2_BASE}/editor_icon/abc.svg`,
+    });
 
     expect(res.status).toBe(400);
     expect(json.error).toContain("PNG or JPG");

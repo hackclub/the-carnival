@@ -3,9 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
 import ManageProjectClient from "@/components/ManageProjectClient";
-import ProjectDevlogsSummary, {
-  type DevlogSummary,
-} from "@/components/ProjectDevlogsSummary";
+import ProjectDevlogsSummary, { type DevlogSummary } from "@/components/ProjectDevlogsSummary";
 import { db } from "@/db";
 import { devlog, peerReview, project, user, type ReviewDecision } from "@/db/schema";
 import { hydrateReviewJustification } from "@/lib/review-justification";

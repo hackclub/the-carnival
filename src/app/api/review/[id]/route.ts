@@ -52,10 +52,7 @@ import { describeCreatorHackatimeAuthError, isHackatimeAuthError } from "@/lib/h
 import { notifyReviewDM, notifyStaffReviewThread } from "@/lib/slack";
 import { runAfterResponse } from "@/lib/notifications/after-response";
 import { setCarnivalOutcome } from "@/lib/telescreen/submissions";
-import {
-  AI_SLOP_REJECTION_MESSAGE,
-  UNCLEAR_README_REJECTION_MESSAGE,
-} from "@/lib/review/config";
+import { AI_SLOP_REJECTION_MESSAGE, UNCLEAR_README_REJECTION_MESSAGE } from "@/lib/review/config";
 import { cleanUntrustedString } from "@/lib/sanitize";
 
 type ReviewBody = {
@@ -108,7 +105,9 @@ const VALID_DEFLATION_REASON_KEYS = new Set<string>(
 );
 
 /** undefined => invalid payload; null => none provided. */
-function parseReviewedWindow(value: unknown): { startedAt: Date; endedAt: Date } | null | undefined {
+function parseReviewedWindow(
+  value: unknown,
+): { startedAt: Date; endedAt: Date } | null | undefined {
   if (value === undefined || value === null) return null;
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const { startedAt, endedAt } = value as Record<string, unknown>;
@@ -132,10 +131,16 @@ function parseAssessmentDeflationReasons(value: unknown): string[] | undefined {
   return Array.from(unique);
 }
 
-function parseHackatimeAdjustments(value: unknown): DevlogHackatimeProjectAdjustment[] | null | undefined {
+function parseHackatimeAdjustments(
+  value: unknown,
+): DevlogHackatimeProjectAdjustment[] | null | undefined {
   // undefined => invalid payload; null => not provided
   if (value === undefined || value === null) return null;
-  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_HACKATIME_ADJUSTMENT_ENTRIES) {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.length > MAX_HACKATIME_ADJUSTMENT_ENTRIES
+  ) {
     return undefined;
   }
   const seen = new Set<string>();
@@ -346,14 +351,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: "Comment is required" }, { status: 400 });
   }
 
-  const specificTechnicalFeatures = toCleanString(body.specificTechnicalFeatures).slice(0, 4000) || null;
+  const specificTechnicalFeatures =
+    toCleanString(body.specificTechnicalFeatures).slice(0, 4000) || null;
 
   const parsedAssessments = parseDevlogAssessments(body.devlogAssessments);
   if (body.devlogAssessments !== undefined && parsedAssessments === null) {
-    return NextResponse.json(
-      { error: "Invalid devlogAssessments payload." },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Invalid devlogAssessments payload." }, { status: 400 });
   }
 
   const approvedHoursRaw = body.approvedHours;
@@ -400,7 +403,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (dismiss) {
     if (decision !== "rejected") {
       return NextResponse.json(
-        { error: "Dismiss is only available when rejecting a project.", code: "dismiss_requires_rejection" },
+        {
+          error: "Dismiss is only available when rejecting a project.",
+          code: "dismiss_requires_rejection",
+        },
         { status: 400 },
       );
     }
@@ -625,7 +631,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         throw new ReviewSubmitError("stale", "Project is no longer in review", 409);
       }
 
-      let hackatimeSnapshotSeconds = normalizeSnapshotSeconds(current.hackatimeTotalSeconds ?? null);
+      let hackatimeSnapshotSeconds = normalizeSnapshotSeconds(
+        current.hackatimeTotalSeconds ?? null,
+      );
       const projectRangeUpdate: Partial<{
         hackatimeStartedAt: Date | null;
         hackatimeStoppedAt: Date | null;
@@ -852,7 +860,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           if (seenAssessmentIds.size !== projectDevlogs.length) {
             const missing = projectDevlogs
               .filter((d) => !seenAssessmentIds.has(d.id))
-              .map((d) => `"${d.title}" (${formatUtcInstant(d.startedAt)} → ${formatUtcInstant(d.endedAt)})`);
+              .map(
+                (d) =>
+                  `"${d.title}" (${formatUtcInstant(d.startedAt)} → ${formatUtcInstant(d.endedAt)})`,
+              );
             throw new ReviewSubmitError(
               "validation",
               `Every devlog must be assessed (accepted, rejected, or adjusted) before approval. Unassessed: ${missing.join(", ")}.`,
@@ -873,7 +884,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
               durationSeconds: durationLookup.get(a.devlogId) ?? 0,
               hackatimeBreakdownTotalSeconds: windowInfo
                 ? windowInfo.windowSeconds
-                : breakdownByDevlogId.get(a.devlogId)?.totalSeconds ?? null,
+                : (breakdownByDevlogId.get(a.devlogId)?.totalSeconds ?? null),
             },
             { decision: a.decision, adjustedSeconds: a.adjustedSeconds ?? null },
           );
@@ -893,7 +904,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             approvedHours = derivedHours;
           }
         }
-
       }
 
       // Assessed totals may exceed the devlog-duration sum when adjusted devlogs
@@ -924,24 +934,26 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       const normalizedReviewJustification =
         decision === "comment"
           ? null
-          : decision === "rejected" && (body.reviewJustification === null || body.reviewJustification === undefined)
+          : decision === "rejected" &&
+              (body.reviewJustification === null || body.reviewJustification === undefined)
             ? null
             : (() => {
-              const validated = validateRequiredReviewJustification({
-                value: body.reviewJustification,
-                decision,
-                expectedHackatimeProjectName: current.hackatimeProjectName,
-                approvedHours: decision === "approved" ? (approvedHours as number) : null,
-                loggedHackatimeHours: approvedHoursCapSeconds / 3600,
-              });
-              if (!validated.ok) {
-                throw new ReviewSubmitError("validation", validated.error, 400);
-              }
-              return validated.value;
-            })();
+                const validated = validateRequiredReviewJustification({
+                  value: body.reviewJustification,
+                  decision,
+                  expectedHackatimeProjectName: current.hackatimeProjectName,
+                  approvedHours: decision === "approved" ? (approvedHours as number) : null,
+                  loggedHackatimeHours: approvedHoursCapSeconds / 3600,
+                });
+                if (!validated.ok) {
+                  throw new ReviewSubmitError("validation", validated.error, 400);
+                }
+                return validated.value;
+              })();
 
-      const structuredReviewColumns =
-        mapReviewJustificationToStructuredColumns(normalizedReviewJustification);
+      const structuredReviewColumns = mapReviewJustificationToStructuredColumns(
+        normalizedReviewJustification,
+      );
 
       const reviewInsertValues: typeof peerReview.$inferInsert = {
         id: reviewId,
@@ -961,17 +973,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         rejectionCategory,
       };
 
-      const inserted = (await tx
-        .insert(peerReview)
-        .values(reviewInsertValues)
-        .returning({
-          id: peerReview.id,
-          decision: peerReview.decision,
-          reviewComment: peerReview.reviewComment,
-          approvedHours: peerReview.approvedHours,
-          hackatimeSnapshotSeconds: peerReview.hackatimeSnapshotSeconds,
-          createdAt: peerReview.createdAt,
-        })) as Array<{
+      const inserted = (await tx.insert(peerReview).values(reviewInsertValues).returning({
+        id: peerReview.id,
+        decision: peerReview.decision,
+        reviewComment: peerReview.reviewComment,
+        approvedHours: peerReview.approvedHours,
+        hackatimeSnapshotSeconds: peerReview.hackatimeSnapshotSeconds,
+        createdAt: peerReview.createdAt,
+      })) as Array<{
         id: string;
         decision: ReviewDecision;
         reviewComment: string;
@@ -995,7 +1004,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
               reviewId,
               devlogId: a.devlogId,
               decision: a.decision,
-              adjustedSeconds: a.decision === "adjusted" ? a.adjustedSeconds ?? null : null,
+              adjustedSeconds: a.decision === "adjusted" ? (a.adjustedSeconds ?? null) : null,
               hackatimeProjectAdjustments:
                 a.decision === "adjusted" && a.hackatimeAdjustments ? a.hackatimeAdjustments : [],
               deflationReasons: a.deflationReasons,
@@ -1064,7 +1073,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       }
 
       if (statusUpdate) {
-        await tx.delete(projectReviewerAssignment).where(eq(projectReviewerAssignment.projectId, projectId));
+        await tx
+          .delete(projectReviewerAssignment)
+          .where(eq(projectReviewerAssignment.projectId, projectId));
       }
 
       await appendReviewAudit(
@@ -1103,7 +1114,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     });
 
   if ("handledError" in txResult) {
-    return NextResponse.json({ error: txResult.handledError.message }, { status: txResult.handledError.status });
+    return NextResponse.json(
+      { error: txResult.handledError.message },
+      { status: txResult.handledError.status },
+    );
   }
 
   // Best-effort: notify the project creator about the review outcome.
@@ -1126,7 +1140,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       const creatorEmail = creatorRows[0]?.email;
       const creatorSlackId = creatorRows[0]?.slackId;
       if (creatorEmail) {
-        const reviewerName = (session?.user as { name?: string | null } | undefined)?.name ?? "Reviewer";
+        const reviewerName =
+          (session?.user as { name?: string | null } | undefined)?.name ?? "Reviewer";
 
         const decisionPrefix =
           decision === "comment" ? "" : dismiss ? "Rejected and dismissed: " : "Rejected: ";
@@ -1236,7 +1251,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       decision: txResult.review.decision ?? decision,
       reviewComment: txResult.review.reviewComment ?? comment,
       approvedHours:
-        txResult.review.approvedHours ?? (decision === "approved" ? (approvedHours as number) : null),
+        txResult.review.approvedHours ??
+        (decision === "approved" ? (approvedHours as number) : null),
       hackatimeSnapshotSeconds: txResult.review.hackatimeSnapshotSeconds,
       reviewJustification: txResult.reviewJustification ?? null,
       createdAt: (txResult.review.createdAt ?? now).toISOString(),

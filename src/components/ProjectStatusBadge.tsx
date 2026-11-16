@@ -16,11 +16,5 @@ const STATUS_VARIANT: Record<ProjectStatus, BadgeVariant> = {
 };
 
 export default function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
-  return (
-    <Badge variant={STATUS_VARIANT[status]}>
-      {LABELS[status]}
-    </Badge>
-  );
+  return <Badge variant={STATUS_VARIANT[status]}>{LABELS[status]}</Badge>;
 }
-
-

@@ -127,10 +127,15 @@ export function isNudgedWithin(lastNudgedAtIso: string | null, cutoff: Date | nu
  * message fill batches of batchSize in list order; skipped people are kept
  * in batch 1 since they're never delivered.
  */
-export function assignBatches(statuses: readonly ("pending" | "skipped")[], batchSize: number): number[] {
+export function assignBatches(
+  statuses: readonly ("pending" | "skipped")[],
+  batchSize: number,
+): number[] {
   const size = Math.max(1, Math.floor(batchSize));
   let pendingIndex = 0;
-  return statuses.map((status) => (status === "pending" ? Math.floor(pendingIndex++ / size) + 1 : 1));
+  return statuses.map((status) =>
+    status === "pending" ? Math.floor(pendingIndex++ / size) + 1 : 1,
+  );
 }
 
 export function batchCount(pending: number, batchSize: number): number {
@@ -157,8 +162,10 @@ export function decideRecipient(input: RecipientDecisionInput): RecipientDecisio
   if (input.optedOut) return { status: "skipped", reason: "opted_out" };
   if (input.isFrozen) return { status: "skipped", reason: "frozen" };
   if (input.recentlyNudged) return { status: "skipped", reason: "recently_nudged" };
-  if (input.channel === "slack" && !input.hasSlackId) return { status: "skipped", reason: "no_slack_id" };
-  if (input.channel === "email" && !input.hasEmail) return { status: "skipped", reason: "no_email" };
+  if (input.channel === "slack" && !input.hasSlackId)
+    return { status: "skipped", reason: "no_slack_id" };
+  if (input.channel === "email" && !input.hasEmail)
+    return { status: "skipped", reason: "no_email" };
   return { status: "pending" };
 }
 
@@ -176,7 +183,10 @@ export const OUTREACH_REASON_LABELS: Record<string, string> = {
 };
 
 /** Per-person message text ({firstName} replaced). */
-export function renderOutreachMessage(template: string, recipient: { name: string | null }): string {
+export function renderOutreachMessage(
+  template: string,
+  recipient: { name: string | null },
+): string {
   return renderNudgeMessage(template, { name: recipient.name });
 }
 

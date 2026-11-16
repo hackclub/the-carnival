@@ -86,17 +86,20 @@ export default async function AdminShopPage() {
     : [];
 
   const orderUserIds = Array.from(new Set(orders.map((o) => o.userId)));
-  const tokenBalances = isAdmin && orderUserIds.length > 0
-    ? await db
-        .select({
-          userId: tokenLedger.issuedToUserId,
-          balance: sql<number>`coalesce(sum(case when ${tokenLedger.kind} = 'issue' then ${tokenLedger.tokens} else -${tokenLedger.tokens} end), 0)`,
-        })
-        .from(tokenLedger)
-        .where(inArray(tokenLedger.issuedToUserId, orderUserIds))
-        .groupBy(tokenLedger.issuedToUserId)
-    : [];
-  const balanceByUserId = new Map(tokenBalances.map((row) => [row.userId, Number(row.balance ?? 0)]));
+  const tokenBalances =
+    isAdmin && orderUserIds.length > 0
+      ? await db
+          .select({
+            userId: tokenLedger.issuedToUserId,
+            balance: sql<number>`coalesce(sum(case when ${tokenLedger.kind} = 'issue' then ${tokenLedger.tokens} else -${tokenLedger.tokens} end), 0)`,
+          })
+          .from(tokenLedger)
+          .where(inArray(tokenLedger.issuedToUserId, orderUserIds))
+          .groupBy(tokenLedger.issuedToUserId)
+      : [];
+  const balanceByUserId = new Map(
+    tokenBalances.map((row) => [row.userId, Number(row.balance ?? 0)]),
+  );
 
   const initialItems: AdminShopItemDTO[] = items.map((i) => ({
     id: i.id,

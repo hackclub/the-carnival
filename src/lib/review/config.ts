@@ -101,10 +101,7 @@ export const ENABLED_PROJECT_TYPES: readonly ProjectTypeId[] = ["extension-plugi
 export const DEFAULT_PROJECT_TYPE: ProjectTypeId = "extension-plugin";
 
 export function isEnabledProjectType(value: unknown): value is ProjectTypeId {
-  return (
-    typeof value === "string" &&
-    (ENABLED_PROJECT_TYPES as readonly string[]).includes(value)
-  );
+  return typeof value === "string" && (ENABLED_PROJECT_TYPES as readonly string[]).includes(value);
 }
 
 export function projectTypeLabel(id: string | null | undefined): string {
@@ -172,9 +169,7 @@ export const PLAYABLE_URL_BLOCKED_HOSTS: readonly string[] = [
  * Keys are `project.editor` values; platforms not listed fall back to the
  * forge-release rule only.
  */
-export const EXTENSION_STORE_HOSTS_BY_PLATFORM: Readonly<
-  Record<string, readonly string[]>
-> = {
+export const EXTENSION_STORE_HOSTS_BY_PLATFORM: Readonly<Record<string, readonly string[]>> = {
   chrome: ["chromewebstore.google.com", "chrome.google.com"],
   firefox: ["addons.mozilla.org"],
   vscode: ["marketplace.visualstudio.com", "open-vsx.org"],
@@ -197,10 +192,9 @@ export const EXTENSION_STORE_HOSTS_BY_PLATFORM: Readonly<
 export const BROWSER_EXTENSION_PLATFORMS: readonly string[] = ["chrome", "firefox"];
 
 /** Store hosts a browser extension may link (union across browser platforms). */
-export const BROWSER_EXTENSION_STORE_HOSTS: readonly string[] =
-  BROWSER_EXTENSION_PLATFORMS.flatMap(
-    (platform) => EXTENSION_STORE_HOSTS_BY_PLATFORM[platform] ?? [],
-  );
+export const BROWSER_EXTENSION_STORE_HOSTS: readonly string[] = BROWSER_EXTENSION_PLATFORMS.flatMap(
+  (platform) => EXTENSION_STORE_HOSTS_BY_PLATFORM[platform] ?? [],
+);
 
 /** Web hosts allowed for web-playable games (handbook) besides itch.io. */
 export const GAME_WEB_ALLOWED_HOSTS: readonly string[] = [

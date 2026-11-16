@@ -22,8 +22,7 @@ export function Card({
         variant === "flat"
           ? "platform-nested-surface overflow-hidden text-card-foreground"
           : "platform-surface-card overflow-hidden text-card-foreground",
-        interactive &&
-          "cursor-pointer transition-colors hover:bg-[var(--platform-surface-soft)]",
+        interactive && "cursor-pointer transition-colors hover:bg-[var(--platform-surface-soft)]",
         muted && "opacity-50",
         className,
       )}
@@ -49,13 +48,31 @@ export function CardFooter({ className, ...props }: CardSectionProps) {
 }
 
 export function CardTitle({ className, ...props }: CardSectionProps) {
-  return <div data-slot="card-title" className={cn("text-base font-bold leading-snug text-foreground", className)} {...props} />;
+  return (
+    <div
+      data-slot="card-title"
+      className={cn("text-base font-bold leading-snug text-foreground", className)}
+      {...props}
+    />
+  );
 }
 
 export function CardDescription({ className, ...props }: CardSectionProps) {
-  return <div data-slot="card-description" className={cn("text-sm font-semibold leading-6 text-muted-foreground", className)} {...props} />;
+  return (
+    <div
+      data-slot="card-description"
+      className={cn("text-sm font-semibold leading-6 text-muted-foreground", className)}
+      {...props}
+    />
+  );
 }
 
 export function CardAction({ className, ...props }: CardSectionProps) {
-  return <div data-slot="card-action" className={cn("self-start justify-self-end", className)} {...props} />;
+  return (
+    <div
+      data-slot="card-action"
+      className={cn("self-start justify-self-end", className)}
+      {...props}
+    />
+  );
 }

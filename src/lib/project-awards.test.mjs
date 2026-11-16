@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-const {
-  buildApprovedProjectAwardSummary,
-  formatApprovedHoursLabel,
-} = await import("./project-awards.ts");
+const { buildApprovedProjectAwardSummary, formatApprovedHoursLabel } =
+  await import("./project-awards.ts");
 
 describe("project award summaries", () => {
   test("formats approved hours without unnecessary trailing decimals", () => {

@@ -2,7 +2,11 @@ import { redirect } from "next/navigation";
 import { unstable_noStore as noStore } from "next/cache";
 import { desc, eq } from "drizzle-orm";
 import AppShell from "@/components/AppShell";
-import ShopClient, { type ShopItemDTO, type ShopLedgerDTO, type ShopOrderDTO } from "@/components/ShopClient";
+import ShopClient, {
+  type ShopItemDTO,
+  type ShopLedgerDTO,
+  type ShopOrderDTO,
+} from "@/components/ShopClient";
 import { db } from "@/db";
 import { shopItem, shopItemSuggestion, shopOrder } from "@/db/schema";
 import { getServerSession } from "@/lib/server-session";

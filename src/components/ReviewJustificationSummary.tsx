@@ -18,11 +18,8 @@ export default function ReviewJustificationSummary({
 }) {
   const reviewRangeLabel = `${formatDateOnlyForDisplay(
     justification.reviewDateRange.startDate,
-  )} - ${formatDateOnlyForDisplay(
-    justification.reviewDateRange.endDate,
-  )}`;
-  const reduced =
-    justification.decision === "approved" && justification.deflation.reduced;
+  )} - ${formatDateOnlyForDisplay(justification.reviewDateRange.endDate)}`;
+  const reduced = justification.decision === "approved" && justification.deflation.reduced;
   const reasons = reduced
     ? justification.deflation.reasons.map((reason) => DEFLATION_REASON_LABELS.get(reason) ?? reason)
     : [];
@@ -52,10 +49,7 @@ export default function ReviewJustificationSummary({
         </div>
         <div className="mt-1 flex flex-wrap gap-1.5">
           {REVIEW_EVIDENCE_ITEMS.map((item) => (
-            <Badge
-              key={item.key}
-              variant={justification.evidence[item.key] ? "success" : "error"}
-            >
+            <Badge key={item.key} variant={justification.evidence[item.key] ? "success" : "error"}>
               {item.label}
             </Badge>
           ))}
@@ -68,7 +62,10 @@ export default function ReviewJustificationSummary({
             Hours deflation rationale
           </div>
           <div className="text-sm text-foreground">
-            Reduced by <span className="font-semibold">{justification.deflation.hoursReducedBy.toFixed(2)}h</span>
+            Reduced by{" "}
+            <span className="font-semibold">
+              {justification.deflation.hoursReducedBy.toFixed(2)}h
+            </span>
           </div>
           {reasons.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">

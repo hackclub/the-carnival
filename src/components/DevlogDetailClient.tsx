@@ -74,12 +74,12 @@ export default function DevlogDetailClient({
         `/api/projects/${encodeURIComponent(projectId)}/devlogs/${encodeURIComponent(devlog.id)}/refresh`,
         { method: "POST" },
       );
-      const data = (await res.json().catch(() => null)) as
-        | { devlog?: DevlogDetail; error?: unknown }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        devlog?: DevlogDetail;
+        error?: unknown;
+      } | null;
       if (!res.ok || !data?.devlog) {
-        const msg =
-          typeof data?.error === "string" ? data.error : "Failed to refresh Hackatime.";
+        const msg = typeof data?.error === "string" ? data.error : "Failed to refresh Hackatime.";
         toast.error(msg, { id: toastId });
         setRefreshing(false);
         return;
@@ -168,9 +168,7 @@ export default function DevlogDetailClient({
               {canEdit ? (
                 <Button
                   variant="outline"
-                  onClick={() =>
-                    router.push(`/projects/${projectId}/devlogs/${devlog.id}/edit`)
-                  }
+                  onClick={() => router.push(`/projects/${projectId}/devlogs/${devlog.id}/edit`)}
                 >
                   Edit
                 </Button>

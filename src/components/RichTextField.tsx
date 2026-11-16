@@ -27,7 +27,8 @@ function applyFormat(action: FormatAction, value: string, start: number, end: nu
 
   if (action === "bold") return `${before}**${fallback}**${after}`;
   if (action === "italic") return `${before}*${fallback}*${after}`;
-  if (action === "heading") return `${before}${start > 0 && !before.endsWith("\n") ? "\n" : ""}### ${fallback}${after}`;
+  if (action === "heading")
+    return `${before}${start > 0 && !before.endsWith("\n") ? "\n" : ""}### ${fallback}${after}`;
   if (action === "link") return `${before}[${fallback}](https://example.com)${after}`;
 
   const listText = selected
@@ -76,22 +77,58 @@ export function RichTextField({
       <FormLabel>{label}</FormLabel>
       <div className="overflow-hidden rounded-[var(--radius-xl)] border border-input bg-background focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
         <div className="flex items-center gap-1 border-b border-border bg-muted/30 px-2 py-2">
-          <button type="button" className={buttonClass} onClick={() => format("bold")} disabled={disabled} title="Bold">
+          <button
+            type="button"
+            className={buttonClass}
+            onClick={() => format("bold")}
+            disabled={disabled}
+            title="Bold"
+          >
             <Bold className="h-4 w-4" />
           </button>
-          <button type="button" className={buttonClass} onClick={() => format("italic")} disabled={disabled} title="Italic">
+          <button
+            type="button"
+            className={buttonClass}
+            onClick={() => format("italic")}
+            disabled={disabled}
+            title="Italic"
+          >
             <Italic className="h-4 w-4" />
           </button>
-          <button type="button" className={buttonClass} onClick={() => format("heading")} disabled={disabled} title="Heading">
+          <button
+            type="button"
+            className={buttonClass}
+            onClick={() => format("heading")}
+            disabled={disabled}
+            title="Heading"
+          >
             <Heading3 className="h-4 w-4" />
           </button>
-          <button type="button" className={buttonClass} onClick={() => format("list")} disabled={disabled} title="Bulleted list">
+          <button
+            type="button"
+            className={buttonClass}
+            onClick={() => format("list")}
+            disabled={disabled}
+            title="Bulleted list"
+          >
             <List className="h-4 w-4" />
           </button>
-          <button type="button" className={buttonClass} onClick={() => format("ordered-list")} disabled={disabled} title="Numbered list">
+          <button
+            type="button"
+            className={buttonClass}
+            onClick={() => format("ordered-list")}
+            disabled={disabled}
+            title="Numbered list"
+          >
             <ListOrdered className="h-4 w-4" />
           </button>
-          <button type="button" className={buttonClass} onClick={() => format("link")} disabled={disabled} title="Link">
+          <button
+            type="button"
+            className={buttonClass}
+            onClick={() => format("link")}
+            disabled={disabled}
+            title="Link"
+          >
             <LinkIcon className="h-4 w-4" />
           </button>
         </div>

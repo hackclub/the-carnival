@@ -14,8 +14,14 @@ function toHelpfulLinks(value: unknown): Array<{ label: string; url: string }> {
   return value
     .map((item) => {
       if (!item || typeof item !== "object") return null;
-      const label = typeof (item as { label?: unknown }).label === "string" ? (item as { label: string }).label.trim() : "";
-      const url = typeof (item as { url?: unknown }).url === "string" ? (item as { url: string }).url.trim() : "";
+      const label =
+        typeof (item as { label?: unknown }).label === "string"
+          ? (item as { label: string }).label.trim()
+          : "";
+      const url =
+        typeof (item as { url?: unknown }).url === "string"
+          ? (item as { url: string }).url.trim()
+          : "";
       return label && url ? { label, url } : null;
     })
     .filter((item): item is { label: string; url: string } => !!item);
@@ -116,7 +122,10 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
                   {bounty.completed ? <Badge variant="success">Completed</Badge> : null}
                 </div>
                 <div className="mt-1 text-sm text-muted-foreground">
-                  by <span className="font-semibold text-foreground">{bounty.authorName || "Unknown creator"}</span>
+                  by{" "}
+                  <span className="font-semibold text-foreground">
+                    {bounty.authorName || "Unknown creator"}
+                  </span>
                 </div>
               </div>
               <div className="text-right">
@@ -132,14 +141,19 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
             {bounty.requirements ? (
               <section className="mt-6">
                 <h2 className="text-lg font-semibold text-foreground">Requirements</h2>
-                <RichTextContent value={bounty.requirements} className="mt-2 text-muted-foreground" />
+                <RichTextContent
+                  value={bounty.requirements}
+                  className="mt-2 text-muted-foreground"
+                />
               </section>
             ) : null}
 
             {bounty.examples ? (
               <section className="mt-6">
                 <h2 className="text-lg font-semibold text-foreground">Examples and resources</h2>
-                <div className="mt-2 whitespace-pre-wrap leading-6 text-muted-foreground">{bounty.examples}</div>
+                <div className="mt-2 whitespace-pre-wrap leading-6 text-muted-foreground">
+                  {bounty.examples}
+                </div>
               </section>
             ) : null}
 
@@ -176,13 +190,18 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
             </div>
 
             {acceptedProjects.length === 0 ? (
-              <div className="mt-4 text-muted-foreground">No granted projects under this bounty yet.</div>
+              <div className="mt-4 text-muted-foreground">
+                No granted projects under this bounty yet.
+              </div>
             ) : (
               <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                 {acceptedProjects.map((p) => {
                   const firstScreenshot = p.screenshots.find((url) => url.trim().length > 0);
                   return (
-                    <article key={p.id} className="rounded-[var(--radius-xl)]  border border-border bg-muted/40 p-4">
+                    <article
+                      key={p.id}
+                      className="rounded-[var(--radius-xl)]  border border-border bg-muted/40 p-4"
+                    >
                       {firstScreenshot ? (
                         <div className="mb-3 h-32 overflow-hidden rounded-[var(--radius-lg)]  border border-border bg-muted">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -204,9 +223,13 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
                         </div>
                         <ProjectStatusBadge status={p.status} />
                       </div>
-                      <div className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">{p.description}</div>
+                      <div className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">
+                        {p.description}
+                      </div>
                       <div className="mt-3 text-xs text-muted-foreground">
-                        {p.approvedHours !== null && p.approvedHours !== undefined ? `${p.approvedHours}h approved • ` : ""}
+                        {p.approvedHours !== null && p.approvedHours !== undefined
+                          ? `${p.approvedHours}h approved • `
+                          : ""}
                         Granted {p.grantedAt.toLocaleString()}
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">

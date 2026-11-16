@@ -139,7 +139,8 @@ function DevlogHackatimeBreakdown({
         Per-project breakdown unavailable (admin timeline not configured).
         {devlogProjectName ? (
           <>
-            {" "}Recorded under <code className="text-foreground">{devlogProjectName}</code>.
+            {" "}
+            Recorded under <code className="text-foreground">{devlogProjectName}</code>.
           </>
         ) : null}
       </div>
@@ -300,8 +301,7 @@ function DevlogItem({
   const duration = formatDurationHM(devlog.durationSeconds);
 
   const contributingEntries = useMemo(
-    () =>
-      breakdownConfigured ? (breakdownEntries ?? []).filter((e) => e.seconds > 0) : [],
+    () => (breakdownConfigured ? (breakdownEntries ?? []).filter((e) => e.seconds > 0) : []),
     [breakdownConfigured, breakdownEntries],
   );
   const breakdownTotalSeconds = useMemo(
@@ -389,7 +389,7 @@ function DevlogItem({
         adjustedSeconds: null,
         hackatimeAdjustments: null,
         // Accepting a devlog is not a deflation — clear any lingering reasons.
-        deflationReasons: next === "accepted" ? null : prev?.deflationReasons ?? null,
+        deflationReasons: next === "accepted" ? null : (prev?.deflationReasons ?? null),
         // A reviewed window only exists on adjusted assessments.
         reviewedWindow: null,
         reviewedWindowSeconds: null,
@@ -513,9 +513,10 @@ function DevlogItem({
           hackatimeProjectName: devlog.hackatimeProjectNameSnapshot || undefined,
         }),
       });
-      const data = (await res.json().catch(() => null)) as
-        | { totalSeconds?: number; error?: unknown }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        totalSeconds?: number;
+        error?: unknown;
+      } | null;
       if (!res.ok || typeof data?.totalSeconds !== "number") {
         toast.error(
           typeof data?.error === "string" ? data.error : "Failed to pull Hackatime for the window.",
@@ -664,9 +665,7 @@ function DevlogItem({
         </div>
       </div>
 
-      <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-        {preview}
-      </p>
+      <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{preview}</p>
       {isLong ? (
         <button
           type="button"
@@ -679,8 +678,7 @@ function DevlogItem({
 
       {devlog.usedAi && devlog.aiUsageDescription ? (
         <div className="rounded-[var(--radius-xl)] border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-100">
-          <span className="font-semibold text-amber-200">AI used:</span>{" "}
-          {devlog.aiUsageDescription}
+          <span className="font-semibold text-amber-200">AI used:</span> {devlog.aiUsageDescription}
         </div>
       ) : null}
 
@@ -733,9 +731,7 @@ function DevlogItem({
             ) : null}
           </div>
           {decision ? (
-            <Badge variant="info">
-              Counts as {adjustedPreview.label} toward approved hours
-            </Badge>
+            <Badge variant="info">Counts as {adjustedPreview.label} toward approved hours</Badge>
           ) : (
             <span className="text-xs text-muted-foreground">Pending assessment</span>
           )}
@@ -772,96 +768,94 @@ function DevlogItem({
             </div>
           ) : (
             <div className="space-y-3">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[auto_auto_1fr]">
-              <label className="block">
-                <FormLabel size="small">Hours</FormLabel>
-                <Input
-                  size="small"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={adjustedHours ?? 0}
-                  onChange={(e) =>
-                    setAdjustedHM(Number(e.target.value || 0), adjustedMinutes ?? 0)
-                  }
-                  disabled={readOnly}
-                />
-              </label>
-              <label className="block">
-                <FormLabel size="small">Minutes</FormLabel>
-                <Input
-                  size="small"
-                  type="number"
-                  min={0}
-                  max={59}
-                  step={1}
-                  value={adjustedMinutes ?? 0}
-                  onChange={(e) =>
-                    setAdjustedHM(adjustedHours ?? 0, Number(e.target.value || 0))
-                  }
-                  disabled={readOnly}
-                />
-              </label>
-              <div className="self-end text-xs text-muted-foreground">
-                Can&apos;t exceed the devlog&apos;s logged time ({duration.label}).
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[auto_auto_1fr]">
+                <label className="block">
+                  <FormLabel size="small">Hours</FormLabel>
+                  <Input
+                    size="small"
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={adjustedHours ?? 0}
+                    onChange={(e) =>
+                      setAdjustedHM(Number(e.target.value || 0), adjustedMinutes ?? 0)
+                    }
+                    disabled={readOnly}
+                  />
+                </label>
+                <label className="block">
+                  <FormLabel size="small">Minutes</FormLabel>
+                  <Input
+                    size="small"
+                    type="number"
+                    min={0}
+                    max={59}
+                    step={1}
+                    value={adjustedMinutes ?? 0}
+                    onChange={(e) => setAdjustedHM(adjustedHours ?? 0, Number(e.target.value || 0))}
+                    disabled={readOnly}
+                  />
+                </label>
+                <div className="self-end text-xs text-muted-foreground">
+                  Can&apos;t exceed the devlog&apos;s logged time ({duration.label}).
+                </div>
               </div>
-            </div>
 
-            {/* Reviewer-overridden considered window: trim time already
+              {/* Reviewer-overridden considered window: trim time already
                 counted by an overlapping devlog. Applying pulls Hackatime for
                 exactly this range and counts that instead of the creator's
                 original window; the server re-verifies the pull on submit. */}
-            <div className="space-y-2 rounded-[var(--radius-xl)] border border-border bg-muted/30 px-3 py-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-xs font-semibold text-foreground">
-                  Considered window (override)
+              <div className="space-y-2 rounded-[var(--radius-xl)] border border-border bg-muted/30 px-3 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs font-semibold text-foreground">
+                    Considered window (override)
+                  </div>
+                  {draft?.reviewedWindow ? (
+                    <span className="rounded-full bg-carnival-blue/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-carnival-blue">
+                      Window applied
+                      {typeof draft.reviewedWindowSeconds === "number"
+                        ? ` — ${formatDurationHM(draft.reviewedWindowSeconds).label} in range`
+                        : ""}
+                    </span>
+                  ) : null}
                 </div>
-                {draft?.reviewedWindow ? (
-                  <span className="rounded-full bg-carnival-blue/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-carnival-blue">
-                    Window applied
-                    {typeof draft.reviewedWindowSeconds === "number"
-                      ? ` — ${formatDurationHM(draft.reviewedWindowSeconds).label} in range`
-                      : ""}
-                  </span>
-                ) : null}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Overlapping with another devlog? Narrow the window considered for this one —
-                must stay inside {formatDateTime(devlog.startedAt)} → {formatDateTime(devlog.endedAt)}.
-                Applying pulls Hackatime for the trimmed range and counts that time.
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label className="block">
-                  <FormLabel size="small">Window start</FormLabel>
-                  <DateTimePicker value={windowStart} onChange={setWindowStart} />
-                </label>
-                <label className="block">
-                  <FormLabel size="small">Window end</FormLabel>
-                  <DateTimePicker value={windowEnd} onChange={setWindowEnd} />
-                </label>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={pullAndApplyWindow}
-                  disabled={readOnly || windowPulling}
-                  className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {windowPulling ? "Pulling Hackatime…" : "Pull Hackatime & apply window"}
-                </button>
-                {draft?.reviewedWindow ? (
+                <div className="text-xs text-muted-foreground">
+                  Overlapping with another devlog? Narrow the window considered for this one — must
+                  stay inside {formatDateTime(devlog.startedAt)} → {formatDateTime(devlog.endedAt)}.
+                  Applying pulls Hackatime for the trimmed range and counts that time.
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="block">
+                    <FormLabel size="small">Window start</FormLabel>
+                    <DateTimePicker value={windowStart} onChange={setWindowStart} />
+                  </label>
+                  <label className="block">
+                    <FormLabel size="small">Window end</FormLabel>
+                    <DateTimePicker value={windowEnd} onChange={setWindowEnd} />
+                  </label>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={clearReviewedWindow}
+                    onClick={pullAndApplyWindow}
                     disabled={readOnly || windowPulling}
-                    className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                    className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Clear window
+                    {windowPulling ? "Pulling Hackatime…" : "Pull Hackatime & apply window"}
                   </button>
-                ) : null}
+                  {draft?.reviewedWindow ? (
+                    <button
+                      type="button"
+                      onClick={clearReviewedWindow}
+                      disabled={readOnly || windowPulling}
+                      className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                    >
+                      Clear window
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
-          </div>
           )
         ) : null}
 

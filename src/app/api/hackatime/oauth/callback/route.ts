@@ -94,7 +94,8 @@ export async function GET(request: Request) {
   });
 
   const tokenData = (await tokenRes.json().catch(() => ({}))) as TokenResponse;
-  const accessToken = typeof tokenData.access_token === "string" ? tokenData.access_token.trim() : "";
+  const accessToken =
+    typeof tokenData.access_token === "string" ? tokenData.access_token.trim() : "";
   if (!tokenRes.ok || !accessToken) {
     return NextResponse.redirect(
       new URL(withStatusParam(returnTo, "token_exchange_failed"), appOrigin),

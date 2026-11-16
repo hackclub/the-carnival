@@ -116,7 +116,8 @@ export default function AdminUsersClient({
     );
   }, [users, searchQuery]);
 
-  const allVisibleSelected = sortedUsers.length > 0 && sortedUsers.every((u) => selectedIds.has(u.id));
+  const allVisibleSelected =
+    sortedUsers.length > 0 && sortedUsers.every((u) => selectedIds.has(u.id));
   const toggleSelected = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -215,9 +216,7 @@ export default function AdminUsersClient({
       }
 
       const proceed = window.confirm(
-        freeze
-          ? "Confirm freezing this account?"
-          : "Confirm unfreezing this account?",
+        freeze ? "Confirm freezing this account?" : "Confirm unfreezing this account?",
       );
       if (!proceed) return;
 
@@ -255,9 +254,7 @@ export default function AdminUsersClient({
                   ...u,
                   isFrozen: freeze,
                   frozenReason: freeze ? reason : null,
-                  frozenAt: freeze
-                    ? (data?.user?.frozenAt ?? new Date().toISOString())
-                    : null,
+                  frozenAt: freeze ? (data?.user?.frozenAt ?? new Date().toISOString()) : null,
                 }
               : u,
           ),
@@ -272,9 +269,7 @@ export default function AdminUsersClient({
                     ...prev.user,
                     isFrozen: freeze,
                     frozenReason: freeze ? reason : null,
-                    frozenAt: freeze
-                      ? (data?.user?.frozenAt ?? new Date().toISOString())
-                      : null,
+                    frozenAt: freeze ? (data?.user?.frozenAt ?? new Date().toISOString()) : null,
                   },
                 }
               : prev,
@@ -427,25 +422,39 @@ export default function AdminUsersClient({
           <div className="mt-1 text-2xl font-bold text-foreground">{totalUserCount}</div>
         </div>
         <div className="platform-surface-card p-4">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Internal profiles</div>
-          <div className="mt-1 text-2xl font-bold text-foreground">{internalStats.totalInternalUsers}</div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            Internal profiles
+          </div>
+          <div className="mt-1 text-2xl font-bold text-foreground">
+            {internalStats.totalInternalUsers}
+          </div>
           <div className="text-xs text-muted-foreground">reviewer/admin</div>
         </div>
         <div className="platform-surface-card p-4">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Internal Slack linked</div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            Internal Slack linked
+          </div>
           <div className="mt-1 text-xl font-bold text-foreground">
-            {internalStats.withSlackId} ({toPercent(internalStats.withSlackId, internalStats.totalInternalUsers)})
+            {internalStats.withSlackId} (
+            {toPercent(internalStats.withSlackId, internalStats.totalInternalUsers)})
           </div>
         </div>
         <div className="platform-surface-card p-4">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Internal verified</div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            Internal verified
+          </div>
           <div className="mt-1 text-xl font-bold text-foreground">
-            {internalStats.withVerificationStatus} ({toPercent(internalStats.withVerificationStatus, internalStats.totalInternalUsers)})
+            {internalStats.withVerificationStatus} (
+            {toPercent(internalStats.withVerificationStatus, internalStats.totalInternalUsers)})
           </div>
         </div>
         <div className="platform-surface-card p-4">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Internal frozen</div>
-          <div className="mt-1 text-xl font-bold text-foreground">{internalStats.frozenInternalUsers}</div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            Internal frozen
+          </div>
+          <div className="mt-1 text-xl font-bold text-foreground">
+            {internalStats.frozenInternalUsers}
+          </div>
           <div className="text-xs text-muted-foreground">
             Hackatime linked: {internalStats.withHackatimeConnected}
           </div>
@@ -503,10 +512,14 @@ export default function AdminUsersClient({
                 <div className="col-span-1">
                   <Select
                     value={u.role}
-                    onValueChange={(v) => { if (v) updateRole(u.id, v as UserListItem["role"]); }}
+                    onValueChange={(v) => {
+                      if (v) updateRole(u.id, v as UserListItem["role"]);
+                    }}
                     disabled={isCurrentUser || isUpdating}
                   >
-                    <SelectTrigger className={`w-full h-9 rounded-lg border-border bg-background px-2 text-sm text-foreground font-medium ${isUpdating ? "animate-pulse" : ""}`}>
+                    <SelectTrigger
+                      className={`w-full h-9 rounded-lg border-border bg-background px-2 text-sm text-foreground font-medium ${isUpdating ? "animate-pulse" : ""}`}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -586,8 +599,12 @@ export default function AdminUsersClient({
           ) : ledgerData ? (
             <>
               <div className="rounded-[var(--radius-xl)]  border border-border bg-background px-4 py-3">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Current balance</div>
-                <div className="text-2xl font-bold text-foreground mt-1">{ledgerData.balance} tokens</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Current balance
+                </div>
+                <div className="text-2xl font-bold text-foreground mt-1">
+                  {ledgerData.balance} tokens
+                </div>
               </div>
 
               <div className="rounded-[var(--radius-xl)]  border border-border bg-background p-4 space-y-3">
@@ -602,7 +619,11 @@ export default function AdminUsersClient({
                         const nextKind = v as "issue" | "deduct";
                         setAdjustmentType(nextKind);
                         // Keep the reference type valid for the new direction.
-                        if (!adminReferenceTypesForKind(nextKind).some((t) => t.id === adjustmentReferenceType)) {
+                        if (
+                          !adminReferenceTypesForKind(nextKind).some(
+                            (t) => t.id === adjustmentReferenceType,
+                          )
+                        ) {
                           setAdjustmentReferenceType(DEFAULT_ADMIN_LEDGER_REFERENCE_TYPE);
                         }
                       }}
@@ -631,7 +652,9 @@ export default function AdminUsersClient({
                     Reference type
                     <Select
                       value={adjustmentReferenceType}
-                      onValueChange={(v) => { if (v) setAdjustmentReferenceType(v as AdminLedgerReferenceType); }}
+                      onValueChange={(v) => {
+                        if (v) setAdjustmentReferenceType(v as AdminLedgerReferenceType);
+                      }}
                     >
                       <SelectTrigger className="w-full h-9 rounded-lg border-border bg-card px-3 text-sm text-foreground">
                         <SelectValue>
@@ -647,7 +670,10 @@ export default function AdminUsersClient({
                       </SelectContent>
                     </Select>
                     <span className="text-[11px]">
-                      {ADMIN_LEDGER_REFERENCE_TYPES.find((t) => t.id === adjustmentReferenceType)?.description}
+                      {
+                        ADMIN_LEDGER_REFERENCE_TYPES.find((t) => t.id === adjustmentReferenceType)
+                          ?.description
+                      }
                     </span>
                   </label>
                   <label className="flex flex-col gap-1 text-xs text-muted-foreground md:col-span-4">

@@ -75,7 +75,10 @@ export default function AdminShopItemFormClient({
               body: JSON.stringify(payload),
             });
 
-      const data = (await res.json().catch(() => null)) as { error?: unknown; item?: { id?: string } } | null;
+      const data = (await res.json().catch(() => null)) as {
+        error?: unknown;
+        item?: { id?: string };
+      } | null;
       if (!res.ok) {
         const msg = typeof data?.error === "string" ? data.error : "Failed.";
         toast.error(msg, { id: toastId });
@@ -96,7 +99,10 @@ export default function AdminShopItemFormClient({
         <div className="text-muted-foreground">
           {mode === "create" ? "Create a new shop item." : "Edit this shop item."}
         </div>
-        <Link href="/admin/shop" className="text-sm font-semibold text-carnival-blue hover:underline">
+        <Link
+          href="/admin/shop"
+          className="text-sm font-semibold text-carnival-blue hover:underline"
+        >
           ← Back
         </Link>
       </div>
@@ -154,7 +160,12 @@ export default function AdminShopItemFormClient({
       </div>
 
       <div className="pt-2">
-        <Button variant="secondary" loading={busy} loadingText={mode === "create" ? "Creating…" : "Saving…"} onClick={onSubmit}>
+        <Button
+          variant="secondary"
+          loading={busy}
+          loadingText={mode === "create" ? "Creating…" : "Saving…"}
+          onClick={onSubmit}
+        >
           {mode === "create" ? "Create item" : "Save changes"}
         </Button>
       </div>

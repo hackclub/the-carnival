@@ -3,7 +3,12 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { project } from "@/db/schema";
 import { getAuthUser, parseJsonBody, toCleanString } from "@/lib/api-utils";
-import { makeR2ObjectKey, presignR2PutObject, r2PublicUrlForKey, type R2UploadKind } from "@/lib/r2";
+import {
+  makeR2ObjectKey,
+  presignR2PutObject,
+  r2PublicUrlForKey,
+  type R2UploadKind,
+} from "@/lib/r2";
 import { ALLOWED_IMAGE_CONTENT_TYPES } from "@/lib/review/config";
 
 type PresignBody = {
@@ -36,7 +41,10 @@ export async function POST(req: Request) {
 
   // Admin-only kinds, except shop item images which reviewers can manage.
   // Any signed-in user may upload a shop *suggestion* image (separate prefix).
-  if ((kindRaw === "shop_item_image" && !user.isReviewer) || (kindRaw === "editor_icon" && !user.isAdmin)) {
+  if (
+    (kindRaw === "shop_item_image" && !user.isReviewer) ||
+    (kindRaw === "editor_icon" && !user.isAdmin)
+  ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

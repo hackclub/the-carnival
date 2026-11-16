@@ -67,9 +67,11 @@ export async function PATCH(req: Request) {
     addressLine1: body.addressLine1 !== undefined ? toNullableString(body.addressLine1) : undefined,
     addressLine2: body.addressLine2 !== undefined ? toNullableString(body.addressLine2) : undefined,
     city: body.city !== undefined ? toNullableString(body.city) : undefined,
-    stateProvince: body.stateProvince !== undefined ? toNullableString(body.stateProvince) : undefined,
+    stateProvince:
+      body.stateProvince !== undefined ? toNullableString(body.stateProvince) : undefined,
     country: body.country !== undefined ? toNullableString(body.country) : undefined,
-    zipPostalCode: body.zipPostalCode !== undefined ? toNullableString(body.zipPostalCode) : undefined,
+    zipPostalCode:
+      body.zipPostalCode !== undefined ? toNullableString(body.zipPostalCode) : undefined,
     slackNudgesOptOut:
       typeof body.slackNudgesOptOut === "boolean" ? body.slackNudgesOptOut : undefined,
     updatedAt: new Date(),
@@ -85,21 +87,16 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });
   }
 
-  const updated = await db
-    .update(user)
-    .set(updates)
-    .where(eq(user.id, userId))
-    .returning({
-      birthday: user.birthday,
-      addressLine1: user.addressLine1,
-      addressLine2: user.addressLine2,
-      city: user.city,
-      stateProvince: user.stateProvince,
-      country: user.country,
-      zipPostalCode: user.zipPostalCode,
-      slackNudgesOptOut: user.slackNudgesOptOut,
-    });
+  const updated = await db.update(user).set(updates).where(eq(user.id, userId)).returning({
+    birthday: user.birthday,
+    addressLine1: user.addressLine1,
+    addressLine2: user.addressLine2,
+    city: user.city,
+    stateProvince: user.stateProvince,
+    country: user.country,
+    zipPostalCode: user.zipPostalCode,
+    slackNudgesOptOut: user.slackNudgesOptOut,
+  });
 
   return NextResponse.json({ profile: updated[0] ?? null });
 }
-

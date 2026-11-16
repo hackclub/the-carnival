@@ -16,9 +16,8 @@ if (!channel) {
 }
 
 const { postSlackMessage } = await import("../../src/lib/notifications/slack-client");
-const { buildStaffSubmissionMessage, buildStaffThreadReply } = await import(
-  "../../src/lib/notifications/review-messages"
-);
+const { buildStaffSubmissionMessage, buildStaffThreadReply } =
+  await import("../../src/lib/notifications/review-messages");
 
 const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://carnival.hackclub.com";
 const projectName = "Sample: Tab Rot <VS Code>";
@@ -39,7 +38,8 @@ const submissionPost = await postSlackMessage({
     submissionNumber: 2,
     priorReviewCount: 2,
     lastRejectionCategory: "unclear-readme",
-    lastRejectionComment: "The README doesn't explain what the extension does. Please add a short description & a screenshot.",
+    lastRejectionComment:
+      "The README doesn't explain what the extension does. Please add a short description & a screenshot.",
   }),
 });
 if (!submissionPost.ok) throw new Error(`Top-level post failed: ${submissionPost.error}`);

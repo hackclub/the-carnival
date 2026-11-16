@@ -15,14 +15,14 @@ describe("csvEscape", () => {
   });
 
   test("neutralises leading formula characters", () => {
-    expect(csvEscape("=HYPERLINK(\"https://evil.example\")")).toBe(
-      "\"'=HYPERLINK(\"\"https://evil.example\"\")\"",
+    expect(csvEscape('=HYPERLINK("https://evil.example")')).toBe(
+      '"\'=HYPERLINK(""https://evil.example"")"',
     );
     expect(csvEscape("+1234")).toBe("'+1234");
     expect(csvEscape("-cmd")).toBe("'-cmd");
     expect(csvEscape("@SUM(A1)")).toBe("'@SUM(A1)");
     expect(csvEscape("\tname")).toBe("'\tname");
-    expect(csvEscape("\rname")).toBe("\"'\rname\"");
+    expect(csvEscape("\rname")).toBe('"\'\rname"');
   });
 
   test("only the first character triggers the guard", () => {

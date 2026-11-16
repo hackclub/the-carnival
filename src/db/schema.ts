@@ -1,5 +1,16 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, pgEnum, integer, uniqueIndex, jsonb, numeric, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  pgEnum,
+  integer,
+  uniqueIndex,
+  jsonb,
+  numeric,
+  index,
+} from "drizzle-orm/pg-core";
 
 export const userRole = pgEnum("user_role", ["user", "reviewer", "admin"]);
 export type UserRole = (typeof userRole.enumValues)[number];
@@ -65,11 +76,7 @@ export const bountyProjectStatus = pgEnum("bounty_project_status", [
 ]);
 export type BountyProjectStatus = (typeof bountyProjectStatus.enumValues)[number];
 
-export const devlogCategory = pgEnum("devlog_category", [
-  "learning",
-  "design",
-  "coding",
-]);
+export const devlogCategory = pgEnum("devlog_category", ["learning", "design", "coding"]);
 export type DevlogCategory = (typeof devlogCategory.enumValues)[number];
 
 export const devlogAssessmentDecision = pgEnum("devlog_assessment_decision", [
@@ -153,7 +160,10 @@ export const project = pgTable("project", {
   name: text("name").notNull(),
   description: text("description").notNull(),
   category: text("category"),
-  tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+  tags: text("tags")
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
   // What kind of ship this is. Drives the per-type playable-URL rules in
   // src/lib/review/submission-gates.ts. Carnival's default (extension-plugin)
   // covers all pre-existing rows via the column default.
@@ -211,7 +221,9 @@ export const project = pgTable("project", {
   // draft (peer_review.specific_technical_features) and is edited/approved by
   // the granting admin. Never shown to the submitter.
   grantTechnicalJustification: text("grant_technical_justification"),
-  bountyProjectId: text("bounty_project_id").references(() => bountyProject.id, { onDelete: "set null" }),
+  bountyProjectId: text("bounty_project_id").references(() => bountyProject.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
@@ -235,7 +247,10 @@ export const devlog = pgTable(
     startedAt: timestamp("started_at").notNull(),
     endedAt: timestamp("ended_at").notNull(),
     durationSeconds: integer("duration_seconds").notNull().default(0),
-    attachments: text("attachments").array().notNull().default(sql`'{}'::text[]`),
+    attachments: text("attachments")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     usedAi: boolean("used_ai").notNull().default(false),
     aiUsageDescription: text("ai_usage_description"),
     // Snapshot of project.hackatimeProjectName at the time the devlog was posted,
@@ -414,11 +429,17 @@ export const reviewAuditLog = pgTable(
     actorId: text("actor_id").references(() => user.id, { onDelete: "set null" }),
     actorRole: userRole("actor_role").notNull(),
     action: text("action").notNull(),
-    details: jsonb("details").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    details: jsonb("details")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at").notNull(),
   },
   (t) => ({
-    projectCreatedAtIdx: index("review_audit_log_project_created_at_idx").on(t.projectId, t.createdAt),
+    projectCreatedAtIdx: index("review_audit_log_project_created_at_idx").on(
+      t.projectId,
+      t.createdAt,
+    ),
     actorCreatedAtIdx: index("review_audit_log_actor_created_at_idx").on(t.actorId, t.createdAt),
   }),
 );
@@ -431,12 +452,18 @@ export const adminAuditLog = pgTable(
     actorRole: userRole("actor_role").notNull(),
     action: text("action").notNull(),
     targetUserId: text("target_user_id").references(() => user.id, { onDelete: "set null" }),
-    details: jsonb("details").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    details: jsonb("details")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at").notNull(),
   },
   (t) => ({
     actorCreatedAtIdx: index("admin_audit_log_actor_created_at_idx").on(t.actorId, t.createdAt),
-    targetCreatedAtIdx: index("admin_audit_log_target_created_at_idx").on(t.targetUserId, t.createdAt),
+    targetCreatedAtIdx: index("admin_audit_log_target_created_at_idx").on(
+      t.targetUserId,
+      t.createdAt,
+    ),
     actionCreatedAtIdx: index("admin_audit_log_action_created_at_idx").on(t.action, t.createdAt),
   }),
 );
@@ -455,7 +482,10 @@ export const bountyProject = pgTable("bounty_project", {
   previewImageUrl: text("preview_image_url"),
   requirements: text("requirements").notNull().default(""),
   examples: text("examples").notNull().default(""),
-  helpfulLinks: jsonb("helpful_links").$type<BountyHelpfulLink[]>().notNull().default(sql`'[]'::jsonb`),
+  helpfulLinks: jsonb("helpful_links")
+    .$type<BountyHelpfulLink[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
   completed: boolean("completed").notNull().default(false),
   createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
   reviewedById: text("reviewed_by_id").references(() => user.id, { onDelete: "set null" }),
@@ -599,7 +629,9 @@ export const shopItemSuggestion = pgTable("shop_item_suggestion", {
   reviewedById: text("reviewed_by_id").references(() => user.id, { onDelete: "set null" }),
   reviewedAt: timestamp("reviewed_at"),
   rejectionReason: text("rejection_reason"),
-  approvedShopItemId: text("approved_shop_item_id").references(() => shopItem.id, { onDelete: "set null" }),
+  approvedShopItemId: text("approved_shop_item_id").references(() => shopItem.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
@@ -740,7 +772,10 @@ export const outreachSend = pgTable(
     // Who counts as "already nudged" (off / today / 3d / 7d), re-applied when
     // each later batch is released.
     recentWindow: text("recent_window").notNull().default("off"),
-    summary: jsonb("summary").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    summary: jsonb("summary")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at").notNull(),
     updatedAt: timestamp("updated_at").notNull(),
     finishedAt: timestamp("finished_at"),
@@ -829,11 +864,7 @@ export const announcement = pgTable(
 // Robert's derived state, plus "pending" while Carnival has not sent it yet
 // (Robert was down or not configured).
 export type TelescreenState =
-  | "pending"
-  | "awaiting_review"
-  | "awaiting_outcome"
-  | "rejected_fraud"
-  | "decided";
+  "pending" | "awaiting_review" | "awaiting_outcome" | "rejected_fraud" | "decided";
 
 export type TelescreenOutcomeStatus = "approved" | "rejected";
 

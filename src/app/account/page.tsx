@@ -55,8 +55,7 @@ export default async function AccountPage() {
             : null,
           // Only a boolean crosses to the client; the token itself never does.
           // "unknown" (Hackatime unreachable) keeps the stored state.
-          hackatimeConnected:
-            hackatimeVerification === "ok" || hackatimeVerification === "unknown",
+          hackatimeConnected: hackatimeVerification === "ok" || hackatimeVerification === "unknown",
           slackNudgesOptOut: row?.slackNudgesOptOut ?? false,
         }}
       />

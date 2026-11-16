@@ -59,9 +59,7 @@ export async function generateMetadata(props: {
   };
 }
 
-export default async function PublicProjectPage(props: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function PublicProjectPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
 
   const projectRows = await db
@@ -122,20 +120,14 @@ export default async function PublicProjectPage(props: {
     .where(and(eq(devlog.projectId, id), lte(devlog.createdAt, submittedAt)))
     .orderBy(asc(devlog.startedAt));
 
-  const totalSeconds = devlogRows.reduce(
-    (acc, r) => acc + Math.max(0, r.durationSeconds ?? 0),
-    0,
-  );
+  const totalSeconds = devlogRows.reduce((acc, r) => acc + Math.max(0, r.durationSeconds ?? 0), 0);
   const totalFormatted = formatDurationHM(totalSeconds);
 
   return (
     <PlatformShell>
       <PlatformContent className="pt-8">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <Link
-            href="/"
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
+          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
             ← Carnival
           </Link>
           <Badge variant="info">Submitted {formatDate(submittedAt.toISOString())}</Badge>
@@ -157,9 +149,7 @@ export default async function PublicProjectPage(props: {
           <CardContent className="pt-6 space-y-4">
             <div className="flex flex-wrap items-start gap-3">
               <div className="min-w-0 flex-1">
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                  {p.name}
-                </h1>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">{p.name}</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                   {p.creatorName ? <span>by {p.creatorName}</span> : null}
                   {p.creatorName ? <span>·</span> : null}
@@ -167,7 +157,9 @@ export default async function PublicProjectPage(props: {
                     {totalFormatted.label} of work
                   </span>
                   <span>·</span>
-                  <span>{devlogRows.length} devlog{devlogRows.length === 1 ? "" : "s"}</span>
+                  <span>
+                    {devlogRows.length} devlog{devlogRows.length === 1 ? "" : "s"}
+                  </span>
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -188,9 +180,7 @@ export default async function PublicProjectPage(props: {
             </div>
 
             {p.description ? (
-              <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-                {p.description}
-              </p>
+              <p className="whitespace-pre-wrap text-sm text-muted-foreground">{p.description}</p>
             ) : null}
 
             <div className="flex flex-wrap gap-2 pt-1">
@@ -239,13 +229,13 @@ export default async function PublicProjectPage(props: {
                               {formatDateTime(row.endedAt.toISOString())}
                             </span>
                             <span>·</span>
-                            <span className="font-semibold text-foreground">
-                              {duration.label}
-                            </span>
+                            <span className="font-semibold text-foreground">{duration.label}</span>
                             {row.category && DEVLOG_CATEGORY_LABELS[row.category] ? (
                               <>
                                 <span>·</span>
-                                <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${DEVLOG_CATEGORY_COLORS[row.category] ?? ""}`}>
+                                <span
+                                  className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${DEVLOG_CATEGORY_COLORS[row.category] ?? ""}`}
+                                >
                                   {DEVLOG_CATEGORY_LABELS[row.category]}
                                 </span>
                               </>

@@ -54,7 +54,9 @@ function chunk<T>(items: T[], size: number): T[][] {
 }
 
 function upperIds(ids: readonly (string | null | undefined)[]): string[] {
-  return [...new Set(ids.map((s) => s?.trim().toUpperCase()).filter((s): s is string => Boolean(s)))];
+  return [
+    ...new Set(ids.map((s) => s?.trim().toUpperCase()).filter((s): s is string => Boolean(s))),
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -72,7 +74,10 @@ export type ExclusionRow = {
 
 export type SelfOptOutRow = { userId: string; name: string; slackId: string | null; email: string };
 
-export async function listExclusions(): Promise<{ excluded: ExclusionRow[]; selfOptedOut: SelfOptOutRow[] }> {
+export async function listExclusions(): Promise<{
+  excluded: ExclusionRow[];
+  selfOptedOut: SelfOptOutRow[];
+}> {
   const rows = await db
     .select({
       slackId: nudgeExclusion.slackId,
@@ -88,7 +93,12 @@ export async function listExclusions(): Promise<{ excluded: ExclusionRow[]; self
     ? await db
         .select({ id: user.id, name: user.name, slackId: user.slackId })
         .from(user)
-        .where(inArray(sql`upper(${user.slackId})`, rows.map((r) => r.slackId)))
+        .where(
+          inArray(
+            sql`upper(${user.slackId})`,
+            rows.map((r) => r.slackId),
+          ),
+        )
     : [];
   const bySlack = new Map(matches.map((m) => [(m.slackId ?? "").toUpperCase(), m]));
 
@@ -114,12 +124,23 @@ export async function listExclusions(): Promise<{ excluded: ExclusionRow[]; self
   };
 }
 
-export async function addExclusions(input: { slackIds: string[]; note: string | null; adminId: string }) {
+export async function addExclusions(input: {
+  slackIds: string[];
+  note: string | null;
+  adminId: string;
+}) {
   const ids = upperIds(input.slackIds);
   if (ids.length === 0) return { added: [] as string[], alreadyExcluded: [] as string[] };
   const inserted = await db
     .insert(nudgeExclusion)
-    .values(ids.map((slackId) => ({ slackId, note: input.note, addedByUserId: input.adminId, createdAt: new Date() })))
+    .values(
+      ids.map((slackId) => ({
+        slackId,
+        note: input.note,
+        addedByUserId: input.adminId,
+        createdAt: new Date(),
+      })),
+    )
     .onConflictDoNothing()
     .returning({ slackId: nudgeExclusion.slackId });
   const added = inserted.map((r) => r.slackId);
@@ -144,7 +165,10 @@ export async function slackIdsForUsers(
 ): Promise<{ slackIds: string[]; noSlackId: { id: string; name: string }[]; unknown: string[] }> {
   const ids = [...new Set(userIds.map((s) => s.trim()).filter(Boolean))];
   if (ids.length === 0) return { slackIds: [], noSlackId: [], unknown: [] };
-  const rows = await db.select({ id: user.id, name: user.name, slackId: user.slackId }).from(user).where(inArray(user.id, ids));
+  const rows = await db
+    .select({ id: user.id, name: user.name, slackId: user.slackId })
+    .from(user)
+    .where(inArray(user.id, ids));
   const found = new Set(rows.map((r) => r.id));
   return {
     slackIds: upperIds(rows.map((r) => r.slackId)),
@@ -264,12 +288,17 @@ export async function resolveRecipients(
   };
   const [byId, bySlack] = await Promise.all([
     userIds.length
-      ? Promise.all(chunk(userIds, INSERT_CHUNK).map((part) => db.select(userColumns).from(user).where(inArray(user.id, part)))).then(
-          (parts) => parts.flat(),
-        )
+      ? Promise.all(
+          chunk(userIds, INSERT_CHUNK).map((part) =>
+            db.select(userColumns).from(user).where(inArray(user.id, part)),
+          ),
+        ).then((parts) => parts.flat())
       : Promise.resolve([]),
     slackIds.length
-      ? db.select(userColumns).from(user).where(inArray(sql`upper(${user.slackId})`, slackIds))
+      ? db
+          .select(userColumns)
+          .from(user)
+          .where(inArray(sql`upper(${user.slackId})`, slackIds))
       : Promise.resolve([]),
   ]);
 
@@ -293,7 +322,9 @@ export async function resolveRecipients(
 }
 
 /** Create the send and its recipient rows, then deliver in the background. */
-export async function createCustomSend(input: CreateCustomSendInput): Promise<{ id: string; total: number }> {
+export async function createCustomSend(
+  input: CreateCustomSendInput,
+): Promise<{ id: string; total: number }> {
   const recipients = await resolveRecipients(input);
   const id = randomUUID();
   const now = new Date();
@@ -363,7 +394,8 @@ async function processCustomSend(sendId: string): Promise<void> {
     channel: send.channel,
   };
   /** The exact text a person receives (and what user_nudge records). */
-  const renderFor = (r: LoopRecipient) => withOutreachFooter(renderOutreachMessage(template, r), footer);
+  const renderFor = (r: LoopRecipient) =>
+    withOutreachFooter(renderOutreachMessage(template, r), footer);
 
   try {
     await runOutreachLoop({
@@ -392,7 +424,10 @@ async function processCustomSend(sendId: string): Promise<void> {
         const text = renderFor(r);
         if (send.channel === "email") {
           if (!r.email || !isNudgeEmailEnabled()) return { ok: false, reason: "email_error" };
-          const ok = await sendNudgeEmail(r.email, { first_name: firstNameOf(r.name), message: text });
+          const ok = await sendNudgeEmail(r.email, {
+            first_name: firstNameOf(r.name),
+            message: text,
+          });
           return ok ? { ok: true } : { ok: false, reason: "email_error" };
         }
         if (!r.slackId || !isSlackConfigured()) return { ok: false, reason: "slack_error" };
@@ -419,10 +454,16 @@ async function processCustomSend(sendId: string): Promise<void> {
         }
       },
       async markFailed(r, reason) {
-        await db.update(outreachRecipient).set({ status: "failed", reason }).where(eq(outreachRecipient.id, r.id));
+        await db
+          .update(outreachRecipient)
+          .set({ status: "failed", reason })
+          .where(eq(outreachRecipient.id, r.id));
       },
       async heartbeat() {
-        await db.update(outreachSend).set({ updatedAt: new Date() }).where(eq(outreachSend.id, sendId));
+        await db
+          .update(outreachSend)
+          .set({ updatedAt: new Date() })
+          .where(eq(outreachSend.id, sendId));
       },
     });
     await finishBatch(sendId, send.currentBatch);
@@ -482,7 +523,11 @@ async function finishBatch(sendId: string, currentBatch: number) {
     .where(eq(outreachSend.id, sendId));
 }
 
-async function finishSend(sendId: string, status: OutreachSendStatus, extra: Record<string, unknown> = {}) {
+async function finishSend(
+  sendId: string,
+  status: OutreachSendStatus,
+  extra: Record<string, unknown> = {},
+) {
   const counts = await recountSend(sendId);
   const now = new Date();
   await db
@@ -504,15 +549,27 @@ async function finishSend(sendId: string, status: OutreachSendStatus, extra: Rec
  * Restart delivery for an interrupted hand-written send. The status flip is
  * atomic, so two clicks can't start two loops; only pending rows are sent.
  */
-export async function resumeSend(sendId: string): Promise<"resumed" | "not_interrupted" | "not_custom"> {
+export async function resumeSend(
+  sendId: string,
+): Promise<"resumed" | "not_interrupted" | "not_custom"> {
   await markStaleSends();
   const rows = await db
     .update(outreachSend)
     .set({ status: "running", updatedAt: new Date(), finishedAt: null })
-    .where(and(eq(outreachSend.id, sendId), eq(outreachSend.status, "interrupted"), eq(outreachSend.kind, "custom")))
+    .where(
+      and(
+        eq(outreachSend.id, sendId),
+        eq(outreachSend.status, "interrupted"),
+        eq(outreachSend.kind, "custom"),
+      ),
+    )
     .returning({ id: outreachSend.id });
   if (!rows[0]) {
-    const kind = await db.select({ kind: outreachSend.kind }).from(outreachSend).where(eq(outreachSend.id, sendId)).limit(1);
+    const kind = await db
+      .select({ kind: outreachSend.kind })
+      .from(outreachSend)
+      .where(eq(outreachSend.id, sendId))
+      .limit(1);
     return kind[0]?.kind === "automated" ? "not_custom" : "not_interrupted";
   }
   runAfterResponse(() => processCustomSend(sendId), `outreach resume ${sendId}`);
@@ -532,9 +589,23 @@ export type NextBatchOutcome =
 export async function releaseNextBatch(sendId: string): Promise<NextBatchOutcome> {
   const flipped = await db
     .update(outreachSend)
-    .set({ status: "running", currentBatch: sql`${outreachSend.currentBatch} + 1`, updatedAt: new Date() })
-    .where(and(eq(outreachSend.id, sendId), eq(outreachSend.status, "waiting"), eq(outreachSend.kind, "custom")))
-    .returning({ currentBatch: outreachSend.currentBatch, channel: outreachSend.channel, recentWindow: outreachSend.recentWindow });
+    .set({
+      status: "running",
+      currentBatch: sql`${outreachSend.currentBatch} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(outreachSend.id, sendId),
+        eq(outreachSend.status, "waiting"),
+        eq(outreachSend.kind, "custom"),
+      ),
+    )
+    .returning({
+      currentBatch: outreachSend.currentBatch,
+      channel: outreachSend.channel,
+      recentWindow: outreachSend.recentWindow,
+    });
   const send = flipped[0];
   if (!send) return { ok: false, reason: "not_waiting" };
 
@@ -558,13 +629,27 @@ export async function releaseNextBatch(sendId: string): Promise<NextBatchOutcome
   const decided = await decideAll(rows, send.channel, window);
   const skippedNow = decided
     .map((d, i) => ({ d, row: rows[i] }))
-    .filter((x): x is { d: ResolvedRecipient; row: (typeof rows)[number] } => x.d.status === "skipped" && Boolean(x.row));
+    .filter(
+      (x): x is { d: ResolvedRecipient; row: (typeof rows)[number] } =>
+        x.d.status === "skipped" && Boolean(x.row),
+    );
   for (const { d, row } of skippedNow) {
-    await db.update(outreachRecipient).set({ status: "skipped", reason: d.reason }).where(eq(outreachRecipient.id, row.id));
+    await db
+      .update(outreachRecipient)
+      .set({ status: "skipped", reason: d.reason })
+      .where(eq(outreachRecipient.id, row.id));
   }
 
-  runAfterResponse(() => processCustomSend(sendId), `outreach batch ${send.currentBatch} ${sendId}`);
-  return { ok: true, batch: send.currentBatch, pending: rows.length - skippedNow.length, skipped: skippedNow.length };
+  runAfterResponse(
+    () => processCustomSend(sendId),
+    `outreach batch ${send.currentBatch} ${sendId}`,
+  );
+  return {
+    ok: true,
+    batch: send.currentBatch,
+    pending: rows.length - skippedNow.length,
+    skipped: skippedNow.length,
+  };
 }
 
 /** Drop the batches still queued on a waiting send; their people are marked skipped. */
@@ -625,7 +710,9 @@ export async function startAutomatedRun(input: {
     try {
       locked = await lock.tryLock();
       if (!locked) {
-        await finishSend(id, "failed", { error: "Another nudge run (scheduled or manual) is already in progress." });
+        await finishSend(id, "failed", {
+          error: "Another nudge run (scheduled or manual) is already in progress.",
+        });
         return;
       }
       // Heartbeat while the run works so it isn't marked interrupted.
@@ -634,7 +721,11 @@ export async function startAutomatedRun(input: {
       }, 60_000);
       let result;
       try {
-        result = await runNudges({ dryRun: false, maxSends: input.maxSends, allowlist: input.allowlist });
+        result = await runNudges({
+          dryRun: false,
+          maxSends: input.maxSends,
+          allowlist: input.allowlist,
+        });
       } finally {
         clearInterval(beat);
       }
@@ -653,7 +744,8 @@ export async function startAutomatedRun(input: {
             email: null,
             status,
             // For sent rows, show which reminder went out ("Never connected Hackatime").
-            reason: reason ?? `${NUDGE_KIND_META[p.kind].label}${p.sendNumber > 1 ? " (last call)" : ""}`,
+            reason:
+              reason ?? `${NUDGE_KIND_META[p.kind].label}${p.sendNumber > 1 ? " (last call)" : ""}`,
             sentAt: status === "sent" ? new Date() : null,
             createdAt: new Date(),
           })),
@@ -686,7 +778,14 @@ export type OutreachSendSummary = {
   createdAtIso: string;
   finishedAtIso: string | null;
   /** pending = in batches already released; queued = in later batches still waiting. */
-  counts: { total: number; sent: number; skipped: number; failed: number; pending: number; queued: number };
+  counts: {
+    total: number;
+    sent: number;
+    skipped: number;
+    failed: number;
+    pending: number;
+    queued: number;
+  };
   batches: { size: number | null; current: number; total: number; nextBatchSize: number };
   recentWindow: string;
   summary: Record<string, unknown>;
@@ -796,22 +895,28 @@ export async function getSendDetail(sendId: string) {
     })
     .from(outreachRecipient)
     .where(eq(outreachRecipient.sendId, sendId))
-    .orderBy(asc(outreachRecipient.batch), asc(outreachRecipient.createdAt), asc(outreachRecipient.id));
-  const full = await db.select({ message: outreachSend.message }).from(outreachSend).where(eq(outreachSend.id, sendId)).limit(1);
+    .orderBy(
+      asc(outreachRecipient.batch),
+      asc(outreachRecipient.createdAt),
+      asc(outreachRecipient.id),
+    );
+  const full = await db
+    .select({ message: outreachSend.message })
+    .from(outreachSend)
+    .where(eq(outreachSend.id, sendId))
+    .limit(1);
   return {
     send: { ...send, message: full[0]?.message ?? null },
-    recipients: recipients.map(
-      (r): OutreachRecipientRow => ({
-        id: r.id,
-        userId: r.userId,
-        name: r.name,
-        slackId: r.slackId,
-        email: r.email,
-        status: r.status,
-        batch: r.batch,
-        reason: r.reason,
-        sentAtIso: r.sentAt ? r.sentAt.toISOString() : null,
-      }),
-    ),
+    recipients: recipients.map((r): OutreachRecipientRow => ({
+      id: r.id,
+      userId: r.userId,
+      name: r.name,
+      slackId: r.slackId,
+      email: r.email,
+      status: r.status,
+      batch: r.batch,
+      reason: r.reason,
+      sentAtIso: r.sentAt ? r.sentAt.toISOString() : null,
+    })),
   };
 }

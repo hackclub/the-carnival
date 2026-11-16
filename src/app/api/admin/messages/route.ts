@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { appendAdminAudit } from "@/lib/admin-audit";
 import { createCustomSend, listSends } from "@/lib/notifications/outreach";
-import { parseBatchSize, parseMessage, parseRecipientsRequest, requireAdmin } from "@/lib/notifications/outreach-api";
+import {
+  parseBatchSize,
+  parseMessage,
+  parseRecipientsRequest,
+  requireAdmin,
+} from "@/lib/notifications/outreach-api";
 import { isNudgeEmailEnabled } from "@/lib/loops";
 import { isSlackConfigured } from "@/lib/notifications/slack-client";
 
@@ -31,7 +36,10 @@ export async function POST(req: Request) {
   if (!batch.ok) return NextResponse.json({ error: batch.error }, { status: 400 });
 
   if (recipients.value.channel === "slack" && !isSlackConfigured()) {
-    return NextResponse.json({ error: "Slack is not configured (SLACK_BOT_TOKEN)" }, { status: 503 });
+    return NextResponse.json(
+      { error: "Slack is not configured (SLACK_BOT_TOKEN)" },
+      { status: 503 },
+    );
   }
   if (recipients.value.channel === "email" && !isNudgeEmailEnabled()) {
     return NextResponse.json(

@@ -49,7 +49,8 @@ export const YSWS_AIRTABLE_FIELDS = {
   submissionTime: "Submission Time",
 } as const;
 
-export type YswsAirtableFieldLabel = (typeof YSWS_AIRTABLE_FIELDS)[keyof typeof YSWS_AIRTABLE_FIELDS];
+export type YswsAirtableFieldLabel =
+  (typeof YSWS_AIRTABLE_FIELDS)[keyof typeof YSWS_AIRTABLE_FIELDS];
 
 export type AirtableAttachment = {
   id?: string;
@@ -191,9 +192,7 @@ export type AirtableCreateErrorDetails = {
   hints: string[];
 };
 
-export type ValidationResult<T> =
-  | { success: true; data: T }
-  | { success: false; errors: string[] };
+export type ValidationResult<T> = { success: true; data: T } | { success: false; errors: string[] };
 
 const DEFLATION_REASON_LABELS = new Map<string, string>(
   REVIEW_DEFLATION_REASON_OPTIONS.map((option) => [option.key, option.label]),
@@ -266,7 +265,10 @@ function getGithubUsernameFromUrl(url: string): string | null {
   }
 }
 
-function splitFirstLastName(fullName: string): { firstName: string | null; lastName: string | null } {
+function splitFirstLastName(fullName: string): {
+  firstName: string | null;
+  lastName: string | null;
+} {
   const cleaned = fullName.trim().replace(/\s+/g, " ");
   if (!cleaned) return { firstName: null, lastName: null };
   const parts = cleaned.split(" ");
@@ -295,14 +297,19 @@ function buildProjectUrls(appUrl: string | null | undefined, projectId: string |
 function pickLatestApprovedReview(reviews: AirtableGrantReview[]) {
   const approved = reviews.filter((r) => r.decision === "approved");
   if (approved.length === 0) return null;
-  return approved.reduce((latest, candidate) => {
-    if (!latest) return candidate;
-    const latestAt = latest.createdAtIso ? Date.parse(latest.createdAtIso) : Number.NEGATIVE_INFINITY;
-    const candidateAt = candidate.createdAtIso
-      ? Date.parse(candidate.createdAtIso)
-      : Number.NEGATIVE_INFINITY;
-    return candidateAt >= latestAt ? candidate : latest;
-  }, null as AirtableGrantReview | null);
+  return approved.reduce(
+    (latest, candidate) => {
+      if (!latest) return candidate;
+      const latestAt = latest.createdAtIso
+        ? Date.parse(latest.createdAtIso)
+        : Number.NEGATIVE_INFINITY;
+      const candidateAt = candidate.createdAtIso
+        ? Date.parse(candidate.createdAtIso)
+        : Number.NEGATIVE_INFINITY;
+      return candidateAt >= latestAt ? candidate : latest;
+    },
+    null as AirtableGrantReview | null,
+  );
 }
 
 function formatLinkLine(label: string, url: string | null | undefined) {
@@ -422,10 +429,7 @@ export function formatAirtableHoursJustification(
       const header = `- "${entry.title}" (${rangeLabel}):`;
       // Sub-minute differences are rounding from the reviewer's hour/minute
       // inputs, not deflation (mirrors assessmentDeflatesHours' tolerance).
-      if (
-        entry.decision !== "rejected" &&
-        entry.loggedSeconds - entry.approvedSeconds <= 59
-      ) {
+      if (entry.decision !== "rejected" && entry.loggedSeconds - entry.approvedSeconds <= 59) {
         deflationLines.push(
           `${header} accepted as logged (${formatSecondsAsHours(entry.loggedSeconds)}).`,
         );
@@ -558,7 +562,9 @@ export function toAirtableCreateErrorDetails(err: unknown): AirtableCreateErrorD
     hints.push("Airtable rate limit hit; retry in a few seconds.");
   }
   if (!hints.length) {
-    hints.push("Verify AIRTABLE_API_KEY, AIRTABLE_BASE_ID, and AIRTABLE_GRANTS_TABLE are set correctly.");
+    hints.push(
+      "Verify AIRTABLE_API_KEY, AIRTABLE_BASE_ID, and AIRTABLE_GRANTS_TABLE are set correctly.",
+    );
     hints.push("Verify the target table contains the expected fields (names must match exactly).");
   }
 
@@ -663,7 +669,9 @@ export function buildAirtableGrantFields(input: AirtableGrantCreateInput): Recor
   return fields;
 }
 
-export async function createAirtableGrantRecord(input: AirtableGrantCreateInput): Promise<AirtableCreateResult> {
+export async function createAirtableGrantRecord(
+  input: AirtableGrantCreateInput,
+): Promise<AirtableCreateResult> {
   const missing = getAirtableConfigErrors(process.env);
   if (missing.length) {
     throw Object.assign(new Error(`Missing Airtable env vars: ${missing.join(", ")}`), {
@@ -680,7 +688,9 @@ export async function createAirtableGrantRecord(input: AirtableGrantCreateInput)
   // Airtable's FieldSet types are intentionally loose, but TS treats `unknown` as too strict.
   // Cast to `any` for the library boundary.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const record = (await (b(tableName) as any).create(fields as any, { typecast: true })) as { id: string };
+  const record = (await (b(tableName) as any).create(fields as any, { typecast: true })) as {
+    id: string;
+  };
   return { id: record.id };
 }
 
@@ -739,7 +749,9 @@ export async function deleteAirtableGrantRecord(recordId: string): Promise<void>
  * Validate and normalize an Airtable record `fields` object into a stable shape.
  * Pass the object you get from Airtable's API (typically `record.fields`).
  */
-export function validateYswsSubmissionFields(fields: unknown): ValidationResult<YswsSubmissionFields> {
+export function validateYswsSubmissionFields(
+  fields: unknown,
+): ValidationResult<YswsSubmissionFields> {
   if (!isRecord(fields)) {
     return { success: false, errors: ["Expected Airtable fields to be an object."] };
   }
@@ -748,14 +760,15 @@ export function validateYswsSubmissionFields(fields: unknown): ValidationResult<
 
   const codeUrl = toHttpUrlOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.codeUrl));
   const videoUrl = toHttpUrlOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.videoUrl));
-  const playableDemoUrl = toHttpUrlOrNull(
-    getField(fields, YSWS_AIRTABLE_FIELDS.playableDemoUrl),
+  const playableDemoUrl = toHttpUrlOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.playableDemoUrl));
+  const hackatimeReviewLink = toHttpUrlOrNull(
+    getField(fields, YSWS_AIRTABLE_FIELDS.hackatimeReviewLink),
   );
-  const hackatimeReviewLink = toHttpUrlOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.hackatimeReviewLink));
 
   // URL fields: if present but invalid, report it.
   const rawCodeUrl = toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.codeUrl));
-  if (rawCodeUrl && !codeUrl) errors.push(`"${YSWS_AIRTABLE_FIELDS.codeUrl}" must be an http(s) URL.`);
+  if (rawCodeUrl && !codeUrl)
+    errors.push(`"${YSWS_AIRTABLE_FIELDS.codeUrl}" must be an http(s) URL.`);
 
   const rawVideoUrl = toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.videoUrl));
   if (rawVideoUrl && !videoUrl)
@@ -779,7 +792,9 @@ export function validateYswsSubmissionFields(fields: unknown): ValidationResult<
     errors.push(`"${YSWS_AIRTABLE_FIELDS.screenshot}" must be an array of attachment objects.`);
   }
 
-  const overrideHoursSpent = toNumberOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.overrideHoursSpent));
+  const overrideHoursSpent = toNumberOrNull(
+    getField(fields, YSWS_AIRTABLE_FIELDS.overrideHoursSpent),
+  );
   const rawOverrideHours = getField(fields, YSWS_AIRTABLE_FIELDS.overrideHoursSpent);
   if (
     rawOverrideHours !== undefined &&
@@ -795,8 +810,12 @@ export function validateYswsSubmissionFields(fields: unknown): ValidationResult<
     videoUrl,
     playableDemoUrl,
 
-    howDidYouHearAboutThis: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.howDidYouHearAboutThis)),
-    whatAreWeDoingWell: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.whatAreWeDoingWell)),
+    howDidYouHearAboutThis: toTrimmedStringOrNull(
+      getField(fields, YSWS_AIRTABLE_FIELDS.howDidYouHearAboutThis),
+    ),
+    whatAreWeDoingWell: toTrimmedStringOrNull(
+      getField(fields, YSWS_AIRTABLE_FIELDS.whatAreWeDoingWell),
+    ),
     howCanWeImprove: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.howCanWeImprove)),
 
     firstName: toTrimmedStringOrNull(getField(fields, YSWS_AIRTABLE_FIELDS.firstName)),

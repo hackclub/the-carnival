@@ -77,7 +77,9 @@ function hasStructuredJustificationValue(input: StructuredReviewJustificationInp
   return hasAnyEvidence || hasStart || hasEnd || hasMetadata;
 }
 
-export function coerceReviewJustificationPayload(value: unknown): ReviewJustificationPayload | null {
+export function coerceReviewJustificationPayload(
+  value: unknown,
+): ReviewJustificationPayload | null {
   const root = asRecord(value);
   if (!root) return null;
 
@@ -124,7 +126,8 @@ export function hydrateReviewJustification(input: StructuredReviewJustificationI
   const metadata = asRecord(input.hourAdjustmentReasonMetadata);
   const decision = isReviewDecision(metadata?.decision) ? metadata.decision : input.decision;
   const hackatimeProjectName =
-    toCleanString(metadata?.hackatimeProjectName) || toCleanString(input.fallbackHackatimeProjectName);
+    toCleanString(metadata?.hackatimeProjectName) ||
+    toCleanString(input.fallbackHackatimeProjectName);
   const startDate = toReviewDateOnly(input.reviewedHackatimeRangeStart);
   const endDate = toReviewDateOnly(input.reviewedHackatimeRangeEnd);
   if (!hackatimeProjectName || !startDate || !endDate) return null;

@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  extractApiError,
-  type HackatimeRangePreview,
-} from "@/lib/project-form-utils";
+import { extractApiError, type HackatimeRangePreview } from "@/lib/project-form-utils";
 
 type PreviewResponse = {
   project?: {
@@ -57,9 +54,8 @@ export function useHackatimeRangePreview({
   debounceMs = 400,
 }: UseHackatimeRangePreviewOptions) {
   const bodyJson = useMemo(() => (body ? JSON.stringify(body) : null), [body]);
-  const requestKey = enabled && !rangeError && !localPreview && bodyJson
-    ? `${endpoint}:${bodyJson}`
-    : null;
+  const requestKey =
+    enabled && !rangeError && !localPreview && bodyJson ? `${endpoint}:${bodyJson}` : null;
   const [remote, setRemote] = useState<RemoteState>({
     key: null,
     preview: null,

@@ -34,8 +34,5 @@ export default function ProjectEditorBadge({
   const other = (editorOther ?? "").trim();
   const label = editor === "other" && other ? `Other: ${other}` : LABELS[editor];
 
-  return (
-    <Badge className="whitespace-nowrap px-4 py-1.5 text-sm">{label}</Badge>
-  );
+  return <Badge className="whitespace-nowrap px-4 py-1.5 text-sm">{label}</Badge>;
 }
-

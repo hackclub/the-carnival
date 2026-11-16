@@ -3,10 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { project } from "@/db/schema";
 import { computeDevlogWindowCeiling, parseDevlogWindow } from "@/lib/devlog-shared";
-import {
-  countProjectDevlogs,
-  resolveDevlogHackatimeProjectName,
-} from "@/lib/devlogs";
+import { countProjectDevlogs, resolveDevlogHackatimeProjectName } from "@/lib/devlogs";
 import { fetchHackatimeProjectTotalSecondsForInstantRange } from "@/lib/hackatime";
 import { getServerSession } from "@/lib/server-session";
 

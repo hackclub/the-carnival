@@ -70,7 +70,9 @@ export default function WalletConverterPopover({
         >
           <span>{variant === "compact" ? "💸" : `💸 ${walletBalance ?? "—"}`}</span>
           {variant === "default" ? (
-            <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#fff7dc]">Convert ▾</span>
+            <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#fff7dc]">
+              Convert ▾
+            </span>
           ) : null}
         </span>
       </summary>

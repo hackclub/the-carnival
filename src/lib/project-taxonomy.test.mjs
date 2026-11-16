@@ -22,20 +22,20 @@ describe("project-taxonomy", () => {
   });
 
   test("parses and de-duplicates project tags", () => {
-    expect(normalizeProjectTags("ai, ai, #web-dev, 3d art")).toEqual([
-      "ai",
-      "web-dev",
-      "3d-art",
-    ]);
+    expect(normalizeProjectTags("ai, ai, #web-dev, 3d art")).toEqual(["ai", "web-dev", "3d-art"]);
     expect(normalizeProjectTags(["Design", "design", " "])).toEqual(["design"]);
   });
 
   test("builds sorted category and tag suggestions", () => {
+    expect(buildCategorySuggestions(["Tools", "tools", "Game Dev", null])).toEqual([
+      "game dev",
+      "tools",
+    ]);
     expect(
-      buildCategorySuggestions(["Tools", "tools", "Game Dev", null]),
-    ).toEqual(["game dev", "tools"]);
-    expect(
-      buildTagSuggestions([["AI", "tools"], ["#tools", "WEB"]]),
+      buildTagSuggestions([
+        ["AI", "tools"],
+        ["#tools", "WEB"],
+      ]),
     ).toEqual(["ai", "tools", "web"]);
   });
 

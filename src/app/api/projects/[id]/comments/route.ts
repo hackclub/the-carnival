@@ -56,13 +56,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   if (p.creatorId !== userId) {
-    return NextResponse.json({ error: "You can only comment on your own projects" }, { status: 403 });
+    return NextResponse.json(
+      { error: "You can only comment on your own projects" },
+      { status: 403 },
+    );
   }
 
   if (p.status !== "in-review") {
     return NextResponse.json(
       { error: "You can only comment when your project is in review" },
-      { status: 409 }
+      { status: 409 },
     );
   }
 

@@ -149,11 +149,7 @@ export default function AdminWalletClient({ users }: { users: WalletUserOption[]
     const q = userQuery.toLowerCase().trim();
     if (!q) return [];
     return users
-      .filter(
-        (u) =>
-          (u.name ?? "").toLowerCase().includes(q) ||
-          u.email.toLowerCase().includes(q),
-      )
+      .filter((u) => (u.name ?? "").toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
       .slice(0, 8);
   }, [users, userQuery]);
 
@@ -393,7 +389,11 @@ export default function AdminWalletClient({ users }: { users: WalletUserOption[]
                         const nextKind = v as "issue" | "deduct";
                         setAdjustmentType(nextKind);
                         // Keep the reference type valid for the new direction.
-                        if (!adminReferenceTypesForKind(nextKind).some((t) => t.id === adjustmentReferenceType)) {
+                        if (
+                          !adminReferenceTypesForKind(nextKind).some(
+                            (t) => t.id === adjustmentReferenceType,
+                          )
+                        ) {
                           setAdjustmentReferenceType(DEFAULT_ADMIN_LEDGER_REFERENCE_TYPE);
                         }
                       }}
@@ -422,7 +422,9 @@ export default function AdminWalletClient({ users }: { users: WalletUserOption[]
                     Reference type
                     <Select
                       value={adjustmentReferenceType}
-                      onValueChange={(v) => { if (v) setAdjustmentReferenceType(v as AdminLedgerReferenceType); }}
+                      onValueChange={(v) => {
+                        if (v) setAdjustmentReferenceType(v as AdminLedgerReferenceType);
+                      }}
                     >
                       <SelectTrigger className="w-full h-9 rounded-lg border-border bg-card px-3 text-sm text-foreground">
                         <SelectValue>
@@ -438,7 +440,10 @@ export default function AdminWalletClient({ users }: { users: WalletUserOption[]
                       </SelectContent>
                     </Select>
                     <span className="text-[11px]">
-                      {ADMIN_LEDGER_REFERENCE_TYPES.find((t) => t.id === adjustmentReferenceType)?.description}
+                      {
+                        ADMIN_LEDGER_REFERENCE_TYPES.find((t) => t.id === adjustmentReferenceType)
+                          ?.description
+                      }
                     </span>
                   </label>
                   <label className="flex flex-col gap-1 text-xs text-muted-foreground md:col-span-4">
@@ -552,7 +557,9 @@ export default function AdminWalletClient({ users }: { users: WalletUserOption[]
             Kind
             <Select
               value={formFilters.kind}
-              onValueChange={(v) => { if (v) setFormFilters((prev) => ({ ...prev, kind: v })); }}
+              onValueChange={(v) => {
+                if (v) setFormFilters((prev) => ({ ...prev, kind: v }));
+              }}
             >
               <SelectTrigger className="w-full h-9 rounded-lg border-border bg-background px-3 text-sm text-foreground">
                 <SelectValue />
@@ -574,7 +581,7 @@ export default function AdminWalletClient({ users }: { users: WalletUserOption[]
             >
               <SelectTrigger className="w-full h-9 rounded-lg border-border bg-background px-3 text-sm text-foreground">
                 <SelectValue>
-                  {(v: string) => (v === "all" ? "All" : LEDGER_REFERENCE_TYPE_LABELS[v] ?? v)}
+                  {(v: string) => (v === "all" ? "All" : (LEDGER_REFERENCE_TYPE_LABELS[v] ?? v))}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>

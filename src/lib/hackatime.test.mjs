@@ -238,7 +238,8 @@ describe("hackatime", () => {
   test("non-401 Hackatime failures stay generic and keep the token", async () => {
     dbState.updateCalls = [];
     try {
-      global.fetch = async () => new Response("forbidden", { status: 403, statusText: "Forbidden" });
+      global.fetch = async () =>
+        new Response("forbidden", { status: 403, statusText: "Forbidden" });
 
       const caught = await captureError(() => fetchHackatimeProjectsForConnectedUser("user-1"));
 

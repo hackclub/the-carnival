@@ -15,11 +15,12 @@ export const fetchCache = "force-no-store";
 
 type FilterKey = "all" | "granted" | "shipped";
 
-const FILTERS: Array<{ label: string; value: FilterKey; statuses: Array<"shipped" | "granted"> }> = [
-  { label: "All", value: "all", statuses: ["shipped", "granted"] },
-  { label: "Granted", value: "granted", statuses: ["granted"] },
-  { label: "Shipped", value: "shipped", statuses: ["shipped"] },
-];
+const FILTERS: Array<{ label: string; value: FilterKey; statuses: Array<"shipped" | "granted"> }> =
+  [
+    { label: "All", value: "all", statuses: ["shipped", "granted"] },
+    { label: "Granted", value: "granted", statuses: ["granted"] },
+    { label: "Shipped", value: "shipped", statuses: ["shipped"] },
+  ];
 
 export default async function AdminGrantsPage({
   searchParams,
@@ -80,8 +81,8 @@ export default async function AdminGrantsPage({
       </div>
 
       <div className="mb-6 text-sm text-muted-foreground">
-        Showing <span className="font-semibold text-foreground">{active.label.toLowerCase()}</span> projects{" "}
-        <span className="text-muted-foreground">({rows.length})</span>
+        Showing <span className="font-semibold text-foreground">{active.label.toLowerCase()}</span>{" "}
+        projects <span className="text-muted-foreground">({rows.length})</span>
       </div>
 
       {rows.length === 0 ? (
@@ -128,7 +129,9 @@ export default async function AdminGrantsPage({
                         </span>
                       ))}
                     </div>
-                    <div className="text-muted-foreground mt-3 line-clamp-4 leading-6">{p.description}</div>
+                    <div className="text-muted-foreground mt-3 line-clamp-4 leading-6">
+                      {p.description}
+                    </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     <ProjectEditorBadge editor={p.editor} editorOther={p.editorOther} />
