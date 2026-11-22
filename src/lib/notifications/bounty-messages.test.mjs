@@ -33,6 +33,18 @@ describe("richTextToSlack", () => {
     );
   });
 
+  test("unclosed emphasis around many links converts quickly", () => {
+    const input = `*${"[x](http://a)".repeat(38)}!`;
+    const started = performance.now();
+    const out = richTextToSlack(input, 500);
+    expect(performance.now() - started).toBeLessThan(200);
+    expect(out).toBe(`*${"<http://a|x>".repeat(38)}!`);
+  });
+
+  test("placeholder characters in the input cannot inject a link", () => {
+    expect(richTextToSlack("a \uE0000\uE001 b [x](http://a)", 500)).toBe("a 0 b <http://a|x>");
+  });
+
   test("escapes author text so it cannot forge mentions or links", () => {
     expect(richTextToSlack("<!channel> & <@U123>", 500)).toBe(
       "&lt;!channel&gt; &amp; &lt;@U123&gt;",

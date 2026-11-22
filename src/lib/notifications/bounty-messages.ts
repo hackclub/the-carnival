@@ -22,35 +22,33 @@ const DESCRIPTION_MAX = 500;
 const REQUIREMENTS_MAX = 500;
 const HELPFUL_LINKS_MAX = 5;
 
-// Emphasis may wrap links, and a link's URL may itself contain "*", so the
-// emphasis patterns step over whole links instead of stopping inside one.
-const LINK = String.raw`\[[^\]]+\]\(https?:\/\/[^)\s]+\)`;
-const INLINE_TOKEN = new RegExp(
-  [
-    String.raw`\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)`,
-    String.raw`(https?:\/\/\S+)`,
-    String.raw`\*\*((?:${LINK}|[^*])+)\*\*`,
-    String.raw`\*((?:${LINK}|[^*])+)\*`,
-  ].join("|"),
-  "g",
-);
+// Links and bare URLs. Converted first and parked behind placeholders, so the
+// emphasis pass never sees a URL (whose "*" would read as emphasis) and both
+// patterns stay simple enough to run in linear time on any input.
+const LINK_OR_URL = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|https?:\/\/\S+/g;
+const EMPHASIS = /\*\*([^*]+)\*\*|\*([^*]+)\*/g;
+// Private-use characters: they mark a parked link and are stripped from input.
+const PARK_OPEN = "\uE000";
+const PARK_CLOSE = "\uE001";
+const PARK_CHARS = /[\uE000\uE001]/g;
+const PARKED = /\uE000(\d+)\uE001/g;
 
-// One pass, so a URL is consumed whole and its "*" are never read as emphasis.
-// Emphasis contents go through the same pass so a link inside bold still converts.
-function convertInlineToken(
-  match: string,
-  label?: string,
-  url?: string,
-  bareUrl?: string,
-  bold?: string,
-  italic?: string,
-): string {
-  if (label !== undefined && url !== undefined) {
-    return `<${url.replace(/\|/g, "%7C")}|${label}>`;
-  }
-  if (bareUrl !== undefined) return match;
-  if (bold !== undefined) return `*${bold.replace(INLINE_TOKEN, convertInlineToken)}*`;
-  return `_${(italic ?? "").replace(INLINE_TOKEN, convertInlineToken)}_`;
+function convertInline(line: string): string {
+  const parked: string[] = [];
+  return line
+    .replace(PARK_CHARS, "")
+    .replace(LINK_OR_URL, (match, label?: string, url?: string) => {
+      parked.push(
+        label !== undefined && url !== undefined
+          ? `<${url.replace(/\|/g, "%7C")}|${label}>`
+          : match,
+      );
+      return `${PARK_OPEN}${parked.length - 1}${PARK_CLOSE}`;
+    })
+    .replace(EMPHASIS, (_match, bold?: string, italic?: string) =>
+      bold !== undefined ? `*${bold}*` : `_${italic ?? ""}_`,
+    )
+    .replace(PARKED, (_match, index: string) => parked[Number(index)] ?? "");
 }
 
 /**
@@ -62,12 +60,7 @@ export function richTextToSlack(value: string, max: number): string {
   const escaped = escapeSlackText(truncateForSlack(value.replace(/\r\n/g, "\n"), max));
   return escaped
     .split("\n")
-    .map((line) =>
-      line
-        .trimEnd()
-        .replace(/^\s*[-*]\s+/, "• ")
-        .replace(INLINE_TOKEN, convertInlineToken),
-    )
+    .map((line) => convertInline(line.trimEnd().replace(/^\s*[-*]\s+/, "• ")))
     .join("\n")
     .replace(/\n{3,}/g, "\n\n");
 }
