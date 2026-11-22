@@ -140,11 +140,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     updates.rejectionReason = toCleanString(body.rejectionReason) || null;
   }
 
-  // Announce only when a proposal becomes official, not on edits to a live bounty.
-  // The transition is a conditional write so that two overlapping approvals
-  // cannot both announce: only the request that flips the status gets a row back.
+  // Announce only when a bounty becomes official, not on edits to a live one.
+  // Every approval is a conditional write, whatever status was read above, so
+  // the database decides: only the request that flips the status gets a row
+  // back, and overlapping approvals cannot both announce.
   let becameApproved = false;
-  if (updates.status === "approved" && existing.status !== "approved") {
+  if (updates.status === "approved") {
     const flipped = await db
       .update(bountyProject)
       .set(updates)
@@ -153,8 +154,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     becameApproved = flipped.length > 0;
 
     if (!becameApproved) {
-      // Another request changed the status first. Keep its decision and review
-      // attribution; apply only the other edits from this request.
+      // Already approved (earlier, or by a request that got there first). Keep
+      // that decision and its review attribution; apply only the other edits.
       const otherEdits = { ...updates };
       delete otherEdits.status;
       delete otherEdits.reviewedById;

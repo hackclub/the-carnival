@@ -25,6 +25,12 @@ describe("richTextToSlack", () => {
     expect(richTextToSlack("*see [docs](https://example.com/a)*", 500)).toBe(
       "_see <https://example.com/a|docs>_",
     );
+    expect(richTextToSlack("*[docs](https://example.com/a*b*c)*", 500)).toBe(
+      "_<https://example.com/a*b*c|docs>_",
+    );
+    expect(richTextToSlack("**[docs](https://example.com/a*b*c)**", 500)).toBe(
+      "*<https://example.com/a*b*c|docs>*",
+    );
   });
 
   test("escapes author text so it cannot forge mentions or links", () => {

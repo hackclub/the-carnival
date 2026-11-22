@@ -22,13 +22,18 @@ const DESCRIPTION_MAX = 500;
 const REQUIREMENTS_MAX = 500;
 const HELPFUL_LINKS_MAX = 5;
 
-/**
- * Bounty descriptions use the app's small rich-text syntax (RichTextContent):
- * `**bold**`, `*italic*`, `[label](url)` and `-`/`1.` lists. Convert that to
- * Slack mrkdwn, escaping everything the author typed.
- */
-const INLINE_TOKEN =
-  /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|(https?:\/\/\S+)|\*\*([^*]+)\*\*|\*([^*]+)\*/g;
+// Emphasis may wrap links, and a link's URL may itself contain "*", so the
+// emphasis patterns step over whole links instead of stopping inside one.
+const LINK = String.raw`\[[^\]]+\]\(https?:\/\/[^)\s]+\)`;
+const INLINE_TOKEN = new RegExp(
+  [
+    String.raw`\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)`,
+    String.raw`(https?:\/\/\S+)`,
+    String.raw`\*\*((?:${LINK}|[^*])+)\*\*`,
+    String.raw`\*((?:${LINK}|[^*])+)\*`,
+  ].join("|"),
+  "g",
+);
 
 // One pass, so a URL is consumed whole and its "*" are never read as emphasis.
 // Emphasis contents go through the same pass so a link inside bold still converts.
@@ -48,6 +53,11 @@ function convertInlineToken(
   return `_${(italic ?? "").replace(INLINE_TOKEN, convertInlineToken)}_`;
 }
 
+/**
+ * Bounty descriptions use the app's small rich-text syntax (RichTextContent):
+ * `**bold**`, `*italic*`, `[label](url)` and `-`/`1.` lists. Convert that to
+ * Slack mrkdwn, escaping everything the author typed.
+ */
 export function richTextToSlack(value: string, max: number): string {
   const escaped = escapeSlackText(truncateForSlack(value.replace(/\r\n/g, "\n"), max));
   return escaped

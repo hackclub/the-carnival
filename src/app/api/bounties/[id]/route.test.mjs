@@ -165,8 +165,23 @@ describe("PATCH /api/bounties/[id]", () => {
 
     await patchBounty({ name: "Renamed" });
     await patchBounty({ completed: true });
+    // Already approved in the database, so the conditional write matches nothing.
+    state.transitionWins = false;
     await patchBounty({ status: "approved" });
 
     expect(state.announced).toEqual([]);
+  });
+
+  test("announces when the bounty left approved after this request read it", async () => {
+    state.authUser = { id: "admin-1", role: "admin", isAdmin: true, isReviewer: true };
+    // Read as approved, but another request moved it back to pending before the
+    // write, so the conditional write flips it.
+    state.existing = { id: "bounty-1", status: "approved" };
+    state.transitionWins = true;
+
+    await patchBounty({ status: "approved" });
+
+    expect(state.updateSet.status).toBe("approved");
+    expect(state.announced).toEqual(["bounty-1"]);
   });
 });
