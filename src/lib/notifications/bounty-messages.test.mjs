@@ -18,6 +18,15 @@ describe("richTextToSlack", () => {
     );
   });
 
+  test("converts links inside emphasis", () => {
+    expect(richTextToSlack("**[docs](https://example.com/a)**", 500)).toBe(
+      "*<https://example.com/a|docs>*",
+    );
+    expect(richTextToSlack("*see [docs](https://example.com/a)*", 500)).toBe(
+      "_see <https://example.com/a|docs>_",
+    );
+  });
+
   test("escapes author text so it cannot forge mentions or links", () => {
     expect(richTextToSlack("<!channel> & <@U123>", 500)).toBe(
       "&lt;!channel&gt; &amp; &lt;@U123&gt;",

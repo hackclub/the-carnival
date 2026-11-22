@@ -151,8 +151,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       .where(and(eq(bountyProject.id, id), ne(bountyProject.status, "approved")))
       .returning({ id: bountyProject.id });
     becameApproved = flipped.length > 0;
-  }
-  if (!becameApproved) {
+
+    if (!becameApproved) {
+      // Another request changed the status first. Keep its decision and review
+      // attribution; apply only the other edits from this request.
+      const otherEdits = { ...updates };
+      delete otherEdits.status;
+      delete otherEdits.reviewedById;
+      delete otherEdits.reviewedAt;
+      delete otherEdits.rejectionReason;
+      await db.update(bountyProject).set(otherEdits).where(eq(bountyProject.id, id));
+    }
+  } else {
     await db.update(bountyProject).set(updates).where(eq(bountyProject.id, id));
   }
 

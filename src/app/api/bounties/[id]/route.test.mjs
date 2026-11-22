@@ -147,10 +147,15 @@ describe("PATCH /api/bounties/[id]", () => {
     state.authUser = { id: "admin-1", role: "admin", isAdmin: true, isReviewer: true };
     state.transitionWins = false;
 
-    const { res } = await patchBounty({ status: "approved" });
+    const { res } = await patchBounty({ status: "approved", name: "Renamed" });
 
     expect(res.status).toBe(200);
-    expect(state.updateSet.status).toBe("approved");
+    // The follow-up write keeps the other edits but leaves the winner's decision alone.
+    expect(state.updateSet.name).toBe("Renamed");
+    expect(state.updateSet).not.toHaveProperty("status");
+    expect(state.updateSet).not.toHaveProperty("reviewedById");
+    expect(state.updateSet).not.toHaveProperty("reviewedAt");
+    expect(state.updateSet).not.toHaveProperty("rejectionReason");
     expect(state.announced).toEqual([]);
   });
 
