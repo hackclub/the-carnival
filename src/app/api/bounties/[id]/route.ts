@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { bountyProject, type BountyHelpfulLink, type BountyProjectStatus } from "@/db/schema";
 import { getAuthUser, parseJsonBody, toCleanString, toPositiveInt } from "@/lib/api-utils";
@@ -140,10 +140,23 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     updates.rejectionReason = toCleanString(body.rejectionReason) || null;
   }
 
-  await db.update(bountyProject).set(updates).where(eq(bountyProject.id, id));
-
   // Announce only when a proposal becomes official, not on edits to a live bounty.
+  // The transition is a conditional write so that two overlapping approvals
+  // cannot both announce: only the request that flips the status gets a row back.
+  let becameApproved = false;
   if (updates.status === "approved" && existing.status !== "approved") {
+    const flipped = await db
+      .update(bountyProject)
+      .set(updates)
+      .where(and(eq(bountyProject.id, id), ne(bountyProject.status, "approved")))
+      .returning({ id: bountyProject.id });
+    becameApproved = flipped.length > 0;
+  }
+  if (!becameApproved) {
+    await db.update(bountyProject).set(updates).where(eq(bountyProject.id, id));
+  }
+
+  if (becameApproved) {
     runAfterResponse(() => announceNewBounty(id), "bounty announcement");
   }
 

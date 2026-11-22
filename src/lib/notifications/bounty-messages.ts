@@ -35,12 +35,23 @@ export function richTextToSlack(value: string, max: number): string {
       line
         .trimEnd()
         .replace(/^\s*[-*]\s+/, "• ")
+        // One pass, so a URL is consumed whole and its "*" are never read as emphasis.
         .replace(
-          /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
-          (_match, label: string, url: string) => `<${url.replace(/\|/g, "%7C")}|${label}>`,
-        )
-        .replace(/\*\*([^*]+)\*\*|\*([^*]+)\*/g, (_match, bold?: string, italic?: string) =>
-          bold !== undefined ? `*${bold}*` : `_${italic ?? ""}_`,
+          /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|(https?:\/\/\S+)|\*\*([^*]+)\*\*|\*([^*]+)\*/g,
+          (
+            match,
+            label?: string,
+            url?: string,
+            bareUrl?: string,
+            bold?: string,
+            italic?: string,
+          ) => {
+            if (label !== undefined && url !== undefined) {
+              return `<${url.replace(/\|/g, "%7C")}|${label}>`;
+            }
+            if (bareUrl !== undefined) return match;
+            return bold !== undefined ? `*${bold}*` : `_${italic ?? ""}_`;
+          },
         ),
     )
     .join("\n")

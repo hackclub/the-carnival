@@ -13,6 +13,7 @@ const state = {
   },
   updateSet: null,
   announced: [],
+  transitionWins: true,
 };
 
 function resetState() {
@@ -28,6 +29,7 @@ function resetState() {
   };
   state.updateSet = null;
   state.announced = [];
+  state.transitionWins = true;
 }
 
 const db = {
@@ -50,7 +52,13 @@ const db = {
       set(values) {
         state.updateSet = values;
         return {
-          where: async () => [],
+          where() {
+            // Unconditional writes are awaited directly; the approval
+            // transition calls .returning() and gets a row only if it won.
+            const result = Promise.resolve([]);
+            result.returning = async () => (state.transitionWins ? [{ id: "bounty-1" }] : []);
+            return result;
+          },
         };
       },
     };
@@ -132,6 +140,17 @@ describe("PATCH /api/bounties/[id]", () => {
     const { res } = await patchBounty({ status: "rejected", rejectionReason: "Too vague" });
 
     expect(res.status).toBe(200);
+    expect(state.announced).toEqual([]);
+  });
+
+  test("an approval that loses the race to another request is not announced", async () => {
+    state.authUser = { id: "admin-1", role: "admin", isAdmin: true, isReviewer: true };
+    state.transitionWins = false;
+
+    const { res } = await patchBounty({ status: "approved" });
+
+    expect(res.status).toBe(200);
+    expect(state.updateSet.status).toBe("approved");
     expect(state.announced).toEqual([]);
   });
 

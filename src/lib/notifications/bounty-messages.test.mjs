@@ -9,6 +9,15 @@ describe("richTextToSlack", () => {
     ).toBe("*Bold* and _soft_\n• one\n• <https://example.com/a|docs>");
   });
 
+  test("leaves asterisks inside URLs alone", () => {
+    expect(richTextToSlack("[docs](https://example.com/a*b*c) and *soft*", 500)).toBe(
+      "<https://example.com/a*b*c|docs> and _soft_",
+    );
+    expect(richTextToSlack("see https://example.com/a*b*c now", 500)).toBe(
+      "see https://example.com/a*b*c now",
+    );
+  });
+
   test("escapes author text so it cannot forge mentions or links", () => {
     expect(richTextToSlack("<!channel> & <@U123>", 500)).toBe(
       "&lt;!channel&gt; &amp; &lt;@U123&gt;",
