@@ -25,7 +25,8 @@ const HELPFUL_LINKS_MAX = 5;
 // Links and bare URLs. Converted first and parked behind placeholders, so the
 // emphasis pass never sees a URL (whose "*" would read as emphasis) and both
 // patterns stay simple enough to run in linear time on any input.
-const LINK_OR_URL = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|https?:\/\/\S+/g;
+// A label cannot contain "[", so a run of "[" fails fast instead of rescanning.
+const LINK_OR_URL = /\[([^\][]+)\]\((https?:\/\/[^)\s]+)\)|https?:\/\/\S+/g;
 const EMPHASIS = /\*\*([^*]+)\*\*|\*([^*]+)\*/g;
 // Private-use characters: they mark a parked link and are stripped from input.
 const PARK_OPEN = "\uE000";

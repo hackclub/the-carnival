@@ -41,6 +41,13 @@ describe("richTextToSlack", () => {
     expect(out).toBe(`*${"<http://a|x>".repeat(38)}!`);
   });
 
+  test("a long run of opening brackets converts quickly", () => {
+    const input = "[".repeat(20000);
+    const started = performance.now();
+    expect(richTextToSlack(input, 20000)).toBe(input);
+    expect(performance.now() - started).toBeLessThan(200);
+  });
+
   test("placeholder characters in the input cannot inject a link", () => {
     expect(richTextToSlack("a \uE0000\uE001 b [x](http://a)", 500)).toBe("a 0 b <http://a|x>");
   });
