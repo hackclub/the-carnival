@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { bountyProject, type BountyHelpfulLink } from "@/db/schema";
 import { toCleanString } from "@/lib/api-utils";
@@ -7,6 +7,15 @@ import { usdToTokens } from "@/lib/wallet-converter";
 export function bountyPrizeUsdToTokens(prizeUsd: number) {
   const usd = Number.isFinite(prizeUsd) ? Math.max(0, prizeUsd) : 0;
   return Math.max(0, Math.floor(usdToTokens(usd)));
+}
+
+/** Official bounties that are still open (see isActiveBounty). Shown in the sidebar. */
+export async function countActiveBounties(): Promise<number> {
+  const rows = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(bountyProject)
+    .where(and(eq(bountyProject.status, "approved"), eq(bountyProject.completed, false)));
+  return Number(rows[0]?.count ?? 0);
 }
 
 export function toBountyHelpfulLinks(value: unknown): BountyHelpfulLink[] | null {

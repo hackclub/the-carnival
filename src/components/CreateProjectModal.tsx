@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EDITOR_OPTIONS, cleanString, type EditorOptionValue } from "@/lib/project-form-utils";
@@ -194,6 +195,20 @@ export default function CreateProjectModal() {
           {error ? (
             <div className="rounded-[var(--radius-xl)] border border-carnival-red/40 bg-carnival-red/10 px-4 py-3 text-sm text-red-200">
               {error}
+            </div>
+          ) : null}
+
+          {!bountiesLoading && availableBounties.length > 0 ? (
+            <div className="rounded-[var(--radius-xl)] border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+              Not sure what to build?{" "}
+              <Link
+                href="/bounties"
+                className="font-semibold text-carnival-blue underline-offset-2 hover:underline"
+              >
+                Check out the {availableBounties.length} active{" "}
+                {availableBounties.length === 1 ? "bounty" : "bounties"}
+              </Link>{" "}
+              for ideas that come with a prize.
             </div>
           ) : null}
 

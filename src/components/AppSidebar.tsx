@@ -133,26 +133,41 @@ function withAdminIndicators(items: NavItem[], counts: AdminIndicatorCounts | nu
   });
 }
 
+function withBountyCount(items: NavItem[], activeBountyCount: number): NavItem[] {
+  return items.map((item) =>
+    item.href === "/bounties"
+      ? {
+          ...item,
+          badgeCount: activeBountyCount,
+          badgeLabel: `${activeBountyCount} active ${activeBountyCount === 1 ? "bounty" : "bounties"}`,
+        }
+      : item,
+  );
+}
+
 function getNavSections(
   role: UserRole,
   adminIndicators: AdminIndicatorCounts | null,
+  activeBountyCount: number,
 ): NavSection[] {
+  const workspaceItems = withBountyCount(WORKSPACE_NAV, activeBountyCount);
+
   if (role === "admin") {
     const opsItems = withAdminIndicators([...REVIEW_NAV, ...ADMIN_NAV], adminIndicators);
     return [
-      { id: "workspace", title: "Workspace", items: WORKSPACE_NAV },
+      { id: "workspace", title: "Workspace", items: workspaceItems },
       { id: "ops", title: "Operations", items: opsItems },
     ];
   }
 
   if (role === "reviewer") {
     return [
-      { id: "workspace", title: "Workspace", items: WORKSPACE_NAV },
+      { id: "workspace", title: "Workspace", items: workspaceItems },
       { id: "ops", title: "Operations", items: REVIEW_NAV },
     ];
   }
 
-  return [{ id: "workspace", title: "Workspace", items: WORKSPACE_NAV }];
+  return [{ id: "workspace", title: "Workspace", items: workspaceItems }];
 }
 
 function getInitials(nameOrEmail?: string | null) {
@@ -258,11 +273,13 @@ export default function AppSidebar({
   initialWalletBalance,
   walletFetchedAt,
   adminIndicators,
+  activeBountyCount,
 }: {
   user: SidebarUser | null;
   initialWalletBalance: number | null;
   walletFetchedAt: string;
   adminIndicators: AdminIndicatorCounts | null;
+  activeBountyCount: number;
 }) {
   const pathname = usePathname();
   const { mobileOpen, setMobileOpen, collapsed, toggleCollapsed } = useSidebar();
@@ -276,7 +293,7 @@ export default function AppSidebar({
   const sessionUser = user;
   const isAuthed = !!sessionUser?.id;
   const role = asUserRole(sessionUser?.role ?? null);
-  const sections = getNavSections(role, adminIndicators);
+  const sections = getNavSections(role, adminIndicators, activeBountyCount);
 
   const displayName = useMemo(() => {
     return sessionUser?.name?.trim() || sessionUser?.email?.trim() || "Unknown";

@@ -45,7 +45,14 @@ export default async function ProjectsPage() {
         <div className="platform-surface-card p-8">
           <div className="text-foreground font-semibold text-lg">No projects yet</div>
           <div className="text-muted-foreground mt-1">
-            Create your first project to start tracking hours and status.
+            Create your first project to start tracking hours and status. Not sure what to build?{" "}
+            <Link
+              href="/bounties"
+              className="font-semibold text-carnival-blue underline-offset-2 hover:underline"
+            >
+              Check out the active bounties
+            </Link>{" "}
+            for ideas that come with a prize.
           </div>
           <div className="mt-6">
             <Link

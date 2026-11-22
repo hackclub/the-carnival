@@ -25,6 +25,11 @@ export function getReviewChannelId(): string | null {
   return process.env.SLACK_REVIEW_CHANNEL_ID?.trim() || null;
 }
 
+/** Public Carnival channel that gets one post per new official bounty. */
+export function getBountyChannelId(): string | null {
+  return process.env.SLACK_BOUNTY_CHANNEL_ID?.trim() || null;
+}
+
 const SLACK_MIN_REQUEST_INTERVAL_MS = 1000;
 let nextSlackRequestAt = 0;
 

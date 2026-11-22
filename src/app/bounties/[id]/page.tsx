@@ -7,6 +7,11 @@ import ProjectStatusBadge from "@/components/ProjectStatusBadge";
 import { RichTextContent } from "@/components/RichTextContent";
 import { db } from "@/db";
 import { bountyClaim, bountyProject, project, user } from "@/db/schema";
+import {
+  formatBountyHours,
+  getBountyEquivalentHours,
+  getBountyMinimumHours,
+} from "@/lib/bounties-shared";
 import { getServerSession } from "@/lib/server-session";
 
 function toHelpfulLinks(value: unknown): Array<{ label: string; url: string }> {
@@ -261,6 +266,23 @@ export default async function BountyDetailPage(props: { params: Promise<{ id: st
         <aside className="h-fit platform-surface-card p-6">
           <div className="text-sm text-muted-foreground">Claims</div>
           <div className="mt-1 text-2xl font-bold text-foreground">{claimedUserIds.size}/2</div>
+          <dl className="mt-4 space-y-3 border-t border-border pt-4">
+            <div>
+              <dt className="text-sm text-muted-foreground">Hours equivalent</dt>
+              <dd className="mt-0.5 font-semibold text-foreground">
+                {formatBountyHours(getBountyEquivalentHours(bounty.prizeUsd))}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">Minimum hours</dt>
+              <dd className="mt-0.5 font-semibold text-foreground">
+                {formatBountyHours(getBountyMinimumHours(bounty.prizeUsd))}
+              </dd>
+            </div>
+          </dl>
+          <div className="mt-3 text-sm text-muted-foreground">
+            Your extension must meet every bounty requirement to qualify for the payout.
+          </div>
           <div className="mt-4 text-sm text-muted-foreground">
             Created {bounty.createdAt.toLocaleString()}
             {bounty.reviewedAt ? ` • Reviewed ${bounty.reviewedAt.toLocaleString()}` : ""}

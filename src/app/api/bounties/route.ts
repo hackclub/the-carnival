@@ -11,6 +11,8 @@ import {
 } from "@/lib/api-utils";
 import { frozenAccountResponse } from "@/lib/frozen-account-response";
 import { isValidHttpUrl, toBountyHelpfulLinks } from "@/lib/bounties";
+import { runAfterResponse } from "@/lib/notifications/after-response";
+import { announceNewBounty } from "@/lib/notifications/bounty-events";
 
 type CreateBountyBody = {
   name?: unknown;
@@ -137,6 +139,11 @@ export async function POST(req: Request) {
     createdAt: now,
     updatedAt: now,
   });
+
+  // Admin-created bounties are official right away; proposals are announced on approval.
+  if (status === "approved") {
+    runAfterResponse(() => announceNewBounty(id), "bounty announcement");
+  }
 
   return NextResponse.json({ id, status }, { status: 201 });
 }

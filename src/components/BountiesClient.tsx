@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
@@ -16,11 +17,14 @@ import {
 import { R2ImageUpload } from "@/components/R2ImageUpload";
 import { RichTextContent } from "@/components/RichTextContent";
 import { RichTextField } from "@/components/RichTextField";
-import { FIXED_RATE_TOKENS, FIXED_RATE_USD, TOKENS_PER_HOUR } from "@/lib/wallet-converter";
+import {
+  GRANT_USD_PER_HOUR,
+  formatBountyHours,
+  getBountyEquivalentHours,
+  getBountyMinimumHours,
+  isActiveBounty,
+} from "@/lib/bounties-shared";
 import { extractApiError } from "@/lib/project-form-utils";
-
-// 1 approved hour = TOKENS_PER_HOUR tokens = FIXED_RATE_USD dollars.
-const GRANT_USD_PER_HOUR = (FIXED_RATE_USD / FIXED_RATE_TOKENS) * TOKENS_PER_HOUR;
 
 export type BountyHelpfulLink = {
   label: string;
@@ -87,23 +91,6 @@ function prepareHelpfulLinksDraft(draft: BountyHelpfulLink[]) {
   }
 
   return { helpfulLinks, error: null as string | null };
-}
-
-function getEquivalentHours(prizeUsd: number) {
-  const normalizedPrizeUsd = Number.isFinite(prizeUsd) ? Math.max(0, prizeUsd) : 0;
-  return normalizedPrizeUsd / GRANT_USD_PER_HOUR;
-}
-
-function getMinimumHoursForBounty(prizeUsd: number) {
-  return getEquivalentHours(prizeUsd) / 2 + 1;
-}
-
-function formatHoursLabel(hours: number) {
-  const normalizedHours = Number.isFinite(hours) ? Math.max(0, hours) : 0;
-  const roundedHours = Number.isInteger(normalizedHours)
-    ? normalizedHours.toString()
-    : normalizedHours.toFixed(2).replace(/\.?0+$/, "");
-  return `${roundedHours} hour${normalizedHours === 1 ? "" : "s"}`;
 }
 
 function HelpfulLinksFields({
@@ -203,6 +190,7 @@ export default function BountiesClient({
   initial: BountyListItem[];
   isAdmin: boolean;
 }) {
+  const router = useRouter();
   const [items, setItems] = useState<BountyListItem[]>(initial);
   const [creating, setCreating] = useState(false);
   const [createDescription, setCreateDescription] = useState("");
@@ -261,7 +249,9 @@ export default function BountiesClient({
         createdAt: typeof p.createdAt === "string" ? p.createdAt : undefined,
       }));
     setItems(next);
-  }, []);
+    // The sidebar's active-bounty count is server-rendered; keep it in step.
+    router.refresh();
+  }, [router]);
 
   const closeEditModal = useCallback(() => {
     if (editBusy) return;
@@ -549,6 +539,183 @@ export default function BountiesClient({
     });
   }, [items]);
 
+  const renderBountyCard = (b: BountyListItem) => {
+    const isFull = b.claimedCount >= 2;
+    const isCompleted = b.completed;
+    const isOfficial = b.status === "approved";
+    const canClaim = isOfficial && !isFull && !b.claimedByMe && !isCompleted;
+    const equivalentHours = getBountyEquivalentHours(b.prizeUsd);
+    const minimumHours = getBountyMinimumHours(b.prizeUsd);
+
+    return (
+      <Card
+        key={b.id}
+        className={`p-6 ${isCompleted ? "opacity-50" : isFull ? "opacity-70" : "hover:bg-muted"}`}
+      >
+        <Link
+          href={`/bounties/${encodeURIComponent(b.id)}`}
+          className="block -mx-1 -mt-1 rounded-[var(--radius-xl)] p-1 hover:bg-background/40"
+        >
+          {b.previewImageUrl ? (
+            <div className="mb-4 h-40 overflow-hidden rounded-[var(--radius-xl)]  border border-border bg-muted">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={b.previewImageUrl}
+                alt=""
+                className="h-full w-full object-cover"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+          ) : null}
+        </Link>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/bounties/${encodeURIComponent(b.id)}`}
+                className="text-foreground font-bold text-xl truncate hover:underline"
+              >
+                {b.name}
+              </Link>
+              {isCompleted && <Badge variant="success">Completed</Badge>}
+              {b.status === "pending" && <Badge variant="warning">Pending</Badge>}
+              {b.status === "rejected" && <Badge variant="error">Rejected</Badge>}
+            </div>
+            <div className="text-muted-foreground mt-1 text-sm">
+              by{" "}
+              <span className="text-foreground font-medium">
+                {b.authorName || "Unknown creator"}
+              </span>
+            </div>
+            <RichTextContent value={b.description} className="mt-2 text-muted-foreground" clamp />
+            {b.requirements ? (
+              <div className="mt-3 rounded-[var(--radius-xl)]  border border-border bg-muted/40 px-3 py-2 text-sm">
+                <div className="font-semibold text-foreground">Requirements</div>
+                <RichTextContent
+                  value={b.requirements}
+                  className="mt-1 text-muted-foreground"
+                  clamp
+                />
+              </div>
+            ) : null}
+            {b.helpfulLinks.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {b.helpfulLinks.map((link, idx) => (
+                  <a
+                    key={`${b.id}-helpful-link-${idx}`}
+                    href={link.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-carnival-blue hover:underline break-all"
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="shrink-0 text-right">
+            <div className="text-sm text-muted-foreground">Prize</div>
+            <div className="text-foreground font-bold text-lg">
+              ${b.prizeUsd.toLocaleString("en-US")}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted/40 px-4 py-3">
+            <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+              Hours Equivalent
+            </div>
+            <div className="mt-1 text-base font-semibold text-foreground">
+              {formatBountyHours(equivalentHours)}
+            </div>
+          </div>
+          <div className="rounded-[var(--radius-2xl)] border border-border bg-muted/40 px-4 py-3">
+            <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+              Minimum Hours
+            </div>
+            <div className="mt-1 text-base font-semibold text-foreground">
+              {formatBountyHours(minimumHours)}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 text-sm text-muted-foreground">
+          Your extension must meet every bounty requirement above to qualify for the payout.
+        </div>
+        {b.status === "rejected" && b.rejectionReason ? (
+          <div className="mt-3 rounded-[var(--radius-xl)] border border-carnival-red/40 bg-carnival-red/10 px-3 py-2 text-sm text-red-200">
+            {b.rejectionReason}
+          </div>
+        ) : null}
+
+        <div className="mt-6 flex items-center justify-between gap-4">
+          <div className="text-sm text-muted-foreground">
+            {isOfficial ? (
+              <>
+                Claims: <span className="text-foreground font-semibold">{b.claimedCount}/2</span>
+              </>
+            ) : (
+              "Proposal review"
+            )}
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Link
+              href={`/bounties/${encodeURIComponent(b.id)}`}
+              className="inline-flex items-center justify-center px-5 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border hover:bg-muted"
+            >
+              View
+            </Link>
+            {isAdmin && (
+              <Button type="button" variant="ghost" onClick={() => openEditModal(b)}>
+                Edit
+              </Button>
+            )}
+            {isAdmin && b.status === "pending" && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => updateStatus(b.id, "approved")}
+              >
+                Approve
+              </Button>
+            )}
+            {isAdmin && b.status === "pending" && (
+              <Button type="button" variant="outline" onClick={() => setRejectingId(b.id)}>
+                Reject
+              </Button>
+            )}
+            {isAdmin && isOfficial && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => markCompleted(b.id, !isCompleted)}
+              >
+                {isCompleted ? "Reopen" : "Mark Done"}
+              </Button>
+            )}
+            {isOfficial ? (
+              <Button
+                type="button"
+                variant={canClaim ? "secondary" : "disabled"}
+                onClick={() => claim(b.id)}
+                disabled={!canClaim}
+              >
+                {isCompleted ? "Done" : b.claimedByMe ? "Claimed" : isFull ? "Full" : "Claim"}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </Card>
+    );
+  };
+
+  const pendingBounties = sorted.filter((b) => b.status === "pending");
+  const activeBounties = sorted.filter(isActiveBounty);
+  const inactiveBounties = sorted.filter((b) => b.status !== "pending" && !isActiveBounty(b));
+
   return (
     <div className="space-y-6">
       <Card className="p-6">
@@ -564,6 +731,39 @@ export default function BountiesClient({
           .
         </div>
       </Card>
+
+      {pendingBounties.length > 0 ? (
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-foreground font-semibold text-lg">
+              {isAdmin ? "Proposals awaiting review" : "Your proposals in review"}{" "}
+              <span className="text-muted-foreground font-normal">({pendingBounties.length})</span>
+            </h2>
+            <div className="text-muted-foreground mt-1 text-sm">
+              {isAdmin
+                ? "Each card shows what the bounty will look like once it is official. Approving one announces it in the Carnival channel."
+                : "An admin will review these before they become official."}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {pendingBounties.map(renderBountyCard)}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="space-y-4">
+        <h2 className="text-foreground font-semibold text-lg">
+          Active bounties{" "}
+          <span className="text-muted-foreground font-normal">({activeBounties.length})</span>
+        </h2>
+        {activeBounties.length === 0 ? (
+          <EmptyState title="No active bounties right now" description="Check back soon." />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {activeBounties.map(renderBountyCard)}
+          </div>
+        )}
+      </section>
 
       <Card className="p-6">
         <div className="text-foreground font-semibold text-lg">
@@ -640,200 +840,17 @@ export default function BountiesClient({
         </form>
       </Card>
 
-      {sorted.length === 0 ? (
-        <EmptyState title="No bounties yet" description="Check back soon." />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {sorted.map((b) => {
-            const isFull = b.claimedCount >= 2;
-            const isCompleted = b.completed;
-            const isOfficial = b.status === "approved";
-            const canClaim = isOfficial && !isFull && !b.claimedByMe && !isCompleted;
-            const equivalentHours = getEquivalentHours(b.prizeUsd);
-            const minimumHours = getMinimumHoursForBounty(b.prizeUsd);
-
-            return (
-              <Card
-                key={b.id}
-                className={`p-6 ${isCompleted ? "opacity-50" : isFull ? "opacity-70" : "hover:bg-muted"}`}
-              >
-                <Link
-                  href={`/bounties/${encodeURIComponent(b.id)}`}
-                  className="block -mx-1 -mt-1 rounded-[var(--radius-xl)] p-1 hover:bg-background/40"
-                >
-                  {b.previewImageUrl ? (
-                    <div className="mb-4 h-40 overflow-hidden rounded-[var(--radius-xl)]  border border-border bg-muted">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={b.previewImageUrl}
-                        alt=""
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                      />
-                    </div>
-                  ) : null}
-                </Link>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/bounties/${encodeURIComponent(b.id)}`}
-                        className="text-foreground font-bold text-xl truncate hover:underline"
-                      >
-                        {b.name}
-                      </Link>
-                      {isCompleted && <Badge variant="success">Completed</Badge>}
-                      {b.status === "pending" && <Badge variant="warning">Pending</Badge>}
-                      {b.status === "rejected" && <Badge variant="error">Rejected</Badge>}
-                    </div>
-                    <div className="text-muted-foreground mt-1 text-sm">
-                      by{" "}
-                      <span className="text-foreground font-medium">
-                        {b.authorName || "Unknown creator"}
-                      </span>
-                    </div>
-                    <RichTextContent
-                      value={b.description}
-                      className="mt-2 text-muted-foreground"
-                      clamp
-                    />
-                    {b.requirements ? (
-                      <div className="mt-3 rounded-[var(--radius-xl)]  border border-border bg-muted/40 px-3 py-2 text-sm">
-                        <div className="font-semibold text-foreground">Requirements</div>
-                        <RichTextContent
-                          value={b.requirements}
-                          className="mt-1 text-muted-foreground"
-                          clamp
-                        />
-                      </div>
-                    ) : null}
-                    {b.helpfulLinks.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {b.helpfulLinks.map((link, idx) => (
-                          <a
-                            key={`${b.id}-helpful-link-${idx}`}
-                            href={link.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-sm text-carnival-blue hover:underline break-all"
-                          >
-                            {link.label}
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <div className="text-sm text-muted-foreground">Prize</div>
-                    <div className="text-foreground font-bold text-lg">
-                      ${b.prizeUsd.toLocaleString("en-US")}
-                    </div>
-                  </div>
-                </div>
-
-                {isOfficial ? (
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-[var(--radius-2xl)] border border-border bg-muted/40 px-4 py-3">
-                      <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                        Hours Equivalent
-                      </div>
-                      <div className="mt-1 text-base font-semibold text-foreground">
-                        {formatHoursLabel(equivalentHours)}
-                      </div>
-                    </div>
-                    <div className="rounded-[var(--radius-2xl)] border border-border bg-muted/40 px-4 py-3">
-                      <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                        Minimum Hours
-                      </div>
-                      <div className="mt-1 text-base font-semibold text-foreground">
-                        {formatHoursLabel(minimumHours)}
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-
-                {isOfficial ? (
-                  <div className="mt-3 text-sm text-muted-foreground">
-                    Your extension must meet every bounty requirement above to qualify for the
-                    payout.
-                  </div>
-                ) : null}
-                {b.status === "rejected" && b.rejectionReason ? (
-                  <div className="mt-3 rounded-[var(--radius-xl)] border border-carnival-red/40 bg-carnival-red/10 px-3 py-2 text-sm text-red-200">
-                    {b.rejectionReason}
-                  </div>
-                ) : null}
-
-                <div className="mt-6 flex items-center justify-between gap-4">
-                  <div className="text-sm text-muted-foreground">
-                    {isOfficial ? (
-                      <>
-                        Claims:{" "}
-                        <span className="text-foreground font-semibold">{b.claimedCount}/2</span>
-                      </>
-                    ) : (
-                      "Proposal review"
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <Link
-                      href={`/bounties/${encodeURIComponent(b.id)}`}
-                      className="inline-flex items-center justify-center px-5 py-2 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border hover:bg-muted"
-                    >
-                      View
-                    </Link>
-                    {isAdmin && (
-                      <Button type="button" variant="ghost" onClick={() => openEditModal(b)}>
-                        Edit
-                      </Button>
-                    )}
-                    {isAdmin && b.status === "pending" && (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => updateStatus(b.id, "approved")}
-                      >
-                        Approve
-                      </Button>
-                    )}
-                    {isAdmin && b.status === "pending" && (
-                      <Button type="button" variant="outline" onClick={() => setRejectingId(b.id)}>
-                        Reject
-                      </Button>
-                    )}
-                    {isAdmin && isOfficial && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => markCompleted(b.id, !isCompleted)}
-                      >
-                        {isCompleted ? "Reopen" : "Mark Done"}
-                      </Button>
-                    )}
-                    {isOfficial ? (
-                      <Button
-                        type="button"
-                        variant={canClaim ? "secondary" : "disabled"}
-                        onClick={() => claim(b.id)}
-                        disabled={!canClaim}
-                      >
-                        {isCompleted
-                          ? "Done"
-                          : b.claimedByMe
-                            ? "Claimed"
-                            : isFull
-                              ? "Full"
-                              : "Claim"}
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+      {inactiveBounties.length > 0 ? (
+        <details>
+          <summary className="cursor-pointer select-none text-foreground font-semibold text-lg">
+            Completed and inactive bounties{" "}
+            <span className="text-muted-foreground font-normal">({inactiveBounties.length})</span>
+          </summary>
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {inactiveBounties.map(renderBountyCard)}
+          </div>
+        </details>
+      ) : null}
 
       <Modal
         open={editingId !== null}

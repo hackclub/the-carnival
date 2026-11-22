@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { bountyProject, type BountyHelpfulLink, type BountyProjectStatus } from "@/db/schema";
 import { getAuthUser, parseJsonBody, toCleanString, toPositiveInt } from "@/lib/api-utils";
 import { isValidHttpUrl, toBountyHelpfulLinks } from "@/lib/bounties";
+import { runAfterResponse } from "@/lib/notifications/after-response";
+import { announceNewBounty } from "@/lib/notifications/bounty-events";
 
 type UpdateBountyBody = {
   name?: unknown;
@@ -138,7 +140,36 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     updates.rejectionReason = toCleanString(body.rejectionReason) || null;
   }
 
-  await db.update(bountyProject).set(updates).where(eq(bountyProject.id, id));
+  // Announce only when a bounty becomes official, not on edits to a live one.
+  // Every approval is a conditional write, whatever status was read above, so
+  // the database decides: only the request that flips the status gets a row
+  // back, and overlapping approvals cannot both announce.
+  let becameApproved = false;
+  if (updates.status === "approved") {
+    const flipped = await db
+      .update(bountyProject)
+      .set(updates)
+      .where(and(eq(bountyProject.id, id), ne(bountyProject.status, "approved")))
+      .returning({ id: bountyProject.id });
+    becameApproved = flipped.length > 0;
+
+    if (!becameApproved) {
+      // Already approved (earlier, or by a request that got there first). Keep
+      // that decision and its review attribution; apply only the other edits.
+      const otherEdits = { ...updates };
+      delete otherEdits.status;
+      delete otherEdits.reviewedById;
+      delete otherEdits.reviewedAt;
+      delete otherEdits.rejectionReason;
+      await db.update(bountyProject).set(otherEdits).where(eq(bountyProject.id, id));
+    }
+  } else {
+    await db.update(bountyProject).set(updates).where(eq(bountyProject.id, id));
+  }
+
+  if (becameApproved) {
+    runAfterResponse(() => announceNewBounty(id), "bounty announcement");
+  }
 
   return NextResponse.json({ success: true, status: updates.status ?? existing.status });
 }

@@ -12,6 +12,8 @@ const state = {
     status: "pending",
   },
   updateSet: null,
+  announced: [],
+  transitionWins: true,
 };
 
 function resetState() {
@@ -26,6 +28,8 @@ function resetState() {
     status: "pending",
   };
   state.updateSet = null;
+  state.announced = [];
+  state.transitionWins = true;
 }
 
 const db = {
@@ -48,7 +52,13 @@ const db = {
       set(values) {
         state.updateSet = values;
         return {
-          where: async () => [],
+          where() {
+            // Unconditional writes are awaited directly; the approval
+            // transition calls .returning() and gets a row only if it won.
+            const result = Promise.resolve([]);
+            result.returning = async () => (state.transitionWins ? [{ id: "bounty-1" }] : []);
+            return result;
+          },
         };
       },
     };
@@ -64,6 +74,17 @@ mock.module("@/lib/api-utils", () => ({
     if (typeof value === "number" && Number.isFinite(value)) return Math.floor(value);
     if (typeof value === "string" && value.trim()) return Math.floor(Number(value));
     return NaN;
+  },
+}));
+
+mock.module("@/lib/notifications/after-response", () => ({
+  runAfterResponse: (task) => {
+    void task();
+  },
+}));
+mock.module("@/lib/notifications/bounty-events", () => ({
+  announceNewBounty: async (id) => {
+    state.announced.push(id);
   },
 }));
 
@@ -91,6 +112,7 @@ describe("PATCH /api/bounties/[id]", () => {
     expect(res.status).toBe(403);
     expect(json.error).toBe("Forbidden");
     expect(state.updateSet).toBeNull();
+    expect(state.announced).toEqual([]);
   });
 
   test("admins can approve bounty proposals", async () => {
@@ -109,5 +131,57 @@ describe("PATCH /api/bounties/[id]", () => {
     expect(state.updateSet.reviewedById).toBe("admin-1");
     expect(state.updateSet.reviewedAt).toBeInstanceOf(Date);
     expect(state.updateSet.rejectionReason).toBeNull();
+    expect(state.announced).toEqual(["bounty-1"]);
+  });
+
+  test("rejecting a proposal is not announced", async () => {
+    state.authUser = { id: "admin-1", role: "admin", isAdmin: true, isReviewer: true };
+
+    const { res } = await patchBounty({ status: "rejected", rejectionReason: "Too vague" });
+
+    expect(res.status).toBe(200);
+    expect(state.announced).toEqual([]);
+  });
+
+  test("an approval that loses the race to another request is not announced", async () => {
+    state.authUser = { id: "admin-1", role: "admin", isAdmin: true, isReviewer: true };
+    state.transitionWins = false;
+
+    const { res } = await patchBounty({ status: "approved", name: "Renamed" });
+
+    expect(res.status).toBe(200);
+    // The follow-up write keeps the other edits but leaves the winner's decision alone.
+    expect(state.updateSet.name).toBe("Renamed");
+    expect(state.updateSet).not.toHaveProperty("status");
+    expect(state.updateSet).not.toHaveProperty("reviewedById");
+    expect(state.updateSet).not.toHaveProperty("reviewedAt");
+    expect(state.updateSet).not.toHaveProperty("rejectionReason");
+    expect(state.announced).toEqual([]);
+  });
+
+  test("editing or completing a live bounty is not announced again", async () => {
+    state.authUser = { id: "admin-1", role: "admin", isAdmin: true, isReviewer: true };
+    state.existing = { id: "bounty-1", status: "approved" };
+
+    await patchBounty({ name: "Renamed" });
+    await patchBounty({ completed: true });
+    // Already approved in the database, so the conditional write matches nothing.
+    state.transitionWins = false;
+    await patchBounty({ status: "approved" });
+
+    expect(state.announced).toEqual([]);
+  });
+
+  test("announces when the bounty left approved after this request read it", async () => {
+    state.authUser = { id: "admin-1", role: "admin", isAdmin: true, isReviewer: true };
+    // Read as approved, but another request moved it back to pending before the
+    // write, so the conditional write flips it.
+    state.existing = { id: "bounty-1", status: "approved" };
+    state.transitionWins = true;
+
+    await patchBounty({ status: "approved" });
+
+    expect(state.updateSet.status).toBe("approved");
+    expect(state.announced).toEqual(["bounty-1"]);
   });
 });
