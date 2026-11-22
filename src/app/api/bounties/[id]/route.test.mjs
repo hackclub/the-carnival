@@ -12,6 +12,7 @@ const state = {
     status: "pending",
   },
   updateSet: null,
+  announced: [],
 };
 
 function resetState() {
@@ -26,6 +27,7 @@ function resetState() {
     status: "pending",
   };
   state.updateSet = null;
+  state.announced = [];
 }
 
 const db = {
@@ -67,6 +69,17 @@ mock.module("@/lib/api-utils", () => ({
   },
 }));
 
+mock.module("@/lib/notifications/after-response", () => ({
+  runAfterResponse: (task) => {
+    void task();
+  },
+}));
+mock.module("@/lib/notifications/bounty-events", () => ({
+  announceNewBounty: async (id) => {
+    state.announced.push(id);
+  },
+}));
+
 const { PATCH } = await import("./route.ts");
 
 async function patchBounty(body) {
@@ -91,6 +104,7 @@ describe("PATCH /api/bounties/[id]", () => {
     expect(res.status).toBe(403);
     expect(json.error).toBe("Forbidden");
     expect(state.updateSet).toBeNull();
+    expect(state.announced).toEqual([]);
   });
 
   test("admins can approve bounty proposals", async () => {
@@ -109,5 +123,26 @@ describe("PATCH /api/bounties/[id]", () => {
     expect(state.updateSet.reviewedById).toBe("admin-1");
     expect(state.updateSet.reviewedAt).toBeInstanceOf(Date);
     expect(state.updateSet.rejectionReason).toBeNull();
+    expect(state.announced).toEqual(["bounty-1"]);
+  });
+
+  test("rejecting a proposal is not announced", async () => {
+    state.authUser = { id: "admin-1", role: "admin", isAdmin: true, isReviewer: true };
+
+    const { res } = await patchBounty({ status: "rejected", rejectionReason: "Too vague" });
+
+    expect(res.status).toBe(200);
+    expect(state.announced).toEqual([]);
+  });
+
+  test("editing or completing a live bounty is not announced again", async () => {
+    state.authUser = { id: "admin-1", role: "admin", isAdmin: true, isReviewer: true };
+    state.existing = { id: "bounty-1", status: "approved" };
+
+    await patchBounty({ name: "Renamed" });
+    await patchBounty({ completed: true });
+    await patchBounty({ status: "approved" });
+
+    expect(state.announced).toEqual([]);
   });
 });

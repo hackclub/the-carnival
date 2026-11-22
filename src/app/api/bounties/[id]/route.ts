@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { bountyProject, type BountyHelpfulLink, type BountyProjectStatus } from "@/db/schema";
 import { getAuthUser, parseJsonBody, toCleanString, toPositiveInt } from "@/lib/api-utils";
 import { isValidHttpUrl, toBountyHelpfulLinks } from "@/lib/bounties";
+import { runAfterResponse } from "@/lib/notifications/after-response";
+import { announceNewBounty } from "@/lib/notifications/bounty-events";
 
 type UpdateBountyBody = {
   name?: unknown;
@@ -139,6 +141,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   await db.update(bountyProject).set(updates).where(eq(bountyProject.id, id));
+
+  // Announce only when a proposal becomes official, not on edits to a live bounty.
+  if (updates.status === "approved" && existing.status !== "approved") {
+    runAfterResponse(() => announceNewBounty(id), "bounty announcement");
+  }
 
   return NextResponse.json({ success: true, status: updates.status ?? existing.status });
 }

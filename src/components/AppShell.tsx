@@ -5,6 +5,7 @@ import { SidebarProvider } from "@/components/SidebarContext";
 import { PlatformContent, PlatformShell } from "@/components/ui/platform";
 import { db } from "@/db";
 import { getAdminIndicatorCounts } from "@/lib/admin-indicators";
+import { countActiveBounties } from "@/lib/bounties";
 import { getHackatimeConnectionStatusForUser } from "@/lib/hackatime";
 import { getServerSession } from "@/lib/server-session";
 import { getTokenBalance } from "@/lib/wallet";
@@ -45,10 +46,11 @@ export default async function AppShell({
 }) {
   const session = await getServerSession({ disableCookieCache: true });
   const shellUser = toSafeShellUser(session?.user ?? null);
-  const [walletBalance, adminIndicators, hackatimeStatus] = await Promise.all([
+  const [walletBalance, adminIndicators, hackatimeStatus, activeBountyCount] = await Promise.all([
     shellUser ? getTokenBalance(db, shellUser.id) : null,
     shellUser?.role === "admin" ? getAdminIndicatorCounts(db) : null,
     shellUser ? getHackatimeConnectionStatusForUser(shellUser.id) : null,
+    shellUser ? countActiveBounties() : 0,
   ]);
   const walletFetchedAt = new Date().toISOString();
 
@@ -61,6 +63,7 @@ export default async function AppShell({
             initialWalletBalance={walletBalance}
             walletFetchedAt={walletFetchedAt}
             adminIndicators={adminIndicators}
+            activeBountyCount={activeBountyCount}
           />
 
           <main className="flex-1 min-w-0">

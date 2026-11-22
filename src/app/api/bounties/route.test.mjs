@@ -12,6 +12,7 @@ const state = {
     frozenReason: null,
   },
   insertedBountyValues: null,
+  announced: [],
 };
 
 function resetState() {
@@ -26,6 +27,7 @@ function resetState() {
     frozenReason: null,
   };
   state.insertedBountyValues = null;
+  state.announced = [];
 }
 
 const db = {
@@ -55,6 +57,17 @@ mock.module("@/lib/api-utils", () => ({
 mock.module("@/lib/frozen-account", () => ({
   getFrozenAccountState: async () => state.freezeState,
   getFrozenAccountMessage: () => "Frozen",
+}));
+
+mock.module("@/lib/notifications/after-response", () => ({
+  runAfterResponse: (task) => {
+    void task();
+  },
+}));
+mock.module("@/lib/notifications/bounty-events", () => ({
+  announceNewBounty: async (id) => {
+    state.announced.push(id);
+  },
 }));
 
 const { POST } = await import("./route.ts");
@@ -93,6 +106,7 @@ describe("POST /api/bounties", () => {
     expect(state.insertedBountyValues.status).toBe("pending");
     expect(state.insertedBountyValues.createdById).toBe("user-1");
     expect(state.insertedBountyValues.reviewedById).toBeNull();
+    expect(state.announced).toEqual([]);
   });
 
   test("admins create approved official bounties", async () => {
@@ -111,5 +125,6 @@ describe("POST /api/bounties", () => {
     expect(state.insertedBountyValues.createdById).toBe("admin-1");
     expect(state.insertedBountyValues.reviewedById).toBe("admin-1");
     expect(state.insertedBountyValues.reviewedAt).toBeInstanceOf(Date);
+    expect(state.announced).toEqual(["bounty-1"]);
   });
 });
