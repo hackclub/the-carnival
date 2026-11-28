@@ -10,6 +10,13 @@ import type {
   ReviewDecision,
 } from "@/db/schema";
 import { buildJoeFraudUrl } from "@/lib/constants";
+import {
+  getAddressGrantBlock,
+  IDENTITY_ADDRESS_FIELD_LABELS,
+  type CreatorAddressSource,
+  type IdentityAddress,
+  type IdentityAddressField,
+} from "@/lib/identity-address";
 import { Modal } from "@/components/ui";
 import AdminProjectNavCard from "@/components/AdminProjectNavCard";
 import ProjectStatusBadge from "@/components/ProjectStatusBadge";
@@ -68,6 +75,25 @@ type GrantCreator = {
   email: string;
   slackId: string;
   verificationStatus: string;
+  address: IdentityAddress;
+  addressSource: CreatorAddressSource;
+  addressMissingRequired: IdentityAddressField[];
+};
+
+const ADDRESS_FIELD_ORDER: IdentityAddressField[] = [
+  "addressLine1",
+  "addressLine2",
+  "city",
+  "stateProvince",
+  "zipPostalCode",
+  "country",
+];
+
+const ADDRESS_SOURCE_NOTE: Record<CreatorAddressSource, string> = {
+  identity: "Live from Hack Club Identity. This is what a grant would send to Airtable right now.",
+  stored:
+    "Not available live from Hack Club Identity, so this is the copy saved at the creator's last sign-in and may be out of date. This is what a grant would send to Airtable right now.",
+  none: "No address on file. A grant right now would create the Airtable record without one.",
 };
 
 type GrantReviewItem = {
@@ -275,6 +301,7 @@ export default function AdminGrantClient({
   }, [project.id]);
 
   const canGrant = useMemo(() => project.status === "shipped", [project.status]);
+  const addressGrantBlock = getAddressGrantBlock(initial.creator.addressMissingRequired);
   const canUngrant = useMemo(() => project.status === "granted", [project.status]);
   const canSendBackToReview = useMemo(() => project.status === "shipped", [project.status]);
   const canonicalProjectRange = useMemo(
@@ -840,6 +867,28 @@ export default function AdminGrantClient({
               </span>
             </div>
           </div>
+
+          <div className="border-t border-border pt-4">
+            <div className="text-foreground font-semibold">Address</div>
+            <dl className="mt-2 text-sm">
+              {ADDRESS_FIELD_ORDER.map((field) => (
+                <div key={field} className="mt-1 flex flex-wrap gap-x-2">
+                  <dt className="text-muted-foreground">{IDENTITY_ADDRESS_FIELD_LABELS[field]}:</dt>
+                  <dd className="text-foreground break-words">
+                    {initial.creator.address[field] || "—"}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-3 text-xs text-muted-foreground">
+              {ADDRESS_SOURCE_NOTE[initial.creator.addressSource]}
+            </p>
+            {addressGrantBlock ? (
+              <p role="alert" className="mt-2 text-xs font-semibold text-red-600">
+                {addressGrantBlock}
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -932,6 +981,9 @@ export default function AdminGrantClient({
           {project.status !== "granted" && telescreenGate && !telescreenGate.ok ? (
             <div className="mb-2 font-semibold text-red-600">{telescreenGate.message}</div>
           ) : null}
+          {project.status !== "granted" && addressGrantBlock ? (
+            <div className="mb-2 font-semibold text-red-600">{addressGrantBlock}</div>
+          ) : null}
           {project.status !== "granted" && telescreenGate?.ok && telescreenGate.needsDoubtfulAck ? (
             <label className="mb-2 flex items-start gap-2 text-foreground">
               <input
@@ -959,6 +1011,7 @@ export default function AdminGrantClient({
               busy ||
               !canGrant ||
               !technicalJustification.trim() ||
+              !!addressGrantBlock ||
               (telescreenGate !== null && !telescreenGate.ok) ||
               (telescreenGate?.ok === true &&
                 telescreenGate.needsDoubtfulAck &&
@@ -967,9 +1020,11 @@ export default function AdminGrantClient({
             title={
               !technicalJustification.trim()
                 ? "Write the Specific Technical Features justification first."
-                : telescreenGate && !telescreenGate.ok
-                  ? telescreenGate.message
-                  : undefined
+                : addressGrantBlock
+                  ? addressGrantBlock
+                  : telescreenGate && !telescreenGate.ok
+                    ? telescreenGate.message
+                    : undefined
             }
             className="inline-flex items-center justify-center bg-carnival-blue/20 hover:bg-carnival-blue/30 disabled:bg-carnival-blue/10 disabled:cursor-not-allowed text-foreground px-5 py-3 rounded-[var(--radius-xl)] font-semibold transition-colors border border-border"
           >

@@ -22,6 +22,7 @@ import {
   AIRTABLE_GRANTS_TABLE_ENV,
 } from "@/lib/airtable";
 import { assertGrantHoursInvariant, loadGrantContext } from "@/lib/review/grant";
+import { getAddressGrantBlock } from "@/lib/identity-address";
 import { appendAdminAudit } from "@/lib/admin-audit";
 import { sendReviewEmail } from "@/lib/loops";
 import { notifyReviewDM, notifyStaffReviewThread } from "@/lib/slack";
@@ -472,6 +473,17 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         const invariant = assertGrantHoursInvariant(context);
         if (!invariant.ok) {
           return NextResponse.json({ error: invariant.error }, { status: 409 });
+        }
+
+        // The Unified Database record must carry a usable mailing address:
+        // street line, city and country. Checked on the address this grant
+        // would actually send (live Identity, else the stored copy).
+        const addressBlock = getAddressGrantBlock(context.shipping.missingRequired);
+        if (addressBlock) {
+          return NextResponse.json(
+            { error: addressBlock, code: "creator_address_incomplete" },
+            { status: 409 },
+          );
         }
 
         // Fraud review gate (Telescreen/Robert): the current submission must be

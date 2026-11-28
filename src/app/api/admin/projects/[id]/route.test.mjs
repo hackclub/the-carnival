@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { bountyProject, peerReview, project, tokenLedger } from "@/db/schema";
+import { bountyProject, project, tokenLedger } from "@/db/schema";
+
+// A grant that succeeds notifies the staff review thread. Read lazily, so
+// clearing these keeps the tests from ever posting to a real Slack channel.
+delete process.env.SLACK_REVIEW_CHANNEL_ID;
+delete process.env.SLACK_BOUNTY_CHANNEL_ID;
 
 const state = {
   session: {
@@ -38,6 +43,11 @@ function resetState() {
     hackatimeStoppedAt: new Date("2026-03-31T23:59:59.999Z"),
     hackatimeTotalSeconds: 5 * 3600,
     submittedAt: null,
+    // Grant prerequisites: a written justification and a mailable address.
+    grantTechnicalJustification: "Content-script messaging between tabs.",
+    addressLine1: "15 Falls Rd",
+    city: "Shelburne",
+    country: "US",
   };
   state.updatedProjectRow = {
     id: "project-1",
@@ -74,7 +84,8 @@ function buildDb() {
         where() {
           return query;
         },
-        orderBy: async () => (query.sourceTable === peerReview ? [] : []),
+        // Awaitable (rows) and chainable (.limit): the grant path does both.
+        orderBy: () => Object.assign(Promise.resolve([]), { limit: async () => [] }),
         limit: async () => {
           if (query.sourceTable === project && state.currentProjectRow)
             return [state.currentProjectRow];
@@ -302,6 +313,20 @@ describe("PATCH /api/admin/projects/[id]", () => {
     expect(state.updateSets).toEqual([]);
   });
 
+  test("refuses to grant when the creator's address is incomplete", async () => {
+    state.currentProjectRow.status = "shipped";
+    state.currentProjectRow.approvedHours = 3;
+    state.currentProjectRow.addressLine1 = null;
+
+    const { res, json } = await patchAdminProject({ status: "granted" });
+
+    expect(res.status).toBe(409);
+    expect(json.code).toBe("creator_address_incomplete");
+    expect(json.error).toContain("Address (Line 1)");
+    expect(state.tokenInserts).toHaveLength(0);
+    expect(state.updateSets).toEqual([]);
+  });
+
   test("granting a linked project issues project and bounty bonus tokens", async () => {
     state.currentProjectRow.status = "shipped";
     state.currentProjectRow.approvedHours = 7.5;
@@ -322,7 +347,7 @@ describe("PATCH /api/admin/projects/[id]", () => {
     expect(res.status).toBe(200);
     expect(state.tokenInserts).toHaveLength(2);
     expect(state.tokenInserts[0].referenceType).toBe("project_grant");
-    expect(state.tokenInserts[0].tokens).toBe(70);
+    expect(state.tokenInserts[0].tokens).toBe(75);
     expect(state.tokenInserts[1].referenceType).toBe("bounty_bonus");
     expect(state.tokenInserts[1].referenceId).toBe("project-1:bounty-1");
     expect(state.tokenInserts[1].tokens).toBe(80);

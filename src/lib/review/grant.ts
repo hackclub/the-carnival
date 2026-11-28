@@ -31,21 +31,22 @@ import {
   type AirtableDevlogDeflationEntry,
   type AirtableGrantCreateInput,
 } from "@/lib/airtable";
+import {
+  EMPTY_IDENTITY_ADDRESS,
+  parseIdentityAddress,
+  resolveCreatorAddress,
+  type IdentityAddress,
+  type ResolvedCreatorAddress,
+} from "@/lib/identity-address";
 import { buildHackatimeDevlogReviewUrls, buildJoeFraudUrl } from "@/lib/constants";
 import { listProjectHackatimeProjects } from "@/lib/devlogs";
 import { hydrateReviewJustification } from "@/lib/review-justification";
 
-export type IdentityGrantProfile = {
+export type IdentityGrantProfile = IdentityAddress & {
   name: string | null;
   email: string | null;
   slackId: string | null;
   birthday: string | null;
-  addressLine1: string | null;
-  addressLine2: string | null;
-  city: string | null;
-  stateProvince: string | null;
-  country: string | null;
-  zipPostalCode: string | null;
 };
 
 const EMPTY_IDENTITY_GRANT_PROFILE: IdentityGrantProfile = {
@@ -53,12 +54,7 @@ const EMPTY_IDENTITY_GRANT_PROFILE: IdentityGrantProfile = {
   email: null,
   slackId: null,
   birthday: null,
-  addressLine1: null,
-  addressLine2: null,
-  city: null,
-  stateProvince: null,
-  country: null,
-  zipPostalCode: null,
+  ...EMPTY_IDENTITY_ADDRESS,
 };
 
 function toNullableString(value: unknown): string | null {
@@ -74,28 +70,6 @@ function toIsoDateOnlyOrNull(value: unknown): string | null {
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString().slice(0, 10);
-}
-
-function getAddressSource(payload: unknown): Record<string, unknown> | null {
-  if (!payload || typeof payload !== "object") return null;
-  const root = payload as Record<string, unknown>;
-
-  if (root.address && typeof root.address === "object" && !Array.isArray(root.address)) {
-    return root.address as Record<string, unknown>;
-  }
-
-  if (Array.isArray(root.addresses)) {
-    const primary = root.addresses.find((a) => {
-      if (!a || typeof a !== "object" || Array.isArray(a)) return false;
-      const row = a as { primary?: unknown };
-      return row.primary === true;
-    });
-    const first =
-      primary ?? root.addresses.find((a) => a && typeof a === "object" && !Array.isArray(a));
-    if (first && typeof first === "object") return first as Record<string, unknown>;
-  }
-
-  return root;
 }
 
 export function parseIdentityGrantProfile(payload: unknown): IdentityGrantProfile {
@@ -129,31 +103,7 @@ export function parseIdentityGrantProfile(payload: unknown): IdentityGrantProfil
     identity.birthday ?? identity.birthdate ?? identity.date_of_birth ?? identity.dob,
   );
 
-  const address = getAddressSource(identity);
-  if (!address) return out;
-
-  out.addressLine1 = toNullableString(
-    address.line_1 ??
-      address.address_line_1 ??
-      address.addressLine1 ??
-      address.line1 ??
-      address.street_1,
-  );
-  out.addressLine2 = toNullableString(
-    address.line_2 ??
-      address.address_line_2 ??
-      address.addressLine2 ??
-      address.line2 ??
-      address.street_2,
-  );
-  out.city = toNullableString(address.city ?? address.locality ?? address.town);
-  out.stateProvince = toNullableString(
-    address.state ?? address.state_province ?? address.stateProvince ?? address.region,
-  );
-  out.country = toNullableString(address.country ?? address.country_code ?? address.countryCode);
-  out.zipPostalCode = toNullableString(
-    address.postal_code ?? address.zip_postal_code ?? address.zipPostalCode ?? address.postcode,
-  );
+  Object.assign(out, parseIdentityAddress(identity));
 
   return out;
 }
@@ -162,26 +112,64 @@ export function parseIdentityGrantProfile(payload: unknown): IdentityGrantProfil
  * Creator identity is re-fetched live from Hack Club Identity at grant time
  * and takes precedence over locally stored values, so the Unified Database
  * always receives the freshest legal name/address.
+ *
+ * Returns null when there is no live answer (no token, revoked/expired token,
+ * Identity unreachable) so callers can tell "Identity says nothing" apart
+ * from "we could not ask" and fall back to the stored copy.
  */
 export async function fetchIdentityGrantProfile(
   identityToken: string | null,
-): Promise<IdentityGrantProfile> {
-  if (!identityToken) return EMPTY_IDENTITY_GRANT_PROFILE;
+): Promise<IdentityGrantProfile | null> {
+  if (!identityToken) return null;
 
   const identityHost = process.env.HC_IDENTITY_HOST ?? "https://auth.hackclub.com";
-  if (!identityHost) return EMPTY_IDENTITY_GRANT_PROFILE;
+  if (!identityHost) return null;
 
   try {
     const res = await fetch(`${identityHost}/api/v1/me`, {
       headers: { Authorization: `Bearer ${identityToken}` },
       cache: "no-store",
     });
-    if (!res.ok) return EMPTY_IDENTITY_GRANT_PROFILE;
+    if (!res.ok) return null;
     const raw = (await res.json().catch(() => null)) as unknown;
+    if (!raw || typeof raw !== "object") return null;
     return parseIdentityGrantProfile(raw);
   } catch {
-    return EMPTY_IDENTITY_GRANT_PROFILE;
+    return null;
   }
+}
+
+/**
+ * The creator's address exactly as a grant would send it to Airtable: live
+ * from Hack Club Identity, else the copy stored at their last sign-in. The
+ * grant page shows this and loadGrantContext sends it — one resolution, so
+ * the admin sees the address that ships.
+ */
+export async function loadCreatorAddress(
+  creatorId: string | null,
+): Promise<ResolvedCreatorAddress> {
+  if (!creatorId) return resolveCreatorAddress({ live: null, stored: null });
+
+  const rows = await db
+    .select({
+      identityToken: user.identityToken,
+      addressLine1: user.addressLine1,
+      addressLine2: user.addressLine2,
+      city: user.city,
+      stateProvince: user.stateProvince,
+      country: user.country,
+      zipPostalCode: user.zipPostalCode,
+    })
+    .from(user)
+    .where(eq(user.id, creatorId))
+    .limit(1);
+
+  const row = rows[0];
+  if (!row) return resolveCreatorAddress({ live: null, stored: null });
+
+  const { identityToken, ...stored } = row;
+  const live = await fetchIdentityGrantProfile(identityToken ?? null);
+  return resolveCreatorAddress({ live, stored });
 }
 
 type AirtableGrantReview = NonNullable<AirtableGrantCreateInput["reviews"]>[number];
@@ -352,6 +340,7 @@ export type GrantContext = {
     creatorSlackId: string | null;
   };
   input: AirtableGrantCreateInput;
+  shipping: ResolvedCreatorAddress;
 };
 
 /**
@@ -405,7 +394,7 @@ export async function loadGrantContext(
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || null;
 
-  const [identityProfile, reviews, linkedProjects, devlogAssessments] = await Promise.all([
+  const [liveIdentityProfile, reviews, linkedProjects, devlogAssessments] = await Promise.all([
     fetchIdentityGrantProfile(current.creatorIdentityToken ?? null),
     loadGrantReviewsForAirtable(projectId, current.hackatimeProjectName),
     listProjectHackatimeProjects(projectId),
@@ -415,6 +404,19 @@ export async function loadGrantContext(
       appUrl,
     }),
   ]);
+
+  const identityProfile = liveIdentityProfile ?? EMPTY_IDENTITY_GRANT_PROFILE;
+  const shipping = resolveCreatorAddress({
+    live: liveIdentityProfile,
+    stored: {
+      addressLine1: current.addressLine1,
+      addressLine2: current.addressLine2,
+      city: current.city,
+      stateProvince: current.stateProvince,
+      country: current.country,
+      zipPostalCode: current.zipPostalCode,
+    },
+  });
 
   const latestApprovedAtIso =
     reviews
@@ -470,14 +472,7 @@ export async function loadGrantContext(
       birthdayIso: identityProfile.birthday ?? current.creatorBirthday ?? null,
       hackatimeUserId: current.creatorHackatimeUserId ?? null,
     },
-    shipping: {
-      addressLine1: identityProfile.addressLine1 ?? current.addressLine1 ?? null,
-      addressLine2: identityProfile.addressLine2 ?? current.addressLine2 ?? null,
-      city: identityProfile.city ?? current.city ?? null,
-      stateProvince: identityProfile.stateProvince ?? current.stateProvince ?? null,
-      country: identityProfile.country ?? current.country ?? null,
-      zipPostalCode: identityProfile.zipPostalCode ?? current.zipPostalCode ?? null,
-    },
+    shipping: shipping.address,
     appUrl,
     reviewStatus: "Approved" as const,
     reviews,
@@ -501,6 +496,7 @@ export async function loadGrantContext(
       creatorSlackId: current.creatorSlackId ?? null,
     },
     input,
+    shipping,
   };
 }
 
