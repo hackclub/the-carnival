@@ -140,10 +140,13 @@ export async function fetchIdentityGrantProfile(
 }
 
 /**
- * The creator's address exactly as a grant would send it to Airtable: live
+ * The creator's address as a grant would send it to Airtable right now: live
  * from Hack Club Identity, else the copy stored at their last sign-in. The
- * grant page shows this and loadGrantContext sends it — one resolution, so
- * the admin sees the address that ships.
+ * grant page shows this; loadGrantContext resolves it again, by the same
+ * rule, when the grant is made. The two requests can disagree (a token
+ * expires, the creator edits their address), so the grant request carries
+ * the address the admin saw and the route refuses the grant when the fresh
+ * resolution no longer matches it.
  */
 export async function loadCreatorAddress(
   creatorId: string | null,

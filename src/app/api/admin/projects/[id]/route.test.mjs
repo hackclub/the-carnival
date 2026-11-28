@@ -219,6 +219,21 @@ mock.module("@/lib/airtable", () => ({
 
 const { DELETE, PATCH } = await import("./route.ts");
 
+// The address the grant page would have shown for the default fixture.
+const REVIEWED_ADDRESS = {
+  addressLine1: "15 Falls Rd",
+  addressLine2: null,
+  city: "Shelburne",
+  stateProvince: null,
+  country: "US",
+  zipPostalCode: null,
+};
+const grantBody = (extra = {}) => ({
+  status: "granted",
+  reviewedAddress: REVIEWED_ADDRESS,
+  ...extra,
+});
+
 async function patchAdminProject(body) {
   const req = new Request("http://localhost/api/admin/projects/project-1", {
     method: "PATCH",
@@ -305,7 +320,7 @@ describe("PATCH /api/admin/projects/[id]", () => {
     state.currentProjectRow.approvedHours = 3;
     state.currentProjectRow.creatorId = "admin-1";
 
-    const { res, json } = await patchAdminProject({ status: "granted" });
+    const { res, json } = await patchAdminProject(grantBody());
 
     expect(res.status).toBe(403);
     expect(json).toEqual({ error: "You cannot grant your own project.", code: "self_grant" });
@@ -318,11 +333,29 @@ describe("PATCH /api/admin/projects/[id]", () => {
     state.currentProjectRow.approvedHours = 3;
     state.currentProjectRow.addressLine1 = null;
 
-    const { res, json } = await patchAdminProject({ status: "granted" });
+    const { res, json } = await patchAdminProject(grantBody());
 
     expect(res.status).toBe(409);
     expect(json.code).toBe("creator_address_incomplete");
     expect(json.error).toContain("Address (Line 1)");
+    expect(state.tokenInserts).toHaveLength(0);
+    expect(state.updateSets).toEqual([]);
+  });
+
+  test("refuses to grant when the address differs from the one the admin reviewed", async () => {
+    state.currentProjectRow.status = "shipped";
+    state.currentProjectRow.approvedHours = 3;
+
+    const stale = await patchAdminProject(
+      grantBody({ reviewedAddress: { ...REVIEWED_ADDRESS, addressLine1: "1 Old Rd" } }),
+    );
+    expect(stale.res.status).toBe(409);
+    expect(stale.json.code).toBe("creator_address_changed");
+
+    const absent = await patchAdminProject({ status: "granted" });
+    expect(absent.res.status).toBe(409);
+    expect(absent.json.code).toBe("creator_address_changed");
+
     expect(state.tokenInserts).toHaveLength(0);
     expect(state.updateSets).toEqual([]);
   });
@@ -342,7 +375,7 @@ describe("PATCH /api/admin/projects/[id]", () => {
       },
     ];
 
-    const { res } = await patchAdminProject({ status: "granted" });
+    const { res } = await patchAdminProject(grantBody());
 
     expect(res.status).toBe(200);
     expect(state.tokenInserts).toHaveLength(2);
@@ -368,7 +401,7 @@ describe("PATCH /api/admin/projects/[id]", () => {
       },
     ];
 
-    const { res } = await patchAdminProject({ status: "granted" });
+    const { res } = await patchAdminProject(grantBody());
 
     expect(res.status).toBe(200);
     const bonus = state.tokenInserts.find((row) => row.referenceType === "bounty_bonus");
@@ -391,8 +424,8 @@ describe("PATCH /api/admin/projects/[id]", () => {
       },
     ];
 
-    const first = await patchAdminProject({ status: "granted" });
-    const second = await patchAdminProject({ status: "granted" });
+    const first = await patchAdminProject(grantBody());
+    const second = await patchAdminProject(grantBody());
 
     expect(first.res.status).toBe(200);
     expect(second.res.status).toBe(200);

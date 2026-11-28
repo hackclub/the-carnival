@@ -93,7 +93,7 @@ const ADDRESS_SOURCE_NOTE: Record<CreatorAddressSource, string> = {
   identity: "Live from Hack Club Identity. This is what a grant would send to Airtable right now.",
   stored:
     "Not available live from Hack Club Identity, so this is the copy saved at the creator's last sign-in and may be out of date. This is what a grant would send to Airtable right now.",
-  none: "No address on file. A grant right now would create the Airtable record without one.",
+  none: "No address on file. This project cannot be granted until the creator has one.",
 };
 
 type GrantReviewItem = {
@@ -503,6 +503,9 @@ export default function AdminGrantClient({
               ? {
                   grantTechnicalJustification: technicalJustification,
                   telescreenDoubtfulAcknowledged: telescreenDoubtfulAck,
+                  // The address this page showed; the server refuses the
+                  // grant if it would now send a different one.
+                  reviewedAddress: initial.creator.address,
                 }
               : {}),
           }),
@@ -537,7 +540,7 @@ export default function AdminGrantClient({
         setBusy(false);
       }
     },
-    [project.id, technicalJustification, telescreenDoubtfulAck],
+    [project.id, technicalJustification, telescreenDoubtfulAck, initial.creator.address],
   );
 
   const onDeleteProject = useCallback(async () => {

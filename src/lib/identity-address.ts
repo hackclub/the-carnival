@@ -108,6 +108,19 @@ export function missingRequiredAddressFields(address: IdentityAddress): Identity
 }
 
 /**
+ * Read back the address the grant page displayed, as the grant request
+ * carries it. Null when it is absent or not an object.
+ */
+export function parseReviewedAddress(value: unknown): IdentityAddress | null {
+  if (!isRecord(value)) return null;
+  return onlyAddressFields(value as IdentityAddress);
+}
+
+export function isSameAddress(a: IdentityAddress, b: IdentityAddress): boolean {
+  return ADDRESS_FIELDS.every((field) => toNullableString(a[field]) === toNullableString(b[field]));
+}
+
+/**
  * Why a grant is refused over the address, or null when it may proceed. One
  * wording for the API error and the grant page.
  */

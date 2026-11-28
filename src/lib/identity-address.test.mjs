@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 const {
   getAddressGrantBlock,
+  isSameAddress,
+  parseReviewedAddress,
   parseIdentityAddress,
   resolveCreatorAddress,
   missingRequiredAddressFields,
@@ -136,4 +138,14 @@ test("grant block names the missing fields, and is null for a complete address",
   const block = getAddressGrantBlock(["addressLine1", "country"]);
   expect(block).toContain("Address (Line 1), Country");
   expect(block).toContain("cannot be granted");
+});
+
+test("reviewed address round-trips and compares on the six fields only", () => {
+  const shown = { ...EMPTY, addressLine1: "15 Falls Rd", city: "Shelburne", country: "US" };
+  const parsed = parseReviewedAddress(JSON.parse(JSON.stringify({ ...shown, extra: "x" })));
+  expect(parsed).toEqual(shown);
+  expect(isSameAddress(parsed, { ...shown, addressLine2: "  " })).toBe(true);
+  expect(isSameAddress(parsed, { ...shown, city: "Burlington" })).toBe(false);
+  expect(parseReviewedAddress(undefined)).toBeNull();
+  expect(parseReviewedAddress("15 Falls Rd")).toBeNull();
 });
