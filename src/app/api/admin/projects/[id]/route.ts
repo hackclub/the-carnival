@@ -22,6 +22,7 @@ import {
   AIRTABLE_GRANTS_TABLE_ENV,
 } from "@/lib/airtable";
 import { assertGrantHoursInvariant, loadGrantContext } from "@/lib/review/grant";
+import { getAddressGrantBlock, isSameAddress, parseReviewedAddress } from "@/lib/identity-address";
 import { appendAdminAudit } from "@/lib/admin-audit";
 import { sendReviewEmail } from "@/lib/loops";
 import { notifyReviewDM, notifyStaffReviewThread } from "@/lib/slack";
@@ -44,6 +45,7 @@ type AdminProjectPatchBody = {
    * fraud score and accounted for it. Required to grant a doubtful submission.
    */
   telescreenDoubtfulAcknowledged?: unknown;
+  reviewedAddress?: unknown;
 };
 
 function isAdminEditableStatus(value: unknown): value is ProjectStatus {
@@ -472,6 +474,33 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         const invariant = assertGrantHoursInvariant(context);
         if (!invariant.ok) {
           return NextResponse.json({ error: invariant.error }, { status: 409 });
+        }
+
+        // The Unified Database record must carry a usable mailing address:
+        // street line, city and country. Checked on the address this grant
+        // would actually send (live Identity, else the stored copy).
+        const addressBlock = getAddressGrantBlock(context.shipping.missingRequired);
+        if (addressBlock) {
+          return NextResponse.json(
+            { error: addressBlock, code: "creator_address_incomplete" },
+            { status: 409 },
+          );
+        }
+
+        // The address sent must be the address the admin reviewed. The grant
+        // page resolved it in an earlier request; if this request resolves a
+        // different one (token expired since, creator edited it), refuse so
+        // the admin reloads and looks at what will actually ship.
+        const reviewedAddress = parseReviewedAddress(body.reviewedAddress);
+        if (!reviewedAddress || !isSameAddress(reviewedAddress, context.shipping.address)) {
+          return NextResponse.json(
+            {
+              error:
+                "The creator's address is not the one shown when this page loaded. Reload the page, check the address, then grant again.",
+              code: "creator_address_changed",
+            },
+            { status: 409 },
+          );
         }
 
         // Fraud review gate (Telescreen/Robert): the current submission must be

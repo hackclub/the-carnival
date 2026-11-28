@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { bountyProject, peerReview, project, tokenLedger } from "@/db/schema";
+import { bountyProject, project, tokenLedger } from "@/db/schema";
+
+// A grant that succeeds notifies the staff review thread. Read lazily, so
+// clearing these keeps the tests from ever posting to a real Slack channel.
+delete process.env.SLACK_REVIEW_CHANNEL_ID;
+delete process.env.SLACK_BOUNTY_CHANNEL_ID;
 
 const state = {
   session: {
@@ -38,6 +43,11 @@ function resetState() {
     hackatimeStoppedAt: new Date("2026-03-31T23:59:59.999Z"),
     hackatimeTotalSeconds: 5 * 3600,
     submittedAt: null,
+    // Grant prerequisites: a written justification and a mailable address.
+    grantTechnicalJustification: "Content-script messaging between tabs.",
+    addressLine1: "15 Falls Rd",
+    city: "Shelburne",
+    country: "US",
   };
   state.updatedProjectRow = {
     id: "project-1",
@@ -74,7 +84,8 @@ function buildDb() {
         where() {
           return query;
         },
-        orderBy: async () => (query.sourceTable === peerReview ? [] : []),
+        // Awaitable (rows) and chainable (.limit): the grant path does both.
+        orderBy: () => Object.assign(Promise.resolve([]), { limit: async () => [] }),
         limit: async () => {
           if (query.sourceTable === project && state.currentProjectRow)
             return [state.currentProjectRow];
@@ -208,6 +219,21 @@ mock.module("@/lib/airtable", () => ({
 
 const { DELETE, PATCH } = await import("./route.ts");
 
+// The address the grant page would have shown for the default fixture.
+const REVIEWED_ADDRESS = {
+  addressLine1: "15 Falls Rd",
+  addressLine2: null,
+  city: "Shelburne",
+  stateProvince: null,
+  country: "US",
+  zipPostalCode: null,
+};
+const grantBody = (extra = {}) => ({
+  status: "granted",
+  reviewedAddress: REVIEWED_ADDRESS,
+  ...extra,
+});
+
 async function patchAdminProject(body) {
   const req = new Request("http://localhost/api/admin/projects/project-1", {
     method: "PATCH",
@@ -294,10 +320,42 @@ describe("PATCH /api/admin/projects/[id]", () => {
     state.currentProjectRow.approvedHours = 3;
     state.currentProjectRow.creatorId = "admin-1";
 
-    const { res, json } = await patchAdminProject({ status: "granted" });
+    const { res, json } = await patchAdminProject(grantBody());
 
     expect(res.status).toBe(403);
     expect(json).toEqual({ error: "You cannot grant your own project.", code: "self_grant" });
+    expect(state.tokenInserts).toHaveLength(0);
+    expect(state.updateSets).toEqual([]);
+  });
+
+  test("refuses to grant when the creator's address is incomplete", async () => {
+    state.currentProjectRow.status = "shipped";
+    state.currentProjectRow.approvedHours = 3;
+    state.currentProjectRow.addressLine1 = null;
+
+    const { res, json } = await patchAdminProject(grantBody());
+
+    expect(res.status).toBe(409);
+    expect(json.code).toBe("creator_address_incomplete");
+    expect(json.error).toContain("Address (Line 1)");
+    expect(state.tokenInserts).toHaveLength(0);
+    expect(state.updateSets).toEqual([]);
+  });
+
+  test("refuses to grant when the address differs from the one the admin reviewed", async () => {
+    state.currentProjectRow.status = "shipped";
+    state.currentProjectRow.approvedHours = 3;
+
+    const stale = await patchAdminProject(
+      grantBody({ reviewedAddress: { ...REVIEWED_ADDRESS, addressLine1: "1 Old Rd" } }),
+    );
+    expect(stale.res.status).toBe(409);
+    expect(stale.json.code).toBe("creator_address_changed");
+
+    const absent = await patchAdminProject({ status: "granted" });
+    expect(absent.res.status).toBe(409);
+    expect(absent.json.code).toBe("creator_address_changed");
+
     expect(state.tokenInserts).toHaveLength(0);
     expect(state.updateSets).toEqual([]);
   });
@@ -317,12 +375,12 @@ describe("PATCH /api/admin/projects/[id]", () => {
       },
     ];
 
-    const { res } = await patchAdminProject({ status: "granted" });
+    const { res } = await patchAdminProject(grantBody());
 
     expect(res.status).toBe(200);
     expect(state.tokenInserts).toHaveLength(2);
     expect(state.tokenInserts[0].referenceType).toBe("project_grant");
-    expect(state.tokenInserts[0].tokens).toBe(70);
+    expect(state.tokenInserts[0].tokens).toBe(75);
     expect(state.tokenInserts[1].referenceType).toBe("bounty_bonus");
     expect(state.tokenInserts[1].referenceId).toBe("project-1:bounty-1");
     expect(state.tokenInserts[1].tokens).toBe(80);
@@ -343,7 +401,7 @@ describe("PATCH /api/admin/projects/[id]", () => {
       },
     ];
 
-    const { res } = await patchAdminProject({ status: "granted" });
+    const { res } = await patchAdminProject(grantBody());
 
     expect(res.status).toBe(200);
     const bonus = state.tokenInserts.find((row) => row.referenceType === "bounty_bonus");
@@ -366,8 +424,8 @@ describe("PATCH /api/admin/projects/[id]", () => {
       },
     ];
 
-    const first = await patchAdminProject({ status: "granted" });
-    const second = await patchAdminProject({ status: "granted" });
+    const first = await patchAdminProject(grantBody());
+    const second = await patchAdminProject(grantBody());
 
     expect(first.res.status).toBe(200);
     expect(second.res.status).toBe(200);

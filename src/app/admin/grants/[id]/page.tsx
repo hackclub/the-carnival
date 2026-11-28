@@ -6,6 +6,7 @@ import AdminGrantClient from "@/components/AdminGrantClient";
 import { db } from "@/db";
 import { peerReview, project, user } from "@/db/schema";
 import { hydrateReviewJustification } from "@/lib/review-justification";
+import { loadCreatorAddress } from "@/lib/review/grant";
 import { getServerSession } from "@/lib/server-session";
 
 export default async function AdminGrantDetailPage(props: { params: Promise<{ id: string }> }) {
@@ -81,6 +82,10 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
     .where(eq(peerReview.projectId, p.id))
     .orderBy(asc(peerReview.createdAt), asc(peerReview.id));
 
+  // Same resolution the Airtable payload uses (live Identity, else the stored
+  // copy), so the address shown here is the address a grant sends.
+  const creatorAddress = await loadCreatorAddress(p.creatorId);
+
   const devlogSeconds =
     typeof p.hoursSpentSeconds === "number" && Number.isFinite(p.hoursSpentSeconds)
       ? Math.max(0, Math.floor(p.hoursSpentSeconds))
@@ -136,6 +141,9 @@ export default async function AdminGrantDetailPage(props: { params: Promise<{ id
             email: p.creatorEmail || "",
             slackId: p.creatorSlackId || "",
             verificationStatus: p.creatorVerificationStatus || "",
+            address: creatorAddress.address,
+            addressSource: creatorAddress.source,
+            addressMissingRequired: creatorAddress.missingRequired,
           },
           reviews: reviews.map((r) => ({
             id: r.id,
